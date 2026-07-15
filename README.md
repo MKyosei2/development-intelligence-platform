@@ -1,2 +1,519 @@
-# development-intelligence-platform
-Development intelligence and quality management platform for game, media, and software production teams.
+# Development Intelligence Platform
+
+ゲーム・映像・IT開発向けプロジェクト意思決定支援基盤の空の最終ファイル構造です。
+
+## 注意
+
+- ルートの `README.md` 以外はすべて空ファイルです。
+- ソースコード、設定、CI/CD定義、テスト、Docker定義には内容を入れていません。
+- 実装は `Collector JSON → API → PostgreSQL → Dashboard` の順に開始します。
+
+## トップレベル構成
+
+| パス | 役割 |
+|---|---|
+| `.github/` | GitHub上のIssue、PR、レビュー担当、CI/CDを管理する。 |
+| `src/` | C#のDomain、Application、Infrastructure、API、Blazor、Workerを置く。 |
+| `services/python-analysis/` | PythonによるAI分析、異常検知、要約、予測を置く。 |
+| `collectors/` | 汎用JSON、Unity、Maya、C++ Native Collectorを置く。 |
+| `tests/` | 単体、統合、E2E、負荷試験を置く。 |
+| `infrastructure/` | Docker、DB、監視、Reverse Proxy、運用Scriptを置く。 |
+| `docs/` | 要件、設計、品質、運用、セキュリティ、Portfolio資料を置く。 |
+| `samples/` | 再現用のサンプルProjectと入力Dataを置く。 |
+| `schemas/` | 外部入力のJSON Schemaを置く。 |
+| `scripts/` | 開発・Build・Test・Releaseの自動化を置く。 |
+
+## 各ファイルに書く内容
+
+- `.dockerignore` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `.editorconfig` — 文字コード、改行、Indent、Code Styleを統一する。
+- `.env.example` — 必要な環境変数名とダミー値を提示する。
+- `.gitattributes` — 改行、Diff、Git LFSなどGit属性を定義する。
+- `.github/CODEOWNERS` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `.github/ISSUE_TEMPLATE/bug_report.yml` — CI/CD、監視、コンテナなどのYAML設定を書く。
+- `.github/ISSUE_TEMPLATE/config.yml` — CI/CD、監視、コンテナなどのYAML設定を書く。
+- `.github/ISSUE_TEMPLATE/feature_request.yml` — CI/CD、監視、コンテナなどのYAML設定を書く。
+- `.github/PULL_REQUEST_TEMPLATE.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `.github/workflows/docker-build.yml` — GitHub Actionsでビルド、テスト、セキュリティ検査、Docker作成、リリースを自動化する。
+- `.github/workflows/dotnet-ci.yml` — GitHub Actionsでビルド、テスト、セキュリティ検査、Docker作成、リリースを自動化する。
+- `.github/workflows/integration-test.yml` — GitHub Actionsでビルド、テスト、セキュリティ検査、Docker作成、リリースを自動化する。
+- `.github/workflows/native-collector-ci.yml` — GitHub Actionsでビルド、テスト、セキュリティ検査、Docker作成、リリースを自動化する。
+- `.github/workflows/python-ci.yml` — GitHub Actionsでビルド、テスト、セキュリティ検査、Docker作成、リリースを自動化する。
+- `.github/workflows/release.yml` — GitHub Actionsでビルド、テスト、セキュリティ検査、Docker作成、リリースを自動化する。
+- `.github/workflows/security-scan.yml` — GitHub Actionsでビルド、テスト、セキュリティ検査、Docker作成、リリースを自動化する。
+- `.gitignore` — Git管理から除外する生成物、秘密情報、仮想環境を定義する。
+- `CHANGELOG.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `CODE_OF_CONDUCT.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `CONTRIBUTING.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `DevelopmentIntelligencePlatform.sln` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `Directory.Build.props` — .NET全体へ共通適用するBuildまたはPackage設定を書く。
+- `Directory.Build.targets` — .NET全体へ共通適用するBuildまたはPackage設定を書く。
+- `Directory.Packages.props` — .NET全体へ共通適用するBuildまたはPackage設定を書く。
+- `LICENSE` — 利用、改変、再配布条件を書く。
+- `SECURITY.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `artifacts/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `artifacts/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `collectors/generic-json-collector/Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `collectors/generic-json-collector/GenericJsonCollector.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `collectors/generic-json-collector/schemas/collector-report.schema.json` — JSON入力形式、必須項目、型、制約をJSON Schemaで定義する。
+- `collectors/generic-json-collector/src/Commands/.gitkeep` — .gitkeepとして状態変更ユースケースを実装する。
+- `collectors/generic-json-collector/src/Parsing/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `collectors/generic-json-collector/src/Program.cs` — Programに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/generic-json-collector/src/Validation/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `collectors/generic-json-collector/tests/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `collectors/maya-collector/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `collectors/maya-collector/dip_maya_collector/analyzers/animation_analyzer.py` — animation_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/analyzers/blendshape_analyzer.py` — blendshape_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/analyzers/hierarchy_analyzer.py` — hierarchy_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/analyzers/material_analyzer.py` — material_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/analyzers/mesh_analyzer.py` — mesh_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/analyzers/skin_analyzer.py` — skin_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/config.py` — configに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/main.py` — mainに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/dip_maya_collector/reporting/report_writer.py` — report_writerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/setup.py` — setupに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `collectors/maya-collector/tests/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `collectors/native-collector/CMakeLists.txt` — C++ビルド、警告、テスト、依存関係を定義する。
+- `collectors/native-collector/Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `collectors/native-collector/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `collectors/native-collector/cmake/CompilerWarnings.cmake` — C++ビルド、警告、テスト、依存関係を定義する。
+- `collectors/native-collector/include/dip/AssetHasher.hpp` — AssetHasherのC++公開インターフェースを宣言する。
+- `collectors/native-collector/include/dip/CollectorOptions.hpp` — CollectorOptionsのC++公開インターフェースを宣言する。
+- `collectors/native-collector/include/dip/DuplicateDetector.hpp` — DuplicateDetectorのC++公開インターフェースを宣言する。
+- `collectors/native-collector/include/dip/FileScanner.hpp` — FileScannerのC++公開インターフェースを宣言する。
+- `collectors/native-collector/include/dip/LogAnalyzer.hpp` — LogAnalyzerのC++公開インターフェースを宣言する。
+- `collectors/native-collector/include/dip/ReportWriter.hpp` — ReportWriterのC++公開インターフェースを宣言する。
+- `collectors/native-collector/src/AssetHasher.cpp` — AssetHasherのC++実装またはテストを書く。
+- `collectors/native-collector/src/DuplicateDetector.cpp` — DuplicateDetectorのC++実装またはテストを書く。
+- `collectors/native-collector/src/FileScanner.cpp` — FileScannerのC++実装またはテストを書く。
+- `collectors/native-collector/src/LogAnalyzer.cpp` — LogAnalyzerのC++実装またはテストを書く。
+- `collectors/native-collector/src/ReportWriter.cpp` — ReportWriterのC++実装またはテストを書く。
+- `collectors/native-collector/src/main.cpp` — mainのC++実装またはテストを書く。
+- `collectors/native-collector/tests/DuplicateDetectorTests.cpp` — DuplicateDetectorTestsのC++実装またはテストを書く。
+- `collectors/native-collector/tests/FileScannerTests.cpp` — FileScannerTestsのC++実装またはテストを書く。
+- `collectors/native-collector/tests/LogAnalyzerTests.cpp` — LogAnalyzerTestsのC++実装またはテストを書く。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Analysis/AnimationAnalyzer.cs` — AnimationAnalyzerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Analysis/BuildSettingsAnalyzer.cs` — BuildSettingsAnalyzerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Analysis/MaterialAnalyzer.cs` — MaterialAnalyzerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Analysis/MeshAnalyzer.cs` — MeshAnalyzerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Analysis/ReferenceAnalyzer.cs` — ReferenceAnalyzerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Analysis/SceneAnalyzer.cs` — SceneAnalyzerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Analysis/TextureAnalyzer.cs` — TextureAnalyzerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Cli/UnityCollectorCli.cs` — UnityCollectorCliに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Configuration/UnityCollectorSettings.cs` — UnityCollectorSettingsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/Reporting/UnityCollectorReportWriter.cs` — UnityCollectorReportWriterに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Editor/UI/UnityCollectorWindow.cs` — UnityCollectorWindowに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Runtime/PerformanceProbe.cs` — PerformanceProbeに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Tests/Editor/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/Tests/Runtime/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `collectors/unity-collector/Packages/com.mkyosei.dip.collector/package.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `collectors/unity-collector/samples/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `docker-compose.override.yml` — CI/CD、監視、コンテナなどのYAML設定を書く。
+- `docker-compose.yml` — CI/CD、監視、コンテナなどのYAML設定を書く。
+- `docs/00-overview/glossary.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/00-overview/goals-and-non-goals.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/00-overview/project-overview.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/01-requirements/acceptance-criteria.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/01-requirements/functional-requirements.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/01-requirements/non-functional-requirements.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/01-requirements/user-stories.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/architecture-decisions/ADR-001-use-dotnet.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/architecture-decisions/ADR-002-use-postgresql.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/architecture-decisions/ADR-003-use-redis.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/architecture-decisions/ADR-004-analysis-service-boundary.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/architecture-decisions/ADR-005-collector-contract.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/component-diagram.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/container-diagram.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/data-flow.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/deployment-diagram.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/02-architecture/system-context.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/03-database/er-diagram.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/03-database/migration-policy.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/03-database/schema.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/04-api/api-overview.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/04-api/authentication.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/04-api/collector-api.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/04-api/error-format.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/04-api/webhook-api.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/05-quality/baseline-comparison.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/05-quality/health-score.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/05-quality/pull-request-risk-score.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/05-quality/quality-gate-rules.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/06-operations/backup-and-restore.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/06-operations/deployment.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/06-operations/incident-response.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/06-operations/local-development.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/06-operations/monitoring.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/07-security/access-control.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/07-security/secrets-management.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/07-security/threat-model.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/07-security/webhook-security.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/08-testing/end-to-end-scenarios.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/08-testing/load-test-plan.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/08-testing/test-strategy.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/09-portfolio/benchmark-results.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/09-portfolio/demo-script.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/09-portfolio/reviewer-brief.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `docs/09-portfolio/screenshots/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `docs/09-portfolio/videos/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `docs/diagrams/exported/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `docs/diagrams/source/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `global.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `infrastructure/database/init/001-create-database.sql` — DB初期化、拡張機能、Seed Data用SQLを書く。
+- `infrastructure/database/init/002-create-extensions.sql` — DB初期化、拡張機能、Seed Data用SQLを書く。
+- `infrastructure/database/seed/sample-project.sql` — DB初期化、拡張機能、Seed Data用SQLを書く。
+- `infrastructure/docker/analysis.Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `infrastructure/docker/api.Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `infrastructure/docker/native-collector.Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `infrastructure/docker/web.Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `infrastructure/docker/worker.Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `infrastructure/monitoring/grafana/dashboards/api-overview.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `infrastructure/monitoring/grafana/dashboards/queue-overview.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `infrastructure/monitoring/grafana/dashboards/worker-overview.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `infrastructure/monitoring/grafana/provisioning/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `infrastructure/monitoring/otel/otel-collector-config.yml` — CI/CD、監視、コンテナなどのYAML設定を書く。
+- `infrastructure/monitoring/prometheus/prometheus.yml` — CI/CD、監視、コンテナなどのYAML設定を書く。
+- `infrastructure/reverse-proxy/nginx.conf` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `infrastructure/scripts/migrate-database.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `infrastructure/scripts/reset-local.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `infrastructure/scripts/run-all-tests.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `infrastructure/scripts/seed-sample-data.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `infrastructure/scripts/start-local.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `infrastructure/scripts/stop-local.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `reports/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `reports/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `samples/sample-game-project/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `samples/sample-game-project/collector-reports/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `samples/sample-game-project/expected-results/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `samples/sample-pipeline-data/metrics.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `samples/sample-pipeline-data/pipeline-runs.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `samples/sample-pipeline-data/projects.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `samples/sample-pipeline-data/pull-requests.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `samples/sample-pipeline-data/quality-issues.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `samples/sample-web-project/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `samples/sample-web-project/collector-reports/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `schemas/collector-report.schema.json` — JSON入力形式、必須項目、型、制約をJSON Schemaで定義する。
+- `schemas/metric.schema.json` — JSON入力形式、必須項目、型、制約をJSON Schemaで定義する。
+- `schemas/pipeline-run.schema.json` — JSON入力形式、必須項目、型、制約をJSON Schemaで定義する。
+- `schemas/quality-issue.schema.json` — JSON入力形式、必須項目、型、制約をJSON Schemaで定義する。
+- `schemas/quality-rules.schema.json` — JSON入力形式、必須項目、型、制約をJSON Schemaで定義する。
+- `scripts/build-all.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `scripts/format-all.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `scripts/generate-sample-data.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `scripts/package-release.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `scripts/setup-development.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `scripts/test-all.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `scripts/verify-environment.ps1` — 環境構築、起動、停止、移行、テスト、PackagingをPowerShellで自動化する。
+- `services/python-analysis/Dockerfile` — 対象サービスのDocker Image作成手順を書く。
+- `services/python-analysis/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `services/python-analysis/app/api/dependencies.py` — dependenciesに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/api/routes/anomaly.py` — anomalyに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/api/routes/health.py` — healthに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/api/routes/release_prediction.py` — release_predictionに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/api/routes/risk.py` — riskに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/api/routes/summary.py` — summaryに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/core/config.py` — configに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/core/logging.py` — loggingに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/core/security.py` — securityに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/main.py` — mainに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/models/anomaly_model.py` — anomaly_modelに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/models/release_model.py` — release_modelに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/models/risk_model.py` — risk_modelに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/prompts/daily_summary.txt` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `services/python-analysis/app/prompts/release_recommendation.txt` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `services/python-analysis/app/prompts/risk_explanation.txt` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `services/python-analysis/app/repositories/metric_repository.py` — metric_repositoryに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/repositories/project_repository.py` — project_repositoryに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/schemas/anomaly.py` — anomalyに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/schemas/release_prediction.py` — release_predictionに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/schemas/risk.py` — riskに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/schemas/summary.py` — summaryに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/services/anomaly_detector.py` — anomaly_detectorに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/services/evidence_builder.py` — evidence_builderに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/services/log_classifier.py` — log_classifierに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/services/release_predictor.py` — release_predictorに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/services/risk_analyzer.py` — risk_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/app/services/summary_generator.py` — summary_generatorに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/data/models/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `services/python-analysis/data/samples/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `services/python-analysis/pyproject.toml` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `services/python-analysis/pytest.ini` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `services/python-analysis/requirements-dev.txt` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `services/python-analysis/requirements.txt` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `services/python-analysis/scripts/evaluate_models.py` — evaluate_modelsに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/scripts/generate_sample_data.py` — generate_sample_dataに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/scripts/train_risk_model.py` — train_risk_modelに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/tests/test_anomaly_detector.py` — test_anomaly_detectorに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/tests/test_release_predictor.py` — test_release_predictorに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/tests/test_risk_analyzer.py` — test_risk_analyzerに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `services/python-analysis/tests/test_summary_generator.py` — test_summary_generatorに対応するPython API、分析、Collector、モデルまたはテストを実装する。
+- `src/Dip.Api/Controllers/AnalysisController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/AuthController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/CollectorsController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/MetricsController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/NotificationsController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/PipelineRunsController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/ProjectsController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/PullRequestsController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/QualityIssuesController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/TeamLoadController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Controllers/WebhooksController.cs` — HTTPエンドポイントを公開しApplication層へ処理を委譲する。
+- `src/Dip.Api/Dip.Api.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `src/Dip.Api/Extensions/ApplicationBuilderExtensions.cs` — ApplicationBuilderExtensionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Extensions/ServiceCollectionExtensions.cs` — ServiceCollectionExtensionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Extensions/SwaggerExtensions.cs` — SwaggerExtensionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Filters/ValidationFilter.cs` — ValidationFilterに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Middleware/CorrelationIdMiddleware.cs` — CorrelationIdMiddlewareに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Middleware/ExceptionHandlingMiddleware.cs` — ExceptionHandlingMiddlewareに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Middleware/RateLimitMiddleware.cs` — RateLimitMiddlewareに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Middleware/RequestLoggingMiddleware.cs` — RequestLoggingMiddlewareに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Models/Requests/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `src/Dip.Api/Models/Responses/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `src/Dip.Api/Program.cs` — Programに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Api/Properties/launchSettings.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `src/Dip.Api/appsettings.Development.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `src/Dip.Api/appsettings.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `src/Dip.Application/Abstractions/External/IAnalysisClient.cs` — IAnalysisClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/External/IGitHubClient.cs` — IGitHubClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/External/INotificationClient.cs` — INotificationClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/External/IObjectStorage.cs` — IObjectStorageに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/External/IQueueClient.cs` — IQueueClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/Persistence/IMetricRepository.cs` — IMetricRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/Persistence/IPipelineRunRepository.cs` — IPipelineRunRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/Persistence/IProjectRepository.cs` — IProjectRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/Persistence/IQualityIssueRepository.cs` — IQualityIssueRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/Persistence/IUnitOfWork.cs` — IUnitOfWorkに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Abstractions/Time/ISystemClock.cs` — ISystemClockに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Behaviors/LoggingBehavior.cs` — LoggingBehaviorに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Behaviors/TransactionBehavior.cs` — TransactionBehaviorに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Behaviors/ValidationBehavior.cs` — ValidationBehaviorに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/DependencyInjection.cs` — DependencyInjectionに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Dip.Application.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `src/Dip.Application/Features/Analysis/Commands/RequestAnomalyDetectionCommand.cs` — RequestAnomalyDetectionCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Analysis/Commands/RequestDailySummaryCommand.cs` — RequestDailySummaryCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Analysis/Commands/RequestReleasePredictionCommand.cs` — RequestReleasePredictionCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Analysis/Dtos/AnomalyResultDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/Analysis/Dtos/DailySummaryDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/Analysis/Dtos/ReleasePredictionDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/Health/Commands/RecalculateProjectHealthCommand.cs` — RecalculateProjectHealthCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Health/Queries/GetHealthHistoryQuery.cs` — GetHealthHistoryQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/Health/Queries/GetProjectHealthQuery.cs` — GetProjectHealthQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/Health/Services/ProjectHealthCalculator.cs` — ProjectHealthCalculatorに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Features/Health/Services/RiskScoreCalculator.cs` — RiskScoreCalculatorに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Application/Features/Notifications/Commands/RetryNotificationCommand.cs` — RetryNotificationCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Notifications/Commands/SendNotificationCommand.cs` — SendNotificationCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Notifications/Dtos/NotificationDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/PipelineRuns/Commands/AddMetricsCommand.cs` — AddMetricsCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/PipelineRuns/Commands/AddQualityIssuesCommand.cs` — AddQualityIssuesCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/PipelineRuns/Commands/CompletePipelineRunCommand.cs` — CompletePipelineRunCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/PipelineRuns/Commands/CreatePipelineRunCommand.cs` — CreatePipelineRunCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/PipelineRuns/Dtos/PipelineRunDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/PipelineRuns/Queries/GetPipelineRunQuery.cs` — GetPipelineRunQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/PipelineRuns/Queries/GetPipelineRunsQuery.cs` — GetPipelineRunsQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/Projects/Commands/CreateProjectCommand.cs` — CreateProjectCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Projects/Commands/DeleteProjectCommand.cs` — DeleteProjectCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Projects/Commands/UpdateProjectCommand.cs` — UpdateProjectCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Projects/Dtos/ProjectDashboardDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/Projects/Dtos/ProjectDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/Projects/Queries/GetProjectDashboardQuery.cs` — GetProjectDashboardQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/Projects/Queries/GetProjectQuery.cs` — GetProjectQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/Projects/Queries/GetProjectsQuery.cs` — GetProjectsQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/PullRequests/Commands/RecalculatePullRequestRiskCommand.cs` — RecalculatePullRequestRiskCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/PullRequests/Commands/SyncPullRequestCommand.cs` — SyncPullRequestCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/PullRequests/Dtos/PullRequestRiskDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/PullRequests/Queries/GetPullRequestQuery.cs` — GetPullRequestQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/PullRequests/Queries/GetPullRequestRiskQuery.cs` — GetPullRequestRiskQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/Quality/Commands/EvaluateQualityGateCommand.cs` — EvaluateQualityGateCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Quality/Commands/ResolveQualityIssueCommand.cs` — ResolveQualityIssueCommandとして状態変更ユースケースを実装する。
+- `src/Dip.Application/Features/Quality/Dtos/QualityIssueDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/Quality/Dtos/QualityTrendDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/Quality/Queries/GetQualityIssuesQuery.cs` — GetQualityIssuesQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/Quality/Queries/GetQualityTrendsQuery.cs` — GetQualityTrendsQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/TeamLoad/Dtos/TeamLoadDto.cs` — 層間・API間で受け渡すDTOを定義する。
+- `src/Dip.Application/Features/TeamLoad/Queries/GetMemberWorkloadQuery.cs` — GetMemberWorkloadQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Features/TeamLoad/Queries/GetTeamLoadQuery.cs` — GetTeamLoadQueryとして参照ユースケースを実装する。
+- `src/Dip.Application/Mapping/ApplicationMappingProfile.cs` — ApplicationMappingProfileに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Dip.Domain.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `src/Dip.Domain/Entities/AuditLog.cs` — AuditLogのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/Commit.cs` — Commitのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/DailySummary.cs` — DailySummaryのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/Metric.cs` — Metricのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/Notification.cs` — Notificationのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/PipelineRun.cs` — PipelineRunのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/Project.cs` — Projectのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/ProjectMember.cs` — ProjectMemberのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/PullRequest.cs` — PullRequestのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/QualityGateResult.cs` — QualityGateResultのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/QualityIssue.cs` — QualityIssueのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/QualityRule.cs` — QualityRuleのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/Repository.cs` — Repositoryのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Entities/TaskItem.cs` — TaskItemのドメイン状態と振る舞いを定義する。
+- `src/Dip.Domain/Enums/IssueStatus.cs` — IssueStatusで使用する列挙値を定義する。
+- `src/Dip.Domain/Enums/NotificationType.cs` — NotificationTypeで使用する列挙値を定義する。
+- `src/Dip.Domain/Enums/PipelineStatus.cs` — PipelineStatusで使用する列挙値を定義する。
+- `src/Dip.Domain/Enums/ProjectRole.cs` — ProjectRoleで使用する列挙値を定義する。
+- `src/Dip.Domain/Enums/QualityGateStatus.cs` — QualityGateStatusで使用する列挙値を定義する。
+- `src/Dip.Domain/Enums/RiskLevel.cs` — RiskLevelで使用する列挙値を定義する。
+- `src/Dip.Domain/Enums/Severity.cs` — Severityで使用する列挙値を定義する。
+- `src/Dip.Domain/Events/CriticalIssueDetectedEvent.cs` — CriticalIssueDetectedEventに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Events/PipelineCompletedEvent.cs` — PipelineCompletedEventに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Events/PullRequestRiskChangedEvent.cs` — PullRequestRiskChangedEventに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Events/QualityGateFailedEvent.cs` — QualityGateFailedEventに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Exceptions/DomainException.cs` — DomainExceptionに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Exceptions/InvalidMetricException.cs` — InvalidMetricExceptionに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Exceptions/InvalidProjectStateException.cs` — InvalidProjectStateExceptionに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Rules/MetricThresholdRule.cs` — MetricThresholdRuleに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Rules/QualityGateRule.cs` — QualityGateRuleに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Rules/RegressionRule.cs` — RegressionRuleに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/Rules/TeamLoadRule.cs` — TeamLoadRuleに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Domain/ValueObjects/CommitSha.cs` — CommitShaを不変かつ検証可能な値として定義する。
+- `src/Dip.Domain/ValueObjects/HealthScore.cs` — HealthScoreを不変かつ検証可能な値として定義する。
+- `src/Dip.Domain/ValueObjects/MetricValue.cs` — MetricValueを不変かつ検証可能な値として定義する。
+- `src/Dip.Domain/ValueObjects/Percentage.cs` — Percentageを不変かつ検証可能な値として定義する。
+- `src/Dip.Domain/ValueObjects/RepositoryUrl.cs` — RepositoryUrlを不変かつ検証可能な値として定義する。
+- `src/Dip.Domain/ValueObjects/RiskScore.cs` — RiskScoreを不変かつ検証可能な値として定義する。
+- `src/Dip.Infrastructure/Analysis/AnalysisClient.cs` — AnalysisClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Analysis/AnalysisOptions.cs` — AnalysisOptionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Analysis/Models/AnalysisRequest.cs` — AnalysisRequestに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Analysis/Models/AnalysisResponse.cs` — AnalysisResponseに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Authentication/AuthenticationOptions.cs` — AuthenticationOptionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Authentication/GitHubOAuthService.cs` — GitHubOAuthServiceに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Authentication/JwtTokenService.cs` — JwtTokenServiceに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/DependencyInjection.cs` — DependencyInjectionに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Dip.Infrastructure.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `src/Dip.Infrastructure/GitHub/GitHubClient.cs` — GitHubClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/GitHub/GitHubOptions.cs` — GitHubOptionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/GitHub/GitHubWebhookParser.cs` — GitHubWebhookParserに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/GitHub/GitHubWebhookVerifier.cs` — GitHubWebhookVerifierに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/GitHub/Models/GitHubIssueModel.cs` — GitHubIssueModelに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/GitHub/Models/GitHubPullRequestModel.cs` — GitHubPullRequestModelに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/GitHub/Models/GitHubWorkflowRunModel.cs` — GitHubWorkflowRunModelに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Notifications/EmailNotificationClient.cs` — EmailNotificationClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Notifications/GitHubCommentNotificationClient.cs` — GitHubCommentNotificationClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Notifications/NotificationOptions.cs` — NotificationOptionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Notifications/SlackNotificationClient.cs` — SlackNotificationClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Observability/LoggingExtensions.cs` — LoggingExtensionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Observability/MetricsRegistry.cs` — MetricsRegistryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Observability/OpenTelemetryExtensions.cs` — OpenTelemetryExtensionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Configurations/MetricConfiguration.cs` — MetricConfigurationに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs` — NotificationConfigurationに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Configurations/PipelineRunConfiguration.cs` — PipelineRunConfigurationに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Configurations/ProjectConfiguration.cs` — ProjectConfigurationに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Configurations/PullRequestConfiguration.cs` — PullRequestConfigurationに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Configurations/QualityIssueConfiguration.cs` — QualityIssueConfigurationに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/DbInitializer.cs` — DbInitializerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/DipDbContext.cs` — DipDbContextに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Migrations/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `src/Dip.Infrastructure/Persistence/Repositories/MetricRepository.cs` — MetricRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Repositories/PipelineRunRepository.cs` — PipelineRunRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Repositories/ProjectRepository.cs` — ProjectRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Persistence/Repositories/QualityIssueRepository.cs` — QualityIssueRepositoryに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Queue/QueueMessageSerializer.cs` — QueueMessageSerializerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Queue/QueueOptions.cs` — QueueOptionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Queue/RedisQueueClient.cs` — RedisQueueClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Resilience/CircuitBreakerPolicies.cs` — CircuitBreakerPoliciesに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Resilience/RetryPolicies.cs` — RetryPoliciesに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Storage/LocalObjectStorage.cs` — LocalObjectStorageに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Storage/MinioObjectStorage.cs` — MinioObjectStorageに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Storage/StorageOptions.cs` — StorageOptionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Infrastructure/Time/SystemClock.cs` — SystemClockに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Constants/HeaderNames.cs` — HeaderNamesに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Constants/MetricNames.cs` — MetricNamesに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Constants/QueueNames.cs` — QueueNamesに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Api/ApiError.cs` — ApiErrorに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Api/HealthResponse.cs` — HealthResponseに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Api/PagedResponse.cs` — PagedResponseに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Collectors/CollectorArtifact.cs` — CollectorArtifactに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Collectors/CollectorIssue.cs` — CollectorIssueに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Collectors/CollectorMetric.cs` — CollectorMetricに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Collectors/CollectorReport.cs` — CollectorReportに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Events/PipelineCompletedMessage.cs` — PipelineCompletedMessageに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Contracts/Events/QualityGateFailedMessage.cs` — QualityGateFailedMessageに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Shared/Dip.Shared.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `src/Dip.Shared/Serialization/SharedJsonOptions.cs` — SharedJsonOptionsに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/App.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Common/HealthScoreCard.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Common/LoadingPanel.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Common/MetricCard.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Common/RiskBadge.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Common/SeverityBadge.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Common/TrendChart.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Layout/MainLayout.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Layout/NavMenu.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Layout/TopBar.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Projects/ProjectHealthPanel.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Projects/ProjectSummary.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/PullRequests/PullRequestMetricsTable.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/PullRequests/PullRequestRiskPanel.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Components/Team/TeamLoadPanel.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Dip.Web.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `src/Dip.Web/Pages/Home.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/Login.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/Notifications.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/PipelineRunDetails.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/PipelineRuns.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/ProjectDashboard.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/Projects.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/PullRequestDetails.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/PullRequests.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/QualityIssues.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/QualityTrends.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/ReleaseReadiness.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/Settings.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Pages/TeamLoad.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Program.cs` — Programに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/Routes.razor` — Blazorの画面または再利用UIコンポーネントを実装する。
+- `src/Dip.Web/Services/ApiClient.cs` — ApiClientに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/Services/AuthenticationService.cs` — AuthenticationServiceに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/Services/ProjectDashboardService.cs` — ProjectDashboardServiceに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/Services/RealtimeUpdateService.cs` — RealtimeUpdateServiceに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/State/ProjectState.cs` — ProjectStateに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/State/UserState.cs` — UserStateに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Web/appsettings.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `src/Dip.Web/wwwroot/css/app.css` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `src/Dip.Web/wwwroot/css/dashboard.css` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `src/Dip.Web/wwwroot/favicon.png` — Web Dashboard用ファビコン画像を置く。
+- `src/Dip.Web/wwwroot/images/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `src/Dip.Web/wwwroot/js/charts.js` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `src/Dip.Worker/Dip.Worker.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `src/Dip.Worker/Handlers/CollectorReportHandler.cs` — WebhookやQueue Messageを処理する。
+- `src/Dip.Worker/Handlers/PullRequestWebhookHandler.cs` — WebhookやQueue Messageを処理する。
+- `src/Dip.Worker/Handlers/QualityGateResultHandler.cs` — WebhookやQueue Messageを処理する。
+- `src/Dip.Worker/Handlers/WorkflowRunWebhookHandler.cs` — WebhookやQueue Messageを処理する。
+- `src/Dip.Worker/Program.cs` — Programに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Worker/Scheduling/DailySummaryScheduler.cs` — DailySummarySchedulerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Worker/Scheduling/HealthRecalculationScheduler.cs` — HealthRecalculationSchedulerに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `src/Dip.Worker/Workers/AnalysisRequestWorker.cs` — キューまたは定期実行されるバックグラウンド処理を実装する。
+- `src/Dip.Worker/Workers/DailySummaryWorker.cs` — キューまたは定期実行されるバックグラウンド処理を実装する。
+- `src/Dip.Worker/Workers/DeadLetterWorker.cs` — キューまたは定期実行されるバックグラウンド処理を実装する。
+- `src/Dip.Worker/Workers/GitHubWebhookWorker.cs` — キューまたは定期実行されるバックグラウンド処理を実装する。
+- `src/Dip.Worker/Workers/NotificationWorker.cs` — キューまたは定期実行されるバックグラウンド処理を実装する。
+- `src/Dip.Worker/Workers/PipelineProcessingWorker.cs` — キューまたは定期実行されるバックグラウンド処理を実装する。
+- `src/Dip.Worker/Workers/QualityEvaluationWorker.cs` — キューまたは定期実行されるバックグラウンド処理を実装する。
+- `src/Dip.Worker/appsettings.json` — 設定、サンプル、Dashboard、期待結果などのJSONを書く。
+- `tests/Dip.Application.Tests/Dip.Application.Tests.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `tests/Dip.Application.Tests/Health/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.Application.Tests/PullRequests/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.Application.Tests/Quality/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `tests/Dip.Domain.Tests/Entities/.gitkeep` — .gitkeepのドメイン状態と振る舞いを定義する。
+- `tests/Dip.Domain.Tests/Rules/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.Domain.Tests/ValueObjects/.gitkeep` — .gitkeepを不変かつ検証可能な値として定義する。
+- `tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `tests/Dip.EndToEndTests/Scenarios/DailySummaryScenario.cs` — DailySummaryScenarioに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `tests/Dip.EndToEndTests/Scenarios/PullRequestPipelineScenario.cs` — PullRequestPipelineScenarioに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `tests/Dip.EndToEndTests/Scenarios/QualityGateFailureScenario.cs` — QualityGateFailureScenarioに対応するC#の型、サービス、ルール、設定またはテストを実装する。
+- `tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `tests/Dip.Infrastructure.Tests/GitHub/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.Infrastructure.Tests/Persistence/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.Infrastructure.Tests/Queue/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.IntegrationTests/Analysis/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.IntegrationTests/Api/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.IntegrationTests/Database/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj` — .NETプロジェクト参照、NuGet依存、ビルド設定を定義する。
+- `tests/Dip.IntegrationTests/Redis/.gitkeep` — 空ディレクトリをGitで保持するためのプレースホルダー。
+- `tests/load/README.md` — このファイル名が示す要件、設計、運用、説明、手順または記録を書く。
+- `tests/load/k6/dashboard-load.js` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `tests/load/k6/pipeline-load.js` — ファイル名に対応する設定、実装、テストまたは資料を書く。
+- `tests/load/k6/webhook-load.js` — ファイル名に対応する設定、実装、テストまたは資料を書く。
