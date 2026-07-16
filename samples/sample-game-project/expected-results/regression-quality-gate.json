@@ -1,0 +1,9 @@
+{
+  "status": "Fail",
+  "criticalCount": 2,
+  "warningCount": 1,
+  "expectedReasons": [
+    "Average FPS regressed by 10%.",
+    "Memory increased by 25%."
+  ]
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "pipelineRunId": "33333333-3333-3333-3333-333333333333",
+    "name": "average_fps",
+    "value": 54,
+    "unit": "fps",
+    "baselineValue": 60,
+    "differencePercent": -10
+  },
+  {
+    "pipelineRunId": "33333333-3333-3333-3333-333333333333",
+    "name": "memory_mb",
+    "value": 1250,
+    "unit": "MB",
+    "baselineValue": 1000,
+    "differencePercent": 25
+  }
+]

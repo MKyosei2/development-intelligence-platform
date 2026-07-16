@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "collectorType": "unity",
+  "collectorVersion": "0.1.0",
+  "projectId": "11111111-1111-1111-1111-111111111111",
+  "commitSha": "aaaaaaaaaaaaaaaa",
+  "branch": "develop",
+  "startedAt": "2026-07-15T10:00:00Z",
+  "finishedAt": "2026-07-15T10:01:00Z",
+  "status": "succeeded",
+  "metrics": [
+    {
+      "name": "average_fps",
+      "value": 60,
+      "unit": "fps",
+      "baselineValue": null
+    },
+    {
+      "name": "memory_mb",
+      "value": 1000,
+      "unit": "MB",
+      "baselineValue": null
+    }
+  ],
+  "issues": []
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "collectorType": "unity",
+  "collectorVersion": "0.1.0",
+  "projectId": "11111111-1111-1111-1111-111111111111",
+  "commitSha": "cccccccccccccccc",
+  "branch": "feature/broken-scene",
+  "startedAt": "2026-07-16T11:00:00Z",
+  "finishedAt": "2026-07-16T11:00:20Z",
+  "status": "failed",
+  "metrics": [],
+  "issues": [
+    {
+      "category": "build",
+      "severity": "Critical",
+      "title": "Android build failed",
+      "description": "Compilation failed.",
+      "source": "Build/Android"
+    },
+    {
+      "category": "reference",
+      "severity": "Critical",
+      "title": "Missing component reference",
+      "description": "Missing script.",
+      "source": "Assets/Scenes/BattleScene.unity"
+    }
+  ]
+}

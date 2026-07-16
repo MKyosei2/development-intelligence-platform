@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "collectorType": "generic-json",
+  "collectorVersion": "0.1.0",
+  "projectId": "44444444-4444-4444-4444-444444444444",
+  "commitSha": "dddddddddddddddd",
+  "branch": "develop",
+  "startedAt": "2026-07-16T12:00:00Z",
+  "finishedAt": "2026-07-16T12:03:00Z",
+  "status": "succeeded",
+  "metrics": [
+    {
+      "name": "api_p95_ms",
+      "value": 420,
+      "unit": "ms",
+      "baselineValue": 350
+    },
+    {
+      "name": "error_rate_percent",
+      "value": 0.8,
+      "unit": "percent",
+      "baselineValue": 0.5
+    }
+  ],
+  "issues": []
+}
