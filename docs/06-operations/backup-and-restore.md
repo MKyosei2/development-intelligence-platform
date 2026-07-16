@@ -1,0 +1,3 @@
+# Backup and Restore
+
+PostgreSQLを日次Backupし、定期Restore Testを行います。MinIOはVersioningとRetentionを設定し、復元後にCollector再送が重複しないことを確認します。
