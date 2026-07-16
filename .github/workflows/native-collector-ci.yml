@@ -1,0 +1,41 @@
+name: Native Collector CI
+on:
+  push:
+    branches: [main, develop]
+    paths: ["collectors/native-collector/**", ".github/workflows/native-collector-ci.yml"]
+  pull_request:
+    branches: [main, develop]
+    paths: ["collectors/native-collector/**", ".github/workflows/native-collector-ci.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-test:
+    name: Build native collector (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: collectors/native-collector
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-collector-${{ matrix.os }}
+          path: collectors/native-collector/build/**/dip-native-collector*
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible defect in the Development Intelligence Platform
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Provide enough information for another developer to reproduce it.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options: [API, Web dashboard, Worker, Python analysis service, Generic JSON collector, Unity collector, Maya collector, Native C++ collector, Database, Redis / queue, CI/CD, Documentation, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the problem in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start ...
+        2. Send ...
+        3. Open ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and evidence
+      description: Paste logs, trace IDs, commit SHAs, pipeline IDs, or collector reports. Remove secrets and personal data.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or commit SHA
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Windows 11 / .NET 8 / Python 3.12 / Docker Desktop
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues before creating this report.
+          required: true
+        - label: I removed secrets, tokens, and personal information from the report.
+          required: true

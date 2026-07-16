@@ -1,0 +1,48 @@
+name: Python CI
+on:
+  push:
+    branches: [main, develop]
+    paths: ["services/python-analysis/**", "collectors/maya-collector/**", ".github/workflows/python-ci.yml"]
+  pull_request:
+    branches: [main, develop]
+    paths: ["services/python-analysis/**", "collectors/maya-collector/**", ".github/workflows/python-ci.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  analysis-service:
+    name: Test Python analysis service
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/python-analysis
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            services/python-analysis/requirements.txt
+            services/python-analysis/requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          if [ -s requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      - name: Compile check
+        run: python -m compileall app tests
+      - name: Test
+        run: pytest -q --junitxml=python-test-results.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-test-results
+          path: services/python-analysis/python-test-results.xml
+          if-no-files-found: warn
+          retention-days: 14

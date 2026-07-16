@@ -1,0 +1,13 @@
+# Replace or extend these owners as the team grows.
+* @MKyosei2
+/src/Dip.Domain/ @MKyosei2
+/src/Dip.Application/ @MKyosei2
+/src/Dip.Infrastructure/ @MKyosei2
+/src/Dip.Api/ @MKyosei2
+/src/Dip.Web/ @MKyosei2
+/src/Dip.Worker/ @MKyosei2
+/services/python-analysis/ @MKyosei2
+/collectors/ @MKyosei2
+/infrastructure/ @MKyosei2
+/schemas/ @MKyosei2
+/.github/ @MKyosei2

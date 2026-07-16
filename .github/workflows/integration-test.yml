@@ -1,0 +1,61 @@
+name: Integration Tests
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  integration:
+    name: Integration tests with PostgreSQL and Redis
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: dip_test
+          POSTGRES_USER: dip
+          POSTGRES_PASSWORD: dip-test-password
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U dip -d dip_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__PostgreSql: Host=localhost;Port=5432;Database=dip_test;Username=dip;Password=dip-test-password
+      ConnectionStrings__Redis: localhost:6379
+      ASPNETCORE_ENVIRONMENT: Testing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Restore
+        run: dotnet restore DevelopmentIntelligencePlatform.sln
+      - name: Build
+        run: dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
+      - name: Run integration tests
+        run: >
+          dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj
+          --configuration Release --no-build
+          --logger "trx;LogFileName=integration-tests.trx"
+          --results-directory TestResults
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: TestResults
+          if-no-files-found: warn
+          retention-days: 14
