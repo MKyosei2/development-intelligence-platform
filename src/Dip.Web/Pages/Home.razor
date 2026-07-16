@@ -1,0 +1,5 @@
+@page "/"
+@inject Dip.Web.Services.ApiClient Api
+<h1>Development Intelligence Platform</h1>
+@if(_loading){<p>Loading...</p>}else if(_projects.Count==0){<p>No projects.</p>}else{<table><thead><tr><th>Name</th><th>Repository</th><th>Branch</th><th>Health</th></tr></thead><tbody>@foreach(var p in _projects){<tr><td>@p.Name</td><td><a href="@p.RepositoryUrl">@p.RepositoryUrl</a></td><td>@p.DefaultBranch</td><td>@p.HealthScore</td></tr>}</tbody></table>}
+@code{private IReadOnlyList<Dip.Application.Features.Projects.ProjectDto> _projects=[];private bool _loading=true;protected override async Task OnInitializedAsync(){try{_projects=await Api.GetProjectsAsync();}finally{_loading=false;}}}

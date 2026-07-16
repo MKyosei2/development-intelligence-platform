@@ -1,0 +1,1 @@
+namespace Dip.Domain.Enums; public enum IssueStatus { Open, Resolved, Ignored }

@@ -1,0 +1,1 @@
+namespace Dip.Domain.Enums; public enum PipelineStatus { Queued, Running, Succeeded, Failed, Cancelled, TimedOut }

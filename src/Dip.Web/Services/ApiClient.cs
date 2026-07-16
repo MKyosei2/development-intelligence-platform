@@ -1,0 +1,1 @@
+using System.Net.Http.Json; using Dip.Application.Features.Projects; namespace Dip.Web.Services; public sealed class ApiClient{private readonly HttpClient _http;public ApiClient(HttpClient h)=>_http=h;public async Task<IReadOnlyList<ProjectDto>>GetProjectsAsync(CancellationToken ct=default)=>await _http.GetFromJsonAsync<ProjectDto[]>("api/projects",ct)??[];}

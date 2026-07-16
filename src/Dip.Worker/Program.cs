@@ -1,0 +1,1 @@
+using Dip.Application;using Dip.Infrastructure;using Dip.Worker.Workers;var builder=Host.CreateApplicationBuilder(args);builder.Services.AddApplication();builder.Services.AddInfrastructure(builder.Configuration);builder.Services.AddHostedService<HealthRecalculationWorker>();builder.Build().Run();
