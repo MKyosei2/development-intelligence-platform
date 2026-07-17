@@ -1,0 +1,1 @@
+using Microsoft.AspNetCore.Mvc; namespace Dip.Api.Controllers; [ApiController][Route("api/v1/projects/{projectId:guid}/dashboard")] public sealed class DashboardController:ControllerBase{[HttpGet] public IActionResult Get(Guid projectId)=>Ok(new{ProjectId=projectId,HealthScore=100,RiskLevel="Low"});}
