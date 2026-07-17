@@ -1,0 +1,36 @@
+namespace Dip.Application.Abstractions.Messaging;
+
+public interface IQueueClient
+{
+    Task PublishAsync<T>(
+        string stream,
+        T message,
+        CancellationToken cancellationToken);
+
+    Task<QueueEnvelope?> ReadAsync(
+        string stream,
+        string consumerGroup,
+        string consumerName,
+        TimeSpan block,
+        CancellationToken cancellationToken);
+
+    Task AcknowledgeAsync(
+        string stream,
+        string consumerGroup,
+        string messageId,
+        CancellationToken cancellationToken);
+
+    Task MoveToDeadLetterAsync(
+        string sourceStream,
+        string deadLetterStream,
+        QueueEnvelope message,
+        string reason,
+        CancellationToken cancellationToken);
+}
+
+public sealed record QueueEnvelope(
+    string MessageId,
+    string MessageType,
+    string PayloadJson,
+    int Attempt,
+    string CorrelationId);
