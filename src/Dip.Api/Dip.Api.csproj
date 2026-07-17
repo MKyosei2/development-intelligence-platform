@@ -1,1 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include="..\Dip.Application\Dip.Application.csproj"/><ProjectReference Include="..\Dip.Infrastructure\Dip.Infrastructure.csproj"/><ProjectReference Include="..\Dip.Shared\Dip.Shared.csproj"/></ItemGroup><ItemGroup><PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2"/></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dip.Application\Dip.Application.csproj" />
+    <ProjectReference Include="..\Dip.Infrastructure\Dip.Infrastructure.csproj" />
+    <ProjectReference Include="..\Dip.Shared\Dip.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+</Project>
