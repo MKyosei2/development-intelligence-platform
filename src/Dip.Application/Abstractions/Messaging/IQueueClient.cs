@@ -1,5 +1,12 @@
 namespace Dip.Application.Abstractions.Messaging;
 
+public sealed record QueueEnvelope(
+    string MessageId,
+    string MessageType,
+    string PayloadJson,
+    int Attempt,
+    string CorrelationId);
+
 public interface IQueueClient
 {
     Task PublishAsync<T>(
@@ -27,10 +34,3 @@ public interface IQueueClient
         string reason,
         CancellationToken cancellationToken);
 }
-
-public sealed record QueueEnvelope(
-    string MessageId,
-    string MessageType,
-    string PayloadJson,
-    int Attempt,
-    string CorrelationId);

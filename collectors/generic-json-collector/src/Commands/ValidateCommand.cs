@@ -5,10 +5,20 @@ namespace GenericJsonCollector.Commands;
 
 public sealed class ValidateCommand
 {
-    private readonly CollectorReportParser _parser = new();
-    private readonly CollectorReportValidator _validator = new();
+    private readonly CollectorReportParser _parser;
+    private readonly CollectorReportValidator _validator;
 
-    public async Task<int> ExecuteAsync(string path, CancellationToken cancellationToken)
+    public ValidateCommand(
+        CollectorReportParser parser,
+        CollectorReportValidator validator)
+    {
+        _parser = parser;
+        _validator = validator;
+    }
+
+    public async Task<int> ExecuteAsync(
+        string path,
+        CancellationToken cancellationToken)
     {
         var report = await _parser.ParseAsync(path, cancellationToken);
         var errors = _validator.Validate(report);
@@ -19,8 +29,11 @@ public sealed class ValidateCommand
             return 0;
         }
 
+        Console.Error.WriteLine(
+            $"Collector report validation failed with {errors.Count} error(s):");
+
         foreach (var error in errors)
-            Console.Error.WriteLine(error);
+            Console.Error.WriteLine($"- {error}");
 
         return 2;
     }

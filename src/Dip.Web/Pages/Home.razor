@@ -1,5 +1,80 @@
 @page "/"
 @inject Dip.Web.Services.ApiClient Api
+
+<PageTitle>Development Intelligence Platform</PageTitle>
+
 <h1>Development Intelligence Platform</h1>
-@if(_loading){<p>Loading...</p>}else if(_projects.Count==0){<p>No projects.</p>}else{<table><thead><tr><th>Name</th><th>Repository</th><th>Branch</th><th>Health</th></tr></thead><tbody>@foreach(var p in _projects){<tr><td>@p.Name</td><td><a href="@p.RepositoryUrl">@p.RepositoryUrl</a></td><td>@p.DefaultBranch</td><td>@p.HealthScore</td></tr>}</tbody></table>}
-@code{private IReadOnlyList<Dip.Application.Features.Projects.ProjectDto> _projects=[];private bool _loading=true;protected override async Task OnInitializedAsync(){try{_projects=await Api.GetProjectsAsync();}finally{_loading=false;}}}
+
+@if (_loading)
+{
+    <p>Loading projects...</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_projects.Count == 0)
+{
+    <p>No projects are registered.</p>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var project in _projects)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h5">@project.Name</h2>
+                        <p class="text-muted mb-2">@project.Repository</p>
+                        <dl class="row mb-0">
+                            <dt class="col-6">Health</dt>
+                            <dd class="col-6">@project.HealthScore.ToString("0.##")</dd>
+                            <dt class="col-6">Risk</dt>
+                            <dd class="col-6">@project.RiskLevel</dd>
+                            <dt class="col-6">Pipeline</dt>
+                            <dd class="col-6">@Display(project.LatestPipelineStatus)</dd>
+                            <dt class="col-6">Quality gate</dt>
+                            <dd class="col-6">@Display(project.LatestQualityGateStatus)</dd>
+                        </dl>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a class="btn btn-primary"
+                           href="@($"/dashboard/{project.ProjectId}")">
+                            Open dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<
+        Dip.Application.Features.Dashboard.ProjectDashboardSummary> _projects =
+        Array.Empty<
+            Dip.Application.Features.Dashboard.ProjectDashboardSummary>();
+
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _projects = await Api.GetProjectsAsync();
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string Display(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not available" : value;
+}

@@ -1,0 +1,85 @@
+using System.Text.Json;
+
+namespace Dip.Domain.Entities;
+
+public sealed class QualityGateResult
+{
+    private QualityGateResult()
+    {
+    }
+
+    private QualityGateResult(
+        Guid id,
+        Guid projectId,
+        Guid pipelineRunId,
+        string status,
+        int criticalIssueCount,
+        int warningIssueCount,
+        decimal score,
+        string reasonsJson,
+        DateTimeOffset evaluatedAtUtc)
+    {
+        Id = id;
+        ProjectId = projectId;
+        PipelineRunId = pipelineRunId;
+        Status = status;
+        CriticalIssueCount = criticalIssueCount;
+        WarningIssueCount = warningIssueCount;
+        Score = score;
+        ReasonsJson = reasonsJson;
+        EvaluatedAtUtc = evaluatedAtUtc;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid ProjectId { get; private set; }
+    public Guid PipelineRunId { get; private set; }
+    public string Status { get; private set; } = string.Empty;
+    public int CriticalIssueCount { get; private set; }
+    public int WarningIssueCount { get; private set; }
+    public decimal Score { get; private set; }
+    public string ReasonsJson { get; private set; } = "[]";
+    public DateTimeOffset EvaluatedAtUtc { get; private set; }
+
+    public IReadOnlyList<string> GetReasons() =>
+        JsonSerializer.Deserialize<string[]>(ReasonsJson)
+        ?? Array.Empty<string>();
+
+    public static QualityGateResult Create(
+        Guid id,
+        Guid projectId,
+        Guid pipelineRunId,
+        string status,
+        int criticalIssueCount,
+        int warningIssueCount,
+        decimal score,
+        IReadOnlyCollection<string> reasons,
+        DateTimeOffset evaluatedAtUtc)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException("Id is required.", nameof(id));
+
+        if (projectId == Guid.Empty)
+            throw new ArgumentException(
+                "ProjectId is required.",
+                nameof(projectId));
+
+        if (pipelineRunId == Guid.Empty)
+            throw new ArgumentException(
+                "PipelineRunId is required.",
+                nameof(pipelineRunId));
+
+        if (status is not ("Passed" or "Warning" or "Failed"))
+            throw new ArgumentOutOfRangeException(nameof(status));
+
+        return new(
+            id,
+            projectId,
+            pipelineRunId,
+            status,
+            Math.Max(0, criticalIssueCount),
+            Math.Max(0, warningIssueCount),
+            Math.Clamp(score, 0m, 100m),
+            JsonSerializer.Serialize(reasons ?? Array.Empty<string>()),
+            evaluatedAtUtc);
+    }
+}

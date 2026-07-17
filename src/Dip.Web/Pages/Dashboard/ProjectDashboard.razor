@@ -1,0 +1,153 @@
+@page "/dashboard/{ProjectId:guid}"
+@inject Dip.Web.Services.ApiClient Api
+
+<PageTitle>Project Dashboard</PageTitle>
+
+@if (_loading)
+{
+    <p>Loading dashboard...</p>
+}
+else if (_notFound)
+{
+    <div class="alert alert-warning">Project was not found.</div>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_dashboard is not null)
+{
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h1>@_dashboard.Name</h1>
+            <p class="text-muted mb-0">@_dashboard.Repository</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="/">Back</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted">Health score</div>
+                    <div class="display-6">@_dashboard.HealthScore.ToString("0.##")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted">Risk</div>
+                    <div class="h3">@_dashboard.RiskLevel</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted">Quality gate</div>
+                    <div class="h3">@Display(_dashboard.QualityGateStatus)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted">Pipeline</div>
+                    <div class="h3">@Display(_dashboard.LatestPipelineStatus)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="h4">Quality gate reasons</h2>
+    <ul>
+        @foreach (var reason in _dashboard.QualityGateReasons)
+        {
+            <li>@reason</li>
+        }
+    </ul>
+
+    <h2 class="h4 mt-4">Latest metrics</h2>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Value</th>
+                <th>Unit</th>
+                <th>Difference</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var metric in _dashboard.Metrics)
+            {
+                <tr>
+                    <td>@metric.Name</td>
+                    <td>@metric.Value</td>
+                    <td>@metric.Unit</td>
+                    <td>@FormatDifference(metric.DifferencePercent)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="h4 mt-4">Open issues</h2>
+    @if (_dashboard.OpenIssues.Count == 0)
+    {
+        <p>No open issues.</p>
+    }
+    else
+    {
+        <div class="list-group">
+            @foreach (var issue in _dashboard.OpenIssues)
+            {
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <strong>@issue.Title</strong>
+                        <span>@issue.Severity</span>
+                    </div>
+                    <small class="text-muted">@issue.Category</small>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    private Dip.Application.Features.Dashboard.ProjectDashboardDetails? _dashboard;
+    private bool _loading = true;
+    private bool _notFound;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _error = null;
+        _notFound = false;
+
+        try
+        {
+            _dashboard = await Api.GetProjectAsync(ProjectId);
+            _notFound = _dashboard is null;
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string Display(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not available" : value;
+
+    private static string FormatDifference(decimal? value) =>
+        value is null ? "-" : $"{value:+0.##;-0.##;0}%";
+}

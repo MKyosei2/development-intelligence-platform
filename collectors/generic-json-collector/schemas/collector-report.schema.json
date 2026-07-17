@@ -2,11 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "DIP Collector Report",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "reportId",
+    "externalRunId",
+    "attemptNumber",
     "collectorType",
     "collectorVersion",
     "projectId",
+    "repository",
     "commitSha",
     "branch",
     "startedAt",
@@ -19,17 +24,38 @@
     "schemaVersion": {
       "const": "1.0"
     },
+    "reportId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "externalRunId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "attemptNumber": {
+      "type": "integer",
+      "minimum": 1
+    },
     "collectorType": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 100
     },
     "collectorVersion": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 50
     },
     "projectId": {
       "type": "string",
       "format": "uuid"
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
     },
     "commitSha": {
       "type": "string",
@@ -37,7 +63,8 @@
     },
     "branch": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 200
     },
     "startedAt": {
       "type": "string",
@@ -49,16 +76,140 @@
     },
     "status": {
       "enum": [
-        "succeeded",
-        "failed",
-        "partial"
+        "Succeeded",
+        "PartialSuccess",
+        "Failed",
+        "Cancelled",
+        "TimedOut"
       ]
     },
     "metrics": {
-      "type": "array"
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "value",
+          "unit"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "baselineValue": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "environmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "scenarioId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "buildConfiguration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "benchmarkVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          }
+        }
+      }
     },
     "issues": {
-      "type": "array"
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "severity",
+          "title",
+          "description"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "severity": {
+            "enum": [
+              "Info",
+              "Warning",
+              "Critical"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "ruleId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "evidenceJson": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 262144
+          }
+        }
+      }
     }
   }
 }

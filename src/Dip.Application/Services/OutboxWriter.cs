@@ -6,12 +6,12 @@ namespace Dip.Application.Services;
 
 public sealed class OutboxWriter
 {
+    private static readonly JsonSerializerOptions JsonOptions =
+        new(JsonSerializerDefaults.Web);
+
     private readonly IOutboxRepository _outbox;
 
-    public OutboxWriter(IOutboxRepository outbox)
-    {
-        _outbox = outbox;
-    }
+    public OutboxWriter(IOutboxRepository outbox) => _outbox = outbox;
 
     public Task EnqueueAsync<T>(
         T payload,
@@ -20,12 +20,21 @@ public sealed class OutboxWriter
         DateTimeOffset createdAtUtc,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        if (string.IsNullOrWhiteSpace(correlationId))
+            throw new ArgumentException(
+                "CorrelationId is required.",
+                nameof(correlationId));
+
         var message = new OutboxMessage(
             Guid.NewGuid(),
             typeof(T).FullName ?? typeof(T).Name,
-            JsonSerializer.Serialize(payload),
-            correlationId,
-            causationId,
+            JsonSerializer.Serialize(payload, JsonOptions),
+            correlationId.Trim(),
+            string.IsNullOrWhiteSpace(causationId)
+                ? null
+                : causationId.Trim(),
             createdAtUtc);
 
         return _outbox.AddAsync(message, cancellationToken);

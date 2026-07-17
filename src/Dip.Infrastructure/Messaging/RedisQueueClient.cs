@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace Dip.Infrastructure.Messaging;
@@ -8,14 +7,10 @@ namespace Dip.Infrastructure.Messaging;
 public sealed class RedisQueueClient : IQueueClient
 {
     private readonly IConnectionMultiplexer _redis;
-    private readonly RedisQueueOptions _options;
 
-    public RedisQueueClient(
-        IConnectionMultiplexer redis,
-        IOptions<RedisQueueOptions> options)
+    public RedisQueueClient(IConnectionMultiplexer redis)
     {
         _redis = redis;
-        _options = options.Value;
     }
 
     public async Task PublishAsync<T>(
@@ -23,14 +18,21 @@ public sealed class RedisQueueClient : IQueueClient
         T message,
         CancellationToken cancellationToken)
     {
-        var database = _redis.GetDatabase();
+        cancellationToken.ThrowIfCancellationRequested();
+
         var payload = JsonSerializer.Serialize(message);
-        await database.StreamAddAsync(
+        var messageType = typeof(T).FullName ?? typeof(T).Name;
+        var correlationId = TryReadProperty(payload, "correlationId");
+        var attempt = TryReadProperty(payload, "attempt");
+
+        await _redis.GetDatabase().StreamAddAsync(
             stream,
-            new[]
+            new NameValueEntry[]
             {
-                new NameValueEntry("messageType", typeof(T).FullName ?? typeof(T).Name),
-                new NameValueEntry("payload", payload)
+                new("messageType", messageType),
+                new("payload", payload),
+                new("correlationId", correlationId),
+                new("attempt", attempt)
             });
     }
 
@@ -49,35 +51,56 @@ public sealed class RedisQueueClient : IQueueClient
                 stream,
                 consumerGroup,
                 "0-0",
-                true);
+                createStream: true);
         }
-        catch (RedisServerException ex) when (
-            ex.Message.Contains("BUSYGROUP", StringComparison.OrdinalIgnoreCase))
+        catch (RedisServerException ex)
+            when (ex.Message.Contains(
+                "BUSYGROUP",
+                StringComparison.OrdinalIgnoreCase))
         {
         }
 
-        var entries = await database.StreamReadGroupAsync(
-            stream,
-            consumerGroup,
-            consumerName,
-            ">",
-            count: 1);
+        var deadline = DateTimeOffset.UtcNow + block;
 
-        if (entries.Length == 0)
-            return null;
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var entries = await database.StreamReadGroupAsync(
+                stream,
+                consumerGroup,
+                consumerName,
+                ">",
+                count: 1);
 
-        var entry = entries[0];
-        var values = entry.Values.ToDictionary(
-            x => x.Name.ToString(),
-            x => x.Value.ToString(),
-            StringComparer.OrdinalIgnoreCase);
+            if (entries.Length > 0)
+            {
+                var entry = entries[0];
+                var values = entry.Values.ToDictionary(
+                    x => x.Name.ToString(),
+                    x => x.Value.ToString(),
+                    StringComparer.OrdinalIgnoreCase);
 
-        return new QueueEnvelope(
-            entry.Id!,
-            values.GetValueOrDefault("messageType") ?? "unknown",
-            values.GetValueOrDefault("payload") ?? "{}",
-            0,
-            values.GetValueOrDefault("correlationId") ?? string.Empty);
+                _ = int.TryParse(
+                    values.GetValueOrDefault("attempt"),
+                    out var attempt);
+
+                return new QueueEnvelope(
+                    entry.Id!,
+                    values.GetValueOrDefault("messageType") ?? "unknown",
+                    values.GetValueOrDefault("payload") ?? "{}",
+                    attempt,
+                    values.GetValueOrDefault("correlationId")
+                        ?? string.Empty);
+            }
+
+            if (DateTimeOffset.UtcNow >= deadline)
+                return null;
+
+            await Task.Delay(
+                TimeSpan.FromMilliseconds(100),
+                cancellationToken);
+        }
+
+        return null;
     }
 
     public Task AcknowledgeAsync(
@@ -86,8 +109,12 @@ public sealed class RedisQueueClient : IQueueClient
         string messageId,
         CancellationToken cancellationToken)
     {
-        return _redis.GetDatabase()
-            .StreamAcknowledgeAsync(stream, consumerGroup, messageId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return _redis.GetDatabase().StreamAcknowledgeAsync(
+            stream,
+            consumerGroup,
+            messageId);
     }
 
     public async Task MoveToDeadLetterAsync(
@@ -97,21 +124,49 @@ public sealed class RedisQueueClient : IQueueClient
         string reason,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var database = _redis.GetDatabase();
 
         await database.StreamAddAsync(
             deadLetterStream,
-            new[]
+            new NameValueEntry[]
             {
-                new NameValueEntry("sourceMessageId", message.MessageId),
-                new NameValueEntry("messageType", message.MessageType),
-                new NameValueEntry("payload", message.PayloadJson),
-                new NameValueEntry("attempt", message.Attempt),
-                new NameValueEntry("correlationId", message.CorrelationId),
-                new NameValueEntry("reason", reason),
-                new NameValueEntry("failedAtUtc", DateTimeOffset.UtcNow.ToString("O"))
+                new("sourceMessageId", message.MessageId),
+                new("messageType", message.MessageType),
+                new("payload", message.PayloadJson),
+                new("attempt", message.Attempt),
+                new("correlationId", message.CorrelationId),
+                new("reason", reason),
+                new("failedAtUtc", DateTimeOffset.UtcNow.ToString("O"))
             });
 
-        await database.StreamDeleteAsync(sourceStream, new RedisValue[] { message.MessageId });
+        await database.StreamAcknowledgeAsync(
+            sourceStream,
+            "dip-workers",
+            message.MessageId);
+
+        await database.StreamDeleteAsync(
+            sourceStream,
+            new RedisValue[] { message.MessageId });
+    }
+
+    private static string TryReadProperty(
+        string json,
+        string propertyName)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.TryGetProperty(
+                    propertyName,
+                    out var property))
+                return property.ToString();
+        }
+        catch (JsonException)
+        {
+        }
+
+        return string.Empty;
     }
 }

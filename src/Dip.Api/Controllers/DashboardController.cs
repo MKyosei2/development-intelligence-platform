@@ -1,1 +1,36 @@
-using Microsoft.AspNetCore.Mvc; namespace Dip.Api.Controllers; [ApiController][Route("api/v1/projects/{projectId:guid}/dashboard")] public sealed class DashboardController:ControllerBase{[HttpGet] public IActionResult Get(Guid projectId)=>Ok(new{ProjectId=projectId,HealthScore=100,RiskLevel="Low"});}
+using Dip.Application.Features.Dashboard;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Dip.Api.Controllers;
+
+[ApiController]
+[Route("api/v1/dashboard")]
+[Produces("application/json")]
+public sealed class DashboardController : ControllerBase
+{
+    private readonly DashboardQueryService _service;
+
+    public DashboardController(DashboardQueryService service)
+    {
+        _service = service;
+    }
+
+    [HttpGet("projects")]
+    public Task<IReadOnlyList<ProjectDashboardSummary>> GetProjects(
+        CancellationToken cancellationToken) =>
+        _service.GetProjectsAsync(cancellationToken);
+
+    [HttpGet("projects/{projectId:guid}")]
+    [ProducesResponseType(typeof(ProjectDashboardDetails), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProjectDashboardDetails>> GetProject(
+        Guid projectId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.GetProjectAsync(
+            projectId,
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
+    }
+}

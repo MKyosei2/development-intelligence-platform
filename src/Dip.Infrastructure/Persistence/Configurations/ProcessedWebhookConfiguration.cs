@@ -4,29 +4,17 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class ProcessedWebhookConfiguration :
-    IEntityTypeConfiguration<ProcessedWebhook>
+public sealed class ProcessedWebhookConfiguration : IEntityTypeConfiguration<ProcessedWebhook>
 {
     public void Configure(EntityTypeBuilder<ProcessedWebhook> builder)
     {
         builder.ToTable("processed_webhooks");
-        builder.HasKey(x => x.DeliveryId);
+        builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.DeliveryId)
-            .HasMaxLength(200);
+        builder.Property(x => x.DeliveryId).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.EventName).HasMaxLength(100).IsRequired();
 
-        builder.Property(x => x.EventName)
-            .HasMaxLength(100)
-            .IsRequired();
-
-        builder.Property(x => x.PayloadHash)
-            .HasMaxLength(64)
-            .IsRequired();
-
-        builder.Property(x => x.LastError)
-            .HasMaxLength(4000);
-
-        builder.HasIndex(x => x.ReceivedAtUtc);
+        builder.HasIndex(x => x.DeliveryId).IsUnique();
         builder.HasIndex(x => x.ProcessedAtUtc);
     }
 }

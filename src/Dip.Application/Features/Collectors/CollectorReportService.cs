@@ -6,75 +6,210 @@ using Dip.Domain.Enums;
 using Dip.Domain.Services;
 using Dip.Domain.ValueObjects;
 using Dip.Shared.Contracts.Collectors;
+
 namespace Dip.Application.Features.Collectors;
 
-public sealed record CollectorReportResult(Guid PipelineRunId,string PipelineStatus,bool WasDuplicate,QualityGateResultDto QualityGate);
+public sealed record CollectorReportResult(
+    Guid PipelineRunId,
+    string PipelineStatus,
+    bool WasDuplicate,
+    QualityGateResultDto QualityGate);
 
 public sealed class CollectorReportService
 {
-    private readonly IProjectRepository _projects; private readonly IPipelineRunRepository _runs;
-    private readonly IMetricRepository _metrics; private readonly IQualityIssueRepository _issues;
-    private readonly IUnitOfWork _uow; private readonly ISystemClock _clock;
-    private readonly QualityGateEvaluator _gate; private readonly CollectorReportValidator _validator;
+    private readonly IProjectRepository _projects;
+    private readonly IPipelineRunRepository _runs;
+    private readonly IMetricRepository _metrics;
+    private readonly IQualityIssueRepository _issues;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ISystemClock _clock;
+    private readonly QualityGateEvaluator _gate;
+    private readonly CollectorReportValidator _validator;
 
-    public CollectorReportService(IProjectRepository projects,IPipelineRunRepository runs,
-        IMetricRepository metrics,IQualityIssueRepository issues,IUnitOfWork uow,ISystemClock clock,
-        QualityGateEvaluator gate,CollectorReportValidator validator)
-    { _projects=projects;_runs=runs;_metrics=metrics;_issues=issues;_uow=uow;_clock=clock;_gate=gate;_validator=validator; }
+    public CollectorReportService(
+        IProjectRepository projects,
+        IPipelineRunRepository runs,
+        IMetricRepository metrics,
+        IQualityIssueRepository issues,
+        IUnitOfWork unitOfWork,
+        ISystemClock clock,
+        QualityGateEvaluator gate,
+        CollectorReportValidator validator)
+    {
+        _projects = projects;
+        _runs = runs;
+        _metrics = metrics;
+        _issues = issues;
+        _unitOfWork = unitOfWork;
+        _clock = clock;
+        _gate = gate;
+        _validator = validator;
+    }
 
-    public async Task<CollectorReportResult> ProcessAsync(CollectorReport report,CancellationToken ct)
+    public async Task<CollectorReportResult> ProcessAsync(
+        CollectorReport report,
+        CancellationToken cancellationToken)
     {
         _validator.ValidateAndThrow(report);
-        var old=await _runs.FindByExternalRunAsync(report.ProjectId,report.ExternalRunId,report.CollectorType,report.AttemptNumber,ct);
-        if(old is not null)
-            return new(old.Id,old.Status.ToString(),true,new("PreviouslyProcessed",0,0,100,new[]{"Report already processed."}));
 
-        var project=await _projects.GetByIdAsync(report.ProjectId,ct)
-            ??throw new KeyNotFoundException($"Project {report.ProjectId} not found.");
-        if(!RepositoryMatches(project.RepositoryUrl,report.Repository))
-            throw new ArgumentException("Collector repository does not match the project.");
+        var existingRun = await _runs.FindByExternalRunAsync(
+            report.ProjectId,
+            report.ExternalRunId,
+            report.CollectorType,
+            report.AttemptNumber,
+            cancellationToken);
 
-        var run=new PipelineRun(Guid.NewGuid(),project.Id,new CommitSha(report.CommitSha),
-            report.ExternalRunId,report.AttemptNumber,report.Branch,report.CollectorType,
-            report.CollectorVersion,report.StartedAt);
-        run.Start(report.StartedAt); ApplyStatus(run,report.Status,report.FinishedAt);
-
-        var metrics=report.Metrics.Select(x=>new Metric(Guid.NewGuid(),run.Id,x.Name,x.Value,x.Unit,
-            x.BaselineValue,null,x.EnvironmentId,x.ScenarioId,x.Platform,x.BuildConfiguration,x.BenchmarkVersion)).ToArray();
-
-        var effective=new List<QualityIssue>();
-        foreach(var x in report.Issues)
+        if (existingRun is not null)
         {
-            var sev=Enum.TryParse<Severity>(x.Severity,true,out var parsed)?parsed:Severity.Info;
-            var fp=QualityIssueFingerprint.Create(project.Id,x.Category,x.RuleId,x.Source,x.Title);
-            var existing=await _issues.FindOpenByFingerprintAsync(project.Id,fp,ct);
-            if(existing is not null){existing.Reoccur(run.Id,sev,_clock.UtcNow);effective.Add(existing);continue;}
-            var issue=new QualityIssue(Guid.NewGuid(),project.Id,run.Id,fp,x.Category,sev,x.Title,
-                x.Description,x.Source,x.RuleId,x.EvidenceJson,_clock.UtcNow);
-            await _issues.AddAsync(issue,ct);effective.Add(issue);
+            return new(
+                existingRun.Id,
+                existingRun.Status.ToString(),
+                true,
+                new("PreviouslyProcessed", 0, 0, 100,
+                    new[] { "Report already processed." }));
         }
 
-        var gate=_gate.Evaluate(metrics,effective);
-        await _runs.AddAsync(run,ct);await _metrics.AddRangeAsync(metrics,ct);
-        await _uow.SaveChangesAsync(ct);
-        return new(run.Id,run.Status.ToString(),false,gate);
+        var project = await _projects.GetByIdAsync(
+                          report.ProjectId,
+                          cancellationToken)
+                      ?? throw new KeyNotFoundException(
+                          $"Project {report.ProjectId} not found.");
+
+        if (!RepositoryMatches(project.RepositoryUrl, report.Repository))
+            throw new ArgumentException(
+                "Collector repository does not match the project.");
+
+        var run = new PipelineRun(
+            Guid.NewGuid(),
+            project.Id,
+            new CommitSha(report.CommitSha),
+            report.ExternalRunId,
+            report.AttemptNumber,
+            report.Branch.Trim(),
+            report.CollectorType.Trim(),
+            report.CollectorVersion.Trim(),
+            report.StartedAt);
+
+        run.Start(report.StartedAt);
+        ApplyStatus(run, report.Status, report.FinishedAt);
+
+        var metrics = report.Metrics.Select(metric => new Metric(
+            Guid.NewGuid(),
+            run.Id,
+            metric.Name.Trim(),
+            metric.Value,
+            metric.Unit.Trim(),
+            metric.BaselineValue,
+            null,
+            Clean(metric.EnvironmentId),
+            Clean(metric.ScenarioId),
+            Clean(metric.Platform),
+            Clean(metric.BuildConfiguration),
+            Clean(metric.BenchmarkVersion))).ToArray();
+
+        var effectiveIssues = new List<QualityIssue>();
+
+        foreach (var input in report.Issues)
+        {
+            if (!Enum.TryParse<Severity>(
+                    input.Severity, true, out var severity)
+                || !Enum.IsDefined(severity))
+                throw new ArgumentException(
+                    $"Unsupported issue severity '{input.Severity}'.");
+
+            var fingerprint = QualityIssueFingerprint.Create(
+                project.Id,
+                input.Category,
+                input.RuleId,
+                input.Source,
+                input.Title);
+
+            var existingIssue = await _issues.FindOpenByFingerprintAsync(
+                project.Id,
+                fingerprint,
+                cancellationToken);
+
+            if (existingIssue is not null)
+            {
+                existingIssue.Reoccur(run.Id, severity, _clock.UtcNow);
+                effectiveIssues.Add(existingIssue);
+                continue;
+            }
+
+            var issue = new QualityIssue(
+                Guid.NewGuid(),
+                project.Id,
+                run.Id,
+                fingerprint,
+                input.Category.Trim(),
+                severity,
+                input.Title.Trim(),
+                input.Description.Trim(),
+                Clean(input.Source),
+                Clean(input.RuleId),
+                Clean(input.EvidenceJson),
+                _clock.UtcNow);
+
+            await _issues.AddAsync(issue, cancellationToken);
+            effectiveIssues.Add(issue);
+        }
+
+        var qualityGate = _gate.Evaluate(metrics, effectiveIssues);
+
+        await _runs.AddAsync(run, cancellationToken);
+        await _metrics.AddRangeAsync(metrics, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new(run.Id, run.Status.ToString(), false, qualityGate);
     }
 
-    private static void ApplyStatus(PipelineRun run,CollectorRunStatus s,DateTimeOffset at)
+    private static void ApplyStatus(
+        PipelineRun run,
+        CollectorRunStatus status,
+        DateTimeOffset finishedAt)
     {
-        switch(s)
+        switch (status)
         {
-            case CollectorRunStatus.Succeeded:run.Complete(at);break;
-            case CollectorRunStatus.PartialSuccess:run.CompletePartial("Partial success.",at);break;
-            case CollectorRunStatus.Failed:run.Fail("Collector failure.",at);break;
-            case CollectorRunStatus.Cancelled:run.Cancel("Collector cancelled.",at);break;
-            case CollectorRunStatus.TimedOut:run.Timeout("Collector timed out.",at);break;
-            default:throw new ArgumentOutOfRangeException(nameof(s));
+            case CollectorRunStatus.Succeeded:
+                run.Complete(finishedAt);
+                break;
+            case CollectorRunStatus.PartialSuccess:
+                run.CompletePartial("Partial success.", finishedAt);
+                break;
+            case CollectorRunStatus.Failed:
+                run.Fail("Collector failure.", finishedAt);
+                break;
+            case CollectorRunStatus.Cancelled:
+                run.Cancel("Collector cancelled.", finishedAt);
+                break;
+            case CollectorRunStatus.TimedOut:
+                run.Timeout("Collector timed out.", finishedAt);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(status));
         }
     }
-    private static bool RepositoryMatches(string a,string b)
+
+    private static bool RepositoryMatches(string expected, string actual)
     {
-        static string N(string v)=>v.Trim().TrimEnd('/').Replace(".git","",StringComparison.OrdinalIgnoreCase);
-        return N(a).EndsWith(N(b),StringComparison.OrdinalIgnoreCase);
+        static string Normalize(string value)
+        {
+            var normalized = value.Trim().TrimEnd('/');
+            if (normalized.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+                normalized = normalized[..^4];
+
+            if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+                normalized = uri.AbsolutePath.Trim('/');
+
+            return normalized;
+        }
+
+        return string.Equals(
+            Normalize(expected),
+            Normalize(actual),
+            StringComparison.OrdinalIgnoreCase);
     }
+
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

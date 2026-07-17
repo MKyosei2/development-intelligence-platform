@@ -8,10 +8,7 @@ public sealed class OutboxRepository : IOutboxRepository
 {
     private readonly DipDbContext _db;
 
-    public OutboxRepository(DipDbContext db)
-    {
-        _db = db;
-    }
+    public OutboxRepository(DipDbContext db) => _db = db;
 
     public Task AddAsync(
         OutboxMessage message,
@@ -23,12 +20,16 @@ public sealed class OutboxRepository : IOutboxRepository
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        if (batchSize is < 1 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(batchSize));
+
         return await _db.OutboxMessages
             .Where(x =>
-                x.ProcessedAtUtc == null &&
-                (!x.NotBeforeUtc.HasValue || x.NotBeforeUtc <= now) &&
-                (!x.LockedUntilUtc.HasValue || x.LockedUntilUtc <= now))
+                x.ProcessedAtUtc == null
+                && (x.NextAttemptAtUtc == null || x.NextAttemptAtUtc <= now)
+                && (x.LockedUntilUtc == null || x.LockedUntilUtc <= now))
             .OrderBy(x => x.CreatedAtUtc)
+            .ThenBy(x => x.Id)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
     }
@@ -36,6 +37,7 @@ public sealed class OutboxRepository : IOutboxRepository
     public Task<OutboxMessage?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken) =>
-        _db.OutboxMessages
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        _db.OutboxMessages.SingleOrDefaultAsync(
+            x => x.Id == id,
+            cancellationToken);
 }

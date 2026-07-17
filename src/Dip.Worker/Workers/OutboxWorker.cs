@@ -29,70 +29,108 @@ public sealed class OutboxWorker : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(
+        CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var repository = scope.ServiceProvider
-                .GetRequiredService<IOutboxRepository>();
-            var unitOfWork = scope.ServiceProvider
-                .GetRequiredService<IUnitOfWork>();
-
-            var now = DateTimeOffset.UtcNow;
-            var messages = await repository.GetPendingAsync(
-                _workerOptions.BatchSize,
-                now,
-                stoppingToken);
-
-            foreach (var message in messages)
+            try
             {
-                try
-                {
-                    message.Lock(now.AddSeconds(_workerOptions.LockSeconds));
-                    await unitOfWork.SaveChangesAsync(stoppingToken);
-
-                    var envelope = new
-                    {
-                        messageId = message.Id.ToString("N"),
-                        messageType = message.MessageType,
-                        payloadVersion = "1.0",
-                        correlationId = message.CorrelationId,
-                        causationId = message.CausationId,
-                        attempt = message.AttemptCount,
-                        createdAtUtc = message.CreatedAtUtc,
-                        payload = JsonDocument.Parse(message.PayloadJson).RootElement
-                    };
-
-                    await _queue.PublishAsync(
-                        _queueOptions.StreamName,
-                        envelope,
-                        stoppingToken);
-
-                    message.MarkProcessed(DateTimeOffset.UtcNow);
-                    await unitOfWork.SaveChangesAsync(stoppingToken);
-                }
-                catch (Exception ex)
-                {
-                    var delay = TimeSpan.FromSeconds(
-                        Math.Min(300, Math.Pow(2, message.AttemptCount + 1)));
-
-                    message.MarkFailed(
-                        ex.Message,
-                        DateTimeOffset.UtcNow.Add(delay));
-
-                    await unitOfWork.SaveChangesAsync(stoppingToken);
-
-                    _logger.LogError(
-                        ex,
-                        "Failed to publish outbox message {MessageId}",
-                        message.Id);
-                }
+                await PublishBatchAsync(stoppingToken);
+            }
+            catch (OperationCanceledException)
+                when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "Outbox polling cycle failed.");
             }
 
             await Task.Delay(
-                TimeSpan.FromSeconds(_workerOptions.PollingIntervalSeconds),
+                TimeSpan.FromSeconds(
+                    Math.Max(1, _workerOptions.PollingIntervalSeconds)),
                 stoppingToken);
+        }
+    }
+
+    private async Task PublishBatchAsync(
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+
+        var repository = scope.ServiceProvider
+            .GetRequiredService<IOutboxRepository>();
+        var unitOfWork = scope.ServiceProvider
+            .GetRequiredService<IUnitOfWork>();
+
+        var now = DateTimeOffset.UtcNow;
+        var messages = await repository.GetPendingAsync(
+            Math.Clamp(_workerOptions.BatchSize, 1, 500),
+            now,
+            cancellationToken);
+
+        foreach (var message in messages)
+        {
+            try
+            {
+                message.Lock(
+                    now.AddSeconds(
+                        Math.Max(10, _workerOptions.LockSeconds)));
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+
+                using var payloadDocument =
+                    JsonDocument.Parse(message.PayloadJson);
+
+                var envelope = new
+                {
+                    messageId = message.Id.ToString("N"),
+                    messageType = message.MessageType,
+                    payloadVersion = "1.0",
+                    correlationId = message.CorrelationId,
+                    causationId = message.CausationId,
+                    attempt = message.AttemptCount,
+                    createdAtUtc = message.CreatedAtUtc,
+                    payload = payloadDocument.RootElement.Clone()
+                };
+
+                await _queue.PublishAsync(
+                    _queueOptions.StreamName,
+                    envelope,
+                    cancellationToken);
+
+                message.MarkProcessed(DateTimeOffset.UtcNow);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Published outbox message {MessageId} as {MessageType}.",
+                    message.Id,
+                    message.MessageType);
+            }
+            catch (Exception exception)
+            {
+                var delay = TimeSpan.FromSeconds(
+                    Math.Min(
+                        300,
+                        Math.Pow(
+                            2,
+                            Math.Min(message.AttemptCount + 1, 8))));
+
+                message.MarkFailed(
+                    exception.Message,
+                    DateTimeOffset.UtcNow.Add(delay));
+
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+
+                _logger.LogError(
+                    exception,
+                    "Failed to publish outbox message {MessageId}. Attempt={Attempt}.",
+                    message.Id,
+                    message.AttemptCount);
+            }
         }
     }
 }
