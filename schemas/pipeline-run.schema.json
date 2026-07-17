@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DIP Pipeline Run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "projectId",
+    "commitSha",
+    "collectorType",
+    "collectorVersion",
+    "status",
+    "queuedAtUtc"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "projectId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "commitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{7,64}$"
+    },
+    "collectorType": {
+      "type": "string"
+    },
+    "collectorVersion": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "Queued",
+        "Running",
+        "Succeeded",
+        "Failed",
+        "Cancelled",
+        "TimedOut"
+      ]
+    },
+    "queuedAtUtc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "startedAtUtc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "finishedAtUtc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "failureReason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 2000
+    }
+  }
+}

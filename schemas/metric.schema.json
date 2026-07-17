@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DIP Metric",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "pipelineRunId",
+    "name",
+    "value",
+    "unit",
+    "severity"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "pipelineRunId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "value": {
+      "type": "number"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30
+    },
+    "baselineValue": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "difference": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "differencePercent": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "Info",
+        "Warning",
+        "Critical"
+      ]
+    }
+  }
+}

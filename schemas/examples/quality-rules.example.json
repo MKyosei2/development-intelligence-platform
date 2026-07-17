@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "projectId": "11111111-1111-1111-1111-111111111111",
+  "rules": [
+    {
+      "id": "performance.fps.warning",
+      "version": 1,
+      "enabled": true,
+      "target": "average_fps",
+      "operator": "less_than_or_equal",
+      "threshold": -5,
+      "comparison": "difference_percent",
+      "severity": "Warning",
+      "message": "Average FPS regressed by at least 5%."
+    },
+    {
+      "id": "performance.memory.critical",
+      "version": 1,
+      "enabled": true,
+      "target": "memory_mb",
+      "operator": "greater_than_or_equal",
+      "threshold": 20,
+      "comparison": "difference_percent",
+      "severity": "Critical",
+      "message": "Memory usage increased by at least 20%."
+    }
+  ]
+}
