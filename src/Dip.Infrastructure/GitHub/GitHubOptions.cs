@@ -1,0 +1,12 @@
+namespace Dip.Infrastructure.GitHub;
+
+public sealed class GitHubOptions
+{
+    public const string SectionName = "GitHub";
+
+    public string WebhookSecret { get; init; } = string.Empty;
+    public string Token { get; init; } = string.Empty;
+    public string ProductHeader { get; init; } = "development-intelligence-platform";
+    public string QualityReportMarker { get; init; } = "<!-- dip-quality-report -->";
+    public int MaxRetryAttempts { get; init; } = 4;
+}
