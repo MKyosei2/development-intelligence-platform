@@ -1,0 +1,75 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# IDE and editor state
+.vs
+.idea
+.vscode
+**/*.user
+**/*.suo
+
+# .NET output
+**/bin
+**/obj
+**/TestResults
+**/*.nupkg
+**/*.snupkg
+BenchmarkDotNet.Artifacts
+coverage
+coverage.*
+
+# Python output
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.venv
+**/venv
+
+# Node output
+**/node_modules
+**/dist
+**/.cache
+
+# Native build output
+**/build
+**/out
+**/CMakeFiles
+**/CMakeCache.txt
+**/*.o
+**/*.obj
+**/*.pdb
+
+# Local secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+**/appsettings.*.local.json
+**/secrets.json
+**/*.pfx
+**/*.p12
+**/*.pem
+**/*.key
+
+# Generated data and reports
+artifacts
+reports/generated
+reports/tmp
+.pgdata
+redis-data
+minio-data
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Repository-only documents not needed in runtime images
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+LICENSE
+SECURITY.md

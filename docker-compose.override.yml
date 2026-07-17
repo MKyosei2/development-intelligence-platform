@@ -1,0 +1,31 @@
+# Local-development overrides for docker-compose.yml.
+#
+# Docker Compose loads this file automatically together with
+# docker-compose.yml when `docker compose up` is executed from the repository
+# root. Production deployments should use an explicit production Compose file
+# instead of relying on these development settings.
+
+services:
+  postgres:
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 30s
+
+  redis:
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 15s
+
+  minio:
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 30s
