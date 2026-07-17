@@ -1,1 +1,13 @@
-using Dip.Application.Features.Collectors; using Dip.Application.Features.Projects; using Dip.Application.Features.Quality; using Microsoft.Extensions.DependencyInjection; namespace Dip.Application; public static class DependencyInjection{public static IServiceCollection AddApplication(this IServiceCollection s){s.AddScoped<ProjectService>();s.AddScoped<CollectorReportService>();s.AddSingleton<QualityGateEvaluator>();return s;}}
+using Dip.Application.Features.Collectors;
+using Dip.Application.Features.Projects;
+using Dip.Application.Features.Quality;
+using Microsoft.Extensions.DependencyInjection;
+namespace Dip.Application;
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection s)
+    {
+        s.AddScoped<ProjectService>();s.AddScoped<CollectorReportService>();
+        s.AddSingleton<CollectorReportValidator>();s.AddSingleton<QualityGateEvaluator>();return s;
+    }
+}
