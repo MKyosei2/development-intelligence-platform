@@ -1,1 +1,53 @@
-using Dip.Application.Abstractions.Persistence; using Dip.Domain.Entities; using Microsoft.EntityFrameworkCore; namespace Dip.Infrastructure.Persistence.Repositories; public sealed class ProjectRepository:IProjectRepository{private readonly DipDbContext _db;public ProjectRepository(DipDbContext db)=>_db=db;public Task<Project?>GetByIdAsync(Guid id,CancellationToken ct)=>_db.Projects.SingleOrDefaultAsync(x=>x.Id==id,ct);public async Task<IReadOnlyList<Project>>ListAsync(CancellationToken ct)=>await _db.Projects.AsNoTracking().OrderBy(x=>x.Name).ToListAsync(ct);public Task AddAsync(Project p,CancellationToken ct)=>_db.Projects.AddAsync(p,ct).AsTask();} public sealed class PipelineRunRepository:IPipelineRunRepository{private readonly DipDbContext _db;public PipelineRunRepository(DipDbContext db)=>_db=db;public Task AddAsync(PipelineRun r,CancellationToken ct)=>_db.PipelineRuns.AddAsync(r,ct).AsTask();} public sealed class MetricRepository:IMetricRepository{private readonly DipDbContext _db;public MetricRepository(DipDbContext db)=>_db=db;public Task AddRangeAsync(IEnumerable<Metric> m,CancellationToken ct)=>_db.Metrics.AddRangeAsync(m,ct);} public sealed class QualityIssueRepository:IQualityIssueRepository{private readonly DipDbContext _db;public QualityIssueRepository(DipDbContext db)=>_db=db;public Task AddRangeAsync(IEnumerable<QualityIssue> i,CancellationToken ct)=>_db.QualityIssues.AddRangeAsync(i,ct);}
+using Dip.Application.Abstractions.Persistence;
+using Dip.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace Dip.Infrastructure.Persistence.Repositories;
+
+/// <summary>
+/// PostgreSQL-backed project repository.
+///
+/// The other repository implementations are intentionally kept in their
+/// dedicated files to prevent duplicate class definitions:
+/// PipelineRunRepository.cs, MetricRepository.cs,
+/// QualityIssueRepository.cs, OutboxRepository.cs,
+/// ProcessedWebhookRepository.cs and DashboardReadRepository.cs.
+/// </summary>
+public sealed class ProjectRepository : IProjectRepository
+{
+    private readonly DipDbContext _dbContext;
+
+    public ProjectRepository(DipDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    public Task<Project?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.Projects.SingleOrDefaultAsync(
+            project => project.Id == id,
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Project>> ListAsync(
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Projects
+            .AsNoTracking()
+            .OrderBy(project => project.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task AddAsync(
+        Project project,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        return _dbContext.Projects
+            .AddAsync(project, cancellationToken)
+            .AsTask();
+    }
+}
