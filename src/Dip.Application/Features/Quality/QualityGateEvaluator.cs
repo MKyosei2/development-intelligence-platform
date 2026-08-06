@@ -12,6 +12,13 @@ public sealed record QualityGateResultDto(
 
 public sealed class QualityGateEvaluator
 {
+    private readonly QualityRuleEvaluator _ruleEvaluator;
+
+    public QualityGateEvaluator(QualityRuleEvaluator ruleEvaluator)
+    {
+        _ruleEvaluator = ruleEvaluator;
+    }
+
     public QualityGateResultDto Evaluate(
         IReadOnlyCollection<Metric> metrics,
         IReadOnlyCollection<QualityIssue> issues)
@@ -19,47 +26,29 @@ public sealed class QualityGateEvaluator
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(issues);
 
-        var reasons = new List<string>();
+        var evaluations = _ruleEvaluator.Evaluate(metrics, issues);
 
-        var criticalCount = issues.Count(x =>
-            x.Status == IssueStatus.Open
-            && x.Severity == Severity.Critical);
-
-        var warningCount = issues.Count(x =>
-            x.Status == IssueStatus.Open
-            && x.Severity == Severity.Warning);
-
-        var regressions = metrics
-            .Where(x => x.DifferencePercent is not null)
-            .Where(x => x.DifferencePercent <= -10m)
-            .ToArray();
-
-        decimal score = 100m;
-        score -= criticalCount * 25m;
-        score -= warningCount * 8m;
-        score -= regressions.Length * 5m;
-        score = Math.Clamp(score, 0m, 100m);
-
-        if (criticalCount > 0)
-            reasons.Add($"{criticalCount} critical issue(s) are open.");
-
-        if (warningCount > 0)
-            reasons.Add($"{warningCount} warning issue(s) are open.");
-
-        foreach (var metric in regressions.Take(5))
-        {
-            reasons.Add(
-                $"{metric.Name} regressed by {Math.Abs(metric.DifferencePercent!.Value):0.##}%.");
-        }
-
-        if (reasons.Count == 0)
-            reasons.Add("No blocking quality issues or major regressions were found.");
+        var criticalCount = evaluations.Count(x => x.Severity == Severity.Critical);
+        var warningCount = evaluations.Count(x => x.Severity == Severity.Warning);
+        var score = Math.Clamp(
+            100m - evaluations.Sum(x => x.ScorePenalty),
+            0m,
+            100m);
 
         var status = criticalCount > 0 || score < 60m
             ? "Failed"
-            : warningCount > 0 || regressions.Length > 0 || score < 85m
+            : warningCount > 0 || score < 85m
                 ? "Warning"
                 : "Passed";
+
+        IReadOnlyList<string> reasons = evaluations.Count == 0
+            ? ["No blocking quality issues or material regressions were found."]
+            : evaluations
+                .OrderByDescending(x => x.Severity)
+                .ThenBy(x => x.RuleId, StringComparer.Ordinal)
+                .Select(x => x.Reason)
+                .Take(20)
+                .ToArray();
 
         return new(
             status,

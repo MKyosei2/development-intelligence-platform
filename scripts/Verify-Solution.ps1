@@ -104,8 +104,19 @@ function Invoke-DockerCompose {
 }
 
 function Test-DockerEngine {
-    & docker info *> $null
-    return $LASTEXITCODE -eq 0
+    $previousPreference = $ErrorActionPreference
+
+    try {
+        $ErrorActionPreference = "Continue"
+        & docker info *> $null
+        return ($LASTEXITCODE -eq 0)
+    }
+    catch {
+        return $false
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
 }
 
 function Start-DockerEngine {
@@ -616,7 +627,7 @@ $(Get-LogTail $entry.StandardError)
 
     Write-Step "Running end-to-end collector pipeline smoke test"
 
-    $verificationId = Guid.NewGuid().ToString("N")
+    $verificationId = [Guid]::NewGuid().ToString("N")
     $repositoryUrl =
         "https://github.com/example/dip-verification-$verificationId"
 

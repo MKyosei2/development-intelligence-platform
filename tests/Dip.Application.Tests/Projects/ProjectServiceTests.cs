@@ -1,7 +1,6 @@
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
-using Dip.Application.Features.Projects.Commands;
-using Dip.Application.Features.Projects.Services;
+using Dip.Application.Features.Projects;
 using Dip.Domain.Entities;
 using FluentAssertions;
 
@@ -14,7 +13,8 @@ public sealed class ProjectServiceTests
     {
         var repository = new InMemoryProjectRepository();
         var unitOfWork = new StubUnitOfWork();
-        var clock = new FixedClock(new DateTimeOffset(2026, 7, 16, 0, 0, 0, TimeSpan.Zero));
+        var clock = new FixedClock(
+            new DateTimeOffset(2026, 7, 16, 0, 0, 0, TimeSpan.Zero));
         var service = new ProjectService(repository, unitOfWork, clock);
 
         var result = await service.CreateAsync(
@@ -34,13 +34,13 @@ public sealed class ProjectServiceTests
     {
         public List<Project> Items { get; } = [];
 
-        public Task<Project?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+        public Task<Project?> GetByIdAsync(Guid id, CancellationToken ct) =>
             Task.FromResult(Items.SingleOrDefault(x => x.Id == id));
 
-        public Task<IReadOnlyList<Project>> ListAsync(CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<Project>> ListAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Project>>(Items);
 
-        public Task AddAsync(Project project, CancellationToken cancellationToken)
+        public Task AddAsync(Project project, CancellationToken ct)
         {
             Items.Add(project);
             return Task.CompletedTask;

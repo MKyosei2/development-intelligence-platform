@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Integration and E2E Tests
 
 on:
   pull_request:
@@ -16,10 +16,9 @@ concurrency:
 
 jobs:
   integration:
-    name: API integration tests with PostgreSQL and Redis
+    name: PostgreSQL, Redis, API, Worker and E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
@@ -34,7 +33,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-
       redis:
         image: redis:7-alpine
         ports:
@@ -44,17 +42,17 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-
     env:
       ConnectionStrings__PostgreSql: Host=127.0.0.1;Port=5432;Database=dip_test;Username=dip;Password=dip-test-password
       Redis__ConnectionString: 127.0.0.1:6379
       ASPNETCORE_ENVIRONMENT: Testing
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://127.0.0.1:7001
       GitHub__WebhookSecret: integration-test-secret
       GitHub__Token: integration-test-token
-
+      DIP_API_URL: http://127.0.0.1:7001
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
@@ -62,30 +60,43 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             Directory.Packages.props
-
       - name: Restore
         run: dotnet restore DevelopmentIntelligencePlatform.sln
-
       - name: Build
-        run: >
-          dotnet build DevelopmentIntelligencePlatform.sln
-          --configuration Release
-          --no-restore
-
-      - name: Run integration tests
-        run: >
-          dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj
-          --configuration Release
-          --no-build
-          --logger "trx;LogFileName=integration-tests.trx"
-          --results-directory TestResults
-          --blame-hang-timeout 5m
-
-      - name: Upload results
+        run: dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
+      - name: API integration tests
+        run: dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj --configuration Release --no-build --logger "trx;LogFileName=integration-tests.trx" --results-directory TestResults
+      - name: Start API and Worker
+        shell: bash
+        run: |
+          dotnet run --project src/Dip.Api/Dip.Api.csproj --configuration Release --no-build > api.log 2>&1 &
+          echo $! > api.pid
+          dotnet run --project src/Dip.Worker/Dip.Worker.csproj --configuration Release --no-build > worker.log 2>&1 &
+          echo $! > worker.pid
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:7001/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat api.log
+          exit 1
+      - name: Live end-to-end tests
+        run: dotnet test tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj --configuration Release --no-build --logger "trx;LogFileName=e2e-tests.trx" --results-directory TestResults
+      - name: Upload results and service logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: integration-test-results
-          path: TestResults
+          name: integration-e2e-results
+          path: |
+            TestResults
+            api.log
+            worker.log
           if-no-files-found: warn
           retention-days: 14
+      - name: Stop services
+        if: always()
+        shell: bash
+        run: |
+          test -f api.pid && kill $(cat api.pid) || true
+          test -f worker.pid && kill $(cat worker.pid) || true

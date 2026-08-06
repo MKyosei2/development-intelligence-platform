@@ -1,27 +1,25 @@
-using System.Net;
-using System.Net.Http.Json;
+using Dip.EndToEndTests.Support;
 using FluentAssertions;
 
 namespace Dip.EndToEndTests.Scenarios;
 
 public sealed class CollectorPipelineScenario
 {
-    [Fact(Skip = "Enable after the repository root solution and migrations are wired.")]
-    public async Task CollectorReport_ProducesQualityGateResult()
+    [Fact]
+    public async Task CollectorReport_ProducesPassedQualityGate()
     {
-        using var client = new HttpClient
-        {
-            BaseAddress = new Uri(Environment.GetEnvironmentVariable("DIP_API_URL") ?? "http://localhost:7001")
-        };
+        using var api = new DipScenarioClient();
+        var project = await api.CreateProjectAsync("collector-pipeline");
 
-        var projectResponse = await client.PostAsJsonAsync("/api/projects", new
-        {
-            name = "E2E Project",
-            repositoryUrl = "https://github.com/example/e2e",
-            defaultBranch = "develop",
-            releaseDateUtc = (DateTimeOffset?)null
-        });
+        var accepted = await api.SubmitReportAsync(
+            project,
+            [new { name = "average_fps", value = 60m, unit = "fps", baselineValue = 60m }],
+            []);
 
-        projectResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        accepted.PipelineRunId.Should().NotBeEmpty();
+
+        var dashboard = await api.WaitForDashboardAsync(project.Id, "Passed");
+        dashboard.LatestPipelineStatus.Should().Be("Succeeded");
+        dashboard.QualityGateScore.Should().Be(100m);
     }
 }

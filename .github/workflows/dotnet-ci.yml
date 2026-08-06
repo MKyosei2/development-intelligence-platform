@@ -13,14 +13,6 @@ on:
       - ".github/workflows/dotnet-ci.yml"
   pull_request:
     branches: [main, develop]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "*.sln"
-      - "Directory.Build.*"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/dotnet-ci.yml"
   workflow_dispatch:
 
 permissions:
@@ -34,11 +26,9 @@ jobs:
   build-test:
     name: Build solution and run unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
@@ -46,26 +36,16 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             Directory.Packages.props
-
       - name: Restore
         run: dotnet restore DevelopmentIntelligencePlatform.sln
-
       - name: Build
-        run: >
-          dotnet build DevelopmentIntelligencePlatform.sln
-          --configuration Release
-          --no-restore
-
-      - name: Unit tests
-        run: >
-          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj
-          --configuration Release
-          --no-build
-          --logger "trx;LogFileName=domain-tests.trx"
-          --collect "XPlat Code Coverage"
-          --results-directory TestResults
-          --blame-hang-timeout 5m
-
+        run: dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
+      - name: Domain tests
+        run: dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=domain-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
+      - name: Application tests
+        run: dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=application-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
+      - name: Infrastructure tests
+        run: dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=infrastructure-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

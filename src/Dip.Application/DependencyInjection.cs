@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<DashboardQueryService>();
         services.AddScoped<OutboxWriter>();
         services.AddSingleton<CollectorReportValidator>();
+        services.AddSingleton<QualityRuleEvaluator>();
         services.AddSingleton<QualityGateEvaluator>();
         return services;
     }
