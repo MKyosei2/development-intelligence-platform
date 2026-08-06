@@ -27,8 +27,15 @@ public interface IQueueClient
         string messageId,
         CancellationToken cancellationToken);
 
+    Task RetryAsync(
+        string stream,
+        string consumerGroup,
+        QueueEnvelope message,
+        CancellationToken cancellationToken);
+
     Task MoveToDeadLetterAsync(
         string sourceStream,
+        string consumerGroup,
         string deadLetterStream,
         QueueEnvelope message,
         string reason,

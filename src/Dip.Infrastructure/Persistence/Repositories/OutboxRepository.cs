@@ -8,12 +8,21 @@ public sealed class OutboxRepository : IOutboxRepository
 {
     private readonly DipDbContext _db;
 
-    public OutboxRepository(DipDbContext db) => _db = db;
+    public OutboxRepository(DipDbContext db)
+    {
+        _db = db;
+    }
 
     public Task AddAsync(
         OutboxMessage message,
-        CancellationToken cancellationToken) =>
-        _db.OutboxMessages.AddAsync(message, cancellationToken).AsTask();
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        return _db.OutboxMessages
+            .AddAsync(message, cancellationToken)
+            .AsTask();
+    }
 
     public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(
         int batchSize,
@@ -24,20 +33,28 @@ public sealed class OutboxRepository : IOutboxRepository
             throw new ArgumentOutOfRangeException(nameof(batchSize));
 
         return await _db.OutboxMessages
-            .Where(x =>
-                x.ProcessedAtUtc == null
-                && (x.NextAttemptAtUtc == null || x.NextAttemptAtUtc <= now)
-                && (x.LockedUntilUtc == null || x.LockedUntilUtc <= now))
-            .OrderBy(x => x.CreatedAtUtc)
-            .ThenBy(x => x.Id)
+            .AsNoTracking()
+            .Where(message =>
+                message.ProcessedAtUtc == null
+                && (message.NextAttemptAtUtc == null
+                    || message.NextAttemptAtUtc <= now)
+                && (message.LockedUntilUtc == null
+                    || message.LockedUntilUtc <= now))
+            .OrderBy(message => message.CreatedAtUtc)
+            .ThenBy(message => message.Id)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
     }
 
     public Task<OutboxMessage?> GetByIdAsync(
         Guid id,
-        CancellationToken cancellationToken) =>
-        _db.OutboxMessages.SingleOrDefaultAsync(
-            x => x.Id == id,
+        CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            return Task.FromResult<OutboxMessage?>(null);
+
+        return _db.OutboxMessages.SingleOrDefaultAsync(
+            message => message.Id == id,
             cancellationToken);
+    }
 }

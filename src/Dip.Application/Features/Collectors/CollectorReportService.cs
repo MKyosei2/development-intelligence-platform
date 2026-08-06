@@ -1,6 +1,7 @@
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Quality;
+using Dip.Application.Services;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Dip.Domain.Services;
@@ -8,6 +9,8 @@ using Dip.Domain.ValueObjects;
 using Dip.Shared.Contracts.Collectors;
 
 namespace Dip.Application.Features.Collectors;
+
+public sealed record CollectorReportProcessed(Guid PipelineRunId);
 
 public sealed record CollectorReportResult(
     Guid PipelineRunId,
@@ -25,6 +28,7 @@ public sealed class CollectorReportService
     private readonly ISystemClock _clock;
     private readonly QualityGateEvaluator _gate;
     private readonly CollectorReportValidator _validator;
+    private readonly OutboxWriter _outbox;
 
     public CollectorReportService(
         IProjectRepository projects,
@@ -34,7 +38,8 @@ public sealed class CollectorReportService
         IUnitOfWork unitOfWork,
         ISystemClock clock,
         QualityGateEvaluator gate,
-        CollectorReportValidator validator)
+        CollectorReportValidator validator,
+        OutboxWriter outbox)
     {
         _projects = projects;
         _runs = runs;
@@ -44,12 +49,14 @@ public sealed class CollectorReportService
         _clock = clock;
         _gate = gate;
         _validator = validator;
+        _outbox = outbox;
     }
 
     public async Task<CollectorReportResult> ProcessAsync(
         CollectorReport report,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(report);
         _validator.ValidateAndThrow(report);
 
         var existingRun = await _runs.FindByExternalRunAsync(
@@ -65,7 +72,11 @@ public sealed class CollectorReportService
                 existingRun.Id,
                 existingRun.Status.ToString(),
                 true,
-                new("PreviouslyProcessed", 0, 0, 100,
+                new(
+                    "PreviouslyProcessed",
+                    0,
+                    0,
+                    100,
                     new[] { "Report already processed." }));
         }
 
@@ -76,8 +87,11 @@ public sealed class CollectorReportService
                           $"Project {report.ProjectId} not found.");
 
         if (!RepositoryMatches(project.RepositoryUrl, report.Repository))
+        {
             throw new ArgumentException(
-                "Collector repository does not match the project.");
+                "Collector repository does not match the project.",
+                nameof(report));
+        }
 
         var run = new PipelineRun(
             Guid.NewGuid(),
@@ -112,10 +126,15 @@ public sealed class CollectorReportService
         foreach (var input in report.Issues)
         {
             if (!Enum.TryParse<Severity>(
-                    input.Severity, true, out var severity)
+                    input.Severity,
+                    true,
+                    out var severity)
                 || !Enum.IsDefined(severity))
+            {
                 throw new ArgumentException(
-                    $"Unsupported issue severity '{input.Severity}'.");
+                    $"Unsupported issue severity '{input.Severity}'.",
+                    nameof(report));
+            }
 
             var fingerprint = QualityIssueFingerprint.Create(
                 project.Id,
@@ -131,7 +150,11 @@ public sealed class CollectorReportService
 
             if (existingIssue is not null)
             {
-                existingIssue.Reoccur(run.Id, severity, _clock.UtcNow);
+                existingIssue.Reoccur(
+                    run.Id,
+                    severity,
+                    _clock.UtcNow);
+
                 effectiveIssues.Add(existingIssue);
                 continue;
             }
@@ -158,9 +181,24 @@ public sealed class CollectorReportService
 
         await _runs.AddAsync(run, cancellationToken);
         await _metrics.AddRangeAsync(metrics, cancellationToken);
+
+        // The report data and the outbox event are committed together.
+        // This prevents a successfully stored report from silently missing
+        // its asynchronous quality-gate evaluation.
+        await _outbox.EnqueueAsync(
+            new CollectorReportProcessed(run.Id),
+            report.ReportId,
+            report.ExternalRunId,
+            _clock.UtcNow,
+            cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new(run.Id, run.Status.ToString(), false, qualityGate);
+        return new(
+            run.Id,
+            run.Status.ToString(),
+            false,
+            qualityGate);
     }
 
     private static void ApplyStatus(
@@ -174,32 +212,52 @@ public sealed class CollectorReportService
                 run.Complete(finishedAt);
                 break;
             case CollectorRunStatus.PartialSuccess:
-                run.CompletePartial("Partial success.", finishedAt);
+                run.CompletePartial(
+                    "Partial success.",
+                    finishedAt);
                 break;
             case CollectorRunStatus.Failed:
-                run.Fail("Collector failure.", finishedAt);
+                run.Fail(
+                    "Collector failure.",
+                    finishedAt);
                 break;
             case CollectorRunStatus.Cancelled:
-                run.Cancel("Collector cancelled.", finishedAt);
+                run.Cancel(
+                    "Collector cancelled.",
+                    finishedAt);
                 break;
             case CollectorRunStatus.TimedOut:
-                run.Timeout("Collector timed out.", finishedAt);
+                run.Timeout(
+                    "Collector timed out.",
+                    finishedAt);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(status));
         }
     }
 
-    private static bool RepositoryMatches(string expected, string actual)
+    private static bool RepositoryMatches(
+        string expected,
+        string actual)
     {
         static string Normalize(string value)
         {
             var normalized = value.Trim().TrimEnd('/');
-            if (normalized.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
-                normalized = normalized[..^4];
 
-            if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+            if (normalized.EndsWith(
+                    ".git",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized[..^4];
+            }
+
+            if (Uri.TryCreate(
+                    normalized,
+                    UriKind.Absolute,
+                    out var uri))
+            {
                 normalized = uri.AbsolutePath.Trim('/');
+            }
 
             return normalized;
         }
@@ -211,5 +269,7 @@ public sealed class CollectorReportService
     }
 
     private static string? Clean(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
 }

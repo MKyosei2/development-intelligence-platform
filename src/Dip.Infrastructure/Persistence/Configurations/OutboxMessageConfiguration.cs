@@ -4,27 +4,46 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
+public sealed class OutboxMessageConfiguration :
+    IEntityTypeConfiguration<OutboxMessage>
 {
-    public void Configure(EntityTypeBuilder<OutboxMessage> builder)
+    public void Configure(
+        EntityTypeBuilder<OutboxMessage> builder)
     {
         builder.ToTable("outbox_messages");
-        builder.HasKey(x => x.Id);
+        builder.HasKey(message => message.Id);
 
-        builder.Property(x => x.MessageType).HasMaxLength(500).IsRequired();
-        builder.Property(x => x.PayloadJson).HasColumnType("jsonb").IsRequired();
-        builder.Property(x => x.CorrelationId).HasMaxLength(200).IsRequired();
-        builder.Property(x => x.CausationId).HasMaxLength(200);
-        builder.Property(x => x.LastError).HasMaxLength(4000);
+        builder.Property(message => message.MessageType)
+            .HasMaxLength(500)
+            .IsRequired();
 
-        builder.HasIndex(x => new
+        builder.Property(message => message.PayloadJson)
+            .HasColumnType("jsonb")
+            .IsRequired();
+
+        builder.Property(message => message.CorrelationId)
+            .HasMaxLength(200)
+            .IsRequired();
+
+        builder.Property(message => message.CausationId)
+            .HasMaxLength(200);
+
+        builder.Property(message => message.LastError)
+            .HasMaxLength(4000);
+
+        // This prevents two worker instances that selected the same pending
+        // row from both acquiring it and publishing it.
+        builder.Property(message => message.AttemptCount)
+            .IsConcurrencyToken();
+
+        builder.HasIndex(message => new
         {
-            x.ProcessedAtUtc,
-            x.NextAttemptAtUtc,
-            x.LockedUntilUtc,
-            x.CreatedAtUtc
+            message.ProcessedAtUtc,
+            message.NextAttemptAtUtc,
+            message.LockedUntilUtc,
+            message.CreatedAtUtc
         });
 
-        builder.HasIndex(x => x.CorrelationId);
+        builder.HasIndex(message => message.CorrelationId);
     }
 }

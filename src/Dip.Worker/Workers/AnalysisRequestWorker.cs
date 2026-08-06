@@ -24,61 +24,111 @@ public sealed class AnalysisRequestWorker : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(
+        CancellationToken stoppingToken)
     {
-        var consumer = $"{Environment.MachineName}-analysis";
+        var consumer =
+            $"{Environment.MachineName}-analysis";
+
+        var consumerGroup =
+            $"{_options.ConsumerGroup}:analysis";
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var message = await _queue.ReadAsync(
-                _options.StreamName,
-                _options.ConsumerGroup,
-                consumer,
-                TimeSpan.FromSeconds(5),
-                stoppingToken);
-
-            if (message is null)
-            {
-                await Task.Delay(500, stoppingToken);
-                continue;
-            }
-
             try
             {
+                var message = await _queue.ReadAsync(
+                    _options.StreamName,
+                    consumerGroup,
+                    consumer,
+                    TimeSpan.FromSeconds(5),
+                    stoppingToken);
+
+                if (message is null)
+                    continue;
+
                 if (!message.MessageType.Contains(
-                    "AnalysisRequested",
-                    StringComparison.OrdinalIgnoreCase))
+                        "AnalysisRequested",
+                        StringComparison.OrdinalIgnoreCase))
                 {
+                    await _queue.AcknowledgeAsync(
+                        _options.StreamName,
+                        consumerGroup,
+                        message.MessageId,
+                        stoppingToken);
+
                     continue;
                 }
 
-                _logger.LogInformation(
-                    "Processing analysis request {MessageId}",
-                    message.MessageId);
-
-                await _queue.AcknowledgeAsync(
-                    _options.StreamName,
-                    _options.ConsumerGroup,
-                    message.MessageId,
-                    stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                if (message.Attempt + 1 >= _workerOptions.MaxAttempts)
+                try
                 {
-                    await _queue.MoveToDeadLetterAsync(
+                    _logger.LogInformation(
+                        "Processing analysis request {MessageId}",
+                        message.MessageId);
+
+                    await _queue.AcknowledgeAsync(
                         _options.StreamName,
-                        _options.DeadLetterStream,
-                        message,
-                        ex.Message,
+                        consumerGroup,
+                        message.MessageId,
                         stoppingToken);
                 }
-
+                catch (Exception exception)
+                    when (exception is not OperationCanceledException)
+                {
+                    await HandleFailureAsync(
+                        consumerGroup,
+                        message,
+                        exception,
+                        stoppingToken);
+                }
+            }
+            catch (OperationCanceledException)
+                when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception exception)
+            {
                 _logger.LogError(
-                    ex,
-                    "Analysis request failed {MessageId}",
-                    message.MessageId);
+                    exception,
+                    "Analysis worker loop failed.");
+
+                await Task.Delay(
+                    TimeSpan.FromSeconds(1),
+                    stoppingToken);
             }
         }
+    }
+
+    private async Task HandleFailureAsync(
+        string consumerGroup,
+        QueueEnvelope message,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        if (message.Attempt + 1
+            >= Math.Max(1, _workerOptions.MaxAttempts))
+        {
+            await _queue.MoveToDeadLetterAsync(
+                _options.StreamName,
+                consumerGroup,
+                _options.DeadLetterStreamName,
+                message,
+                exception.Message,
+                cancellationToken);
+        }
+        else
+        {
+            await _queue.RetryAsync(
+                _options.StreamName,
+                consumerGroup,
+                message,
+                cancellationToken);
+        }
+
+        _logger.LogError(
+            exception,
+            "Analysis request failed {MessageId}",
+            message.MessageId);
     }
 }
