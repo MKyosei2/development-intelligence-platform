@@ -11,35 +11,49 @@ public sealed class PipelineRunTests
     [Fact]
     public void StartThenComplete_TransitionsCorrectly()
     {
-        var now = DateTimeOffset.UtcNow;
-        var run = new PipelineRun(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            new CommitSha("abcdef1234567890"),
-            "generic-json",
-            "0.1.0",
-            now);
+        var queuedAt = DateTimeOffset.UtcNow;
+        var run = CreatePipelineRun(queuedAt);
 
-        run.Start(now.AddSeconds(1));
-        run.Complete(now.AddSeconds(10));
+        run.Start(queuedAt.AddSeconds(1));
+        run.Complete(queuedAt.AddSeconds(10));
 
         run.Status.Should().Be(PipelineStatus.Succeeded);
-        run.FinishedAtUtc.Should().NotBeNull();
+        run.StartedAtUtc.Should().Be(queuedAt.AddSeconds(1));
+        run.FinishedAtUtc.Should().Be(queuedAt.AddSeconds(10));
+        run.ExternalRunId.Should().Be("test-run-1");
+        run.AttemptNumber.Should().Be(1);
+        run.Branch.Should().Be("main");
+        run.CollectorType.Should().Be("generic-json");
+        run.CollectorVersion.Should().Be("0.1.0");
     }
 
     [Fact]
     public void CompleteWithoutStart_Throws()
     {
-        var now = DateTimeOffset.UtcNow;
-        var run = new PipelineRun(
+        var queuedAt = DateTimeOffset.UtcNow;
+        var run = CreatePipelineRun(queuedAt);
+
+        var action = () =>
+            run.Complete(queuedAt.AddSeconds(10));
+
+        action.Should().Throw<DomainException>();
+        run.Status.Should().Be(PipelineStatus.Queued);
+        run.StartedAtUtc.Should().BeNull();
+        run.FinishedAtUtc.Should().BeNull();
+    }
+
+    private static PipelineRun CreatePipelineRun(
+        DateTimeOffset queuedAt)
+    {
+        return new PipelineRun(
             Guid.NewGuid(),
             Guid.NewGuid(),
             new CommitSha("abcdef1234567890"),
+            "test-run-1",
+            1,
+            "main",
             "generic-json",
             "0.1.0",
-            now);
-
-        var action = () => run.Complete(now.AddSeconds(10));
-        action.Should().Throw<DomainException>();
+            queuedAt);
     }
 }
