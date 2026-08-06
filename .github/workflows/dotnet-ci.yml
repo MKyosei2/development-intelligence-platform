@@ -1,24 +1,44 @@
 name: .NET CI
+
 on:
   push:
     branches: [main, develop]
-    paths: ["src/**", "tests/**", "*.sln", "Directory.Build.*", "Directory.Packages.props", "global.json", ".github/workflows/dotnet-ci.yml"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "*.sln"
+      - "Directory.Build.*"
+      - "Directory.Packages.props"
+      - "global.json"
+      - ".github/workflows/dotnet-ci.yml"
   pull_request:
     branches: [main, develop]
-    paths: ["src/**", "tests/**", "*.sln", "Directory.Build.*", "Directory.Packages.props", "global.json", ".github/workflows/dotnet-ci.yml"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "*.sln"
+      - "Directory.Build.*"
+      - "Directory.Packages.props"
+      - "global.json"
+      - ".github/workflows/dotnet-ci.yml"
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: dotnet-ci-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build-test:
-    name: Build and test .NET
+    name: Build solution and run unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
@@ -26,22 +46,31 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             Directory.Packages.props
+
       - name: Restore
         run: dotnet restore DevelopmentIntelligencePlatform.sln
+
       - name: Build
-        run: dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
-      - name: Test
         run: >
-          dotnet test DevelopmentIntelligencePlatform.sln
-          --configuration Release --no-build
-          --logger "trx;LogFileName=dotnet-tests.trx"
+          dotnet build DevelopmentIntelligencePlatform.sln
+          --configuration Release
+          --no-restore
+
+      - name: Unit tests
+        run: >
+          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=domain-tests.trx"
           --collect "XPlat Code Coverage"
           --results-directory TestResults
+          --blame-hang-timeout 5m
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dotnet-test-results
+          name: dotnet-unit-test-results
           path: TestResults
           if-no-files-found: warn
           retention-days: 14

@@ -5,7 +5,8 @@ using FluentAssertions;
 
 namespace Dip.IntegrationTests.Api;
 
-public sealed class ProjectsApiTests : IClassFixture<PostgreSqlFixture>
+public sealed class ProjectsApiTests :
+    IClassFixture<PostgreSqlFixture>
 {
     private readonly PostgreSqlFixture _database;
 
@@ -15,24 +16,46 @@ public sealed class ProjectsApiTests : IClassFixture<PostgreSqlFixture>
     }
 
     [Fact]
-    public async Task CreateThenList_ReturnsProject()
+    public async Task CreateThenList_ReturnsCreatedProject()
     {
-        await using var factory = new CustomWebApplicationFactory(_database.ConnectionString);
+        await using var factory =
+            new CustomWebApplicationFactory(
+                _database.ConnectionString);
+
         using var client = factory.CreateClient();
 
-        var create = await client.PostAsJsonAsync("/api/projects", new
-        {
-            name = "Aurora",
-            repositoryUrl = "https://github.com/example/aurora",
-            defaultBranch = "develop",
-            releaseDateUtc = (DateTimeOffset?)null
-        });
+        var suffix = Guid.NewGuid().ToString("N");
+        var repositoryUrl =
+            $"https://github.com/example/aurora-{suffix}";
 
-        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/projects",
+            new
+            {
+                name = $"Aurora {suffix}",
+                repositoryUrl,
+                defaultBranch = "develop",
+                releaseDateUtc = (DateTimeOffset?)null
+            });
 
-        var projects = await client.GetFromJsonAsync<ProjectDto[]>("/api/projects");
-        projects.Should().ContainSingle(x => x.Name == "Aurora");
+        createResponse.StatusCode
+            .Should()
+            .Be(HttpStatusCode.Created);
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<ProjectDto>();
+
+        created.Should().NotBeNull();
+
+        var projects = await client
+            .GetFromJsonAsync<ProjectDto[]>("/api/projects");
+
+        projects.Should().NotBeNull();
+        projects.Should().Contain(
+            project => project.Id == created!.Id);
     }
 
-    private sealed record ProjectDto(Guid Id, string Name);
+    private sealed record ProjectDto(
+        Guid Id,
+        string Name);
 }

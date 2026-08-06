@@ -18,6 +18,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dip.Web", "src\Dip.Web\Dip.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dip.Domain.Tests", "tests\Dip.Domain.Tests\Dip.Domain.Tests.csproj", "{FA0BF8B2-FF3E-50D4-BE72-CA822E9888FF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dip.IntegrationTests", "tests\Dip.IntegrationTests\Dip.IntegrationTests.csproj", "{B3F7B3A1-2B62-4F62-8A11-7F9969D6D7D2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{FA0BF8B2-FF3E-50D4-BE72-CA822E9888FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA0BF8B2-FF3E-50D4-BE72-CA822E9888FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FA0BF8B2-FF3E-50D4-BE72-CA822E9888FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3F7B3A1-2B62-4F62-8A11-7F9969D6D7D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3F7B3A1-2B62-4F62-8A11-7F9969D6D7D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3F7B3A1-2B62-4F62-8A11-7F9969D6D7D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3F7B3A1-2B62-4F62-8A11-7F9969D6D7D2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

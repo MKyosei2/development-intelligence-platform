@@ -9,34 +9,41 @@ public sealed class OutboxMessageTests
     public void MarkProcessed_SetsProcessedTimestamp()
     {
         var now = DateTimeOffset.UtcNow;
-        var message = new OutboxMessage(
-            Guid.NewGuid(),
-            "Test",
-            "{}",
-            "correlation-1",
-            null,
-            now);
+        var message = CreateMessage(now);
 
         message.MarkProcessed(now.AddSeconds(1));
 
-        Assert.NotNull(message.ProcessedAtUtc);
+        Assert.Equal(now.AddSeconds(1), message.ProcessedAtUtc);
+        Assert.Null(message.LockedUntilUtc);
+        Assert.Null(message.NextAttemptAtUtc);
+        Assert.Null(message.LastError);
     }
 
     [Fact]
-    public void MarkFailed_IncrementsAttempt()
+    public void LockThenMarkFailed_RecordsOneAttemptAndSchedulesRetry()
     {
         var now = DateTimeOffset.UtcNow;
-        var message = new OutboxMessage(
+        var message = CreateMessage(now);
+        var nextAttemptAt = now.AddMinutes(1);
+
+        message.Lock(now.AddSeconds(30));
+        message.MarkFailed("error", nextAttemptAt);
+
+        // AttemptCount increases when a delivery attempt is acquired by Lock.
+        // MarkFailed records the outcome and must not count the same attempt twice.
+        Assert.Equal(1, message.AttemptCount);
+        Assert.Equal("error", message.LastError);
+        Assert.Equal(nextAttemptAt, message.NextAttemptAtUtc);
+        Assert.Null(message.LockedUntilUtc);
+        Assert.Null(message.ProcessedAtUtc);
+    }
+
+    private static OutboxMessage CreateMessage(DateTimeOffset now) =>
+        new(
             Guid.NewGuid(),
             "Test",
             "{}",
             "correlation-1",
             null,
             now);
-
-        message.MarkFailed("error", now.AddMinutes(1));
-
-        Assert.Equal(1, message.AttemptCount);
-        Assert.Equal("error", message.LastError);
-    }
 }

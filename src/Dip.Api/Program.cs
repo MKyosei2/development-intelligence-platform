@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Dip.Api.Middleware;
 using Dip.Application;
@@ -12,10 +13,18 @@ builder.Services.AddGitHubApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddGitHubIntegration(builder.Configuration);
 
-builder.Services.AddControllers(options =>
-{
-    options.SuppressAsyncSuffixInActionNames = false;
-});
+builder.Services
+    .AddControllers(options =>
+    {
+        options.SuppressAsyncSuffixInActionNames = false;
+    })
+    .AddJsonOptions(options =>
+    {
+        // Collectors serialize enum values as names such as "Succeeded".
+        // Keep the API contract compatible with those clients.
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter());
+    });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -54,14 +63,9 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// The repository currently contains no EF Core migration classes.
-// InitializeDatabaseAsync applies migrations when they exist and otherwise
-// creates the schema from the current model.
 await app.Services.InitializeDatabaseAsync();
 
 app.UseForwardedHeaders();
-
-// Exception handling must wrap custom request-body middleware.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseGitHubWebhookBodyBuffering();
 

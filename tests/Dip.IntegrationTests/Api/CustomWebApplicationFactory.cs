@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Dip.IntegrationTests.Api;
 
@@ -15,18 +16,16 @@ public sealed class CustomWebApplicationFactory(string connectionString)
 
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.SingleOrDefault(
-                x => x.ServiceType == typeof(DbContextOptions<DipDbContext>));
-
-            if (descriptor is not null)
-                services.Remove(descriptor);
+            // Replace every registration added by AddDbContext. Leaving an old
+            // registration behind can make tests connect to the development DB.
+            services.RemoveAll<DipDbContext>();
+            services.RemoveAll<DbContextOptions<DipDbContext>>();
 
             services.AddDbContext<DipDbContext>(
                 options => options.UseNpgsql(connectionString));
 
-            using var scope = services.BuildServiceProvider().CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<DipDbContext>();
-            db.Database.EnsureCreated();
+            // Program.InitializeDatabaseAsync creates the schema after the
+            // final test service provider has been built.
         });
     }
 }

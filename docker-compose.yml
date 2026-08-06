@@ -3,7 +3,6 @@ name: development-intelligence-platform
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: dip-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dip}
@@ -14,7 +13,11 @@ services:
     volumes:
       - dip-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dip} -d ${POSTGRES_DB:-dip}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-dip} -d ${POSTGRES_DB:-dip}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,7 +26,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: dip-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
@@ -37,9 +39,11 @@ services:
       retries: 10
     networks: [dip-network]
 
+  # Artifact storage is optional for the P0 MVP execution path.
+  # Start it with: docker compose --profile storage up -d
   minio:
+    profiles: ["storage"]
     image: minio/minio:latest
-    container_name: dip-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -51,7 +55,13 @@ services:
     volumes:
       - dip-minio-data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:9000/minio/health/live"
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
