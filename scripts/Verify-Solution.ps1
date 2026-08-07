@@ -437,7 +437,7 @@ try {
     $env:Redis__ConnectionString = "127.0.0.1:$RedisPort"
     $env:ASPNETCORE_ENVIRONMENT = "Development"
     $env:DOTNET_ENVIRONMENT = "Development"
-    $env:GitHub__WebhookSecret = "local-final-verification-secret"
+    $env:GitHub__WebhookSecret = "integration-test-secret"
     $env:GitHub__Token = "local-final-verification-token"
 
     Invoke-DockerCompose -Arguments @("config", "--quiet") | Out-Null
