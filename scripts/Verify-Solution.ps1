@@ -28,26 +28,11 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$solutionPath = Join-Path `
-    $repositoryRoot `
-    "DevelopmentIntelligencePlatform.sln"
-
-$artifactDirectory = Join-Path `
-    $repositoryRoot `
-    "artifacts\final-verification"
-
-$testResultsDirectory = Join-Path `
-    $artifactDirectory `
-    "test-results"
-
-$completionPath = Join-Path `
-    $artifactDirectory `
-    "PROJECT_COMPLETION.txt"
-
-$failurePath = Join-Path `
-    $artifactDirectory `
-    "PROJECT_COMPLETION_FAILED.txt"
-
+$solutionPath = Join-Path $repositoryRoot "DevelopmentIntelligencePlatform.sln"
+$artifactDirectory = Join-Path $repositoryRoot "artifacts\final-verification"
+$testResultsDirectory = Join-Path $artifactDirectory "test-results"
+$completionPath = Join-Path $artifactDirectory "PROJECT_COMPLETION.txt"
+$failurePath = Join-Path $artifactDirectory "PROJECT_COMPLETION_FAILED.txt"
 $composeProjectName = "dip-final-verification"
 $applicationProcesses = New-Object System.Collections.ArrayList
 $composeStarted = $false
@@ -127,12 +112,8 @@ function Start-DockerEngine {
     Write-Step "Docker Engine is not running; attempting to start Docker Desktop"
 
     $candidates = @(
-        (Join-Path `
-            $env:ProgramFiles `
-            "Docker\Docker\Docker Desktop.exe"),
-        (Join-Path `
-            $env:LOCALAPPDATA `
-            "Docker\Docker Desktop.exe")
+        (Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"),
+        (Join-Path $env:LOCALAPPDATA "Docker\Docker Desktop.exe")
     )
 
     $dockerDesktop = $candidates |
@@ -142,29 +123,22 @@ function Start-DockerEngine {
     if (-not $dockerDesktop) {
         throw @"
 Docker Engine is unavailable and Docker Desktop could not be found.
-Install Docker Desktop with the WSL 2 backend, start it once, and rerun this script.
+Install or start Docker Desktop, then rerun this script.
 "@
     }
 
     Start-Process -FilePath $dockerDesktop | Out-Null
 
-    $deadline = [DateTimeOffset]::UtcNow.AddSeconds(
-        $DockerTimeoutSeconds)
-
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($DockerTimeoutSeconds)
     while ([DateTimeOffset]::UtcNow -lt $deadline) {
         Start-Sleep -Seconds 2
-
         if (Test-DockerEngine) {
             Write-Host "Docker Engine is ready."
             return
         }
     }
 
-    throw @"
-Docker Desktop was started, but its Linux Engine did not become ready within
-$DockerTimeoutSeconds seconds. Open Docker Desktop and repair its WSL 2
-integration before rerunning the verification.
-"@
+    throw "Docker Desktop did not become ready within $DockerTimeoutSeconds seconds."
 }
 
 function Wait-ComposeServiceHealthy {
@@ -173,35 +147,25 @@ function Wait-ComposeServiceHealthy {
         [Parameter(Mandatory = $true)][int]$TimeoutSeconds
     )
 
-    $deadline = [DateTimeOffset]::UtcNow.AddSeconds(
-        $TimeoutSeconds)
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
 
     while ([DateTimeOffset]::UtcNow -lt $deadline) {
-        $composeArguments = @(
-            "compose",
-            "--project-name",
-            $composeProjectName,
-            "ps",
-            "-q",
-            $Service
-        )
-
         $containerId = (
-            & docker @composeArguments |
+            & docker compose `
+                --project-name $composeProjectName `
+                ps -q $Service |
             Out-String
         ).Trim()
 
         if ($LASTEXITCODE -eq 0 -and $containerId) {
             $status = (
                 & docker inspect `
-                    --format `
-                    "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}" `
+                    --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}" `
                     $containerId |
                 Out-String
             ).Trim()
 
-            if ($LASTEXITCODE -eq 0 -and
-                $status -in @("healthy", "running")) {
+            if ($LASTEXITCODE -eq 0 -and $status -in @("healthy", "running")) {
                 Write-Host "$Service is $status."
                 return
             }
@@ -210,7 +174,6 @@ function Wait-ComposeServiceHealthy {
                 Invoke-DockerCompose `
                     -Arguments @("logs", "--no-color", $Service) `
                     -IgnoreExitCode | Out-Null
-
                 throw "Docker service '$Service' stopped unexpectedly."
             }
         }
@@ -225,8 +188,28 @@ function Wait-ComposeServiceHealthy {
     throw "Docker service '$Service' did not become healthy within $TimeoutSeconds seconds."
 }
 
+function Assert-PortAvailable {
+    param([Parameter(Mandatory = $true)][int]$Port)
+
+    $listener = $null
+    try {
+        $listener = New-Object `
+            -TypeName System.Net.Sockets.TcpListener `
+            -ArgumentList @([System.Net.IPAddress]::Loopback, $Port)
+        $listener.Start()
+    }
+    catch {
+        throw "TCP port $Port is already in use. Stop the process using it or rerun with another port."
+    }
+    finally {
+        if ($null -ne $listener) {
+            $listener.Stop()
+        }
+    }
+}
+
 function Get-LogTail {
-    param([string]$Path)
+    param([Parameter(Mandatory = $true)][string]$Path)
 
     if (-not (Test-Path -LiteralPath $Path)) {
         return "(log file was not created)"
@@ -235,58 +218,43 @@ function Get-LogTail {
     return (
         Get-Content `
             -LiteralPath $Path `
-            -Tail 100 `
+            -Encoding UTF8 `
+            -Tail 120 `
             -ErrorAction SilentlyContinue |
         Out-String
     )
 }
 
-function Start-DotNetProject {
+function Start-DotNetDll {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)][string]$Project,
+        [Parameter(Mandatory = $true)][string]$DllRelativePath,
         [string]$Urls
     )
 
-    if ([string]::IsNullOrWhiteSpace($Urls)) {
-        Remove-Item `
-            Env:ASPNETCORE_URLS `
-            -ErrorAction SilentlyContinue
-    }
-    else {
-        $env:ASPNETCORE_URLS = $Urls
+    $dllPath = Join-Path $repositoryRoot $DllRelativePath
+    if (-not (Test-Path -LiteralPath $dllPath)) {
+        throw "Built application DLL was not found: $dllPath"
     }
 
-    $standardOutput = Join-Path `
-        $artifactDirectory `
-        "$Name.stdout.log"
+    $standardOutput = Join-Path $artifactDirectory "$Name.stdout.log"
+    $standardError = Join-Path $artifactDirectory "$Name.stderr.log"
 
-    $standardError = Join-Path `
-        $artifactDirectory `
-        "$Name.stderr.log"
+    Remove-Item -LiteralPath $standardOutput -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $standardError -Force -ErrorAction SilentlyContinue
 
-    Remove-Item `
-        -LiteralPath $standardOutput `
-        -Force `
-        -ErrorAction SilentlyContinue
+    $argumentList = @("`"$dllPath`"")
+    if (-not [string]::IsNullOrWhiteSpace($Urls)) {
+        $argumentList += @("--urls", $Urls)
+    }
 
-    Remove-Item `
-        -LiteralPath $standardError `
-        -Force `
-        -ErrorAction SilentlyContinue
+    $projectRelativePath = $DllRelativePath -replace '[\\/]+bin[\\/].*$', ''
+    $workingDirectory = Join-Path $repositoryRoot $projectRelativePath
 
     $process = Start-Process `
         -FilePath "dotnet" `
-        -ArgumentList @(
-            "run",
-            "--project",
-            $Project,
-            "--configuration",
-            $Configuration,
-            "--no-build",
-            "--no-restore"
-        ) `
-        -WorkingDirectory $repositoryRoot `
+        -ArgumentList $argumentList `
+        -WorkingDirectory $workingDirectory `
         -RedirectStandardOutput $standardOutput `
         -RedirectStandardError $standardError `
         -PassThru
@@ -310,9 +278,7 @@ function Wait-HttpEndpoint {
         [Parameter(Mandatory = $true)][int]$TimeoutSeconds
     )
 
-    $deadline = [DateTimeOffset]::UtcNow.AddSeconds(
-        $TimeoutSeconds)
-
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
     $lastError = "No response was received."
 
     while ([DateTimeOffset]::UtcNow -lt $deadline) {
@@ -322,7 +288,7 @@ function Wait-HttpEndpoint {
                 Select-Object -First 1
 
             throw @"
-$Name exited before becoming ready.
+$Name exited before becoming ready. ExitCode=$($Process.ExitCode)
 STDOUT:
 $(Get-LogTail $entry.StandardOutput)
 STDERR:
@@ -336,8 +302,7 @@ $(Get-LogTail $entry.StandardError)
                 -UseBasicParsing `
                 -TimeoutSec 5
 
-            if ($response.StatusCode -ge 200 -and
-                $response.StatusCode -lt 400) {
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
                 Write-Host "$Name is ready at $Uri"
                 return
             }
@@ -351,17 +316,50 @@ $(Get-LogTail $entry.StandardError)
         Start-Sleep -Seconds 1
     }
 
-    throw "$Name did not become ready within $TimeoutSeconds seconds. Last error: $lastError"
+    $entry = $applicationProcesses |
+        Where-Object { $_.Process.Id -eq $Process.Id } |
+        Select-Object -First 1
+
+    throw @"
+$Name did not become ready at $Uri within $TimeoutSeconds seconds.
+LastError: $lastError
+STDOUT:
+$(Get-LogTail $entry.StandardOutput)
+STDERR:
+$(Get-LogTail $entry.StandardError)
+"@
+}
+
+function Wait-ProcessStable {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)]$Process,
+        [int]$Seconds = 5
+    )
+
+    Start-Sleep -Seconds $Seconds
+    if ($Process.HasExited) {
+        $entry = $applicationProcesses |
+            Where-Object { $_.Process.Id -eq $Process.Id } |
+            Select-Object -First 1
+
+        throw @"
+$Name exited during startup. ExitCode=$($Process.ExitCode)
+STDOUT:
+$(Get-LogTail $entry.StandardOutput)
+STDERR:
+$(Get-LogTail $entry.StandardError)
+"@
+    }
+
+    Write-Host "$Name is running. PID=$($Process.Id)"
 }
 
 function Stop-ApplicationProcesses {
     foreach ($entry in $applicationProcesses) {
         try {
             if (-not $entry.Process.HasExited) {
-                & taskkill `
-                    /PID $entry.Process.Id `
-                    /T `
-                    /F *> $null
+                & taskkill /PID $entry.Process.Id /T /F *> $null
             }
         }
         catch {
@@ -370,50 +368,56 @@ function Stop-ApplicationProcesses {
     }
 }
 
+function Run-TestProject {
+    param(
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$Project,
+        [Parameter(Mandatory = $true)][string]$ResultFile
+    )
+
+    Write-Step $Label
+    Invoke-External `
+        -FilePath "dotnet" `
+        -Arguments @(
+            "test",
+            $Project,
+            "--configuration",
+            $Configuration,
+            "--no-build",
+            "--logger",
+            "trx;LogFileName=$ResultFile",
+            "--results-directory",
+            $testResultsDirectory,
+            "--blame-hang-timeout",
+            "5m"
+        ) | Out-Null
+}
+
 if (-not (Test-Path -LiteralPath $solutionPath)) {
     throw "Solution not found: $solutionPath"
 }
 
-New-Item `
-    -ItemType Directory `
-    -Path $artifactDirectory `
-    -Force | Out-Null
-
-New-Item `
-    -ItemType Directory `
-    -Path $testResultsDirectory `
-    -Force | Out-Null
-
-Remove-Item `
-    -LiteralPath $completionPath `
-    -Force `
-    -ErrorAction SilentlyContinue
-
-Remove-Item `
-    -LiteralPath $failurePath `
-    -Force `
-    -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $artifactDirectory -Force | Out-Null
+Remove-Item -LiteralPath $testResultsDirectory -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $testResultsDirectory -Force | Out-Null
+Remove-Item -LiteralPath $completionPath -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $failurePath -Force -ErrorAction SilentlyContinue
 
 Push-Location $repositoryRoot
 
 try {
     Write-Step "Checking required tools"
-
     Assert-Command "dotnet"
     Assert-Command "docker"
     Assert-Command "git"
 
     $sdkVersion = (& dotnet --version | Out-String).Trim()
-
     if (-not $sdkVersion.StartsWith("8.")) {
         throw "The project requires .NET SDK 8.x, but '$sdkVersion' is active."
     }
 
     Start-DockerEngine
-
-    Invoke-External `
-        -FilePath "docker" `
-        -Arguments @("compose", "version") | Out-Null
+    Invoke-External -FilePath "docker" -Arguments @("compose", "version") | Out-Null
 
     Write-Step "Starting isolated PostgreSQL and Redis verification services"
 
@@ -430,153 +434,68 @@ try {
         "Username=dip;" +
         "Password=dip-verification-password"
     )
-
-    $env:Redis__ConnectionString =
-        "127.0.0.1:$RedisPort"
-
-    $env:ASPNETCORE_ENVIRONMENT = "Testing"
-    $env:DOTNET_ENVIRONMENT = "Testing"
-    $env:GitHub__WebhookSecret =
-        "local-final-verification-secret"
-    $env:GitHub__Token =
-        "local-final-verification-token"
-
-    Invoke-DockerCompose `
-        -Arguments @(
-            "config",
-            "--quiet"
-        ) | Out-Null
-
-    Invoke-DockerCompose `
-        -Arguments @(
-            "down",
-            "--volumes",
-            "--remove-orphans"
-        ) `
-        -IgnoreExitCode | Out-Null
-
-    Invoke-DockerCompose `
-        -Arguments @(
-            "up",
-            "-d",
-            "postgres",
-            "redis"
-        ) | Out-Null
-
-    $composeStarted = $true
-
-    Wait-ComposeServiceHealthy `
-        -Service "postgres" `
-        -TimeoutSeconds $DockerTimeoutSeconds
-
-    Wait-ComposeServiceHealthy `
-        -Service "redis" `
-        -TimeoutSeconds $DockerTimeoutSeconds
-
-    Write-Step "Cleaning generated build output"
-
-    Remove-Item `
-        -LiteralPath (Join-Path $repositoryRoot ".vs") `
-        -Recurse `
-        -Force `
-        -ErrorAction SilentlyContinue
-
-    Get-ChildItem `
-        -Path $repositoryRoot `
-        -Recurse `
-        -Directory `
-        -Filter bin |
-        Remove-Item `
-            -Recurse `
-            -Force `
-            -ErrorAction SilentlyContinue
-
-    Get-ChildItem `
-        -Path $repositoryRoot `
-        -Recurse `
-        -Directory `
-        -Filter obj |
-        Remove-Item `
-            -Recurse `
-            -Force `
-            -ErrorAction SilentlyContinue
-
-    Remove-Item `
-        -LiteralPath $testResultsDirectory `
-        -Recurse `
-        -Force `
-        -ErrorAction SilentlyContinue
-
-    New-Item `
-        -ItemType Directory `
-        -Path $testResultsDirectory `
-        -Force | Out-Null
-
-    Write-Step "Restoring the complete solution"
-
-    Invoke-External `
-        -FilePath "dotnet" `
-        -Arguments @(
-            "restore",
-            $solutionPath
-        ) | Out-Null
-
-    Write-Step "Building the complete solution in $Configuration"
-
-    Invoke-External `
-        -FilePath "dotnet" `
-        -Arguments @(
-            "build",
-            $solutionPath,
-            "--configuration",
-            $Configuration,
-            "--no-restore"
-        ) | Out-Null
-
-    Write-Step "Running domain unit tests"
-
-    Invoke-External `
-        -FilePath "dotnet" `
-        -Arguments @(
-            "test",
-            "tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj",
-            "--configuration",
-            $Configuration,
-            "--no-build",
-            "--logger",
-            "trx;LogFileName=domain-tests.trx",
-            "--results-directory",
-            $testResultsDirectory,
-            "--blame-hang-timeout",
-            "5m"
-        ) | Out-Null
-
-    Write-Step "Running PostgreSQL API integration tests"
-
-    Invoke-External `
-        -FilePath "dotnet" `
-        -Arguments @(
-            "test",
-            "tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj",
-            "--configuration",
-            $Configuration,
-            "--no-build",
-            "--logger",
-            "trx;LogFileName=integration-tests.trx",
-            "--results-directory",
-            $testResultsDirectory,
-            "--blame-hang-timeout",
-            "5m"
-        ) | Out-Null
-
-    Write-Step "Starting API"
-
+    $env:Redis__ConnectionString = "127.0.0.1:$RedisPort"
     $env:ASPNETCORE_ENVIRONMENT = "Development"
     $env:DOTNET_ENVIRONMENT = "Development"
+    $env:GitHub__WebhookSecret = "local-final-verification-secret"
+    $env:GitHub__Token = "local-final-verification-token"
 
-    $apiProcess = Start-DotNetProject `
+    Invoke-DockerCompose -Arguments @("config", "--quiet") | Out-Null
+    Invoke-DockerCompose `
+        -Arguments @("down", "--volumes", "--remove-orphans") `
+        -IgnoreExitCode | Out-Null
+
+    Assert-PortAvailable -Port $PostgreSqlPort
+    Assert-PortAvailable -Port $RedisPort
+    Assert-PortAvailable -Port $ApiPort
+    Assert-PortAvailable -Port $WebPort
+
+    Invoke-DockerCompose `
+        -Arguments @("up", "-d", "postgres", "redis") | Out-Null
+    $composeStarted = $true
+
+    Wait-ComposeServiceHealthy -Service "postgres" -TimeoutSeconds $DockerTimeoutSeconds
+    Wait-ComposeServiceHealthy -Service "redis" -TimeoutSeconds $DockerTimeoutSeconds
+
+    Write-Step "Cleaning generated build output"
+    Remove-Item -LiteralPath (Join-Path $repositoryRoot ".vs") -Recurse -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path $repositoryRoot -Recurse -Directory -Filter bin |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path $repositoryRoot -Recurse -Directory -Filter obj |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Step "Restoring the complete solution"
+    Invoke-External -FilePath "dotnet" -Arguments @("restore", $solutionPath) | Out-Null
+
+    Write-Step "Building the complete solution in $Configuration"
+    Invoke-External `
+        -FilePath "dotnet" `
+        -Arguments @("build", $solutionPath, "--configuration", $Configuration, "--no-restore") | Out-Null
+
+    Run-TestProject `
+        -Label "Running domain unit tests" `
+        -Project "tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj" `
+        -ResultFile "domain-tests.trx"
+
+    Run-TestProject `
+        -Label "Running application unit tests" `
+        -Project "tests/Dip.Application.Tests/Dip.Application.Tests.csproj" `
+        -ResultFile "application-tests.trx"
+
+    Run-TestProject `
+        -Label "Running infrastructure unit tests" `
+        -Project "tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj" `
+        -ResultFile "infrastructure-tests.trx"
+
+    Run-TestProject `
+        -Label "Running PostgreSQL API integration tests" `
+        -Project "tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj" `
+        -ResultFile "integration-tests.trx"
+
+    Write-Step "Starting API on the verification port"
+    $apiProcess = Start-DotNetDll `
         -Name "Dip.Api" `
-        -Project "src/Dip.Api/Dip.Api.csproj" `
+        -DllRelativePath "src/Dip.Api/bin/$Configuration/net8.0/Dip.Api.dll" `
         -Urls "http://127.0.0.1:$ApiPort"
 
     Wait-HttpEndpoint `
@@ -586,37 +505,16 @@ try {
         -TimeoutSeconds $ApplicationTimeoutSeconds
 
     Write-Step "Starting Worker"
-
-    $workerProcess = Start-DotNetProject `
+    $workerProcess = Start-DotNetDll `
         -Name "Dip.Worker" `
-        -Project "src/Dip.Worker/Dip.Worker.csproj"
+        -DllRelativePath "src/Dip.Worker/bin/$Configuration/net8.0/Dip.Worker.dll"
+    Wait-ProcessStable -Name "Dip.Worker" -Process $workerProcess -Seconds 5
 
-    Start-Sleep -Seconds 3
-
-    if ($workerProcess.HasExited) {
-        $entry = $applicationProcesses |
-            Where-Object {
-                $_.Process.Id -eq $workerProcess.Id
-            } |
-            Select-Object -First 1
-
-        throw @"
-Dip.Worker exited during startup.
-STDOUT:
-$(Get-LogTail $entry.StandardOutput)
-STDERR:
-$(Get-LogTail $entry.StandardError)
-"@
-    }
-
-    Write-Step "Starting Web dashboard"
-
-    $env:Api__BaseUrl =
-        "http://127.0.0.1:$ApiPort/"
-
-    $webProcess = Start-DotNetProject `
+    Write-Step "Starting Web dashboard on the verification port"
+    $env:Api__BaseUrl = "http://127.0.0.1:$ApiPort/"
+    $webProcess = Start-DotNetDll `
         -Name "Dip.Web" `
-        -Project "src/Dip.Web/Dip.Web.csproj" `
+        -DllRelativePath "src/Dip.Web/bin/$Configuration/net8.0/Dip.Web.dll" `
         -Urls "http://127.0.0.1:$WebPort"
 
     Wait-HttpEndpoint `
@@ -625,12 +523,16 @@ $(Get-LogTail $entry.StandardError)
         -Process $webProcess `
         -TimeoutSeconds $ApplicationTimeoutSeconds
 
-    Write-Step "Running end-to-end collector pipeline smoke test"
+    $env:DIP_API_URL = "http://127.0.0.1:$ApiPort"
+    Run-TestProject `
+        -Label "Running live end-to-end test suite" `
+        -Project "tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj" `
+        -ResultFile "end-to-end-tests.trx"
+
+    Write-Step "Running final collector-to-dashboard smoke verification"
 
     $verificationId = [Guid]::NewGuid().ToString("N")
-    $repositoryUrl =
-        "https://github.com/example/dip-verification-$verificationId"
-
+    $repositoryUrl = "https://github.com/example/dip-verification-$verificationId"
     $projectBody = @{
         name = "Final Verification $verificationId"
         repositoryUrl = $repositoryUrl
@@ -649,11 +551,7 @@ $(Get-LogTail $entry.StandardError)
         throw "Project creation did not return an id."
     }
 
-    $startedAt =
-        [DateTimeOffset]::UtcNow.AddSeconds(-2)
-    $finishedAt =
-        [DateTimeOffset]::UtcNow
-
+    $now = [DateTimeOffset]::UtcNow
     $reportBody = @{
         schemaVersion = "1.0"
         reportId = "verification-report-$verificationId"
@@ -663,10 +561,10 @@ $(Get-LogTail $entry.StandardError)
         collectorVersion = "1.0.0"
         projectId = $project.id
         repository = $repositoryUrl
-        commitSha = "abcdef1234567890"
+        commitSha = "0123456789abcdef0123456789abcdef01234567"
         branch = "main"
-        startedAt = $startedAt.ToString("O")
-        finishedAt = $finishedAt.ToString("O")
+        startedAt = $now.AddSeconds(-2).ToString("O")
+        finishedAt = $now.ToString("O")
         status = "Succeeded"
         metrics = @(
             @{
@@ -697,11 +595,7 @@ $(Get-LogTail $entry.StandardError)
 
     $pipelineRun = Invoke-RestMethod `
         -Method Get `
-        -Uri (
-            "http://127.0.0.1:$ApiPort/" +
-            "api/v1/pipeline-runs/" +
-            $collectorResult.pipelineRunId
-        ) `
+        -Uri "http://127.0.0.1:$ApiPort/api/v1/pipeline-runs/$($collectorResult.pipelineRunId)" `
         -TimeoutSec 15
 
     if ($pipelineRun.status -ne "Succeeded") {
@@ -709,69 +603,41 @@ $(Get-LogTail $entry.StandardError)
     }
 
     $qualityGateStatus = $null
-    $qualityGateDeadline =
-        [DateTimeOffset]::UtcNow.AddSeconds(
-            $ApplicationTimeoutSeconds)
+    $qualityGateDeadline = [DateTimeOffset]::UtcNow.AddSeconds($ApplicationTimeoutSeconds)
 
     while ([DateTimeOffset]::UtcNow -lt $qualityGateDeadline) {
         if ($workerProcess.HasExited) {
-            $entry = $applicationProcesses |
-                Where-Object {
-                    $_.Process.Id -eq $workerProcess.Id
-                } |
-                Select-Object -First 1
-
-            throw @"
-Dip.Worker exited while processing the quality gate.
-STDOUT:
-$(Get-LogTail $entry.StandardOutput)
-STDERR:
-$(Get-LogTail $entry.StandardError)
-"@
+            throw "Dip.Worker exited while processing the quality gate."
         }
 
         try {
             $dashboard = Invoke-RestMethod `
                 -Method Get `
-                -Uri (
-                    "http://127.0.0.1:$ApiPort/" +
-                    "api/v1/dashboard/projects/" +
-                    $project.id
-                ) `
+                -Uri "http://127.0.0.1:$ApiPort/api/v1/dashboard/projects/$($project.id)" `
                 -TimeoutSec 10
 
-            $qualityGateStatus =
-                $dashboard.qualityGateStatus
-
-            if (-not [string]::IsNullOrWhiteSpace(
-                    $qualityGateStatus)) {
+            $qualityGateStatus = $dashboard.qualityGateStatus
+            if (-not [string]::IsNullOrWhiteSpace($qualityGateStatus)) {
                 break
             }
         }
         catch {
-            # The quality-gate result is asynchronous. Retry until timeout.
+            # The result is asynchronous; retry until the deadline.
         }
 
-        Start-Sleep -Seconds 1
+        Start-Sleep -Milliseconds 500
     }
 
     if ($qualityGateStatus -ne "Passed") {
         throw "Quality Gate did not reach 'Passed'. Actual='$qualityGateStatus'."
     }
 
-    if ($apiProcess.HasExited -or
-        $workerProcess.HasExited -or
-        $webProcess.HasExited) {
+    if ($apiProcess.HasExited -or $workerProcess.HasExited -or $webProcess.HasExited) {
         throw "At least one application process stopped during final verification."
     }
 
-    $commitSha = (
-        & git rev-parse HEAD |
-        Out-String
-    ).Trim()
-
-    $completedAtUtc =
-        [DateTimeOffset]::UtcNow.ToString("O")
+    $commitSha = (& git rev-parse HEAD | Out-String).Trim()
+    $completedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 
     @"
 PROJECT COMPLETION VERIFIED
@@ -788,13 +654,17 @@ Verified:
 - Docker Engine and Compose
 - isolated PostgreSQL
 - isolated Redis
-- full solution restore
-- full solution build
+- complete solution restore
+- complete solution build
 - domain unit tests
+- application unit tests
+- infrastructure unit tests
 - PostgreSQL API integration tests
-- Dip.Api startup and health endpoint
+- Dip.Api startup on the requested verification port
+- Dip.Api health endpoint
 - Dip.Worker startup
-- Dip.Web startup
+- Dip.Web startup on the requested verification port
+- live end-to-end test suite
 - project creation
 - collector report validation and persistence
 - outbox publication
@@ -805,15 +675,12 @@ Verified:
 - Quality Gate status: Passed
 
 This declaration is generated only after every verification step succeeds.
-"@ | Set-Content `
-        -LiteralPath $completionPath `
-        -Encoding UTF8
+"@ | Set-Content -LiteralPath $completionPath -Encoding UTF8
 
     $verificationSucceeded = $true
 
     Write-Host ""
-    Write-Host "PROJECT COMPLETION VERIFIED" `
-        -ForegroundColor Green
+    Write-Host "PROJECT COMPLETION VERIFIED" -ForegroundColor Green
     Write-Host "Declaration: $completionPath"
 
     if ($KeepServicesRunning) {
@@ -825,8 +692,8 @@ This declaration is generated only after every verification step succeeds.
 }
 catch {
     $message = $_.Exception.Message
-    $failedAtUtc =
-        [DateTimeOffset]::UtcNow.ToString("O")
+    $failedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
+    $scriptStack = $_.ScriptStackTrace
 
     @"
 PROJECT COMPLETION NOT VERIFIED
@@ -836,28 +703,23 @@ FailedAtUtc: $failedAtUtc
 Reason:
 $message
 
+ScriptStack:
+$scriptStack
+
 Review the logs in:
 $artifactDirectory
-"@ | Set-Content `
-        -LiteralPath $failurePath `
-        -Encoding UTF8
+"@ | Set-Content -LiteralPath $failurePath -Encoding UTF8
 
-    Write-Error $message
+    Write-Host "FINAL VERIFICATION FAILED: $message" -ForegroundColor Red
     throw
 }
 finally {
-    if (-not (
-            $verificationSucceeded -and
-            $KeepServicesRunning)) {
+    if (-not ($verificationSucceeded -and $KeepServicesRunning)) {
         Stop-ApplicationProcesses
 
         if ($composeStarted) {
             Invoke-DockerCompose `
-                -Arguments @(
-                    "down",
-                    "--volumes",
-                    "--remove-orphans"
-                ) `
+                -Arguments @("down", "--volumes", "--remove-orphans") `
                 -IgnoreExitCode | Out-Null
         }
     }
