@@ -1,10 +1,17 @@
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Dip.Api.Authorization;
+using Dip.Api.Controllers;
 using Dip.Api.Middleware;
 using Dip.Application;
 using Dip.Infrastructure;
 using Dip.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,8 +27,6 @@ builder.Services
     })
     .AddJsonOptions(options =>
     {
-        // Collectors serialize enum values as names such as "Succeeded".
-        // Keep the API contract compatible with those clients.
         options.JsonSerializerOptions.Converters.Add(
             new JsonStringEnumConverter());
     });
@@ -30,6 +35,94 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<ApiMetricsRegistry>();
+builder.Services.AddHttpClient<GitHubOAuthClient>();
+
+var authenticationSection =
+    builder.Configuration.GetSection(AuthOptions.SectionName);
+var authenticationOptions =
+    authenticationSection.Get<AuthOptions>() ?? new AuthOptions();
+
+var signingKeyText = authenticationOptions.Jwt.SigningKey;
+if (string.IsNullOrWhiteSpace(signingKeyText))
+{
+    signingKeyText = Convert.ToBase64String(
+        RandomNumberGenerator.GetBytes(64));
+
+    builder.Configuration[
+        $"{AuthOptions.SectionName}:Jwt:SigningKey"] = signingKeyText;
+}
+else if (signingKeyText.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Authentication:Jwt:SigningKey must contain at least 32 characters.");
+}
+
+var signingKey = new SymmetricSecurityKey(
+    Encoding.UTF8.GetBytes(signingKeyText));
+
+builder.Services.Configure<AuthOptions>(authenticationSection);
+builder.Services.AddSingleton<JwtTokenIssuer>();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = false;
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateIssuer = true,
+            ValidIssuer = authenticationOptions.Jwt.Issuer,
+            ValidateAudience = true,
+            ValidAudience = authenticationOptions.Jwt.Audience,
+            ValidateLifetime = true,
+            NameClaimType = "name",
+            RoleClaimType = "role",
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
+
+var requireAuthenticatedUser =
+    authenticationOptions.RequireAuthenticatedUser;
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(Policies.ProjectRead, policy =>
+    {
+        if (requireAuthenticatedUser)
+        {
+            policy.RequireAuthenticatedUser();
+        }
+        else
+        {
+            policy.RequireAssertion(_ => true);
+        }
+    });
+
+    options.AddPolicy(Policies.ProjectWrite, policy =>
+    {
+        if (requireAuthenticatedUser)
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireRole(Roles.Member, Roles.Admin);
+        }
+        else
+        {
+            policy.RequireAssertion(_ => true);
+        }
+    });
+
+    options.AddPolicy(Policies.Admin, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole(Roles.Admin);
+    });
+});
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -75,7 +168,34 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/metrics"))
+    {
+        await next();
+        return;
+    }
+
+    var metrics =
+        context.RequestServices.GetRequiredService<ApiMetricsRegistry>();
+    var stopwatch = Stopwatch.StartNew();
+
+    try
+    {
+        await next();
+    }
+    finally
+    {
+        metrics.Record(
+            context.Request.Method,
+            context.Response.StatusCode,
+            stopwatch.Elapsed);
+    }
+});
+
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();

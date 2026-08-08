@@ -1,13 +1,7 @@
 # Local-development overrides for docker-compose.yml.
-#
-# Docker Compose loads this file automatically together with
-# docker-compose.yml when `docker compose up` is executed from the repository
-# root. Production deployments should use an explicit production Compose file
-# instead of relying on these development settings.
-
 services:
   postgres:
-    logging:
+    logging: &dip-logging
       driver: local
       options:
         max-size: "10m"
@@ -15,17 +9,41 @@ services:
     stop_grace_period: 30s
 
   redis:
-    logging:
-      driver: local
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *dip-logging
     stop_grace_period: 15s
 
+  python-analysis:
+    logging: *dip-logging
+    stop_grace_period: 30s
+
+  api:
+    logging: *dip-logging
+    stop_grace_period: 30s
+
+  worker:
+    logging: *dip-logging
+    stop_grace_period: 30s
+
+  web:
+    logging: *dip-logging
+    stop_grace_period: 30s
+
   minio:
-    logging:
-      driver: local
-      options:
-        max-size: "10m"
-        max-file: "3"
+    profiles: ["storage"]
+    logging: *dip-logging
+    stop_grace_period: 30s
+
+  otel-collector:
+    profiles: ["monitoring"]
+    logging: *dip-logging
+    stop_grace_period: 30s
+
+  prometheus:
+    profiles: ["monitoring"]
+    logging: *dip-logging
+    stop_grace_period: 30s
+
+  grafana:
+    profiles: ["monitoring"]
+    logging: *dip-logging
     stop_grace_period: 30s

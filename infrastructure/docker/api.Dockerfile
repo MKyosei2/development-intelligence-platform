@@ -6,6 +6,9 @@ RUN dotnet publish src/Dip.Api/Dip.Api.csproj -c Release -o /out --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out .
 RUN useradd --create-home --uid 10001 dipuser
 USER dipuser

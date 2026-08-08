@@ -13,14 +13,10 @@ services:
     volumes:
       - dip-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-dip} -d ${POSTGRES_DB:-dip}"
-        ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dip} -d ${POSTGRES_DB:-dip}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
       start_period: 10s
     networks: [dip-network]
 
@@ -36,14 +32,113 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
     networks: [dip-network]
 
-  # Artifact storage is optional for the P0 MVP execution path.
-  # Start it with: docker compose --profile storage up -d
+  python-analysis:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/analysis.Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${ANALYSIS_APP_ENV:-development}
+      LOG_LEVEL: ${ANALYSIS_LOG_LEVEL:-INFO}
+      API_KEY: ${DIP_ANALYSIS_API_KEY:-}
+    ports:
+      - "${ANALYSIS_PORT:-8100}:8100"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=3).read()"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [dip-network]
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:-dip-local-password}
+      Redis__ConnectionString: redis:6379
+      Redis__InstanceName: "dip:"
+      AnalysisService__BaseUrl: http://python-analysis:8100
+      AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
+      GitHub__WebhookSecret: ${DIP_GITHUB_WEBHOOK_SECRET:-local-development-webhook-secret}
+      GitHub__Token: ${DIP_GITHUB_TOKEN:-}
+      Authentication__RequireAuthenticatedUser: ${DIP_REQUIRE_AUTHENTICATION:-false}
+      Authentication__GitHub__ClientId: ${DIP_GITHUB_OAUTH_CLIENT_ID:-}
+      Authentication__GitHub__ClientSecret: ${DIP_GITHUB_OAUTH_CLIENT_SECRET:-}
+      Authentication__GitHub__AdminLogins__0: ${DIP_GITHUB_ADMIN_LOGIN:-}
+      Authentication__Jwt__Issuer: development-intelligence-platform
+      Authentication__Jwt__Audience: development-intelligence-platform
+      Authentication__Jwt__SigningKey: ${DIP_JWT_SIGNING_KEY:-}
+      Authentication__Jwt__LifetimeMinutes: ${DIP_JWT_LIFETIME_MINUTES:-60}
+    ports:
+      - "${API_PORT:-5080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      python-analysis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks: [dip-network]
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/worker.Dockerfile
+    restart: unless-stopped
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:-dip-local-password}
+      Redis__ConnectionString: redis:6379
+      Redis__InstanceName: "dip:"
+      AnalysisService__BaseUrl: http://python-analysis:8100
+      AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
+      GitHub__Token: ${DIP_GITHUB_TOKEN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [dip-network]
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      Api__BaseUrl: http://api:8080/
+    ports:
+      - "${WEB_PORT:-5081}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [dip-network]
+
   minio:
     profiles: ["storage"]
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -54,23 +149,64 @@ services:
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - dip-minio-data:/data
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost:9000/minio/health/live"
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    networks: [dip-network]
+
+  otel-collector:
+    profiles: ["monitoring"]
+    image: otel/opentelemetry-collector-contrib:0.135.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yml"]
+    volumes:
+      - ./infrastructure/monitoring/otel/otel-collector-config.yml:/etc/otelcol-contrib/config.yml:ro
+    ports:
+      - "${OTEL_PROMETHEUS_EXPORTER_PORT:-8889}:8889"
+    depends_on:
+      api:
+        condition: service_healthy
+      python-analysis:
+        condition: service_healthy
+    networks: [dip-network]
+
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - dip-prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - otel-collector
+    networks: [dip-network]
+
+  grafana:
+    profiles: ["monitoring"]
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-dip-local-grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - dip-grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
     networks: [dip-network]
 
 volumes:
   dip-postgres-data:
   dip-redis-data:
   dip-minio-data:
+  dip-prometheus-data:
+  dip-grafana-data:
 
 networks:
   dip-network:

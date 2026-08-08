@@ -1,4 +1,6 @@
+using Dip.Api.Authorization;
 using Dip.Application.Features.Dashboard;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dip.Api.Controllers;
@@ -6,6 +8,7 @@ namespace Dip.Api.Controllers;
 [ApiController]
 [Route("api/v1/dashboard")]
 [Produces("application/json")]
+[Authorize(Policy = Policies.ProjectRead)]
 public sealed class DashboardController : ControllerBase
 {
     private readonly DashboardQueryService _service;
