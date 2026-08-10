@@ -50,3 +50,7 @@ migration phase.
 ## P1 technical evidence expansion
 
 P1 source paths for hardcoded Python/C#/C++ QA, fingerprint-based automatic reproduction, Windows capture/audio/dump helpers, hardware calibration, relative performance simulation, PM explanation, and Project Truth integration are included. P1 is **not verified** until `docs/P1_IMPLEMENTATION_STATUS.md` requirements have been exercised, including Windows-specific native evidence.
+
+## P2 Predictive Development Intelligence
+
+Source implementation now includes Community Hardware aggregation, Minimum Hardware Finder, Adaptive QA Planner, Git regression-origin search, flaky/soak reliability, fuzz/mutation testing, media regression, evidence governance, portability analysis, evidence-grounded root-cause candidates, forecasts, and PM decision briefs. P2 must not be declared runtime-verified until `scripts/Verify-P2.ps1` passes in the target Windows/.NET environment. Simulation-derived hardware results remain explicitly distinct from real-device evidence.

@@ -1,0 +1,28 @@
+@page "/dashboard/{ProjectId:guid}/intelligence"
+@using Dip.Application.Features.Intelligence
+@inject Dip.Web.Services.ApiClient Api
+
+<PageTitle>P2 Intelligence</PageTitle>
+
+<h1>Project Intelligence</h1>
+<p class="text-muted">Forward-looking decision support grounded in Project Truth evidence. Forecasts are estimates, not guarantees.</p>
+@if (_loading){<p>Loading...</p>}
+else if (_error is not null){<div class="alert alert-danger">@_error</div>}
+else {
+<div class="row g-3 mb-4">
+ <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Release risk</div><div class="display-6">@(_forecast?.ReleaseRiskPercent.ToString("0.#") ?? "—")%</div><div>@_forecast?.Confidence confidence</div></div></div></div>
+ <div class="col-md-8"><div class="card h-100"><div class="card-body"><div class="small text-muted">Estimated completion window</div><div class="h3">@Window()</div><div class="small text-muted">Range prediction based on current evidence volume, progress and blockers.</div></div></div></div>
+</div>
+<div class="card mb-4"><div class="card-header"><strong>What should be addressed now</strong></div><div class="card-body">@if(_brief?.Priorities.Count>0){<ol>@foreach(var p in _brief.Priorities){<li class="mb-3"><strong>@p.Subject — @p.Situation</strong><div>@p.Why</div><div class="text-muted">Next: @p.NextAction · @p.Confidence</div></li>}</ol>}else{<p class="mb-0 text-muted">No evidence-backed priority found.</p>}</div></div>
+<div class="row g-3">
+ <div class="col-md-6"><div class="card"><div class="card-header">Since yesterday</div><div class="card-body">@foreach(var x in _brief?.Changes ?? Array.Empty<string>()){<div>• @x</div>}</div></div></div>
+ <div class="col-md-6"><div class="card"><div class="card-header">Why health/risk changed</div><div class="card-body">@foreach(var x in _brief?.HealthChangeReasons ?? Array.Empty<string>()){<div>• @x</div>}</div></div></div>
+</div>
+}
+<div class="mt-4"><a href="@($"/dashboard/{ProjectId}")">← Project Truth</a></div>
+
+@code{
+ [Parameter] public Guid ProjectId{get;set;} bool _loading=true;string? _error;ForecastResult? _forecast;PmDecisionBrief? _brief;
+ protected override async Task OnParametersSetAsync(){_loading=true;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+ string Window()=>_forecast?.EarliestCompletionUtc is null||_forecast.LatestCompletionUtc is null?"Not enough evidence":$"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
+}

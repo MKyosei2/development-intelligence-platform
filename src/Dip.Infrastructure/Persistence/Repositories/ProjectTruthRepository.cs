@@ -18,6 +18,9 @@ public sealed class ProjectTruthRepository : IProjectTruthRepository
             .OrderByDescending(item => item.EvaluatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ProjectTruthSnapshot>> ListRecentAsync(Guid projectId,int take,CancellationToken cancellationToken) =>
+        await _db.ProjectTruthSnapshots.AsNoTracking().Where(item=>item.ProjectId==projectId).OrderByDescending(item=>item.EvaluatedAtUtc).Take(Math.Clamp(take,1,500)).ToListAsync(cancellationToken);
+
     public Task AddAsync(ProjectTruthSnapshot snapshot, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(snapshot);

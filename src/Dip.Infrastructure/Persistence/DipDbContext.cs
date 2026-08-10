@@ -25,6 +25,9 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<HardwareProfile> HardwareProfiles => Set<HardwareProfile>();
     public DbSet<HardwareCalibration> HardwareCalibrations => Set<HardwareCalibration>();
     public DbSet<PerformanceSimulationRun> PerformanceSimulationRuns => Set<PerformanceSimulationRun>();
+    public DbSet<CommunityHardwareSample> CommunityHardwareSamples => Set<CommunityHardwareSample>();
+    public DbSet<IntelligenceRun> IntelligenceRuns => Set<IntelligenceRun>();
+    public DbSet<ProjectForecast> ProjectForecasts => Set<ProjectForecast>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
