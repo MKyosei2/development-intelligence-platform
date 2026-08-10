@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddSingleton<HardwareCalibrationService>();
         services.AddSingleton<HardwareConstraintRunner>();
         services.AddSingleton<PerformanceSimulationService>();
+        services.AddSingleton<IntelligenceExecutionSafety>();
         services.AddSingleton<IMinimumHardwareRunner, MinimumHardwareRunner>();
         services.AddSingleton<IRegressionRunner, RegressionRunner>();
         services.AddSingleton<IReliabilityRunner, ReliabilityRunner>();

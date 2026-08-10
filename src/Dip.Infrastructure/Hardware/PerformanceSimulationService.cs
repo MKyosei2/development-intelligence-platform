@@ -25,7 +25,7 @@ public sealed partial class PerformanceSimulationService(
         int durationSeconds,
         bool thermalSimulation,
         string artifactDirectory,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(artifactDirectory);
         var target = ReadRelativeTarget(profile.MetadataJson);
@@ -37,7 +37,7 @@ public sealed partial class PerformanceSimulationService(
         var stopGpu = Path.Combine(artifactDirectory, "gpu-stress.stop");
         Process? gpuStress = StartGpuStress(100m - gpu, stopGpu, workspace);
 
-        using var pressureCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var pressureCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var memoryPressureApplied = memoryBandwidth < 99m;
         var storagePressureApplied = storage < 99m;
         Task? memoryPressure = memoryPressureApplied
@@ -63,7 +63,7 @@ public sealed partial class PerformanceSimulationService(
                 thermalSimulation ? profile.ThermalScore : 100m,
                 stdout,
                 stderr,
-                ct);
+                cancellationToken);
         }
         finally
         {
@@ -92,14 +92,18 @@ public sealed partial class PerformanceSimulationService(
 
         var fps = ParseNumbers(FpsRegex(), process.StandardOutput);
         var frame = ParseNumbers(FrameTimeRegex(), process.StandardOutput);
-        var averageFps = fps.Count > 0 ? decimal.Round(fps.Average(), 2) : null;
-        var p95 = frame.Count > 0 ? Percentile(frame, 0.95m) : null;
+        decimal? averageFps = fps.Count > 0
+            ? decimal.Round(fps.Average(), 2)
+            : null;
+        decimal? p95 = frame.Count > 0
+            ? Percentile(frame, 0.95m)
+            : null;
 
         var memoryFail = process.PeakWorkingSetMb > profile.MemoryBudgetMb;
-        var fpsFail = averageFps is not null && averageFps < profile.TargetFps;
+        var fpsFail = averageFps.HasValue && averageFps.Value < profile.TargetFps;
         var frameBudget = 1000m / profile.TargetFps;
-        var frameFail = p95 is not null && p95 > frameBudget;
-        var processFail = process.ExitCode is not 0;
+        var frameFail = p95.HasValue && p95.Value > frameBudget;
+        var processFail = process.ExitCode.HasValue && process.ExitCode.Value != 0;
 
         var status = processFail || memoryFail || fpsFail || frameFail
             ? "Failed"
@@ -164,8 +168,12 @@ public sealed partial class PerformanceSimulationService(
             }
         };
 
-        var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(Path.Combine(artifactDirectory, "performance.json"), json, ct);
+        var json = JsonSerializer.Serialize(result, JsonOptions);
+        await File.WriteAllTextAsync(
+            Path.Combine(artifactDirectory, "performance.json"),
+            json,
+            cancellationToken);
+
         return new(
             status,
             confidence,
@@ -185,8 +193,11 @@ public sealed partial class PerformanceSimulationService(
         try
         {
             var configured = options.Value.HardwareStressAgentPath;
-            var path = Path.IsPathRooted(configured) ? configured : Path.GetFullPath(configured);
+            var path = Path.IsPathRooted(configured)
+                ? configured
+                : Path.GetFullPath(configured);
             if (!File.Exists(path)) return null;
+
             var psi = new ProcessStartInfo
             {
                 FileName = path,
@@ -195,7 +206,8 @@ public sealed partial class PerformanceSimulationService(
                 CreateNoWindow = true
             };
             psi.ArgumentList.Add("--load-percent");
-            psi.ArgumentList.Add(Math.Clamp(load, 1m, 95m).ToString(CultureInfo.InvariantCulture));
+            psi.ArgumentList.Add(
+                Math.Clamp(load, 1m, 95m).ToString(CultureInfo.InvariantCulture));
             psi.ArgumentList.Add("--stop-file");
             psi.ArgumentList.Add(stopFile);
             return Process.Start(psi);
@@ -206,26 +218,33 @@ public sealed partial class PerformanceSimulationService(
         }
     }
 
-    private static async Task RunMemoryBandwidthPressureAsync(decimal loadPercent, CancellationToken ct)
+    private static async Task RunMemoryBandwidthPressureAsync(
+        decimal loadPercent,
+        CancellationToken cancellationToken)
     {
         var load = Math.Clamp((double)loadPercent, 1d, 90d);
         var source = new byte[16 * 1024 * 1024];
         var target = new byte[source.Length];
         Random.Shared.NextBytes(source);
 
-        while (!ct.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             var cycle = Stopwatch.StartNew();
             var busy = TimeSpan.FromMilliseconds(load);
-            while (cycle.Elapsed < busy && !ct.IsCancellationRequested)
+            while (cycle.Elapsed < busy && !cancellationToken.IsCancellationRequested)
                 Buffer.BlockCopy(source, 0, target, 0, source.Length);
 
-            var rest = Math.Max(1d, 100d - load - cycle.Elapsed.TotalMilliseconds);
-            await Task.Delay(TimeSpan.FromMilliseconds(rest), ct);
+            var rest = Math.Max(
+                1d,
+                100d - load - cycle.Elapsed.TotalMilliseconds);
+            await Task.Delay(TimeSpan.FromMilliseconds(rest), cancellationToken);
         }
     }
 
-    private static async Task RunStoragePressureAsync(decimal loadPercent, string artifactDirectory, CancellationToken ct)
+    private static async Task RunStoragePressureAsync(
+        decimal loadPercent,
+        string artifactDirectory,
+        CancellationToken cancellationToken)
     {
         var load = Math.Clamp((double)loadPercent, 1d, 80d);
         var path = Path.Combine(artifactDirectory, "storage-contention.tmp");
@@ -234,11 +253,11 @@ public sealed partial class PerformanceSimulationService(
 
         try
         {
-            while (!ct.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 var cycle = Stopwatch.StartNew();
                 var busy = TimeSpan.FromMilliseconds(load);
-                while (cycle.Elapsed < busy && !ct.IsCancellationRequested)
+                while (cycle.Elapsed < busy && !cancellationToken.IsCancellationRequested)
                 {
                     await using (var write = new FileStream(
                         path,
@@ -249,7 +268,7 @@ public sealed partial class PerformanceSimulationService(
                         FileOptions.Asynchronous | FileOptions.WriteThrough))
                     {
                         for (var i = 0; i < 8; i++)
-                            await write.WriteAsync(buffer, ct);
+                            await write.WriteAsync(buffer, cancellationToken);
                     }
 
                     await using var read = new FileStream(
@@ -259,11 +278,13 @@ public sealed partial class PerformanceSimulationService(
                         FileShare.ReadWrite,
                         buffer.Length,
                         FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    while (await read.ReadAsync(buffer, ct) > 0) { }
+                    while (await read.ReadAsync(buffer, cancellationToken) > 0) { }
                 }
 
-                var rest = Math.Max(1d, 100d - load - cycle.Elapsed.TotalMilliseconds);
-                await Task.Delay(TimeSpan.FromMilliseconds(rest), ct);
+                var rest = Math.Max(
+                    1d,
+                    100d - load - cycle.Elapsed.TotalMilliseconds);
+                await Task.Delay(TimeSpan.FromMilliseconds(rest), cancellationToken);
             }
         }
         finally
@@ -275,7 +296,9 @@ public sealed partial class PerformanceSimulationService(
     private static async Task IgnoreCancellationAsync(Task? task)
     {
         if (task is null) return;
-        try { await task; } catch (OperationCanceledException) { } catch { }
+        try { await task; }
+        catch (OperationCanceledException) { }
+        catch { }
     }
 
     private static RelativeTarget ReadRelativeTarget(string json)
@@ -284,10 +307,15 @@ public sealed partial class PerformanceSimulationService(
         {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
+
             decimal Get(string first, string second, decimal fallback)
             {
-                if (root.TryGetProperty(first, out var p1) && p1.TryGetDecimal(out var n1)) return n1;
-                if (root.TryGetProperty(second, out var p2) && p2.TryGetDecimal(out var n2)) return n2;
+                if (root.TryGetProperty(first, out var p1)
+                    && p1.TryGetDecimal(out var n1))
+                    return n1;
+                if (root.TryGetProperty(second, out var p2)
+                    && p2.TryGetDecimal(out var n2))
+                    return n2;
                 return fallback;
             }
 
@@ -320,7 +348,9 @@ public sealed partial class PerformanceSimulationService(
     {
         var ordered = values.OrderBy(x => x).ToArray();
         var index = (int)Math.Ceiling((double)(p * (ordered.Length - 1)));
-        return decimal.Round(ordered[Math.Clamp(index, 0, ordered.Length - 1)], 2);
+        return decimal.Round(
+            ordered[Math.Clamp(index, 0, ordered.Length - 1)],
+            2);
     }
 
     private sealed record RelativeTarget(
@@ -328,6 +358,11 @@ public sealed partial class PerformanceSimulationService(
         decimal GpuPercent,
         decimal MemoryBandwidthPercent,
         decimal StoragePercent);
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true
+    };
 
     [GeneratedRegex(@"(?im)\bfps\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)")]
     private static partial Regex FpsRegex();

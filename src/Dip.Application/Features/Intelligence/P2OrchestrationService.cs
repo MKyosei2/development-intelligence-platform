@@ -34,162 +34,406 @@ public sealed class P2OrchestrationService
         IFuzzRunner fuzz,
         IMutationRunner mutation)
     {
-        _runs = runs; _evidence = evidence; _uow = uow; _clock = clock; _truth = truth;
-        _minimum = minimum; _regression = regression; _reliability = reliability; _media = media; _fuzz = fuzz; _mutation = mutation;
+        _runs = runs;
+        _evidence = evidence;
+        _uow = uow;
+        _clock = clock;
+        _truth = truth;
+        _minimum = minimum;
+        _regression = regression;
+        _reliability = reliability;
+        _media = media;
+        _fuzz = fuzz;
+        _mutation = mutation;
     }
 
-    private async Task<(IntelligenceRun Run, string Directory)> BeginAsync(Guid projectId, string subject, IntelligenceRunType type, object input, CancellationToken ct)
+    private async Task<(IntelligenceRun Run, string Directory)> BeginAsync(
+        Guid projectId,
+        string subject,
+        IntelligenceRunType type,
+        object input,
+        CancellationToken cancellationToken)
     {
-        if (projectId == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(projectId));
+        if (projectId == Guid.Empty)
+            throw new ArgumentException("ProjectId is required.", nameof(projectId));
+
         var id = Guid.NewGuid();
-        var dir = Path.Combine(Path.GetFullPath("artifacts/p2"), projectId.ToString("N"), id.ToString("N"));
-        Directory.CreateDirectory(dir);
-        var run = new IntelligenceRun(id, projectId, type, subject, dir, JsonSerializer.Serialize(input), _clock.UtcNow);
-        await _runs.AddAsync(run, ct);
+        var directory = Path.Combine(
+            Path.GetFullPath("artifacts/p2"),
+            projectId.ToString("N"),
+            id.ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        var run = new IntelligenceRun(
+            id,
+            projectId,
+            type,
+            subject,
+            directory,
+            JsonSerializer.Serialize(input),
+            _clock.UtcNow);
+        await _runs.AddAsync(run, cancellationToken);
         run.Start(_clock.UtcNow);
-        await _uow.SaveChangesAsync(ct);
-        return (run, dir);
+        await _uow.SaveChangesAsync(cancellationToken);
+        return (run, directory);
     }
 
-    private async Task FinishAsync(IntelligenceRun run, IntelligenceRunStatus status, object result, EvidenceRecord evidence, CancellationToken ct)
+    private async Task FinishAsync(
+        IntelligenceRun run,
+        IntelligenceRunStatus status,
+        object result,
+        EvidenceRecord evidence,
+        CancellationToken cancellationToken)
     {
-        run.Complete(status, Trim(JsonSerializer.Serialize(result), 32000), _clock.UtcNow);
-        await _evidence.AddAsync(evidence, ct);
-        await _uow.SaveChangesAsync(ct);
-        await _truth.RecalculateAsync(run.ProjectId, ct);
+        run.Complete(
+            status,
+            Trim(JsonSerializer.Serialize(result), 32000),
+            _clock.UtcNow);
+        await _evidence.AddAsync(evidence, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+        await _truth.RecalculateAsync(run.ProjectId, cancellationToken);
     }
 
-    private async Task FailInfrastructureAsync(IntelligenceRun run, Exception ex, CancellationToken ct)
+    private async Task FailInfrastructureAsync(
+        IntelligenceRun run,
+        Exception exception,
+        CancellationToken cancellationToken)
     {
-        run.Complete(IntelligenceRunStatus.InfrastructureFailure, Trim(JsonSerializer.Serialize(new { error = ex.Message, type = ex.GetType().FullName }), 32000), _clock.UtcNow);
-        await _uow.SaveChangesAsync(ct);
+        run.Complete(
+            IntelligenceRunStatus.InfrastructureFailure,
+            Trim(
+                JsonSerializer.Serialize(new
+                {
+                    error = exception.Message,
+                    type = exception.GetType().FullName
+                }),
+                32000),
+            _clock.UtcNow);
+        await _uow.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<MinimumHardwareResult> MinimumHardwareAsync(MinimumHardwareRequest request, CancellationToken ct)
+    public async Task<MinimumHardwareResult> MinimumHardwareAsync(
+        MinimumHardwareRequest request,
+        CancellationToken cancellationToken)
     {
-        var (run, dir) = await BeginAsync(request.ProjectId, request.SubjectKey, IntelligenceRunType.MinimumHardware, request, ct);
+        var (run, directory) = await BeginAsync(
+            request.ProjectId,
+            request.SubjectKey,
+            IntelligenceRunType.MinimumHardware,
+            request,
+            cancellationToken);
         try
         {
-            var result = await _minimum.FindAsync(request, dir, ct);
-            var evidence = new EvidenceRecord(Guid.NewGuid(), request.ProjectId, null, request.SubjectKey, EvidenceSourceType.Performance,
-                "hardware.minimum-estimate", EvidenceOutcome.Informational, "Estimated minimum hardware boundary",
-                $"Estimated safe CPU {result.SafeCpuPercent:0.#}% / GPU {result.SafeGpuPercent:0.#}% of the calibrated machine. This is simulation-derived evidence, not a real-device measurement.",
-                EvidenceConfidence.Medium, null, Trim(result.EvidenceJson, 16000), _clock.UtcNow, _clock.UtcNow);
-            await FinishAsync(run, IntelligenceRunStatus.Succeeded, result, evidence, ct);
+            var result = await _minimum.FindAsync(request, directory, cancellationToken);
+            var confidence = result.ConfidencePercent >= 60m
+                ? EvidenceConfidence.Medium
+                : result.ConfidencePercent >= 35m
+                    ? EvidenceConfidence.Low
+                    : EvidenceConfidence.Unverified;
+
+            var evidence = new EvidenceRecord(
+                Guid.NewGuid(),
+                request.ProjectId,
+                null,
+                request.SubjectKey,
+                EvidenceSourceType.Performance,
+                "hardware.minimum-estimate",
+                EvidenceOutcome.Informational,
+                "Estimated minimum hardware boundary",
+                $"Estimated safe CPU {result.SafeCpuPercent:0.#}% / GPU {result.SafeGpuPercent:0.#}% of the current QA machine under constrained simulation. This is simulation-derived evidence, not a real-device measurement.",
+                confidence,
+                null,
+                Trim(result.EvidenceJson, 16000),
+                _clock.UtcNow,
+                _clock.UtcNow);
+            await FinishAsync(
+                run,
+                IntelligenceRunStatus.Succeeded,
+                result,
+                evidence,
+                cancellationToken);
             return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await FailInfrastructureAsync(run, ex, ct); throw;
+            await FailInfrastructureAsync(run, exception, cancellationToken);
+            throw;
         }
     }
 
-    public async Task<RegressionResult> RegressionAsync(RegressionRequest request, CancellationToken ct)
+    public async Task<RegressionResult> RegressionAsync(
+        RegressionRequest request,
+        CancellationToken cancellationToken)
     {
-        var (run, dir) = await BeginAsync(request.ProjectId, request.SubjectKey, IntelligenceRunType.GitRegression, request, ct);
+        var (run, directory) = await BeginAsync(
+            request.ProjectId,
+            request.SubjectKey,
+            IntelligenceRunType.GitRegression,
+            request,
+            cancellationToken);
         try
         {
-            var result = await _regression.FindOriginAsync(request, dir, ct);
+            var result = await _regression.FindOriginAsync(
+                request,
+                directory,
+                cancellationToken);
             var resolved = result.FirstBadCommit is not null;
-            var evidence = new EvidenceRecord(Guid.NewGuid(), request.ProjectId, null, request.SubjectKey, EvidenceSourceType.GitHub,
-                "regression.origin", resolved ? EvidenceOutcome.Failed : EvidenceOutcome.Unknown,
+            var evidence = new EvidenceRecord(
+                Guid.NewGuid(),
+                request.ProjectId,
+                null,
+                request.SubjectKey,
+                EvidenceSourceType.GitHub,
+                "regression.origin",
+                resolved ? EvidenceOutcome.Failed : EvidenceOutcome.Unknown,
                 resolved ? "Regression origin isolated" : "Regression origin not resolved",
-                resolved ? $"First bad commit: {result.FirstBadCommit}" : "Automated commit search could not isolate a first bad commit.",
-                resolved ? EvidenceConfidence.High : EvidenceConfidence.Medium, result.FirstBadCommit, Trim(result.EvidenceJson, 16000), _clock.UtcNow, _clock.UtcNow);
-            await FinishAsync(run, resolved ? IntelligenceRunStatus.Succeeded : IntelligenceRunStatus.Warning, result, evidence, ct);
+                resolved
+                    ? $"First bad commit: {result.FirstBadCommit}"
+                    : "Automated commit search could not isolate a first bad commit.",
+                resolved ? EvidenceConfidence.High : EvidenceConfidence.Medium,
+                result.FirstBadCommit,
+                Trim(result.EvidenceJson, 16000),
+                _clock.UtcNow,
+                _clock.UtcNow);
+            await FinishAsync(
+                run,
+                resolved ? IntelligenceRunStatus.Succeeded : IntelligenceRunStatus.Warning,
+                result,
+                evidence,
+                cancellationToken);
             return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await FailInfrastructureAsync(run, ex, ct); throw;
+            await FailInfrastructureAsync(run, exception, cancellationToken);
+            throw;
         }
     }
 
-    public async Task<ReliabilityResult> ReliabilityAsync(ReliabilityRequest request, CancellationToken ct)
+    public async Task<ReliabilityResult> ReliabilityAsync(
+        ReliabilityRequest request,
+        CancellationToken cancellationToken)
     {
-        var type = request.SoakMinutes > 0 ? IntelligenceRunType.Soak : IntelligenceRunType.Flaky;
-        var (run, dir) = await BeginAsync(request.ProjectId, request.SubjectKey, type, request, ct);
+        var type = request.SoakMinutes > 0
+            ? IntelligenceRunType.Soak
+            : IntelligenceRunType.Flaky;
+        var (run, directory) = await BeginAsync(
+            request.ProjectId,
+            request.SubjectKey,
+            type,
+            request,
+            cancellationToken);
         try
         {
-            var result = await _reliability.RunAsync(request, dir, ct);
-            var risky = result.FailureRate > 5 || result.PerformanceDriftPercent > 15 || result.MemoryGrowthMb > 256;
-            var evidence = new EvidenceRecord(Guid.NewGuid(), request.ProjectId, null, request.SubjectKey, EvidenceSourceType.Runtime,
-                request.SoakMinutes > 0 ? "runtime.soak" : "runtime.flaky", risky ? EvidenceOutcome.Failed : EvidenceOutcome.Succeeded,
+            var result = await _reliability.RunAsync(
+                request,
+                directory,
+                cancellationToken);
+            var risky = result.FailureRate > 5m
+                || result.PerformanceDriftPercent > 15m
+                || result.MemoryGrowthMb > 256m;
+            var evidence = new EvidenceRecord(
+                Guid.NewGuid(),
+                request.ProjectId,
+                null,
+                request.SubjectKey,
+                EvidenceSourceType.Runtime,
+                request.SoakMinutes > 0 ? "runtime.soak" : "runtime.flaky",
+                risky ? EvidenceOutcome.Failed : EvidenceOutcome.Succeeded,
                 risky ? "Reliability risk detected" : "Reliability run passed",
                 $"Failure rate {result.FailureRate:0.##}%, memory growth {result.MemoryGrowthMb:0.#} MB, performance drift {result.PerformanceDriftPercent:0.#}%.",
-                EvidenceConfidence.High, null, Trim(result.EvidenceJson, 16000), _clock.UtcNow, _clock.UtcNow);
-            await FinishAsync(run, risky ? IntelligenceRunStatus.Warning : IntelligenceRunStatus.Succeeded, result, evidence, ct);
+                EvidenceConfidence.High,
+                null,
+                Trim(result.EvidenceJson, 16000),
+                _clock.UtcNow,
+                _clock.UtcNow);
+            await FinishAsync(
+                run,
+                risky ? IntelligenceRunStatus.Warning : IntelligenceRunStatus.Succeeded,
+                result,
+                evidence,
+                cancellationToken);
             return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await FailInfrastructureAsync(run, ex, ct); throw;
+            await FailInfrastructureAsync(run, exception, cancellationToken);
+            throw;
         }
     }
 
-    public async Task<MediaRegressionResult> MediaAsync(VisualRegressionRequest request, string kind, CancellationToken ct)
+    public async Task<MediaRegressionResult> MediaAsync(
+        VisualRegressionRequest request,
+        string kind,
+        CancellationToken cancellationToken)
     {
         var normalized = kind.ToLowerInvariant();
-        var type = normalized switch { "video" => IntelligenceRunType.VideoRegression, "audio" => IntelligenceRunType.AudioRegression, _ => IntelligenceRunType.VisualRegression };
-        var (run, dir) = await BeginAsync(request.ProjectId, request.SubjectKey, type, request, ct);
+        var type = normalized switch
+        {
+            "video" => IntelligenceRunType.VideoRegression,
+            "audio" => IntelligenceRunType.AudioRegression,
+            _ => IntelligenceRunType.VisualRegression
+        };
+        var (run, directory) = await BeginAsync(
+            request.ProjectId,
+            request.SubjectKey,
+            type,
+            request,
+            cancellationToken);
         try
         {
-            var result = await _media.CompareAsync(request, dir, normalized, ct);
-            var evidence = new EvidenceRecord(Guid.NewGuid(), request.ProjectId, null, request.SubjectKey, EvidenceSourceType.Runtime,
-                $"regression.{normalized}", result.Passed ? EvidenceOutcome.Succeeded : EvidenceOutcome.Failed,
+            var result = await _media.CompareAsync(
+                request,
+                directory,
+                normalized,
+                cancellationToken);
+            var evidenceConfidence = MediaEvidenceConfidence(result.EvidenceJson);
+            var evidence = new EvidenceRecord(
+                Guid.NewGuid(),
+                request.ProjectId,
+                null,
+                request.SubjectKey,
+                EvidenceSourceType.Runtime,
+                $"regression.{normalized}",
+                result.Passed ? EvidenceOutcome.Succeeded : EvidenceOutcome.Failed,
                 $"{normalized} regression {(result.Passed ? "passed" : "detected")}",
-                $"Difference {result.DifferencePercent:0.###}% against the supplied baseline.", EvidenceConfidence.High,
-                result.DiffArtifact, Trim(result.EvidenceJson, 16000), _clock.UtcNow, _clock.UtcNow);
-            await FinishAsync(run, result.Passed ? IntelligenceRunStatus.Succeeded : IntelligenceRunStatus.Warning, result, evidence, ct);
+                $"Difference {result.DifferencePercent:0.###}% against the supplied baseline.",
+                evidenceConfidence,
+                result.DiffArtifact,
+                Trim(result.EvidenceJson, 16000),
+                _clock.UtcNow,
+                _clock.UtcNow);
+            await FinishAsync(
+                run,
+                result.Passed ? IntelligenceRunStatus.Succeeded : IntelligenceRunStatus.Warning,
+                result,
+                evidence,
+                cancellationToken);
             return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await FailInfrastructureAsync(run, ex, ct); throw;
+            await FailInfrastructureAsync(run, exception, cancellationToken);
+            throw;
         }
     }
 
-    public async Task<FuzzResult> FuzzAsync(FuzzRequest request, CancellationToken ct)
+    public async Task<FuzzResult> FuzzAsync(
+        FuzzRequest request,
+        CancellationToken cancellationToken)
     {
-        var (run, dir) = await BeginAsync(request.ProjectId, request.SubjectKey, IntelligenceRunType.Fuzz, request, ct);
+        var (run, directory) = await BeginAsync(
+            request.ProjectId,
+            request.SubjectKey,
+            IntelligenceRunType.Fuzz,
+            request,
+            cancellationToken);
         try
         {
-            var result = await _fuzz.RunAsync(request, dir, ct);
+            var result = await _fuzz.RunAsync(request, directory, cancellationToken);
             var risky = result.Crashes > 0 || result.Timeouts > 0;
-            var evidence = new EvidenceRecord(Guid.NewGuid(), request.ProjectId, null, request.SubjectKey, EvidenceSourceType.Quality,
-                "qa.fuzz", risky ? EvidenceOutcome.Failed : EvidenceOutcome.Succeeded,
+            var evidence = new EvidenceRecord(
+                Guid.NewGuid(),
+                request.ProjectId,
+                null,
+                request.SubjectKey,
+                EvidenceSourceType.Quality,
+                "qa.fuzz",
+                risky ? EvidenceOutcome.Failed : EvidenceOutcome.Succeeded,
                 risky ? "Fuzzing found unstable input behavior" : "Fuzz campaign completed",
                 $"{result.Cases} cases, {result.Crashes} crash-like exit(s), {result.Timeouts} timeout(s), {result.NonZeroExits} non-zero exit(s).",
-                EvidenceConfidence.High, result.ArtifactPath, Trim(result.EvidenceJson, 16000), _clock.UtcNow, _clock.UtcNow);
-            await FinishAsync(run, risky ? IntelligenceRunStatus.Warning : IntelligenceRunStatus.Succeeded, result, evidence, ct);
+                EvidenceConfidence.High,
+                result.ArtifactPath,
+                Trim(result.EvidenceJson, 16000),
+                _clock.UtcNow,
+                _clock.UtcNow);
+            await FinishAsync(
+                run,
+                risky ? IntelligenceRunStatus.Warning : IntelligenceRunStatus.Succeeded,
+                result,
+                evidence,
+                cancellationToken);
             return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await FailInfrastructureAsync(run, ex, ct); throw;
+            await FailInfrastructureAsync(run, exception, cancellationToken);
+            throw;
         }
     }
 
-    public async Task<MutationResult> MutationAsync(MutationRequest request, CancellationToken ct)
+    public async Task<MutationResult> MutationAsync(
+        MutationRequest request,
+        CancellationToken cancellationToken)
     {
-        var (run, dir) = await BeginAsync(request.ProjectId, request.SubjectKey, IntelligenceRunType.Mutation, request, ct);
+        var (run, directory) = await BeginAsync(
+            request.ProjectId,
+            request.SubjectKey,
+            IntelligenceRunType.Mutation,
+            request,
+            cancellationToken);
         try
         {
-            var result = await _mutation.RunAsync(request, dir, ct);
-            var weak = result.MutationScore < 70;
-            var evidence = new EvidenceRecord(Guid.NewGuid(), request.ProjectId, null, request.SubjectKey, EvidenceSourceType.Test,
-                "qa.mutation", weak ? EvidenceOutcome.Warning : EvidenceOutcome.Succeeded,
+            var result = await _mutation.RunAsync(
+                request,
+                directory,
+                cancellationToken);
+            var weak = result.MutationScore < 70m;
+            var evidence = new EvidenceRecord(
+                Guid.NewGuid(),
+                request.ProjectId,
+                null,
+                request.SubjectKey,
+                EvidenceSourceType.Test,
+                "qa.mutation",
+                weak ? EvidenceOutcome.Warning : EvidenceOutcome.Succeeded,
                 weak ? "Test strength appears weak" : "Mutation test strength passed",
                 $"Mutation score {result.MutationScore:0.##}% ({result.Killed}/{result.Mutants} mutants killed).",
-                EvidenceConfidence.High, null, Trim(result.EvidenceJson, 16000), _clock.UtcNow, _clock.UtcNow);
-            await FinishAsync(run, weak ? IntelligenceRunStatus.Warning : IntelligenceRunStatus.Succeeded, result, evidence, ct);
+                EvidenceConfidence.High,
+                null,
+                Trim(result.EvidenceJson, 16000),
+                _clock.UtcNow,
+                _clock.UtcNow);
+            await FinishAsync(
+                run,
+                weak ? IntelligenceRunStatus.Warning : IntelligenceRunStatus.Succeeded,
+                result,
+                evidence,
+                cancellationToken);
             return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await FailInfrastructureAsync(run, ex, ct); throw;
+            await FailInfrastructureAsync(run, exception, cancellationToken);
+            throw;
         }
     }
 
-    private static string Trim(string value, int max) => value.Length <= max ? value : value[..max];
+    private static EvidenceConfidence MediaEvidenceConfidence(string evidenceJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(evidenceJson);
+            if (doc.RootElement.TryGetProperty("comparison", out var comparison)
+                && comparison.TryGetProperty("precision", out var precision)
+                && precision.ValueKind == JsonValueKind.String)
+            {
+                return string.Equals(
+                    precision.GetString(),
+                    "low",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? EvidenceConfidence.Low
+                    : EvidenceConfidence.High;
+            }
+
+            return EvidenceConfidence.High;
+        }
+        catch (JsonException)
+        {
+            return EvidenceConfidence.Low;
+        }
+    }
+
+    private static string Trim(string value, int max) =>
+        value.Length <= max ? value : value[..max];
 }

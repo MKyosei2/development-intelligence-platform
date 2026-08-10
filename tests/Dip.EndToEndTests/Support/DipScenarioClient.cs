@@ -136,24 +136,58 @@ internal sealed class DipScenarioClient : IDisposable
 
     public async Task<QaRunE2EResponse> RunPythonQaAsync(ProjectResponse project)
     {
-        var response=await _httpClient.PostAsJsonAsync(
+        var response = await _httpClient.PostAsJsonAsync(
             "/api/v1/qa/runs",
             new
             {
-                projectId=project.Id,
-                subjectKey="project",
-                language="Python",
-                workspaceRelativePath=".",
-                commitSha=(string?)null,
-                runtimeExecutable="samples/qa-bug-zoo/python/runtime_type_error/app.py",
-                runtimeArguments=Array.Empty<string>(),
-                timeoutSeconds=15,
-                automaticallyReproduce=true,
-                recordScreen=false,
-                recordSystemAudio=false
+                projectId = project.Id,
+                subjectKey = "project",
+                language = "Python",
+                workspaceRelativePath = ".",
+                commitSha = (string?)null,
+                runtimeExecutable = "samples/qa-bug-zoo/python/runtime_type_error/app.py",
+                runtimeArguments = Array.Empty<string>(),
+                timeoutSeconds = 15,
+                automaticallyReproduce = true,
+                recordScreen = false,
+                recordSystemAudio = false
             });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<QaRunE2EResponse>(JsonOptions))!;
+    }
+
+    public async Task<PortabilityE2EResponse> GetPortabilityAsync(Guid projectId)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/v1/intelligence/projects/{projectId}/portability?targetPlatform=e2e&cpu=80&gpu=75&memory=70&storage=90&thermal=65");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return (await response.Content.ReadFromJsonAsync<PortabilityE2EResponse>(JsonOptions))!;
+    }
+
+    public async Task<RootCauseE2EResponse> AnalyzeRootCauseAsync(Guid projectId)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            "/api/v1/intelligence/root-cause",
+            new
+            {
+                projectId,
+                subjectKey = "project",
+                findingText = "NullReferenceException while updating rendering state",
+                stackTrace = "at Game.Render.Update()",
+                diffText = "",
+                logLines = new[] { "NullReferenceException" },
+                includeSuggestedAction = true
+            });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return (await response.Content.ReadFromJsonAsync<RootCauseE2EResponse>(JsonOptions))!;
+    }
+
+    public async Task<ForecastE2EResponse> GetForecastAsync(Guid projectId)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/v1/intelligence/projects/{projectId}/forecast");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return (await response.Content.ReadFromJsonAsync<ForecastE2EResponse>(JsonOptions))!;
     }
 
     public async Task<HttpResponseMessage> SendSignedGitHubWebhookAsync(
@@ -242,5 +276,39 @@ internal sealed record DashboardSummaryResponse(
     string? LatestQualityGateStatus,
     DateTimeOffset? LastEvaluatedAtUtc);
 
-internal sealed record QaFindingE2EResponse(string Severity,string Category,string ReproductionStatus,int ReproducedAttempts,int TotalAttempts);
-internal sealed record QaRunE2EResponse(Guid QaRunId,string Status,int FindingCount,int CriticalFindingCount,IReadOnlyList<QaFindingE2EResponse> Findings);
+internal sealed record QaFindingE2EResponse(
+    string Severity,
+    string Category,
+    string ReproductionStatus,
+    int ReproducedAttempts,
+    int TotalAttempts);
+
+internal sealed record QaRunE2EResponse(
+    Guid QaRunId,
+    string Status,
+    int FindingCount,
+    int CriticalFindingCount,
+    IReadOnlyList<QaFindingE2EResponse> Findings);
+
+internal sealed record PortabilityE2EResponse(
+    decimal Score,
+    string Risk,
+    IReadOnlyList<string> Blockers,
+    string EvidenceJson);
+
+internal sealed record RootCauseCandidateE2EResponse(
+    string Cause,
+    decimal ConfidencePercent,
+    IReadOnlyList<string> Evidence,
+    string? SuggestedAction);
+
+internal sealed record RootCauseE2EResponse(
+    IReadOnlyList<RootCauseCandidateE2EResponse> Candidates,
+    string GroundingStatus);
+
+internal sealed record ForecastE2EResponse(
+    decimal ReleaseRiskPercent,
+    string Confidence,
+    DateTimeOffset? EarliestCompletionUtc,
+    DateTimeOffset? LatestCompletionUtc,
+    IReadOnlyList<string> Reasons);

@@ -1,7 +1,193 @@
-using System.Diagnostics;using System.Text.Json;using System.Text.RegularExpressions;using Dip.Application.Features.Intelligence;using Dip.Application.Features.QualityAutomation;
+using System.Text.Json;
+using Dip.Application.Features.Intelligence;
+using Dip.Application.Features.QualityAutomation;
+
 namespace Dip.Infrastructure.Intelligence;
-public sealed class MutationRunner:IMutationRunner
+
+public sealed class MutationRunner : IMutationRunner
 {
- readonly IQaWorkspaceResolver _workspace;public MutationRunner(IQaWorkspaceResolver workspace){_workspace=workspace;}
- public async Task<MutationResult> RunAsync(MutationRequest r,string artifactRoot,CancellationToken ct){var ws=_workspace.Resolve(r.WorkspaceRelativePath);if(Path.IsPathRooted(r.SourceRelativePath))throw new InvalidOperationException("Source path must be relative.");var source=Path.GetFullPath(Path.Combine(ws,r.SourceRelativePath));var prefix=ws.TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;if(!source.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)||!File.Exists(source))throw new InvalidOperationException("Mutation source is outside workspace or missing.");var original=await File.ReadAllTextAsync(source,ct);var candidates=new List<(string old,string @new,string name)>{(">=",">","gte-to-gt"),("<=","<","lte-to-lt"),("==","!=","eq-to-ne"),("true","false","true-to-false"),("false","true","false-to-true"),(" + "," - ","plus-to-minus")};var mutants=new List<(string text,string name)>();foreach(var c in candidates){var idx=original.IndexOf(c.old,StringComparison.Ordinal);if(idx>=0){mutants.Add((original[..idx]+c.@new+original[(idx+c.old.Length)..],c.name));if(mutants.Count>=Math.Clamp(r.MaxMutants,1,50))break;}}int killed=0;var survived=new List<string>();try{for(int i=0;i<mutants.Count;i++){await File.WriteAllTextAsync(source,mutants[i].text,ct);var psi=new ProcessStartInfo(r.TestCommand){WorkingDirectory=ws,UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true};foreach(var a in r.TestArguments)psi.ArgumentList.Add(a);using var p=Process.Start(psi)??throw new InvalidOperationException("Test command unavailable");await p.WaitForExitAsync(ct);if(p.ExitCode!=0)killed++;else survived.Add(mutants[i].name);}}finally{await File.WriteAllTextAsync(source,original,CancellationToken.None);}var score=mutants.Count==0?100m:decimal.Round(100m*killed/mutants.Count,2);var json=JsonSerializer.Serialize(new{mutants=mutants.Count,killed,survived,mutationScore=score,source=r.SourceRelativePath,note="The original source file is restored in a finally block after every mutation campaign."});await File.WriteAllTextAsync(Path.Combine(artifactRoot,"mutation.json"),json,ct);return new(mutants.Count,killed,survived.Count,score,survived,json);}
+    private readonly IQaWorkspaceResolver _workspace;
+    private readonly IntelligenceExecutionSafety _safety;
+
+    public MutationRunner(
+        IQaWorkspaceResolver workspace,
+        IntelligenceExecutionSafety safety)
+    {
+        _workspace = workspace;
+        _safety = safety;
+    }
+
+    public async Task<MutationResult> RunAsync(
+        MutationRequest request,
+        string artifactRoot,
+        CancellationToken cancellationToken)
+    {
+        var workspace = _workspace.Resolve(request.WorkspaceRelativePath);
+        Directory.CreateDirectory(artifactRoot);
+
+        await using var sandbox = await _safety.CreateDetachedWorktreeAsync(
+            workspace,
+            "HEAD",
+            cancellationToken);
+
+        var source = _safety.ResolveWorkspaceRelativePath(
+            sandbox.Path,
+            request.SourceRelativePath);
+        if (!File.Exists(source))
+            throw new InvalidOperationException("Mutation source is missing in the isolated worktree.");
+
+        var testTimeout = TimeSpan.FromMinutes(5);
+        var baseline = await _safety.RunAllowedCommandAsync(
+            sandbox.Path,
+            request.TestCommand,
+            request.TestArguments,
+            testTimeout,
+            cancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(artifactRoot, "baseline-test.log"),
+            baseline.StandardOutput + Environment.NewLine + baseline.StandardError,
+            cancellationToken);
+
+        if (baseline.TimedOut || baseline.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                "Mutation testing requires a passing baseline test command.");
+        }
+
+        var original = await File.ReadAllTextAsync(source, cancellationToken);
+        var maxMutants = Math.Clamp(request.MaxMutants, 1, 50);
+        var replacements = new (string Old, string New, string Name)[]
+        {
+            (">=", ">", "gte-to-gt"),
+            ("<=", "<", "lte-to-lt"),
+            ("==", "!=", "eq-to-ne"),
+            ("!=", "==", "ne-to-eq"),
+            ("true", "false", "true-to-false"),
+            ("false", "true", "false-to-true"),
+            (" + ", " - ", "plus-to-minus"),
+            (" - ", " + ", "minus-to-plus")
+        };
+
+        var mutants = BuildMutants(original, replacements, maxMutants);
+        var killed = 0;
+        var survived = new List<string>();
+        var records = new List<object>();
+
+        try
+        {
+            for (var index = 0; index < mutants.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var mutant = mutants[index];
+                await File.WriteAllTextAsync(source, mutant.Text, cancellationToken);
+
+                var result = await _safety.RunAllowedCommandAsync(
+                    sandbox.Path,
+                    request.TestCommand,
+                    request.TestArguments,
+                    testTimeout,
+                    cancellationToken);
+
+                var mutantKilled = result.TimedOut || result.ExitCode != 0;
+                if (mutantKilled)
+                    killed++;
+                else
+                    survived.Add(mutant.Name);
+
+                var logPath = Path.Combine(artifactRoot, $"mutant-{index + 1:000}-{mutant.Name}.log");
+                await File.WriteAllTextAsync(
+                    logPath,
+                    result.StandardOutput + Environment.NewLine + result.StandardError,
+                    cancellationToken);
+
+                records.Add(new
+                {
+                    mutant = mutant.Name,
+                    mutant.Offset,
+                    mutantKilled,
+                    result.ExitCode,
+                    result.TimedOut,
+                    logPath
+                });
+
+                await File.WriteAllTextAsync(source, original, cancellationToken);
+            }
+        }
+        finally
+        {
+            try
+            {
+                await File.WriteAllTextAsync(source, original, CancellationToken.None);
+            }
+            catch { }
+        }
+
+        var score = mutants.Count == 0
+            ? 100m
+            : decimal.Round(100m * killed / mutants.Count, 2);
+
+        var json = JsonSerializer.Serialize(
+            new
+            {
+                mutants = mutants.Count,
+                killed,
+                survived = survived.Count,
+                mutationScore = score,
+                survivedMutants = survived,
+                source = request.SourceRelativePath,
+                isolatedWorktree = true,
+                originalCheckoutModified = false,
+                baselinePassed = true,
+                records
+            },
+            new JsonSerializerOptions { WriteIndented = true });
+
+        await File.WriteAllTextAsync(
+            Path.Combine(artifactRoot, "mutation.json"),
+            json,
+            cancellationToken);
+
+        return new MutationResult(
+            mutants.Count,
+            killed,
+            survived.Count,
+            score,
+            survived,
+            json);
+    }
+
+    private static List<Mutant> BuildMutants(
+        string original,
+        IReadOnlyList<(string Old, string New, string Name)> replacements,
+        int maxMutants)
+    {
+        var mutants = new List<Mutant>();
+
+        foreach (var replacement in replacements)
+        {
+            var searchFrom = 0;
+            while (searchFrom < original.Length && mutants.Count < maxMutants)
+            {
+                var offset = original.IndexOf(
+                    replacement.Old,
+                    searchFrom,
+                    StringComparison.Ordinal);
+                if (offset < 0) break;
+
+                var text = original[..offset]
+                    + replacement.New
+                    + original[(offset + replacement.Old.Length)..];
+                var name = $"{replacement.Name}-{offset}";
+                mutants.Add(new Mutant(text, name, offset));
+                searchFrom = offset + replacement.Old.Length;
+            }
+
+            if (mutants.Count >= maxMutants)
+                break;
+        }
+
+        return mutants;
+    }
+
+    private sealed record Mutant(string Text, string Name, int Offset);
 }

@@ -46,11 +46,34 @@ P0 tables when the application is still in no-migrations mode. A formal
 migration baseline should replace this bootstrapper in a later database
 migration phase.
 
-
 ## P1 technical evidence expansion
 
 P1 source paths for hardcoded Python/C#/C++ QA, fingerprint-based automatic reproduction, Windows capture/audio/dump helpers, hardware calibration, relative performance simulation, PM explanation, and Project Truth integration are included. P1 is **not verified** until `docs/P1_IMPLEMENTATION_STATUS.md` requirements have been exercised, including Windows-specific native evidence.
 
 ## P2 Predictive Development Intelligence
 
-Source implementation now includes Community Hardware aggregation, Minimum Hardware Finder, Adaptive QA Planner, Git regression-origin search, flaky/soak reliability, fuzz/mutation testing, media regression, evidence governance, portability analysis, evidence-grounded root-cause candidates, forecasts, and PM decision briefs. P2 must not be declared runtime-verified until `scripts/Verify-P2.ps1` passes in the target Windows/.NET environment. Simulation-derived hardware results remain explicitly distinct from real-device evidence.
+Source implementation includes Community Hardware aggregation, Minimum Hardware Finder, Adaptive QA Planner, Git regression-origin search, flaky/soak reliability, fuzz/mutation testing, media regression, evidence governance, portability analysis, evidence-grounded root-cause candidates, forecasts, and PM decision briefs.
+
+The completion-hardening changes additionally:
+
+- fix the current `.NET CI` compile blockers in `Home.razor` and `PerformanceSimulationService`;
+- route Minimum Hardware boundary probes through the existing constrained performance simulation instead of relying on target-defined environment variables;
+- make Soak an observation window and sample target-process memory rather than DIP's managed heap;
+- isolate regression and mutation execution in disposable Git worktrees;
+- prevent low-precision media fallback from being stored as High-confidence evidence;
+- derive completion velocity from Project Truth progress history instead of raw Evidence volume;
+- deduplicate recent Community Hardware retries with a one-way consent-scoped pseudonym;
+- add P2 live API E2E coverage and execution-safety unit coverage;
+- default non-Development API configuration to authenticated access, while Development explicitly keeps local unauthenticated verification behavior.
+
+P2 must **not** be declared runtime-verified until `scripts/Verify-P2.ps1` completes without skip switches in the target Windows/.NET environment and the resulting repository revision is green in CI. Simulation-derived hardware results remain explicitly distinct from real-device evidence.
+
+## Remaining production-hardening work
+
+The following are intentionally not misrepresented as fixed by this changeset because they require a larger product/deployment decision rather than a local bug patch:
+
+- formal EF Core migration baseline replacing bootstrap-only schema evolution;
+- durable asynchronous job queue/status API for long P2 runs;
+- durable remote artifact storage/retention for QA/P2 evidence;
+- external Claim/work-item connectors and canonical work-item resolution across issue trackers/chat tools;
+- real-device calibration/backtesting needed to validate minimum-hardware and forecast accuracy at production scale.

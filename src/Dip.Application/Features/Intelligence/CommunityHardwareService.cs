@@ -1,9 +1,179 @@
-using System.Security.Cryptography;using System.Text;using Dip.Application.Abstractions.Persistence;using Dip.Application.Abstractions.Time;using Dip.Domain.Entities;
+using System.Security.Cryptography;
+using System.Text;
+using Dip.Application.Abstractions.Persistence;
+using Dip.Application.Abstractions.Time;
+using Dip.Domain.Entities;
+
 namespace Dip.Application.Features.Intelligence;
+
 public sealed class CommunityHardwareService
 {
-    readonly ICommunityHardwareStore _store;readonly IUnitOfWork _uow;readonly ISystemClock _clock;
-    public CommunityHardwareService(ICommunityHardwareStore store,IUnitOfWork uow,ISystemClock clock){_store=store;_uow=uow;_clock=clock;}
-    public async Task SubmitAsync(CommunityHardwareSubmission s,CancellationToken ct){if(string.IsNullOrWhiteSpace(s.ConsentToken))throw new InvalidOperationException("Opt-in consent is required.");var raw=$"{s.HardwareKey}|{s.Platform}|{s.CpuArch}|{s.GpuVendor}|{s.OsFamily}|{Guid.NewGuid()}";var fp=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();var e=new CommunityHardwareSample(Guid.NewGuid(),s.HardwareKey,s.Platform,s.CpuArch,s.GpuVendor,s.OsFamily,s.DriverFamily,s.CpuSingleScore,s.CpuMultiScore,s.GpuScore,s.MemoryScore,s.StorageScore,s.ThermalScore,s.MemoryMb,fp,_clock.UtcNow);await _store.AddAsync(e,ct);await _uow.SaveChangesAsync(ct);}
-    public async Task<CommunityHardwareAggregate> AggregateAsync(string key,CancellationToken ct){var xs=await _store.ListAsync(key,ct);if(xs.Count==0)return new(key,0,0,0,0,0,0,0,0,0,0,0);decimal Q(IEnumerable<decimal> v,double q){var a=v.OrderBy(x=>x).ToArray();var i=(int)Math.Clamp(Math.Round((a.Length-1)*q),0,a.Length-1);return a[i];}var n=xs.Count;var variancePenalty=n<10?35m:n<50?15m:n<200?7m:0m;var fresh=xs.Count(x=>x.MeasuredAtUtc>_clock.UtcNow.AddDays(-180));var freshness=n==0?0m:100m*fresh/n;var confidence=Math.Clamp(100m-variancePenalty-(100m-freshness)*0.25m,5,99);return new(key,n,Q(xs.Select(x=>x.CpuMultiScore),.5),Q(xs.Select(x=>x.CpuMultiScore),.1),Q(xs.Select(x=>x.CpuMultiScore),.9),Q(xs.Select(x=>x.GpuScore),.5),Q(xs.Select(x=>x.GpuScore),.1),Q(xs.Select(x=>x.GpuScore),.9),Q(xs.Select(x=>x.MemoryScore),.5),Q(xs.Select(x=>x.StorageScore),.5),Q(xs.Select(x=>x.ThermalScore),.5),decimal.Round(confidence,2));}
+    private readonly ICommunityHardwareStore _store;
+    private readonly IUnitOfWork _uow;
+    private readonly ISystemClock _clock;
+
+    public CommunityHardwareService(
+        ICommunityHardwareStore store,
+        IUnitOfWork uow,
+        ISystemClock clock)
+    {
+        _store = store;
+        _uow = uow;
+        _clock = clock;
+    }
+
+    public async Task SubmitAsync(
+        CommunityHardwareSubmission submission,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(submission.ConsentToken))
+            throw new InvalidOperationException("Opt-in consent is required.");
+
+        var hasClientPseudonym = !string.IsNullOrWhiteSpace(submission.ClientPseudonym);
+        var fingerprint = CreatePseudonymousFingerprint(submission);
+
+        if (hasClientPseudonym)
+        {
+            var existing = await _store.ListAsync(submission.HardwareKey, cancellationToken);
+            // Only an explicit client pseudonym is used for retry deduplication.
+            // ConsentToken is never treated as a device identity.
+            if (existing.Any(sample =>
+                    string.Equals(
+                        sample.SourceFingerprint,
+                        fingerprint,
+                        StringComparison.OrdinalIgnoreCase)
+                    && sample.MeasuredAtUtc >= _clock.UtcNow.AddHours(-24)))
+            {
+                return;
+            }
+        }
+
+        var entity = new CommunityHardwareSample(
+            Guid.NewGuid(),
+            submission.HardwareKey,
+            submission.Platform,
+            submission.CpuArch,
+            submission.GpuVendor,
+            submission.OsFamily,
+            submission.DriverFamily,
+            submission.CpuSingleScore,
+            submission.CpuMultiScore,
+            submission.GpuScore,
+            submission.MemoryScore,
+            submission.StorageScore,
+            submission.ThermalScore,
+            submission.MemoryMb,
+            fingerprint,
+            _clock.UtcNow);
+
+        await _store.AddAsync(entity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<CommunityHardwareAggregate> AggregateAsync(
+        string hardwareKey,
+        CancellationToken cancellationToken)
+    {
+        var samples = await _store.ListAsync(hardwareKey, cancellationToken);
+        if (samples.Count == 0)
+            return new(hardwareKey, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+        static decimal Quantile(IEnumerable<decimal> values, double quantile)
+        {
+            var ordered = values.OrderBy(value => value).ToArray();
+            var index = (int)Math.Clamp(
+                Math.Round((ordered.Length - 1) * quantile),
+                0,
+                ordered.Length - 1);
+            return ordered[index];
+        }
+
+        var n = samples.Count;
+        var cpuMedian = Quantile(samples.Select(x => x.CpuMultiScore), 0.5);
+        var cpuP10 = Quantile(samples.Select(x => x.CpuMultiScore), 0.1);
+        var cpuP90 = Quantile(samples.Select(x => x.CpuMultiScore), 0.9);
+        var gpuMedian = Quantile(samples.Select(x => x.GpuScore), 0.5);
+        var gpuP10 = Quantile(samples.Select(x => x.GpuScore), 0.1);
+        var gpuP90 = Quantile(samples.Select(x => x.GpuScore), 0.9);
+
+        var fresh = samples.Count(x =>
+            x.MeasuredAtUtc > _clock.UtcNow.AddDays(-180));
+        var freshness = 100m * fresh / n;
+
+        var sampleConfidence = n switch
+        {
+            < 5 => 25m,
+            < 10 => 45m,
+            < 50 => 70m,
+            < 200 => 85m,
+            _ => 95m
+        };
+
+        var driverDiversity = Math.Min(
+            100m,
+            samples.Select(x => x.DriverFamily ?? "unknown")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count() * 20m);
+        var osDiversity = Math.Min(
+            100m,
+            samples.Select(x => x.OsFamily)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count() * 25m);
+
+        static decimal DispersionPenalty(decimal p10, decimal median, decimal p90)
+        {
+            if (median <= 0m) return 20m;
+            var spread = Math.Max(0m, p90 - p10) / median * 100m;
+            return Math.Min(25m, spread * 0.25m);
+        }
+
+        var dispersionPenalty = (
+            DispersionPenalty(cpuP10, cpuMedian, cpuP90)
+            + DispersionPenalty(gpuP10, gpuMedian, gpuP90)) / 2m;
+
+        var confidence = Math.Clamp(
+            sampleConfidence * 0.55m
+            + freshness * 0.25m
+            + driverDiversity * 0.10m
+            + osDiversity * 0.10m
+            - dispersionPenalty,
+            5m,
+            99m);
+
+        return new CommunityHardwareAggregate(
+            hardwareKey,
+            n,
+            cpuMedian,
+            cpuP10,
+            cpuP90,
+            gpuMedian,
+            gpuP10,
+            gpuP90,
+            Quantile(samples.Select(x => x.MemoryScore), 0.5),
+            Quantile(samples.Select(x => x.StorageScore), 0.5),
+            Quantile(samples.Select(x => x.ThermalScore), 0.5),
+            decimal.Round(confidence, 2));
+    }
+
+    private static string CreatePseudonymousFingerprint(
+        CommunityHardwareSubmission submission)
+    {
+        var sourcePseudonym = string.IsNullOrWhiteSpace(submission.ClientPseudonym)
+            ? Guid.NewGuid().ToString("N")
+            : submission.ClientPseudonym.Trim();
+
+        var raw = string.Join(
+            '|',
+            sourcePseudonym,
+            submission.HardwareKey.Trim(),
+            submission.Platform.Trim(),
+            submission.CpuArch.Trim(),
+            submission.GpuVendor.Trim(),
+            submission.OsFamily.Trim(),
+            submission.DriverFamily?.Trim() ?? string.Empty);
+
+        return Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(raw)))
+            .ToLowerInvariant();
+    }
 }
