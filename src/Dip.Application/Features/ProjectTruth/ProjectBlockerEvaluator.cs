@@ -7,7 +7,7 @@ public sealed class ProjectBlockerEvaluator
 {
     private static readonly string[] CriticalKinds =
     [
-        "build", "runtime", "integration", "release", "pipeline"
+        "build", "runtime", "integration", "release", "pipeline", "crash", "memory-safety", "memory-growth", "undefined-behavior", "hang", "compile"
     ];
 
     public IReadOnlyList<ProjectBlocker> Evaluate(

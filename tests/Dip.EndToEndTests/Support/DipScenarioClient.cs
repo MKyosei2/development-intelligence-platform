@@ -134,6 +134,28 @@ internal sealed class DipScenarioClient : IDisposable
             "/api/v1/dashboard/projects",
             JsonOptions) ?? [];
 
+    public async Task<QaRunE2EResponse> RunPythonQaAsync(ProjectResponse project)
+    {
+        var response=await _httpClient.PostAsJsonAsync(
+            "/api/v1/qa/runs",
+            new
+            {
+                projectId=project.Id,
+                subjectKey="project",
+                language="Python",
+                workspaceRelativePath=".",
+                commitSha=(string?)null,
+                runtimeExecutable="samples/qa-bug-zoo/python/runtime_type_error/app.py",
+                runtimeArguments=Array.Empty<string>(),
+                timeoutSeconds=15,
+                automaticallyReproduce=true,
+                recordScreen=false,
+                recordSystemAudio=false
+            });
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<QaRunE2EResponse>(JsonOptions))!;
+    }
+
     public async Task<HttpResponseMessage> SendSignedGitHubWebhookAsync(
         string deliveryId,
         string eventName,
@@ -219,3 +241,6 @@ internal sealed record DashboardSummaryResponse(
     string? LatestPipelineStatus,
     string? LatestQualityGateStatus,
     DateTimeOffset? LastEvaluatedAtUtc);
+
+internal sealed record QaFindingE2EResponse(string Severity,string Category,string ReproductionStatus,int ReproducedAttempts,int TotalAttempts);
+internal sealed record QaRunE2EResponse(Guid QaRunId,string Status,int FindingCount,int CriticalFindingCount,IReadOnlyList<QaFindingE2EResponse> Findings);

@@ -45,3 +45,8 @@ idempotent `P0SchemaBootstrapper`, which creates only the new Project Truth
 P0 tables when the application is still in no-migrations mode. A formal
 migration baseline should replace this bootstrapper in a later database
 migration phase.
+
+
+## P1 technical evidence expansion
+
+P1 source paths for hardcoded Python/C#/C++ QA, fingerprint-based automatic reproduction, Windows capture/audio/dump helpers, hardware calibration, relative performance simulation, PM explanation, and Project Truth integration are included. P1 is **not verified** until `docs/P1_IMPLEMENTATION_STATUS.md` requirements have been exercised, including Windows-specific native evidence.

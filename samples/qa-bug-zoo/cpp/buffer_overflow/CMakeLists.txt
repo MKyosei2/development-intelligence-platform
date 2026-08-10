@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(dip_bug_zoo_buffer_overflow LANGUAGES CXX)
+add_executable(dip_bug_buffer main.cpp)
+enable_testing()
+add_test(NAME buffer_overflow COMMAND dip_bug_buffer)

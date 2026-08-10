@@ -3,6 +3,8 @@ using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.Projects;
 using Dip.Application.Features.Quality;
+using Dip.Application.Features.QualityAutomation;
+using Dip.Application.Features.Hardware;
 using Dip.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +19,8 @@ public static class DependencyInjection
         services.AddScoped<DashboardQueryService>();
         services.AddScoped<ProjectClaimService>();
         services.AddScoped<ProjectTruthService>();
+        services.AddScoped<QaOrchestrationService>();
+        services.AddScoped<HardwareOrchestrationService>();
         services.AddScoped<OutboxWriter>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();
@@ -27,6 +31,7 @@ public static class DependencyInjection
         services.AddSingleton<ProjectBlockerEvaluator>();
         services.AddSingleton<ProjectRiskEvaluator>();
         services.AddSingleton<ProjectTruthEvaluator>();
+        services.AddSingleton<PmEvidenceTranslator>();
         return services;
     }
 }

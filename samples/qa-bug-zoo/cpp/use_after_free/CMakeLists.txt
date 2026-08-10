@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(dip_bug_zoo_uaf LANGUAGES CXX)
+add_executable(dip_bug_uaf main.cpp)
+enable_testing()
+add_test(NAME use_after_free COMMAND dip_bug_uaf)

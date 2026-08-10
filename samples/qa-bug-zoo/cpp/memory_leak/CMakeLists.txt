@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(dip_bug_zoo_memory_leak LANGUAGES CXX)
+add_executable(dip_bug_leak main.cpp)
+enable_testing()
+add_test(NAME memory_leak COMMAND dip_bug_leak)

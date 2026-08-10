@@ -19,6 +19,12 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<ClaimEvidenceLink> ClaimEvidenceLinks => Set<ClaimEvidenceLink>();
     public DbSet<ProjectTruthSnapshot> ProjectTruthSnapshots => Set<ProjectTruthSnapshot>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<QaRun> QaRuns => Set<QaRun>();
+    public DbSet<QaFinding> QaFindings => Set<QaFinding>();
+    public DbSet<ReproductionAttempt> ReproductionAttempts => Set<ReproductionAttempt>();
+    public DbSet<HardwareProfile> HardwareProfiles => Set<HardwareProfile>();
+    public DbSet<HardwareCalibration> HardwareCalibrations => Set<HardwareCalibration>();
+    public DbSet<PerformanceSimulationRun> PerformanceSimulationRuns => Set<PerformanceSimulationRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

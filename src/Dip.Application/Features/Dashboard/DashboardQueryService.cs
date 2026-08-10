@@ -59,6 +59,14 @@ public sealed record DashboardTimelineItem(
     string? SubjectKey,
     string? SourceReference);
 
+
+public sealed record DashboardQaRun(
+    Guid Id, string Language, string Status, int FindingCount, int CriticalFindingCount, int WarningFindingCount,
+    int ReproducedFindingCount, DateTimeOffset CreatedAtUtc);
+
+public sealed record DashboardHardwareSimulation(
+    Guid Id, string ProfileName, string Platform, string Status, decimal ConfidencePercent, DateTimeOffset CreatedAtUtc);
+
 public sealed record ProjectDashboardDetails(
     Guid ProjectId,
     string Name,
@@ -88,7 +96,12 @@ public sealed record ProjectDashboardDetails(
     int WarningIssueCount,
     IReadOnlyList<string> QualityGateReasons,
     IReadOnlyList<DashboardMetricPoint> Metrics,
-    IReadOnlyList<DashboardIssue> OpenIssues);
+    IReadOnlyList<DashboardIssue> OpenIssues)
+{
+    public IReadOnlyList<DashboardQaRun> RecentQaRuns { get; init; } = Array.Empty<DashboardQaRun>();
+    public IReadOnlyList<DashboardHardwareSimulation> RecentHardwareSimulations { get; init; } = Array.Empty<DashboardHardwareSimulation>();
+}
+
 
 public interface IDashboardReadRepository
 {

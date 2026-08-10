@@ -163,6 +163,43 @@ else if (_dashboard is not null)
 
             <section class="card shadow-sm mb-4">
                 <div class="card-header bg-transparent">
+                    <h2 class="h4 mb-0">Objective technical evidence</h2>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">QA and hardware simulation are supporting evidence for Project Truth. They are not the project itself, and simulated hardware results are never presented as real-device proof.</p>
+                    <h3 class="h6">Recent hardcoded QA</h3>
+                    @if (_dashboard.RecentQaRuns.Count == 0)
+                    {
+                        <p class="small text-muted">No P1 QA evidence has been collected yet.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive mb-4"><table class="table table-sm align-middle"><thead><tr><th>Language</th><th>Status</th><th>Critical</th><th>Reproduced</th><th></th></tr></thead><tbody>
+                        @foreach (var run in _dashboard.RecentQaRuns)
+                        {
+                            <tr><td>@run.Language</td><td>@run.Status</td><td>@run.CriticalFindingCount</td><td>@run.ReproducedFindingCount</td><td><a href="@($"/dashboard/{ProjectId}/qa/{run.Id}")">Evidence</a></td></tr>
+                        }
+                        </tbody></table></div>
+                    }
+                    <h3 class="h6">Recent hardware simulation</h3>
+                    @if (_dashboard.RecentHardwareSimulations.Count == 0)
+                    {
+                        <p class="small text-muted mb-0">No hardware simulation evidence has been collected yet.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Target</th><th>Result</th><th>Confidence</th></tr></thead><tbody>
+                        @foreach (var sim in _dashboard.RecentHardwareSimulations)
+                        {
+                            <tr><td>@sim.ProfileName <span class="small text-muted">(@sim.Platform)</span></td><td>@sim.Status</td><td>@sim.ConfidencePercent.ToString("0")%</td></tr>
+                        }
+                        </tbody></table></div>
+                    }
+                </div>
+            </section>
+
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
                     <h2 class="h4 mb-0">Evidence Timeline</h2>
                 </div>
                 <div class="list-group list-group-flush">

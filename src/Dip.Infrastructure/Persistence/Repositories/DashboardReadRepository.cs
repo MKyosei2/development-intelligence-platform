@@ -137,7 +137,33 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
         if (topActions.Count == 0)
             topActions = ["Collect objective evidence or submit a project status report to establish Project Truth."];
 
-        return new(
+        var recentQaEntities = await _db.QaRuns
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(5)
+            .ToListAsync(cancellationToken);
+        var recentQaIds = recentQaEntities.Select(x => x.Id).ToArray();
+        var reproducedByRun = recentQaIds.Length == 0
+            ? new Dictionary<Guid, int>()
+            : await _db.QaFindings.AsNoTracking()
+                .Where(x => recentQaIds.Contains(x.QaRunId) && x.ReproductionStatus == ReproductionStatus.Reproduced)
+                .GroupBy(x => x.QaRunId)
+                .Select(g => new { RunId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.RunId, x => x.Count, cancellationToken);
+        var recentQa = recentQaEntities.Select(x => new DashboardQaRun(
+            x.Id, x.Language.ToString(), x.Status.ToString(), x.FindingCount, x.CriticalFindingCount, x.WarningFindingCount,
+            reproducedByRun.TryGetValue(x.Id, out var reproduced) ? reproduced : 0, x.CreatedAtUtc)).ToArray();
+
+        var recentHardware = await (from sim in _db.PerformanceSimulationRuns.AsNoTracking()
+                                    join profile in _db.HardwareProfiles.AsNoTracking() on sim.HardwareProfileId equals profile.Id
+                                    where sim.ProjectId == projectId
+                                    orderby sim.CreatedAtUtc descending
+                                    select new DashboardHardwareSimulation(sim.Id, profile.Name, profile.Platform, sim.Status.ToString(), sim.ConfidencePercent, sim.CreatedAtUtc))
+            .Take(5)
+            .ToListAsync(cancellationToken);
+
+        var details = new ProjectDashboardDetails(
             project.Id,
             project.Name,
             project.RepositoryUrl,
@@ -167,6 +193,12 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
             latestGate?.GetReasons() ?? Array.Empty<string>(),
             metrics,
             issues);
+
+        return details with
+        {
+            RecentQaRuns = recentQa,
+            RecentHardwareSimulations = recentHardware
+        };
     }
 
     private async Task<IReadOnlyList<DashboardClaimComparison>> BuildReportVsRealityAsync(

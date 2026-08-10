@@ -42,3 +42,21 @@ not a trust score for the reporter.
 The independent FastAPI analysis service continues to expose its analysis
 endpoints. It is an analysis/evidence provider and does not replace the Project
 Truth evaluator.
+
+
+## Project Truth P1
+
+```text
+POST /api/v1/qa/runs
+GET  /api/v1/qa/runs/{runId}
+GET  /api/v1/qa/runs/{runId}/artifacts
+GET  /api/v1/qa/runs/{runId}/artifacts/{path}
+
+POST /api/v1/hardware/projects/{projectId}/calibrate
+POST /api/v1/hardware/profiles/relative
+GET  /api/v1/hardware/profiles
+POST /api/v1/hardware/simulate
+POST /api/v1/hardware/estimate-minimum
+```
+
+QA and simulation write technical results as `EvidenceRecord` entries. The Project Truth evaluator remains the final project-level decision layer. Runtime and simulation executable paths are restricted to the configured QA workspace.

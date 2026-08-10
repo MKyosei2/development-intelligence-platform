@@ -1,0 +1,1 @@
+{"category":"memory-growth","severity":"Warning","ruleId":"python-tracemalloc-growth","mustReproduce":false}

@@ -44,4 +44,39 @@ public interface IAuditLogRepository
 {
     Task AddAsync(AuditLog entry,CancellationToken ct);
 }
+public interface IQaRunRepository
+{
+    Task AddAsync(QaRun run,CancellationToken ct);
+    Task<QaRun?> GetAsync(Guid id,CancellationToken ct);
+    Task<IReadOnlyList<QaRun>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
+}
+public interface IQaFindingRepository
+{
+    Task AddRangeAsync(IEnumerable<QaFinding> findings,CancellationToken ct);
+    Task<QaFinding?> GetAsync(Guid id,CancellationToken ct);
+    Task<IReadOnlyList<QaFinding>> ListByRunAsync(Guid runId,CancellationToken ct);
+}
+public interface IReproductionAttemptRepository
+{
+    Task AddAsync(ReproductionAttempt attempt,CancellationToken ct);
+    Task<IReadOnlyList<ReproductionAttempt>> ListByFindingAsync(Guid findingId,CancellationToken ct);
+}
+public interface IHardwareProfileRepository
+{
+    Task AddAsync(HardwareProfile profile,CancellationToken ct);
+    Task<HardwareProfile?> GetAsync(Guid id,CancellationToken ct);
+    Task<HardwareProfile?> FindAsync(string name,string platform,CancellationToken ct);
+    Task<IReadOnlyList<HardwareProfile>> ListAsync(CancellationToken ct);
+}
+public interface IHardwareCalibrationRepository
+{
+    Task AddAsync(HardwareCalibration calibration,CancellationToken ct);
+    Task<HardwareCalibration?> GetLatestAsync(Guid projectId,CancellationToken ct);
+}
+public interface IPerformanceSimulationRepository
+{
+    Task AddAsync(PerformanceSimulationRun run,CancellationToken ct);
+    Task<PerformanceSimulationRun?> GetAsync(Guid id,CancellationToken ct);
+    Task<IReadOnlyList<PerformanceSimulationRun>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
+}
 public interface IUnitOfWork{Task<int> SaveChangesAsync(CancellationToken ct);}

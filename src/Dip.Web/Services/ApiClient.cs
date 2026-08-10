@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.ProjectTruth;
+using Dip.Application.Features.QualityAutomation;
 
 namespace Dip.Web.Services;
 
@@ -65,4 +66,18 @@ public sealed class ApiClient
                    cancellationToken: cancellationToken)
                ?? throw new InvalidDataException("Claim API returned an empty response.");
     }
+    public async Task<QaRunResultDto?> GetQaRunAsync(Guid runId,CancellationToken cancellationToken=default)
+    {
+        using var response=await _httpClient.GetAsync($"api/v1/qa/runs/{runId}",cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;response.EnsureSuccessStatusCode();return await response.Content.ReadFromJsonAsync<QaRunResultDto>(cancellationToken:cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<QaArtifactDto>> GetQaArtifactsAsync(Guid runId,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<IReadOnlyList<QaArtifactDto>>($"api/v1/qa/runs/{runId}/artifacts",cancellationToken)??Array.Empty<QaArtifactDto>();
+
+    public string QaArtifactUrl(Guid runId,string relativePath)
+    {
+        var encoded=string.Join('/',relativePath.Split('/',StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
+        return new Uri(_httpClient.BaseAddress??throw new InvalidOperationException("API BaseAddress is missing."),$"api/v1/qa/runs/{runId}/artifacts/{encoded}").ToString();
+    }
+
 }
