@@ -76,6 +76,34 @@ internal sealed class DipScenarioClient : IDisposable
         return (await response.Content.ReadFromJsonAsync<CollectorResponse>(JsonOptions))!;
     }
 
+    public async Task<ClaimResponse> SubmitClaimAsync(
+        ProjectResponse project,
+        string claimedStatus,
+        decimal? claimedProgress = null,
+        string subjectKey = "project")
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"/api/v1/projects/{project.Id}/claims",
+            new
+            {
+                subjectKey,
+                claimedStatus,
+                claimedProgress,
+                claimedBy = "e2e-reporter",
+                description = "E2E project status report."
+            });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        return (await response.Content.ReadFromJsonAsync<ClaimResponse>(JsonOptions))!;
+    }
+
+    public async Task<DashboardResponse> GetDashboardAsync(Guid projectId)
+    {
+        var response = await _httpClient.GetAsync($"/api/v1/dashboard/projects/{projectId}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return (await response.Content.ReadFromJsonAsync<DashboardResponse>(JsonOptions))!;
+    }
+
     public async Task<DashboardResponse> WaitForDashboardAsync(
         Guid projectId,
         string expectedStatus,
@@ -141,13 +169,31 @@ internal sealed record ProjectResponse(
 
 internal sealed record CollectorResponse(Guid PipelineRunId, bool WasDuplicate);
 
+internal sealed record ClaimResponse(
+    Guid Id,
+    Guid ProjectId,
+    string SubjectKey,
+    string ClaimedStatus,
+    decimal? ClaimedProgress,
+    string ClaimedBy,
+    string VerificationStatus,
+    DateTimeOffset ClaimedAtUtc);
+
 internal sealed record DashboardResponse(
     Guid ProjectId,
     string Name,
     string Repository,
     string DefaultBranch,
     decimal HealthScore,
+    string TruthStatus,
     string RiskLevel,
+    decimal VerifiedProgress,
+    decimal? ReportedProgress,
+    string EvidenceConfidence,
+    int BlockerCount,
+    int ContradictionCount,
+    int UnverifiedClaimCount,
+    string TruthSummary,
     Guid? LatestPipelineRunId,
     string? LatestPipelineStatus,
     DateTimeOffset? LatestPipelineFinishedAtUtc,
@@ -163,7 +209,13 @@ internal sealed record DashboardSummaryResponse(
     string Repository,
     string DefaultBranch,
     decimal HealthScore,
+    string TruthStatus,
     string RiskLevel,
+    decimal VerifiedProgress,
+    decimal? ReportedProgress,
+    string EvidenceConfidence,
+    int BlockerCount,
+    int ContradictionCount,
     string? LatestPipelineStatus,
     string? LatestQualityGateStatus,
     DateTimeOffset? LastEvaluatedAtUtc);

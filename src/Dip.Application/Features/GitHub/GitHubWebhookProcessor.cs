@@ -3,7 +3,9 @@ using System.Text;
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;
+using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Entities;
+using Dip.Domain.Enums;
 using Dip.Shared.Contracts.Events;
 
 namespace Dip.Application.Features.GitHub;
@@ -16,17 +18,26 @@ public sealed record GitHubWebhookProcessResult(
 public sealed class GitHubWebhookProcessor
 {
     private readonly IProcessedWebhookRepository _webhooks;
+    private readonly IProjectRepository _projects;
+    private readonly IEvidenceRepository _evidence;
     private readonly IQueueClient _queue;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ProjectTruthService _truth;
 
     public GitHubWebhookProcessor(
         IProcessedWebhookRepository webhooks,
+        IProjectRepository projects,
+        IEvidenceRepository evidence,
         IQueueClient queue,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ProjectTruthService truth)
     {
         _webhooks = webhooks;
+        _projects = projects;
+        _evidence = evidence;
         _queue = queue;
         _unitOfWork = unitOfWork;
+        _truth = truth;
     }
 
     public async Task<GitHubWebhookProcessResult> ProcessAsync(
@@ -56,16 +67,6 @@ public sealed class GitHubWebhookProcessor
                 nameof(payloadJson));
         }
 
-        if (await _webhooks.ExistsAsync(
-                deliveryId,
-                cancellationToken))
-        {
-            return new(
-                true,
-                deliveryId,
-                eventName);
-        }
-
         using var document = JsonDocument.Parse(payloadJson);
         var root = document.RootElement;
 
@@ -85,17 +86,25 @@ public sealed class GitHubWebhookProcessor
                 ? fullNameNode.GetString() ?? string.Empty
                 : string.Empty;
 
-        long? pullRequestNumber = null;
+        var repositoryHtmlUrl =
+            root.TryGetProperty("repository", out repositoryNode)
+            && repositoryNode.TryGetProperty("html_url", out var repositoryUrlNode)
+                ? repositoryUrlNode.GetString()
+                : null;
 
-        if (root.TryGetProperty(
-                "pull_request",
-                out var pullRequestNode)
-            && pullRequestNode.TryGetProperty(
-                "number",
-                out var numberNode)
-            && numberNode.TryGetInt64(out var number))
+        long? pullRequestNumber = null;
+        string? pullRequestUrl = null;
+
+        if (root.TryGetProperty("pull_request", out var pullRequestNode))
         {
-            pullRequestNumber = number;
+            if (pullRequestNode.TryGetProperty("number", out var numberNode)
+                && numberNode.TryGetInt64(out var number))
+            {
+                pullRequestNumber = number;
+            }
+
+            if (pullRequestNode.TryGetProperty("html_url", out var prUrlNode))
+                pullRequestUrl = prUrlNode.GetString();
         }
 
         var sender =
@@ -107,6 +116,21 @@ public sealed class GitHubWebhookProcessor
                 out var loginNode)
                 ? loginNode.GetString() ?? string.Empty
                 : string.Empty;
+
+        var project = await FindProjectAsync(repository, cancellationToken);
+
+        if (await _webhooks.ExistsAsync(deliveryId, cancellationToken))
+        {
+            // If a previous request committed the webhook/evidence but failed
+            // while refreshing Project Truth, a GitHub retry repairs the view.
+            if (project is not null)
+                await _truth.RecalculateAsync(project.Id, cancellationToken);
+
+            return new(
+                true,
+                deliveryId,
+                eventName);
+        }
 
         var receivedAtUtc = DateTimeOffset.UtcNow;
         var payloadHash = Convert.ToHexString(
@@ -129,9 +153,24 @@ public sealed class GitHubWebhookProcessor
             payloadJson,
             receivedAtUtc);
 
-        await _webhooks.AddAsync(
-            entity,
-            cancellationToken);
+        await _webhooks.AddAsync(entity, cancellationToken);
+
+        if (project is not null)
+        {
+            var evidence = BuildEvidence(
+                project.Id,
+                eventName,
+                action,
+                sender,
+                repository,
+                repositoryHtmlUrl,
+                pullRequestNumber,
+                pullRequestUrl,
+                root,
+                receivedAtUtc);
+
+            await _evidence.AddAsync(evidence, cancellationToken);
+        }
 
         // Publish before recording the delivery as completed. If Redis is
         // unavailable, GitHub can retry the same delivery instead of the
@@ -144,9 +183,183 @@ public sealed class GitHubWebhookProcessor
         entity.MarkProcessed(DateTimeOffset.UtcNow);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        if (project is not null)
+            await _truth.RecalculateAsync(project.Id, cancellationToken);
+
         return new(
             false,
             deliveryId,
             eventName);
+    }
+
+    private async Task<Project?> FindProjectAsync(
+        string repository,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(repository))
+            return null;
+
+        var projects = await _projects.ListAsync(cancellationToken);
+        return projects.FirstOrDefault(project =>
+            string.Equals(
+                NormalizeRepository(project.RepositoryUrl),
+                NormalizeRepository(repository),
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static EvidenceRecord BuildEvidence(
+        Guid projectId,
+        string eventName,
+        string action,
+        string sender,
+        string repository,
+        string? repositoryHtmlUrl,
+        long? pullRequestNumber,
+        string? pullRequestUrl,
+        JsonElement root,
+        DateTimeOffset receivedAtUtc)
+    {
+        var normalizedEvent = eventName.Trim().ToLowerInvariant();
+        var kind = "github-event";
+        var outcome = EvidenceOutcome.Informational;
+        var title = $"GitHub {eventName}";
+        var summary = string.IsNullOrWhiteSpace(action)
+            ? $"GitHub emitted {eventName}."
+            : $"GitHub emitted {eventName}/{action}.";
+
+        switch (normalizedEvent)
+        {
+            case "push":
+                kind = "git-push";
+                outcome = EvidenceOutcome.Changed;
+                title = "Repository source changed";
+                summary = $"{sender} pushed changes to {ReadString(root, "ref") ?? "the repository"}.";
+                break;
+
+            case "pull_request":
+            {
+                var merged = false;
+                if (root.TryGetProperty("pull_request", out var pr)
+                    && pr.TryGetProperty("merged", out var mergedNode)
+                    && mergedNode.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    merged = mergedNode.GetBoolean();
+                }
+
+                if (string.Equals(action, "closed", StringComparison.OrdinalIgnoreCase) && merged)
+                {
+                    kind = "integration";
+                    outcome = EvidenceOutcome.Succeeded;
+                    title = $"Pull request #{pullRequestNumber} merged";
+                    summary = "A pull request was merged into the repository, providing objective integration evidence.";
+                }
+                else
+                {
+                    kind = "pull-request";
+                    outcome = EvidenceOutcome.Changed;
+                    title = $"Pull request #{pullRequestNumber} {action}";
+                    summary = $"Pull request activity was observed: {action}.";
+                }
+                break;
+            }
+
+            case "workflow_run":
+            {
+                kind = "ci-workflow";
+                var conclusion = ReadNestedString(root, "workflow_run", "conclusion");
+                outcome = OutcomeFromConclusion(conclusion);
+                var workflowName = ReadNestedString(root, "workflow_run", "name") ?? "workflow";
+                title = $"CI workflow {workflowName}: {conclusion ?? "updated"}";
+                summary = $"GitHub Actions workflow '{workflowName}' concluded '{conclusion ?? "unknown"}'.";
+                break;
+            }
+
+            case "check_run":
+            {
+                kind = "ci-check";
+                var conclusion = ReadNestedString(root, "check_run", "conclusion");
+                outcome = OutcomeFromConclusion(conclusion);
+                var checkName = ReadNestedString(root, "check_run", "name") ?? "check";
+                title = $"CI check {checkName}: {conclusion ?? "updated"}";
+                summary = $"GitHub check '{checkName}' concluded '{conclusion ?? "unknown"}'.";
+                break;
+            }
+
+            case "ping":
+                kind = "github-connection";
+                outcome = EvidenceOutcome.Informational;
+                title = "GitHub webhook connection verified";
+                summary = "GitHub webhook ping was received successfully.";
+                break;
+        }
+
+        var sourceReference = pullRequestUrl ?? repositoryHtmlUrl;
+        var compactPayload = JsonSerializer.Serialize(new
+        {
+            eventName,
+            action,
+            sender,
+            repository,
+            pullRequestNumber,
+            reference = ReadString(root, "ref"),
+            after = ReadString(root, "after")
+        });
+
+        return new EvidenceRecord(
+            Guid.NewGuid(),
+            projectId,
+            null,
+            "project",
+            EvidenceSourceType.GitHub,
+            kind,
+            outcome,
+            title,
+            summary,
+            // The controller validates GitHub's HMAC signature before this
+            // processor runs, so the origin of the event is verified.
+            EvidenceConfidence.Verified,
+            sourceReference,
+            compactPayload,
+            receivedAtUtc,
+            receivedAtUtc);
+    }
+
+    private static EvidenceOutcome OutcomeFromConclusion(string? conclusion) =>
+        conclusion?.Trim().ToLowerInvariant() switch
+        {
+            "success" => EvidenceOutcome.Succeeded,
+            "failure" => EvidenceOutcome.Failed,
+            "timed_out" => EvidenceOutcome.Failed,
+            "startup_failure" => EvidenceOutcome.Failed,
+            "cancelled" => EvidenceOutcome.Warning,
+            "neutral" => EvidenceOutcome.Informational,
+            "skipped" => EvidenceOutcome.Informational,
+            _ => EvidenceOutcome.Unknown
+        };
+
+    private static string? ReadString(JsonElement root, string propertyName) =>
+        root.TryGetProperty(propertyName, out var node)
+            && node.ValueKind == JsonValueKind.String
+                ? node.GetString()
+                : null;
+
+    private static string? ReadNestedString(
+        JsonElement root,
+        string parent,
+        string propertyName) =>
+        root.TryGetProperty(parent, out var parentNode)
+        && parentNode.TryGetProperty(propertyName, out var node)
+        && node.ValueKind == JsonValueKind.String
+            ? node.GetString()
+            : null;
+
+    private static string NormalizeRepository(string value)
+    {
+        var normalized = value.Trim().TrimEnd('/');
+        if (normalized.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized[..^4];
+        if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+            normalized = uri.AbsolutePath.Trim('/');
+        return normalized;
     }
 }

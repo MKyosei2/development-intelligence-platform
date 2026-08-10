@@ -3,7 +3,12 @@
 
 <PageTitle>Development Intelligence Platform</PageTitle>
 
-<h1>Development Intelligence Platform</h1>
+<div class="mb-4">
+    <h1>Development Intelligence Platform</h1>
+    <p class="lead text-muted mb-0">
+        Project Truth: reported progress is separated from objective evidence so non-technical production staff can see what is actually verified.
+    </p>
+</div>
 
 @if (_loading)
 {
@@ -23,25 +28,55 @@ else
         @foreach (var project in _projects)
         {
             <div class="col-12 col-md-6 col-xl-4">
-                <div class="card h-100">
+                <div class="card h-100 shadow-sm">
                     <div class="card-body">
-                        <h2 class="h5">@project.Name</h2>
-                        <p class="text-muted mb-2">@project.Repository</p>
-                        <dl class="row mb-0">
-                            <dt class="col-6">Health</dt>
-                            <dd class="col-6">@project.HealthScore.ToString("0.##")</dd>
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <h2 class="h5 mb-1">@project.Name</h2>
+                                <p class="text-muted small mb-3">@project.Repository</p>
+                            </div>
+                            <span class="badge @TruthBadge(project.TruthStatus)">@project.TruthStatus</span>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="small text-muted">Evidence-backed</div>
+                                    <div class="h4 mb-0">@project.VerifiedProgress.ToString("0.#")%</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="small text-muted">Reported</div>
+                                    <div class="h4 mb-0">@FormatProgress(project.ReportedProgress)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <dl class="row mb-0 small">
                             <dt class="col-6">Risk</dt>
-                            <dd class="col-6">@project.RiskLevel</dd>
-                            <dt class="col-6">Pipeline</dt>
-                            <dd class="col-6">@Display(project.LatestPipelineStatus)</dd>
-                            <dt class="col-6">Quality gate</dt>
-                            <dd class="col-6">@Display(project.LatestQualityGateStatus)</dd>
+                            <dd class="col-6"><span class="badge @RiskBadge(project.RiskLevel)">@project.RiskLevel</span></dd>
+                            <dt class="col-6">Evidence confidence</dt>
+                            <dd class="col-6">@project.EvidenceConfidence</dd>
+                            <dt class="col-6">Blockers</dt>
+                            <dd class="col-6">@project.BlockerCount</dd>
+                            <dt class="col-6">Mismatches</dt>
+                            <dd class="col-6">@project.ContradictionCount</dd>
                         </dl>
+
+                        @if (project.ReportedProgress is { } reported
+                            && reported - project.VerifiedProgress >= 20m)
+                        {
+                            <div class="alert alert-warning py-2 px-3 mt-3 mb-0 small">
+                                Reported progress is ahead of evidence-backed progress by
+                                <strong>@((reported - project.VerifiedProgress).ToString("0.#")) points</strong>.
+                            </div>
+                        }
                     </div>
                     <div class="card-footer bg-transparent">
-                        <a class="btn btn-primary"
+                        <a class="btn btn-primary w-100"
                            href="@($"/dashboard/{project.ProjectId}")">
-                            Open dashboard
+                            Open Project Truth
                         </a>
                     </div>
                 </div>
@@ -51,10 +86,8 @@ else
 }
 
 @code {
-    private IReadOnlyList<
-        Dip.Application.Features.Dashboard.ProjectDashboardSummary> _projects =
-        Array.Empty<
-            Dip.Application.Features.Dashboard.ProjectDashboardSummary>();
+    private IReadOnlyList<ProjectDashboardSummary> _projects =
+        Array.Empty<ProjectDashboardSummary>();
 
     private bool _loading = true;
     private string? _error;
@@ -75,6 +108,24 @@ else
         }
     }
 
-    private static string Display(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "Not available" : value;
+    private static string FormatProgress(decimal? value) =>
+        value is null ? "—" : $"{value:0.#}%";
+
+    private static string TruthBadge(string status) => status switch
+    {
+        "Healthy" => "text-bg-success",
+        "Attention" => "text-bg-warning",
+        "AtRisk" => "text-bg-danger",
+        "Blocked" => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+
+    private static string RiskBadge(string risk) => risk switch
+    {
+        "Low" => "text-bg-success",
+        "Medium" => "text-bg-warning",
+        "High" => "text-bg-danger",
+        "Critical" => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
 }

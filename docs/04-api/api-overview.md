@@ -1,12 +1,44 @@
 # API Overview
 
+## Core project APIs
+
 ```text
 GET  /api/projects
 POST /api/projects
-POST /api/collectors/reports
-GET  /api/projects/{id}/dashboard
-GET  /api/pipeline-runs/{id}
-POST /api/analysis/risk
-POST /api/analysis/summary
-POST /api/analysis/release-prediction
 ```
+
+## Collector / evidence ingestion
+
+```text
+POST /api/v1/collector-reports
+POST /api/v1/webhooks/github
+```
+
+Collector and GitHub results are persisted through their existing paths and are
+also converted into `EvidenceRecord` entries for Project Truth evaluation.
+
+## Project Truth / PM dashboard
+
+```text
+GET  /api/v1/dashboard/projects
+GET  /api/v1/dashboard/projects/{projectId}
+
+GET  /api/v1/projects/{projectId}/claims
+POST /api/v1/projects/{projectId}/claims
+```
+
+The dashboard API returns PM-first state such as Truth Status, reported and
+evidence-backed progress, Evidence Confidence, Risk, Blockers, Report vs
+Reality, and the Evidence Timeline. Existing Pipeline, Quality Gate, Metric and
+Quality Issue fields remain available as technical evidence.
+
+A Claim is a project member's report. It is stored separately from machine
+Evidence and is evaluated as `Confirmed`, `PartiallyConfirmed`, `Unverified`,
+`Contradicted`, or `Stale`. These states evaluate the statement only; they are
+not a trust score for the reporter.
+
+## Python analysis service
+
+The independent FastAPI analysis service continues to expose its analysis
+endpoints. It is an analysis/evidence provider and does not replace the Project
+Truth evaluator.

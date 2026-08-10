@@ -19,4 +19,29 @@ public interface IQualityIssueRepository
     Task<QualityIssue?> FindOpenByFingerprintAsync(Guid projectId,string fingerprint,CancellationToken ct);
     Task AddAsync(QualityIssue issue,CancellationToken ct);
 }
+public interface IEvidenceRepository
+{
+    Task AddAsync(EvidenceRecord evidence,CancellationToken ct);
+    Task AddRangeAsync(IEnumerable<EvidenceRecord> evidence,CancellationToken ct);
+    Task<IReadOnlyList<EvidenceRecord>> ListForProjectAsync(Guid projectId,DateTimeOffset? observedSince,CancellationToken ct);
+}
+public interface IProjectClaimRepository
+{
+    Task<ProjectClaim?> GetByIdAsync(Guid id,CancellationToken ct);
+    Task<IReadOnlyList<ProjectClaim>> ListByProjectAsync(Guid projectId,CancellationToken ct);
+    Task AddAsync(ProjectClaim claim,CancellationToken ct);
+}
+public interface IClaimEvidenceLinkRepository
+{
+    Task ReplaceForClaimAsync(Guid claimId,IReadOnlyCollection<ClaimEvidenceLink> links,CancellationToken ct);
+}
+public interface IProjectTruthRepository
+{
+    Task<ProjectTruthSnapshot?> GetLatestAsync(Guid projectId,CancellationToken ct);
+    Task AddAsync(ProjectTruthSnapshot snapshot,CancellationToken ct);
+}
+public interface IAuditLogRepository
+{
+    Task AddAsync(AuditLog entry,CancellationToken ct);
+}
 public interface IUnitOfWork{Task<int> SaveChangesAsync(CancellationToken ct);}

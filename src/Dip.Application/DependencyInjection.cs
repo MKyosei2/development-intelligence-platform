@@ -1,5 +1,6 @@
 using Dip.Application.Features.Collectors;
 using Dip.Application.Features.Dashboard;
+using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.Projects;
 using Dip.Application.Features.Quality;
 using Dip.Application.Services;
@@ -14,10 +15,18 @@ public static class DependencyInjection
         services.AddScoped<ProjectService>();
         services.AddScoped<CollectorReportService>();
         services.AddScoped<DashboardQueryService>();
+        services.AddScoped<ProjectClaimService>();
+        services.AddScoped<ProjectTruthService>();
         services.AddScoped<OutboxWriter>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();
         services.AddSingleton<QualityGateEvaluator>();
+        services.AddSingleton<ClaimVerificationEvaluator>();
+        services.AddSingleton<EvidenceConfidenceEvaluator>();
+        services.AddSingleton<ProgressEvaluator>();
+        services.AddSingleton<ProjectBlockerEvaluator>();
+        services.AddSingleton<ProjectRiskEvaluator>();
+        services.AddSingleton<ProjectTruthEvaluator>();
         return services;
     }
 }

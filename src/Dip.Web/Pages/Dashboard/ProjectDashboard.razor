@@ -1,11 +1,12 @@
 @page "/dashboard/{ProjectId:guid}"
+@using Dip.Application.Features.Dashboard
 @inject Dip.Web.Services.ApiClient Api
 
-<PageTitle>Project Dashboard</PageTitle>
+<PageTitle>Project Truth</PageTitle>
 
 @if (_loading)
 {
-    <p>Loading dashboard...</p>
+    <p>Loading project truth...</p>
 }
 else if (_notFound)
 {
@@ -17,114 +18,347 @@ else if (_error is not null)
 }
 else if (_dashboard is not null)
 {
-    <div class="d-flex justify-content-between align-items-start mb-4">
+    <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
         <div>
-            <h1>@_dashboard.Name</h1>
+            <div class="text-uppercase small text-muted fw-semibold">Project Truth</div>
+            <h1 class="mb-1">@_dashboard.Name</h1>
             <p class="text-muted mb-0">@_dashboard.Repository</p>
         </div>
         <a class="btn btn-outline-secondary" href="/">Back</a>
     </div>
 
+    <div class="alert @TruthAlert(_dashboard.TruthStatus) d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <strong>Current state: @_dashboard.TruthStatus</strong>
+            <div class="small">@_dashboard.TruthSummary</div>
+        </div>
+        <div class="text-end small">
+            <div>Evidence confidence: <strong>@_dashboard.EvidenceConfidence</strong></div>
+            <div>Last evaluated: @FormatDate(_dashboard.TruthEvaluatedAtUtc)</div>
+        </div>
+    </div>
+
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
-            <div class="card h-100">
+            <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted">Health score</div>
-                    <div class="display-6">@_dashboard.HealthScore.ToString("0.##")</div>
+                    <div class="text-muted small">Evidence-backed progress</div>
+                    <div class="display-6">@_dashboard.VerifiedProgress.ToString("0.#")%</div>
+                    <div class="small text-muted">Verified by objective evidence</div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-lg-3">
-            <div class="card h-100">
+            <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted">Risk</div>
-                    <div class="h3">@_dashboard.RiskLevel</div>
+                    <div class="text-muted small">Reported progress</div>
+                    <div class="display-6">@FormatProgress(_dashboard.ReportedProgress)</div>
+                    <div class="small text-muted">What the team currently reports</div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-lg-3">
-            <div class="card h-100">
+            <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted">Quality gate</div>
-                    <div class="h3">@Display(_dashboard.QualityGateStatus)</div>
+                    <div class="text-muted small">Release / delivery risk</div>
+                    <div class="h2 mb-1"><span class="badge @RiskBadge(_dashboard.RiskLevel)">@_dashboard.RiskLevel</span></div>
+                    <div class="small text-muted">Evidence-backed risk, not a person score</div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-lg-3">
-            <div class="card h-100">
+            <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted">Pipeline</div>
-                    <div class="h3">@Display(_dashboard.LatestPipelineStatus)</div>
+                    <div class="text-muted small">Needs attention</div>
+                    <div class="display-6">@(_dashboard.BlockerCount + _dashboard.ContradictionCount)</div>
+                    <div class="small text-muted">@_dashboard.BlockerCount blocker(s), @_dashboard.ContradictionCount mismatch(es)</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <h2 class="h4">Quality gate reasons</h2>
-    <ul>
-        @foreach (var reason in _dashboard.QualityGateReasons)
-        {
-            <li>@reason</li>
-        }
-    </ul>
+    @if (_dashboard.ReportedProgress is { } reported
+        && reported - _dashboard.VerifiedProgress >= 20m)
+    {
+        <div class="alert alert-warning">
+            <strong>Reported and verified progress differ materially.</strong>
+            The reported value is ahead by @((reported - _dashboard.VerifiedProgress).ToString("0.#")) percentage points.
+            This does not mean a person is lying; it means the current evidence does not yet support the report to the same level.
+        </div>
+    }
 
-    <h2 class="h4 mt-4">Latest metrics</h2>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
-            <tr>
-                <th>Name</th>
-                <th>Value</th>
-                <th>Unit</th>
-                <th>Difference</th>
-            </tr>
-            </thead>
-            <tbody>
-            @foreach (var metric in _dashboard.Metrics)
-            {
-                <tr>
-                    <td>@metric.Name</td>
-                    <td>@metric.Value</td>
-                    <td>@metric.Unit</td>
-                    <td>@FormatDifference(metric.DifferencePercent)</td>
-                </tr>
-            }
-            </tbody>
-        </table>
+    <div class="row g-4">
+        <div class="col-12 col-xl-7">
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h2 class="h4 mb-0">What needs attention now</h2>
+                </div>
+                <div class="card-body">
+                    @if (_dashboard.TopActions.Count == 0)
+                    {
+                        <p class="mb-0 text-muted">No immediate action is required.</p>
+                    }
+                    else
+                    {
+                        <ol class="mb-0">
+                            @foreach (var action in _dashboard.TopActions)
+                            {
+                                <li class="mb-2">@action</li>
+                            }
+                        </ol>
+                    }
+                </div>
+            </section>
+
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h2 class="h4 mb-0">Report vs Reality</h2>
+                    <span class="badge text-bg-secondary">@_dashboard.ReportVsReality.Count subjects</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (_dashboard.ReportVsReality.Count == 0)
+                    {
+                        <div class="p-3 text-muted">No team status reports have been submitted yet.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Report</th>
+                                    <th>Evidence result</th>
+                                    <th>Evidence</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var item in _dashboard.ReportVsReality)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@item.SubjectKey</strong>
+                                            <div class="small text-muted">@item.ClaimedBy · @FormatDate(item.ClaimedAtUtc)</div>
+                                        </td>
+                                        <td>
+                                            @item.ClaimedStatus
+                                            <div class="small text-muted">@FormatProgress(item.ClaimedProgress)</div>
+                                        </td>
+                                        <td>
+                                            <span class="badge @VerificationBadge(item.VerificationStatus)">@item.VerificationStatus</span>
+                                            <div class="small mt-1">@item.VerificationSummary</div>
+                                        </td>
+                                        <td class="small">
+                                            <div class="text-success">Supports: @item.SupportingEvidenceCount</div>
+                                            <div class="text-danger">Conflicts: @item.ContradictingEvidenceCount</div>
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h2 class="h4 mb-0">Evidence Timeline</h2>
+                </div>
+                <div class="list-group list-group-flush">
+                    @if (_dashboard.Timeline.Count == 0)
+                    {
+                        <div class="list-group-item text-muted">No evidence has been collected yet.</div>
+                    }
+                    else
+                    {
+                        @foreach (var item in _dashboard.Timeline)
+                        {
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <div>
+                                        <div class="small text-muted">@item.Kind · @item.Confidence</div>
+                                        <strong>@item.Title</strong>
+                                    </div>
+                                    <small class="text-muted text-nowrap">@FormatDate(item.AtUtc)</small>
+                                </div>
+                                <div class="small mt-1">@item.Detail</div>
+                                @if (!string.IsNullOrWhiteSpace(item.SourceReference))
+                                {
+                                    <div class="small mt-1">
+                                        <a href="@item.SourceReference" target="_blank" rel="noopener noreferrer">Open source evidence</a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h2 class="h4 mb-0">Submit a status report</h2>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Reports remain separate from objective evidence. DIP will compare this report with new and existing evidence; it will not score the person who submitted it.
+                    </p>
+                    <EditForm Model="@_claimForm" OnSubmit="@SubmitClaimAsync">
+                        <div class="mb-3">
+                            <label class="form-label">Subject key</label>
+                            <InputText class="form-control" @bind-Value="_claimForm.SubjectKey" />
+                            <div class="form-text">Use <code>project</code> for a project-wide report. Feature-specific keys can be used when matching evidence is available.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reported status</label>
+                            <InputText class="form-control" @bind-Value="_claimForm.ClaimedStatus" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reported progress (0–100, optional)</label>
+                            <InputNumber class="form-control" @bind-Value="_claimForm.ClaimedProgress" min="0" max="100" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reporter</label>
+                            <InputText class="form-control" @bind-Value="_claimForm.ClaimedBy" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <InputTextArea class="form-control" @bind-Value="_claimForm.Description" rows="3" />
+                        </div>
+                        <button class="btn btn-primary" type="submit" disabled="@_claimSubmitting">
+                            @(_claimSubmitting ? "Submitting..." : "Submit and verify")
+                        </button>
+                    </EditForm>
+
+                    @if (_claimMessage is not null)
+                    {
+                        <div class="alert @(_claimFailed ? "alert-danger" : "alert-success") mt-3 mb-0">@_claimMessage</div>
+                    }
+                </div>
+            </section>
+
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h2 class="h4 mb-0">Evidence-backed blockers</h2>
+                </div>
+                <div class="list-group list-group-flush">
+                    @if (_dashboard.Blockers.Count == 0)
+                    {
+                        <div class="list-group-item text-muted">No current evidence-backed blockers.</div>
+                    }
+                    else
+                    {
+                        @foreach (var blocker in _dashboard.Blockers)
+                        {
+                            <div class="list-group-item">
+                                <span class="badge @BlockerBadge(blocker.Severity)">@blocker.Severity</span>
+                                <strong class="ms-1">@blocker.Title</strong>
+                                <div class="small mt-1">@blocker.Detail</div>
+                                <div class="small text-muted mt-1">Subject: @blocker.SubjectKey</div>
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+        </div>
     </div>
 
-    <h2 class="h4 mt-4">Open issues</h2>
-    @if (_dashboard.OpenIssues.Count == 0)
-    {
-        <p>No open issues.</p>
-    }
-    else
-    {
-        <div class="list-group">
-            @foreach (var issue in _dashboard.OpenIssues)
+    <details class="card shadow-sm mt-4 mb-5">
+        <summary class="card-header bg-transparent h5 mb-0" style="cursor:pointer;">
+            Technical evidence (engineer / QA view)
+        </summary>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4"><strong>Legacy health score:</strong> @_dashboard.HealthScore.ToString("0.##")</div>
+                <div class="col-md-4"><strong>Pipeline:</strong> @Display(_dashboard.LatestPipelineStatus)</div>
+                <div class="col-md-4"><strong>Quality gate:</strong> @Display(_dashboard.QualityGateStatus)</div>
+            </div>
+
+            <h3 class="h5">Quality gate reasons</h3>
+            @if (_dashboard.QualityGateReasons.Count == 0)
             {
-                <div class="list-group-item">
-                    <div class="d-flex justify-content-between">
-                        <strong>@issue.Title</strong>
-                        <span>@issue.Severity</span>
-                    </div>
-                    <small class="text-muted">@issue.Category</small>
+                <p class="text-muted">No quality gate result is available.</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var reason in _dashboard.QualityGateReasons)
+                    {
+                        <li>@reason</li>
+                    }
+                </ul>
+            }
+
+            <h3 class="h5 mt-4">Latest metrics</h3>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Value</th>
+                        <th>Unit</th>
+                        <th>Difference</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var metric in _dashboard.Metrics)
+                    {
+                        <tr>
+                            <td>@metric.Name</td>
+                            <td>@metric.Value</td>
+                            <td>@metric.Unit</td>
+                            <td>@FormatDifference(metric.DifferencePercent)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="h5 mt-4">Open quality issues</h3>
+            @if (_dashboard.OpenIssues.Count == 0)
+            {
+                <p>No open quality issues.</p>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach (var issue in _dashboard.OpenIssues)
+                    {
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <strong>@issue.Title</strong>
+                                <span>@issue.Severity</span>
+                            </div>
+                            <small class="text-muted">@issue.Category</small>
+                        </div>
+                    }
                 </div>
             }
         </div>
-    }
+    </details>
 }
 
 @code {
     [Parameter]
     public Guid ProjectId { get; set; }
 
-    private Dip.Application.Features.Dashboard.ProjectDashboardDetails? _dashboard;
+    private ProjectDashboardDetails? _dashboard;
     private bool _loading = true;
     private bool _notFound;
     private string? _error;
+    private bool _claimSubmitting;
+    private bool _claimFailed;
+    private string? _claimMessage;
+    private ClaimFormModel _claimForm = new();
 
     protected override async Task OnParametersSetAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
     {
         _loading = true;
         _error = null;
@@ -145,9 +379,111 @@ else if (_dashboard is not null)
         }
     }
 
+    private async Task SubmitClaimAsync(EditContext _)
+    {
+        _claimMessage = null;
+        _claimFailed = false;
+
+        if (string.IsNullOrWhiteSpace(_claimForm.SubjectKey)
+            || string.IsNullOrWhiteSpace(_claimForm.ClaimedStatus)
+            || string.IsNullOrWhiteSpace(_claimForm.ClaimedBy))
+        {
+            _claimFailed = true;
+            _claimMessage = "Subject, reported status, and reporter are required.";
+            return;
+        }
+
+        if (_claimForm.ClaimedProgress is < 0m or > 100m)
+        {
+            _claimFailed = true;
+            _claimMessage = "Reported progress must be between 0 and 100.";
+            return;
+        }
+
+        _claimSubmitting = true;
+        try
+        {
+            var reporter = _claimForm.ClaimedBy;
+            await Api.CreateClaimAsync(
+                ProjectId,
+                new CreateClaimRequest(
+                    _claimForm.SubjectKey,
+                    _claimForm.ClaimedStatus,
+                    _claimForm.ClaimedProgress,
+                    reporter,
+                    _claimForm.Description));
+
+            _claimMessage = "Status report saved. Project Truth was re-evaluated against objective evidence.";
+            _claimForm = new ClaimFormModel { ClaimedBy = reporter };
+            await LoadDashboardAsync();
+        }
+        catch (Exception exception)
+        {
+            _claimFailed = true;
+            _claimMessage = exception.Message;
+        }
+        finally
+        {
+            _claimSubmitting = false;
+        }
+    }
+
     private static string Display(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "Not available" : value;
 
+    private static string FormatProgress(decimal? value) =>
+        value is null ? "—" : $"{value:0.#}%";
+
     private static string FormatDifference(decimal? value) =>
         value is null ? "-" : $"{value:+0.##;-0.##;0}%";
+
+    private static string FormatDate(DateTimeOffset? value) =>
+        value is null ? "Not available" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    private static string FormatDate(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    private static string TruthAlert(string status) => status switch
+    {
+        "Healthy" => "alert-success",
+        "Attention" => "alert-warning",
+        "AtRisk" => "alert-danger",
+        "Blocked" => "alert-danger",
+        _ => "alert-secondary"
+    };
+
+    private static string RiskBadge(string risk) => risk switch
+    {
+        "Low" => "text-bg-success",
+        "Medium" => "text-bg-warning",
+        "High" => "text-bg-danger",
+        "Critical" => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+
+    private static string VerificationBadge(string status) => status switch
+    {
+        "Confirmed" => "text-bg-success",
+        "PartiallyConfirmed" => "text-bg-warning",
+        "Contradicted" => "text-bg-danger",
+        "Stale" => "text-bg-secondary",
+        _ => "text-bg-secondary"
+    };
+
+    private static string BlockerBadge(string severity) => severity switch
+    {
+        "Critical" => "text-bg-danger",
+        "Blocker" => "text-bg-danger",
+        "Attention" => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+
+    private sealed class ClaimFormModel
+    {
+        public string SubjectKey { get; set; } = "project";
+        public string ClaimedStatus { get; set; } = string.Empty;
+        public decimal? ClaimedProgress { get; set; }
+        public string ClaimedBy { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
 }

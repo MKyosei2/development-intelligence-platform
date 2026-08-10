@@ -48,8 +48,15 @@ public static class DbInitializer
                     await dbContext.Database.EnsureCreatedAsync(
                         cancellationToken);
 
+                    // Existing DIP installations were created with
+                    // EnsureCreated. EnsureCreated does not evolve an existing
+                    // schema, so add the P0 Project Truth tables idempotently.
+                    await P0SchemaBootstrapper.EnsureProjectTruthSchemaAsync(
+                        dbContext,
+                        cancellationToken);
+
                     logger.LogInformation(
-                        "Database schema ensured because no EF Core migrations are present.");
+                        "Database schema ensured and Project Truth P0 schema bootstrapped because no EF Core migrations are present.");
                 }
 
                 return;

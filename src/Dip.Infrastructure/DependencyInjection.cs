@@ -26,6 +26,11 @@ public static class DependencyInjection
         services.AddScoped<IPipelineRunRepository, PipelineRunRepository>();
         services.AddScoped<IMetricRepository, MetricRepository>();
         services.AddScoped<IQualityIssueRepository, QualityIssueRepository>();
+        services.AddScoped<IEvidenceRepository, EvidenceRepository>();
+        services.AddScoped<IProjectClaimRepository, ProjectClaimRepository>();
+        services.AddScoped<IClaimEvidenceLinkRepository, ClaimEvidenceLinkRepository>();
+        services.AddScoped<IProjectTruthRepository, ProjectTruthRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository>();
         services.AddScoped<IDashboardReadRepository, DashboardReadRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());

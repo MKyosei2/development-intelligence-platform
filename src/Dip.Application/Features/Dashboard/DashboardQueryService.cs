@@ -6,7 +6,13 @@ public sealed record ProjectDashboardSummary(
     string Repository,
     string DefaultBranch,
     decimal HealthScore,
+    string TruthStatus,
     string RiskLevel,
+    decimal VerifiedProgress,
+    decimal? ReportedProgress,
+    string EvidenceConfidence,
+    int BlockerCount,
+    int ContradictionCount,
     string? LatestPipelineStatus,
     string? LatestQualityGateStatus,
     DateTimeOffset? LastEvaluatedAtUtc);
@@ -24,13 +30,55 @@ public sealed record DashboardIssue(
     string Title,
     string Status);
 
+public sealed record DashboardBlocker(
+    string Code,
+    string Severity,
+    string Title,
+    string Detail,
+    string SubjectKey,
+    Guid? EvidenceId);
+
+public sealed record DashboardClaimComparison(
+    Guid ClaimId,
+    string SubjectKey,
+    string ClaimedStatus,
+    decimal? ClaimedProgress,
+    string ClaimedBy,
+    string VerificationStatus,
+    string VerificationSummary,
+    int SupportingEvidenceCount,
+    int ContradictingEvidenceCount,
+    DateTimeOffset ClaimedAtUtc);
+
+public sealed record DashboardTimelineItem(
+    DateTimeOffset AtUtc,
+    string Kind,
+    string Title,
+    string Detail,
+    string Confidence,
+    string? SubjectKey,
+    string? SourceReference);
+
 public sealed record ProjectDashboardDetails(
     Guid ProjectId,
     string Name,
     string Repository,
     string DefaultBranch,
     decimal HealthScore,
+    string TruthStatus,
     string RiskLevel,
+    decimal VerifiedProgress,
+    decimal? ReportedProgress,
+    string EvidenceConfidence,
+    int BlockerCount,
+    int ContradictionCount,
+    int UnverifiedClaimCount,
+    string TruthSummary,
+    IReadOnlyList<string> TopActions,
+    IReadOnlyList<DashboardBlocker> Blockers,
+    IReadOnlyList<DashboardClaimComparison> ReportVsReality,
+    IReadOnlyList<DashboardTimelineItem> Timeline,
+    DateTimeOffset? TruthEvaluatedAtUtc,
     Guid? LatestPipelineRunId,
     string? LatestPipelineStatus,
     DateTimeOffset? LatestPipelineFinishedAtUtc,

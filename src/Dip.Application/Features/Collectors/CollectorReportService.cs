@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
+using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.Quality;
 using Dip.Application.Services;
 using Dip.Domain.Entities;
@@ -24,32 +26,38 @@ public sealed class CollectorReportService
     private readonly IPipelineRunRepository _runs;
     private readonly IMetricRepository _metrics;
     private readonly IQualityIssueRepository _issues;
+    private readonly IEvidenceRepository _evidence;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISystemClock _clock;
     private readonly QualityGateEvaluator _gate;
     private readonly CollectorReportValidator _validator;
     private readonly OutboxWriter _outbox;
+    private readonly ProjectTruthService _truth;
 
     public CollectorReportService(
         IProjectRepository projects,
         IPipelineRunRepository runs,
         IMetricRepository metrics,
         IQualityIssueRepository issues,
+        IEvidenceRepository evidence,
         IUnitOfWork unitOfWork,
         ISystemClock clock,
         QualityGateEvaluator gate,
         CollectorReportValidator validator,
-        OutboxWriter outbox)
+        OutboxWriter outbox,
+        ProjectTruthService truth)
     {
         _projects = projects;
         _runs = runs;
         _metrics = metrics;
         _issues = issues;
+        _evidence = evidence;
         _unitOfWork = unitOfWork;
         _clock = clock;
         _gate = gate;
         _validator = validator;
         _outbox = outbox;
+        _truth = truth;
     }
 
     public async Task<CollectorReportResult> ProcessAsync(
@@ -68,6 +76,11 @@ public sealed class CollectorReportService
 
         if (existingRun is not null)
         {
+            // A previous attempt may have committed the report but failed while
+            // refreshing Project Truth. Re-evaluate on a duplicate delivery so
+            // the dashboard can self-heal without duplicating collector data.
+            await _truth.RecalculateAsync(existingRun.ProjectId, cancellationToken);
+
             return new(
                 existingRun.Id,
                 existingRun.Status.ToString(),
@@ -178,9 +191,18 @@ public sealed class CollectorReportService
         }
 
         var qualityGate = _gate.Evaluate(metrics, effectiveIssues);
+        var evidence = BuildEvidence(
+            project.Id,
+            run,
+            report,
+            metrics,
+            effectiveIssues,
+            qualityGate,
+            _clock.UtcNow);
 
         await _runs.AddAsync(run, cancellationToken);
         await _metrics.AddRangeAsync(metrics, cancellationToken);
+        await _evidence.AddRangeAsync(evidence, cancellationToken);
 
         // The report data and the outbox event are committed together.
         // This prevents a successfully stored report from silently missing
@@ -194,11 +216,157 @@ public sealed class CollectorReportService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Project Truth is intentionally downstream of durable evidence.
+        await _truth.RecalculateAsync(project.Id, cancellationToken);
+
         return new(
             run.Id,
             run.Status.ToString(),
             false,
             qualityGate);
+    }
+
+    private static IReadOnlyList<EvidenceRecord> BuildEvidence(
+        Guid projectId,
+        PipelineRun run,
+        CollectorReport report,
+        IReadOnlyCollection<Metric> metrics,
+        IReadOnlyCollection<QualityIssue> issues,
+        QualityGateResultDto qualityGate,
+        DateTimeOffset createdAtUtc)
+    {
+        var result = new List<EvidenceRecord>();
+        var sourceType = CollectorSourceType(report.CollectorType);
+        var runOutcome = report.Status switch
+        {
+            CollectorRunStatus.Succeeded => EvidenceOutcome.Succeeded,
+            CollectorRunStatus.PartialSuccess => EvidenceOutcome.Warning,
+            CollectorRunStatus.Failed => EvidenceOutcome.Failed,
+            CollectorRunStatus.Cancelled => EvidenceOutcome.Warning,
+            CollectorRunStatus.TimedOut => EvidenceOutcome.Failed,
+            _ => EvidenceOutcome.Unknown
+        };
+
+        result.Add(new EvidenceRecord(
+            Guid.NewGuid(),
+            projectId,
+            run.Id,
+            "project",
+            sourceType,
+            "pipeline",
+            runOutcome,
+            $"{report.CollectorType} pipeline {report.Status}",
+            $"Collector {report.CollectorType} {report.CollectorVersion} finished with status {report.Status}.",
+            EvidenceConfidence.High,
+            run.Id.ToString(),
+            JsonSerializer.Serialize(new
+            {
+                report.ExternalRunId,
+                report.AttemptNumber,
+                report.Branch,
+                report.CommitSha,
+                report.CollectorType,
+                report.CollectorVersion
+            }),
+            report.FinishedAt,
+            createdAtUtc));
+
+        var gateOutcome = qualityGate.Status switch
+        {
+            "Passed" => EvidenceOutcome.Succeeded,
+            "Warning" => EvidenceOutcome.Warning,
+            "Failed" => EvidenceOutcome.Failed,
+            _ => EvidenceOutcome.Unknown
+        };
+
+        result.Add(new EvidenceRecord(
+            Guid.NewGuid(),
+            projectId,
+            run.Id,
+            "project",
+            EvidenceSourceType.Quality,
+            "quality-gate",
+            gateOutcome,
+            $"Quality gate {qualityGate.Status}",
+            string.Join(" ", qualityGate.Reasons.Take(5)),
+            EvidenceConfidence.High,
+            run.Id.ToString(),
+            JsonSerializer.Serialize(qualityGate),
+            report.FinishedAt,
+            createdAtUtc));
+
+        foreach (var metric in metrics)
+        {
+            var subject = !string.IsNullOrWhiteSpace(metric.ScenarioId)
+                ? $"scenario:{metric.ScenarioId}"
+                : "project";
+
+            result.Add(new EvidenceRecord(
+                Guid.NewGuid(),
+                projectId,
+                run.Id,
+                subject,
+                EvidenceSourceType.Performance,
+                $"metric:{metric.Name}",
+                EvidenceOutcome.Informational,
+                $"Metric observed: {metric.Name}",
+                metric.DifferencePercent is { } difference
+                    ? $"{metric.Name}={metric.Value} {metric.Unit}; baseline={metric.BaselineValue} {metric.Unit}; change={difference:+0.##;-0.##;0}%"
+                    : $"{metric.Name}={metric.Value} {metric.Unit}; no comparable baseline.",
+                EvidenceConfidence.High,
+                run.Id.ToString(),
+                JsonSerializer.Serialize(new
+                {
+                    metric.Name,
+                    metric.Value,
+                    metric.Unit,
+                    metric.BaselineValue,
+                    metric.DifferencePercent,
+                    metric.EnvironmentId,
+                    metric.ScenarioId,
+                    metric.Platform,
+                    metric.BuildConfiguration
+                }),
+                report.FinishedAt,
+                createdAtUtc));
+        }
+
+        foreach (var issue in issues)
+        {
+            var outcome = issue.Severity switch
+            {
+                Severity.Critical => EvidenceOutcome.Failed,
+                Severity.Warning => EvidenceOutcome.Warning,
+                _ => EvidenceOutcome.Informational
+            };
+
+            result.Add(new EvidenceRecord(
+                Guid.NewGuid(),
+                projectId,
+                run.Id,
+                "project",
+                EvidenceSourceType.Quality,
+                $"issue:{issue.Category}",
+                outcome,
+                issue.Title,
+                issue.Description,
+                EvidenceConfidence.High,
+                issue.Source ?? run.Id.ToString(),
+                issue.EvidenceJson,
+                issue.LastSeenAtUtc,
+                createdAtUtc));
+        }
+
+        return result;
+    }
+
+    private static EvidenceSourceType CollectorSourceType(string collectorType)
+    {
+        if (collectorType.Contains("unity", StringComparison.OrdinalIgnoreCase))
+            return EvidenceSourceType.Unity;
+        if (collectorType.Contains("maya", StringComparison.OrdinalIgnoreCase))
+            return EvidenceSourceType.Maya;
+        return EvidenceSourceType.Collector;
     }
 
     private static void ApplyStatus(
