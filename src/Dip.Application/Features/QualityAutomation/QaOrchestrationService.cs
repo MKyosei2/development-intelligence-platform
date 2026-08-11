@@ -119,6 +119,34 @@ public sealed class QaOrchestrationService
         var findings=await _findings.ListByRunAsync(qaRunId,cancellationToken);return Map(run,findings);
     }
 
+    public async Task<IReadOnlyList<QaCrashClusterDto>> GetCrashClustersAsync(
+        Guid projectId,int take,CancellationToken cancellationToken)
+    {
+        if(projectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(projectId));
+        var requested=Math.Clamp(take,1,200);
+        var findings=await _findings.ListRecentByProjectAsync(projectId,Math.Clamp(requested*20,100,4000),cancellationToken);
+        return findings
+            .Where(x=>x.Severity==Severity.Critical
+                      ||x.Category.Contains("crash",StringComparison.OrdinalIgnoreCase)
+                      ||x.Category.Contains("runtime",StringComparison.OrdinalIgnoreCase)
+                      ||x.Category.Contains("hang",StringComparison.OrdinalIgnoreCase))
+            .GroupBy(x=>x.Fingerprint,StringComparer.OrdinalIgnoreCase)
+            .Select(g=>new QaCrashClusterDto(
+                g.Key,
+                g.OrderByDescending(x=>x.ObservedAtUtc).First().Category,
+                g.Max(x=>x.Severity).ToString(),
+                g.OrderByDescending(x=>x.ObservedAtUtc).First().Title,
+                g.Count(),
+                g.Min(x=>x.ObservedAtUtc),
+                g.Max(x=>x.ObservedAtUtc),
+                g.Count(x=>x.ReproductionStatus==ReproductionStatus.Reproduced),
+                g.Select(x=>x.SubjectKey).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x=>x).Take(20).ToArray()))
+            .OrderByDescending(x=>x.Occurrences)
+            .ThenByDescending(x=>x.LastSeenAtUtc)
+            .Take(requested)
+            .ToArray();
+    }
+
     private static bool ShouldReproduce(QaFinding finding)=>finding.Severity==Severity.Critical||finding.Category.Contains("runtime",StringComparison.OrdinalIgnoreCase)||finding.Category.Contains("crash",StringComparison.OrdinalIgnoreCase)||finding.Category.Contains("test",StringComparison.OrdinalIgnoreCase)||finding.Category.Contains("hang",StringComparison.OrdinalIgnoreCase);
     private static string ResolveRuntimeExecutable(string workspace,string value)
     {

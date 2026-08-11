@@ -68,6 +68,21 @@ public sealed class P2IntelligenceController(
     public Task<FuzzResult> Fuzz([FromBody]FuzzCommand command,CancellationToken ct)=>technical.RunFuzzAsync(command,ct);
 
     [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("test-impact")]
+    public Task<TestImpactResult> TestImpact([FromBody]TestImpactCommand command,CancellationToken ct)=>
+        technical.AnalyzeTestImpactAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("debug/symbolicate")]
+    public Task<NativeSymbolicationResult> Symbolicate([FromBody]NativeSymbolicationCommand command,CancellationToken ct)=>
+        technical.SymbolicateAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("game/regression")]
+    public Task<GameRegressionResult> GameRegression([FromBody]GameRegressionCommand command,CancellationToken ct)=>
+        technical.AnalyzeGameRegressionAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("media/regression")]
     public Task<MediaRegressionResult> Media([FromBody]MediaRegressionCommand command,CancellationToken ct)=>technical.AnalyzeMediaAsync(command,ct);
 

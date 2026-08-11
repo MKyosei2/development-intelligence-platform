@@ -10,7 +10,7 @@ This file distinguishes code state from verified completion.
 | Portability Analyzer | Implemented | application/API test |
 | Minimum Hardware Finder | Implemented, 5-dimension boundary search | repeated target simulation |
 | Safe hardware recommendation | Implemented separately from technical minimum | boundary test |
-| Adaptive QA Planner | Implemented | unit + representative change-set tests |
+| Adaptive QA Planner | Implemented; now includes Test Impact selection step | unit + representative change-set tests |
 | QA cost estimator | Implemented in planner | planner tests |
 | Historical risk prioritisation | Implemented | historical Evidence test |
 | Flaky test detection | Implemented | repeated-run fixture |
@@ -19,8 +19,12 @@ This file distinguishes code state from verified completion.
 | Performance drift | Implemented | telemetry fixture |
 | Git regression bisect | Implemented with isolated worktrees | disposable-repo fixture |
 | Regression origin | Implemented | metric-history test |
-| Fuzz testing | Implemented, deterministic seed | safe fixture |
-| Mutation testing | Implemented in isolated workspace | mutation fixture |
+| Test Impact Analysis | Implemented; project-reference + path/token ranking | disposable multi-project fixture |
+| Game performance/network regression | Implemented; frame budget + FPS + memory/GPU/CPU/network envelopes | representative metric fixture |
+| QA crash clustering | Implemented by stable fingerprint | persistence/API grouping test |
+| Native symbolication | Implemented with llvm-symbolizer/addr2line fallback | native binary + symbols fixture |
+| Fuzz testing | Implemented; deterministic boundary corpus, failure corpus, fingerprint dedupe, bounded minimization | safe crash/timeout fixture |
+| Mutation testing | Implemented in isolated workspace; passing baseline required, auto common operators, survivor source location | mutation fixture |
 | Visual regression | Implemented | ffmpeg media fixture |
 | Video regression | Implemented | ffmpeg media fixture |
 | Audio regression | Implemented | ffmpeg media fixture |

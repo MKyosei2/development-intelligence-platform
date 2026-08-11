@@ -45,7 +45,11 @@ try {
         'src/Dip.Infrastructure/Intelligence/MutationRunner.cs',
         'src/Dip.Infrastructure/P2Intelligence/P2ExperimentRunner.cs',
         'src/Dip.Infrastructure/P2Intelligence/MediaRegressionRunner.cs',
+        'src/Dip.Infrastructure/P2Intelligence/TestImpactAnalyzer.cs',
+        'src/Dip.Infrastructure/P2Intelligence/NativeSymbolicator.cs',
         'src/Dip.Api/Controllers/P2IntelligenceController.cs',
+        'tests/Dip.Application.Tests/P2Intelligence/GameRegressionEvaluatorTests.cs',
+        'tests/Dip.Infrastructure.Tests/P2Intelligence/TestImpactAnalyzerTests.cs',
         'tests/Dip.EndToEndTests/Scenarios/P2IntelligenceScenario.cs',
         'tests/Dip.EndToEndTests/Scenarios/P2DecisionIntelligenceScenario.cs'
     )
@@ -53,6 +57,20 @@ try {
     foreach ($file in $required) {
         if (-not (Test-Path -LiteralPath $file)) {
             throw "Missing P2 file: $file"
+        }
+    }
+
+    $contentChecks = @{
+        'src/Dip.Infrastructure/P2Intelligence/P2ExperimentRunner.cs' = @('Baseline passed','fuzz-manifest.json','MinimizeFailureAsync')
+        'src/Dip.Infrastructure/P2Intelligence/TestImpactAnalyzer.cs' = @('ProjectReference','TestImpactResult')
+        'src/Dip.Infrastructure/P2Intelligence/NativeSymbolicator.cs' = @('llvm-symbolizer','addr2line','symbolication.json')
+        'src/Dip.Application/Features/P2Intelligence/P2Contracts.cs' = @('GameRegressionEvaluator','ITestImpactAnalyzer','INativeSymbolicator')
+        'src/Dip.Application/Features/QualityAutomation/QaOrchestrationService.cs' = @('GetCrashClustersAsync')
+    }
+    foreach ($entry in $contentChecks.GetEnumerator()) {
+        $raw = Get-Content -LiteralPath $entry.Key -Raw -Encoding UTF8
+        foreach ($token in $entry.Value) {
+            if (-not $raw.Contains($token)) { throw "P2 priority implementation marker '$token' is missing from $($entry.Key)." }
         }
     }
 

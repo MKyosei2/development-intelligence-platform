@@ -55,8 +55,12 @@ This planner chooses existing hardcoded evidence providers. It does not introduc
 - performance drift detection
 - isolated Git worktree regression bisect
 - explicit regression-origin analysis over historical metric points
-- deterministic fuzz input generation
-- mutation testing in an isolated workspace
+- deterministic fuzz seed/boundary corpus with failure corpus, deduplication and bounded minimization
+- mutation testing in an isolated workspace with mandatory passing baseline
+- project-reference/path/token based Test Impact Analysis
+- stable-fingerprint QA crash clustering
+- native address symbolication through llvm-symbolizer/addr2line when available
+- game performance/network regression gate with target FPS frame budget
 
 ### Media regression
 

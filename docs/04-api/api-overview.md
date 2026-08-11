@@ -49,6 +49,7 @@ Truth evaluator.
 ```text
 POST /api/v1/qa/runs
 GET  /api/v1/qa/runs/{runId}
+GET  /api/v1/qa/projects/{projectId}/crash-clusters
 GET  /api/v1/qa/runs/{runId}/artifacts
 GET  /api/v1/qa/runs/{runId}/artifacts/{path}
 
@@ -76,6 +77,9 @@ POST /api/v1/p2/regression/bisect
 POST /api/v1/p2/regression/origin
 POST /api/v1/p2/mutation
 POST /api/v1/p2/fuzz
+POST /api/v1/p2/test-impact
+POST /api/v1/p2/debug/symbolicate
+POST /api/v1/p2/game/regression
 POST /api/v1/p2/media/regression
 POST /api/v1/p2/root-cause
 GET  /api/v1/p2/projects/{projectId}/similar-incidents

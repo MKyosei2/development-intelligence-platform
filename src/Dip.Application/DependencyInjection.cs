@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<HardwareCommunityIntelligenceService>();
         services.AddScoped<AdaptiveQaPlanner>();
         services.AddScoped<P2TechnicalIntelligenceService>();
+        services.AddSingleton<GameRegressionEvaluator>();
         services.AddScoped<EvidenceGroundedRootCauseService>();
         services.AddScoped<ProjectDecisionIntelligenceService>();
         services.AddScoped<OutboxWriter>();

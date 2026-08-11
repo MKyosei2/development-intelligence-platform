@@ -16,6 +16,13 @@ public sealed class QaController(QaOrchestrationService service) : ControllerBas
     public Task<QaRunResultDto> Run([FromBody] QaExecutionCommand command,CancellationToken ct)=>service.RunAsync(command,ct);
 
     [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/crash-clusters")]
+    [ProducesResponseType(typeof(IReadOnlyList<QaCrashClusterDto>),StatusCodes.Status200OK)]
+    public Task<IReadOnlyList<QaCrashClusterDto>> CrashClusters(
+        Guid projectId,[FromQuery]int take,CancellationToken ct)=>
+        service.GetCrashClustersAsync(projectId,take<=0?50:take,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
     [HttpGet("runs/{runId:guid}")]
     [ProducesResponseType(typeof(QaRunResultDto),StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

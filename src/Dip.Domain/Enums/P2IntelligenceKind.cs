@@ -32,5 +32,8 @@ public enum P2IntelligenceKind
     EvidenceConflict = 27,
     DecisionAssistant = 28,
     DailyChange = 29,
-    HealthChange = 30
+    HealthChange = 30,
+    TestImpact = 31,
+    GamePerformanceRegression = 32,
+    NativeSymbolication = 33
 }

@@ -71,6 +71,8 @@ public static class DependencyInjection
         services.Configure<Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions>(configuration.GetSection(Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions.SectionName));
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IP2ExperimentRunner, Dip.Infrastructure.P2Intelligence.P2ExperimentRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();
+        services.AddSingleton<Dip.Application.Features.P2Intelligence.ITestImpactAnalyzer, Dip.Infrastructure.P2Intelligence.TestImpactAnalyzer>();
+        services.AddSingleton<Dip.Application.Features.P2Intelligence.INativeSymbolicator, Dip.Infrastructure.P2Intelligence.NativeSymbolicator>();
         services.AddSingleton<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IAiRootCauseClient>(sp => sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>());
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());

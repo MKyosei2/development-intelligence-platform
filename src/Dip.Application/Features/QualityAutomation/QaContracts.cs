@@ -106,6 +106,18 @@ public sealed record QaFindingDto(
     int ReproducedAttempts,
     int TotalAttempts);
 
+
+public sealed record QaCrashClusterDto(
+    string Fingerprint,
+    string Category,
+    string Severity,
+    string Title,
+    int Occurrences,
+    DateTimeOffset FirstSeenAtUtc,
+    DateTimeOffset LastSeenAtUtc,
+    int ReproducedOccurrences,
+    IReadOnlyList<string> Subjects);
+
 public interface IPythonHardcodedQaRunner
 {
     Task<HardcodedQaResult> RunAsync(QaExecutionCommand command,string workspace,string artifactRoot,CancellationToken cancellationToken);

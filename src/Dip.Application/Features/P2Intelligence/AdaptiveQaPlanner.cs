@@ -60,7 +60,8 @@ public sealed class AdaptiveQaPlanner
         else
         {
             Add("build","Build / syntax validation","build","Source code changed.",60m,3m,true);
-            Add("unit-tests","Targeted automated tests","test","Source changes should be checked against automated tests.",55m,5m,true);
+            Add("test-impact","Test impact selection","test-impact","Select tests from changed projects, paths and symbol/name overlap before executing the targeted suite.",68m,2m,true);
+            Add("unit-tests","Targeted automated tests","test","Source changes should be checked against automated tests selected by impact analysis.",55m,5m,true);
 
             if(changed.Any(x=>x.EndsWith(".py",StringComparison.OrdinalIgnoreCase)))
                 Add("python-qa","Python hardcoded QA","python","Python files changed.",65m,4m,true);

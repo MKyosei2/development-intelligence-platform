@@ -11,6 +11,9 @@ public sealed class P2TechnicalIntelligenceService
 {
     private readonly IP2ExperimentRunner _experiments;
     private readonly IMediaRegressionRunner _media;
+    private readonly ITestImpactAnalyzer _testImpact;
+    private readonly INativeSymbolicator _symbolicator;
+    private readonly GameRegressionEvaluator _gameRegression;
     private readonly IP2IntelligenceRepository _records;
     private readonly IEvidenceRepository _evidence;
     private readonly IUnitOfWork _uow;
@@ -20,13 +23,17 @@ public sealed class P2TechnicalIntelligenceService
     public P2TechnicalIntelligenceService(
         IP2ExperimentRunner experiments,
         IMediaRegressionRunner media,
+        ITestImpactAnalyzer testImpact,
+        INativeSymbolicator symbolicator,
+        GameRegressionEvaluator gameRegression,
         IP2IntelligenceRepository records,
         IEvidenceRepository evidence,
         IUnitOfWork uow,
         ISystemClock clock,
         ProjectTruthService truth)
     {
-        _experiments=experiments;_media=media;_records=records;_evidence=evidence;_uow=uow;_clock=clock;_truth=truth;
+        _experiments=experiments;_media=media;_testImpact=testImpact;_symbolicator=symbolicator;_gameRegression=gameRegression;
+        _records=records;_evidence=evidence;_uow=uow;_clock=clock;_truth=truth;
     }
 
     public async Task<FlakyResult> RunFlakyAsync(RepeatedRunCommand command,bool runtime,CancellationToken ct)
@@ -131,6 +138,42 @@ public sealed class P2TechnicalIntelligenceService
         await StoreMeasuredAsync(command.Target.ProjectId,command.Target.SubjectKey,P2IntelligenceKind.FuzzTest,result.Status,
             score,90m,summary,JsonSerializer.Serialize(result),result.ArtifactReference,
             EvidenceSourceType.Runtime,"runtime.fuzz",ct);
+        return result;
+    }
+
+    public async Task<TestImpactResult> AnalyzeTestImpactAsync(TestImpactCommand command,CancellationToken ct)
+    {
+        var result=await _testImpact.AnalyzeAsync(command,ct);
+        var summary=result.SelectedTests==0
+            ?$"Test impact analysis found {result.CandidateTests} candidate test(s) but could not safely narrow the suite."
+            :$"Test impact selected {result.SelectedTests}/{result.CandidateTests} test(s), estimated execution reduction {result.EstimatedReductionPercent:0.##}%.";
+        await _records.AddAsync(new P2IntelligenceRecord(
+            Guid.NewGuid(),command.ProjectId,command.SubjectKey,P2IntelligenceKind.TestImpact,
+            result.Status=="Selected"||result.Status=="Partial"?P2IntelligenceStatus.Informational:P2IntelligenceStatus.Warning,
+            result.EstimatedReductionPercent,EvidenceConfidence.High,summary,JsonSerializer.Serialize(result),null,_clock.UtcNow),ct);
+        await _uow.SaveChangesAsync(ct);
+        return result;
+    }
+
+    public async Task<NativeSymbolicationResult> SymbolicateAsync(NativeSymbolicationCommand command,CancellationToken ct)
+    {
+        var result=await _symbolicator.SymbolicateAsync(command,ct);
+        var status=result.Status=="InfrastructureFailure"?P2IntelligenceStatus.InfrastructureFailure:P2IntelligenceStatus.Informational;
+        await _records.AddAsync(new P2IntelligenceRecord(
+            Guid.NewGuid(),command.ProjectId,command.SubjectKey,P2IntelligenceKind.NativeSymbolication,status,
+            null,result.Status=="Resolved"?EvidenceConfidence.Verified:EvidenceConfidence.High,
+            result.Summary,JsonSerializer.Serialize(result),result.ArtifactReference,_clock.UtcNow),ct);
+        await _uow.SaveChangesAsync(ct);
+        return result;
+    }
+
+    public async Task<GameRegressionResult> AnalyzeGameRegressionAsync(GameRegressionCommand command,CancellationToken ct)
+    {
+        var result=_gameRegression.Evaluate(command);
+        await StoreMeasuredAsync(
+            command.ProjectId,command.SubjectKey,P2IntelligenceKind.GamePerformanceRegression,result.Status,
+            result.RiskScore,95m,result.Summary,JsonSerializer.Serialize(result),null,
+            EvidenceSourceType.Performance,"game.performance-regression",ct);
         return result;
     }
 
