@@ -1,6 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using Dip.Application.Features.Dashboard;
+using Dip.Application.Features.Replay;
+using Dip.Application.Features.Release;
+using Dip.Application.Features.Performance;
+using Dip.Application.Features.Jobs;
+using Dip.Application.Features.Incidents;
+using Dip.Application.Features.ChangeRisk;
 using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
@@ -100,5 +106,26 @@ public sealed class ApiClient
                    cancellationToken)
                ?? throw new InvalidDataException("Decision brief API returned an empty response.");
     }
+
+    public async Task<IntelligenceDashboardDto> GetIntelligenceDashboardAsync(Guid projectId,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<IntelligenceDashboardDto>($"api/v1/intelligence-dashboard/projects/{projectId}",cancellationToken)??throw new InvalidDataException("Intelligence dashboard API returned an empty response.");
+
+    public async Task<IReadOnlyList<DurableJobDto>> GetJobsAsync(Guid projectId,int take=20,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<IReadOnlyList<DurableJobDto>>($"api/v1/jobs/projects/{projectId}?take={Math.Clamp(take,1,200)}",cancellationToken)??Array.Empty<DurableJobDto>();
+
+    public async Task<IReadOnlyList<IncidentSummaryDto>> GetIncidentsAsync(Guid projectId,int take=20,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<IReadOnlyList<IncidentSummaryDto>>($"api/v1/incidents/projects/{projectId}?take={Math.Clamp(take,1,200)}",cancellationToken)??Array.Empty<IncidentSummaryDto>();
+
+    public async Task<IReadOnlyList<ReplaySessionDto>> GetReplaySessionsAsync(Guid projectId,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<IReadOnlyList<ReplaySessionDto>>($"api/v1/replay/projects/{projectId}/sessions",cancellationToken)??Array.Empty<ReplaySessionDto>();
+
+    public async Task<IReadOnlyList<PerformanceBudgetProfileDto>> GetPerformanceBudgetsAsync(Guid projectId,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<IReadOnlyList<PerformanceBudgetProfileDto>>($"api/v1/performance-budgets?projectId={projectId}",cancellationToken)??Array.Empty<PerformanceBudgetProfileDto>();
+
+    public async Task<ReleaseReadinessDto?> GetReleaseReadinessAsync(Guid projectId,CancellationToken cancellationToken=default)
+    {using var response=await _httpClient.GetAsync($"api/v1/release-readiness/projects/{projectId}/latest",cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;response.EnsureSuccessStatusCode();return await response.Content.ReadFromJsonAsync<ReleaseReadinessDto>(cancellationToken:cancellationToken);}
+
+    public async Task<ChangeRiskDto?> GetLatestChangeRiskAsync(Guid projectId,CancellationToken cancellationToken=default)
+    {using var response=await _httpClient.GetAsync($"api/v1/change-risk/projects/{projectId}/latest",cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;response.EnsureSuccessStatusCode();return await response.Content.ReadFromJsonAsync<ChangeRiskDto>(cancellationToken:cancellationToken);}
 
 }

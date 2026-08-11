@@ -18,9 +18,19 @@ public sealed class MigrationMetadataTests
 
         Assert.Contains("202608120001_InitialBaseline",migrations);
         Assert.Contains("202608120002_AddDurablePlatformIntelligence",migrations);
+        Assert.Contains("202608120003_AddDevelopmentIntelligenceExpansion",migrations);
         Assert.Contains("DurableJob",entities);
         Assert.Contains("ArtifactRecord",entities);
         Assert.Contains("Incident",entities);
         Assert.Contains("BenchmarkRun",entities);
+        Assert.Contains("GameReplayRun",entities);
+        Assert.Contains("PerformanceBudgetProfile",entities);
+        Assert.Contains("HardwareBacktest",entities);
+        Assert.Contains("ChangeRiskAssessment",entities);
+        Assert.Contains("RegressionTriage",entities);
+        Assert.Contains("ReleaseReadinessSnapshot",entities);
+        Assert.Contains("ExternalWorkItemLink",entities);
+        Assert.Contains("ReleaseEvidenceBundle",entities);
+        Assert.Contains("RepositoryDependency",entities);
     }
 }

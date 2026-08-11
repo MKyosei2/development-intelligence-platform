@@ -1,26 +1,27 @@
 using System.Text.Json;
 using Dip.Application.Abstractions.Artifacts;
 using Dip.Application.Abstractions.Persistence;
+using Dip.Application.Abstractions.Observability;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Features.Artifacts;
 
-public sealed record ArtifactLinkContext(Guid? JobId=null,Guid? QaRunId=null,Guid? IncidentId=null,Guid? BenchmarkRunId=null);
+public sealed record ArtifactLinkContext(Guid? JobId=null,Guid? QaRunId=null,Guid? IncidentId=null,Guid? BenchmarkRunId=null,Guid? GameReplayRunId=null);
 public sealed record ArtifactRecordDto(Guid Id,string Kind,string FileName,string Sha256,long SizeBytes,string ContentType,string Provider,DateTimeOffset CreatedAtUtc);
 
 public sealed class ArtifactService
 {
-    private readonly IArtifactStore _store;private readonly IArtifactRepository _repo;private readonly IUnitOfWork _uow;private readonly ISystemClock _clock;
-    public ArtifactService(IArtifactStore store,IArtifactRepository repo,IUnitOfWork uow,ISystemClock clock){_store=store;_repo=repo;_uow=uow;_clock=clock;}
+    private readonly IArtifactStore _store;private readonly IArtifactRepository _repo;private readonly IUnitOfWork _uow;private readonly ISystemClock _clock;private readonly IDipOperationalMetrics? _metrics;
+    public ArtifactService(IArtifactStore store,IArtifactRepository repo,IUnitOfWork uow,ISystemClock clock,IDipOperationalMetrics? metrics=null){_store=store;_repo=repo;_uow=uow;_clock=clock;_metrics=metrics;}
 
     public async Task<ArtifactRecord> StoreAsync(Guid projectId,string kind,string fileName,Stream content,string contentType,ArtifactLinkContext links,string retentionClass="standard",TimeSpan? retention=null,CancellationToken ct=default)
     {
         if(projectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(projectId));
-        var stored=await _store.PutAsync(content,contentType,ct);
+        var stored=await _store.PutAsync(content,contentType,ct);_metrics?.ArtifactStored(_store.ProviderName,stored.SizeBytes);
         var candidate=new ArtifactBlob(Guid.NewGuid(),stored.Sha256,stored.SizeBytes,stored.ContentType,_store.ProviderName,stored.StorageKey,_clock.UtcNow);
         var blob=await _repo.GetOrCreateBlobAsync(candidate,ct);
-        var record=new ArtifactRecord(Guid.NewGuid(),projectId,blob.Id,kind,Path.GetFileName(fileName),retentionClass,links.JobId,links.QaRunId,links.IncidentId,links.BenchmarkRunId,_clock.UtcNow,retention is null?null:_clock.UtcNow+retention.Value);
+        var record=new ArtifactRecord(Guid.NewGuid(),projectId,blob.Id,kind,Path.GetFileName(fileName),retentionClass,links.JobId,links.QaRunId,links.IncidentId,links.BenchmarkRunId,_clock.UtcNow,retention is null?null:_clock.UtcNow+retention.Value,links.GameReplayRunId);
         await _repo.AddRecordAsync(record,ct);await _uow.SaveChangesAsync(ct);return record;
     }
 

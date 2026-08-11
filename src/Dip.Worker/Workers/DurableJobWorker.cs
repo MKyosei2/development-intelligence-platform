@@ -1,13 +1,15 @@
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;
+using Dip.Application.Abstractions.Observability;
+using System.Diagnostics;
 using Dip.Application.Features.Jobs;
 using Dip.Domain.Enums;
 using Microsoft.Extensions.Options;
 
 namespace Dip.Worker.Workers;
 
-public sealed class DurableJobWorker(IServiceScopeFactory scopes,IQueueClient queue,IOptions<DurableJobQueueOptions> options,ILogger<DurableJobWorker> logger):BackgroundService
+public sealed class DurableJobWorker(IServiceScopeFactory scopes,IQueueClient queue,IOptions<DurableJobQueueOptions> options,IDipOperationalMetrics metrics,ILogger<DurableJobWorker> logger):BackgroundService
 {
     private readonly DurableJobQueueOptions _o=options.Value;private readonly string _consumer=$"{Environment.MachineName}-{Environment.ProcessId}-{Guid.NewGuid():N}";
     protected override async Task ExecuteAsync(CancellationToken stop)
@@ -16,6 +18,7 @@ public sealed class DurableJobWorker(IServiceScopeFactory scopes,IQueueClient qu
         {
             try
             {
+                using(var depthScope=scopes.CreateScope()){var depthRepo=depthScope.ServiceProvider.GetRequiredService<IDurableJobRepository>();metrics.QueueDepthObserved(await depthRepo.CountQueuedAsync(stop));}
                 var envelope=await queue.ReadAsync(_o.StreamName,_o.ConsumerGroup,_consumer,TimeSpan.FromMilliseconds(Math.Max(100,_o.BlockMilliseconds)),stop);if(envelope is null)continue;
                 try{await ProcessAsync(envelope,stop);await queue.AcknowledgeAsync(_o.StreamName,_o.ConsumerGroup,envelope.MessageId,stop);}
                 catch(OperationCanceledException)when(stop.IsCancellationRequested){break;}
@@ -28,7 +31,7 @@ public sealed class DurableJobWorker(IServiceScopeFactory scopes,IQueueClient qu
     private async Task ProcessAsync(QueueEnvelope envelope,CancellationToken stop)
     {
         var jobId=ReadJobId(envelope.PayloadJson);using var scope=scopes.CreateScope();var repo=scope.ServiceProvider.GetRequiredService<IDurableJobRepository>();var uow=scope.ServiceProvider.GetRequiredService<IUnitOfWork>();var lease=TimeSpan.FromSeconds(Math.Clamp(_o.LeaseSeconds,15,3600));var job=await repo.TryClaimAsync(jobId,_consumer,DateTimeOffset.UtcNow,lease,stop);if(job is null)return;
-        var handler=scope.ServiceProvider.GetServices<IDurableJobHandler>().SingleOrDefault(x=>x.Type==job.Type)??throw new InvalidOperationException($"No durable job handler is registered for {job.Type}.");
+        var handler=scope.ServiceProvider.GetServices<IDurableJobHandler>().SingleOrDefault(x=>x.Type==job.Type)??throw new InvalidOperationException($"No durable job handler is registered for {job.Type}.");metrics.JobStarted(job.Type.ToString());var executionStopwatch=Stopwatch.StartNew();
         using var jobCancel=new CancellationTokenSource();using var linked=CancellationTokenSource.CreateLinkedTokenSource(stop,jobCancel.Token);var monitor=MonitorAsync(job.Id,jobCancel,stop);
         try
         {
@@ -38,7 +41,7 @@ public sealed class DurableJobWorker(IServiceScopeFactory scopes,IQueueClient qu
         catch(OperationCanceledException)when(jobCancel.IsCancellationRequested){job.Cancel(DateTimeOffset.UtcNow);await uow.SaveChangesAsync(stop);}
         catch(TimeoutException ex){job.Fail("timeout",ex.Message,DateTimeOffset.UtcNow,true);await uow.SaveChangesAsync(stop);}
         catch(Exception ex){job.Fail("handler-failure",ex.Message,DateTimeOffset.UtcNow);await uow.SaveChangesAsync(stop);logger.LogError(ex,"Durable job {JobId} failed in handler {JobType}.",job.Id,job.Type);}
-        finally{jobCancel.Cancel();try{await monitor;}catch(OperationCanceledException){}catch(Exception ex){logger.LogWarning(ex,"Job heartbeat monitor ended with an error for {JobId}.",job.Id);}}
+        finally{executionStopwatch.Stop();metrics.JobFinished(job.Type.ToString(),job.Status.ToString(),executionStopwatch.Elapsed);jobCancel.Cancel();try{await monitor;}catch(OperationCanceledException){}catch(Exception ex){logger.LogWarning(ex,"Job heartbeat monitor ended with an error for {JobId}.",job.Id);}}
     }
     private async Task MonitorAsync(Guid jobId,CancellationTokenSource executionCancel,CancellationToken stop)
     {

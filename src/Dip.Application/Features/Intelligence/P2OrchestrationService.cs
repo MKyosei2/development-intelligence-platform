@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.ProjectTruth;
+using Dip.Application.Features.Hardware;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -20,6 +21,7 @@ public sealed class P2OrchestrationService
     private readonly IMediaRegressionRunner _media;
     private readonly IFuzzRunner _fuzz;
     private readonly IMutationRunner _mutation;
+    private readonly HardwareBacktestingService _backtests;
 
     public P2OrchestrationService(
         IIntelligenceRunStore runs,
@@ -32,7 +34,8 @@ public sealed class P2OrchestrationService
         IReliabilityRunner reliability,
         IMediaRegressionRunner media,
         IFuzzRunner fuzz,
-        IMutationRunner mutation)
+        IMutationRunner mutation,
+        HardwareBacktestingService backtests)
     {
         _runs = runs;
         _evidence = evidence;
@@ -45,6 +48,7 @@ public sealed class P2OrchestrationService
         _media = media;
         _fuzz = fuzz;
         _mutation = mutation;
+        _backtests = backtests;
     }
 
     private async Task<(IntelligenceRun Run, string Directory)> BeginAsync(
@@ -124,7 +128,24 @@ public sealed class P2OrchestrationService
             cancellationToken);
         try
         {
-            var result = await _minimum.FindAsync(request, directory, cancellationToken);
+            var rawResult = await _minimum.FindAsync(request, directory, cancellationToken);
+            var calibration = await _backtests.SummarizeAsync(request.ProjectId, null, 1000, cancellationToken);
+            var result = rawResult;
+            if (calibration.Samples >= 3 && calibration.CalibrationFactor > 0m)
+            {
+                var correction = Math.Clamp(1m / calibration.CalibrationFactor, 0.75m, 1.50m);
+                decimal Correct(decimal value) => Math.Min(100m, decimal.Round(value * correction, 2));
+                var confidence = decimal.Round(Math.Clamp(rawResult.ConfidencePercent * .6m + calibration.ConfidencePercent * .4m, 0m, 95m), 2);
+                result = rawResult with
+                {
+                    SafeCpuPercent = Correct(rawResult.SafeCpuPercent),
+                    SafeGpuPercent = Correct(rawResult.SafeGpuPercent),
+                    SafeMemoryPercent = Correct(rawResult.SafeMemoryPercent),
+                    SafeStoragePercent = Correct(rawResult.SafeStoragePercent),
+                    ConfidencePercent = confidence,
+                    EvidenceJson = JsonSerializer.Serialize(new { simulation = rawResult.EvidenceJson, realDeviceBacktest = calibration, correctionFactor = correction }, new JsonSerializerOptions { WriteIndented = true })
+                };
+            }
             var confidence = result.ConfidencePercent >= 60m
                 ? EvidenceConfidence.Medium
                 : result.ConfidencePercent >= 35m

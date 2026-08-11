@@ -1,7 +1,7 @@
 # Durable Platform Intelligence implementation — 2026-08-12
 
 Base repository: `MKyosei2/development-intelligence-platform`  
-Observed base revision: `2dd237468b61076bdaf25d4ac48dcf9ad459168d` (`Upgrade7`)
+Observed base revision: `3e43dcce11dc5bf67a7918acd2d55d912e41c97a` (`Upgrade8`)
 
 This change set implements the requested durable platform-intelligence foundation. Source implementation and static/package validation are distinct from runtime verification: the packaging environment does not contain the .NET 8 SDK, PowerShell, Docker, or Unity, so it does not claim a successful .NET build, live PostgreSQL migration, live Redis job execution, MinIO round trip, Integration/E2E run, or Unity run.
 

@@ -62,3 +62,15 @@ public sealed class BenchmarkJobHandler(BenchmarkOrchestrationService benchmarks
     public DurableJobType Type=>DurableJobType.Benchmark;
     public async Task<DurableJobExecutionResult> ExecuteAsync(DurableJob job,CancellationToken ct){var request=JobPayload.Read<BenchmarkJobRequest>(job);var result=await benchmarks.ExecuteJobAsync(job,request,ct);return new(JobPayload.Json(result));}
 }
+
+public sealed class GameSessionReplayJobHandler(Dip.Application.Features.Replay.GameReplayService replay):IDurableJobHandler
+{
+    public DurableJobType Type=>DurableJobType.GameSessionReplay;
+    public async Task<DurableJobExecutionResult> ExecuteAsync(DurableJob job,CancellationToken ct){var request=JobPayload.Read<Dip.Application.Features.Replay.ReplayJobRequest>(job);var result=await replay.ExecuteJobAsync(job,request,ct);return new(JobPayload.Json(result));}
+}
+
+public sealed class ReleaseEvidenceJobHandler(Dip.Application.Features.Release.ReleaseEvidenceService release):IDurableJobHandler
+{
+    public DurableJobType Type=>DurableJobType.ReleaseEvidence;
+    public async Task<DurableJobExecutionResult> ExecuteAsync(DurableJob job,CancellationToken ct){var request=JobPayload.Read<Dip.Application.Features.Release.ReleaseEvidenceJobRequest>(job);var result=await release.ExecuteJobAsync(job,request,ct);return new(JobPayload.Json(result),result.BundleArtifactId);}
+}

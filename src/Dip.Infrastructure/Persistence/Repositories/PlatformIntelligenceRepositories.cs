@@ -40,6 +40,7 @@ public sealed class DurableJobRepository(DipDbContext db):IDurableJobRepository
         job.Claim(owner,now,lease);await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);return job;
     }
     public async Task<IReadOnlyList<DurableJob>> ListExpiredLeasesAsync(DateTimeOffset now,int take,CancellationToken ct)=>await db.DurableJobs.Where(x=>x.Status==DurableJobStatus.Running&&x.LeaseExpiresAtUtc!=null&&x.LeaseExpiresAtUtc<=now).OrderBy(x=>x.LeaseExpiresAtUtc).Take(Math.Clamp(take,1,500)).ToListAsync(ct);
+    public Task<long> CountQueuedAsync(CancellationToken ct)=>db.DurableJobs.LongCountAsync(x=>x.Status==DurableJobStatus.Queued,ct);
 }
 
 public sealed class IncidentRepository(DipDbContext db):IIncidentRepository
@@ -52,6 +53,7 @@ public sealed class IncidentRepository(DipDbContext db):IIncidentRepository
     public Task AddEventAsync(IncidentEvent incidentEvent,CancellationToken ct)=>db.IncidentEvents.AddAsync(incidentEvent,ct).AsTask();
     public async Task<IReadOnlyList<Incident>> ListRecentAsync(Guid projectId,int take,CancellationToken ct)=>await db.Incidents.AsNoTracking().Where(x=>x.ProjectId==projectId).OrderByDescending(x=>x.LastSeenAtUtc).Take(Math.Clamp(take,1,200)).ToListAsync(ct);
     public async Task<IReadOnlyList<IncidentEvent>> ListEventsAsync(Guid incidentId,CancellationToken ct)=>await db.IncidentEvents.AsNoTracking().Where(x=>x.IncidentId==incidentId).OrderBy(x=>x.OccurredAtUtc).ToListAsync(ct);
+    public async Task<IReadOnlyList<IncidentOccurrence>> ListOccurrencesAsync(Guid incidentId,int take,CancellationToken ct)=>await db.IncidentOccurrences.AsNoTracking().Where(x=>x.IncidentId==incidentId).OrderByDescending(x=>x.ObservedAtUtc).Take(Math.Clamp(take,1,200)).ToListAsync(ct);
 }
 
 public sealed class BenchmarkRepository(DipDbContext db):IBenchmarkRepository

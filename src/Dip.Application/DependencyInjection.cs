@@ -40,6 +40,16 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.Jobs.P2JobEnqueueService>();
         services.AddScoped<Dip.Application.Features.Incidents.IncidentAggregationService>();
         services.AddScoped<Dip.Application.Features.Benchmarks.BenchmarkOrchestrationService>();
+        services.AddScoped<Dip.Application.Features.Replay.GameReplayService>();
+        services.AddScoped<Dip.Application.Features.Performance.PerformanceBudgetService>();
+        services.AddScoped<Dip.Application.Features.Hardware.HardwareBacktestingService>();
+        services.AddScoped<Dip.Application.Features.Repositories.MultiRepositoryGraphService>();
+        services.AddScoped<Dip.Application.Features.ChangeRisk.ChangeRiskIntelligenceService>();
+        services.AddScoped<Dip.Application.Features.Triage.RegressionTriageService>();
+        services.AddScoped<Dip.Application.Features.Release.ReleaseReadinessService>();
+        services.AddScoped<Dip.Application.Features.WorkItems.WorkItemService>();
+        services.AddScoped<Dip.Application.Features.Release.ReleaseEvidenceService>();
+        services.AddScoped<Dip.Application.Features.Dashboard.IntelligenceDashboardService>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();
         services.AddSingleton<QualityGateEvaluator>();

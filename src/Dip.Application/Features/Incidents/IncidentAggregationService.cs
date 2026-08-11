@@ -51,6 +51,10 @@ public sealed class IncidentAggregationService
         var incident=await ObserveSyntheticAsync(projectId,subjectKey,fingerprint,title,severity,JsonSerializer.Serialize(new{benchmarkRunId,comparison}),jobId,ct);
         await _repo.AddEventAsync(new IncidentEvent(Guid.NewGuid(),incident.Id,IncidentEventType.BenchmarkRegression,title,JsonSerializer.Serialize(new{benchmarkRunId,comparison}),_clock.UtcNow),ct);await _uow.SaveChangesAsync(ct);return incident;
     }
+    public async Task AttachReplayRegressionAsync(Guid incidentId,string summary,object detail,CancellationToken ct)
+    {
+        var incident=await _repo.GetAsync(incidentId,ct);if(incident is null)return;await _repo.AddEventAsync(new IncidentEvent(Guid.NewGuid(),incident.Id,IncidentEventType.ReplayRegression,summary,JsonSerializer.Serialize(detail),_clock.UtcNow),ct);await _uow.SaveChangesAsync(ct);
+    }
     public async Task<bool> ResolveAsync(Guid incidentId,string? fixedCommit,CancellationToken ct)
     {
         var incident=await _repo.GetAsync(incidentId,ct);if(incident is null)return false;incident.Resolve(fixedCommit,_clock.UtcNow);await _repo.AddEventAsync(new IncidentEvent(Guid.NewGuid(),incident.Id,IncidentEventType.Resolved,fixedCommit is null?"Incident marked resolved.":$"Incident resolved by {fixedCommit}.",JsonSerializer.Serialize(new{fixedCommit}),_clock.UtcNow),ct);await _uow.SaveChangesAsync(ct);return true;

@@ -1,0 +1,20 @@
+name: Unreal Collector CI
+on:
+  push:
+    paths:
+      - 'collectors/unreal-collector/**'
+      - '.github/workflows/unreal-collector-ci.yml'
+  pull_request:
+    paths:
+      - 'collectors/unreal-collector/**'
+      - '.github/workflows/unreal-collector-ci.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m compileall collectors/unreal-collector
+      - run: python -m unittest discover -s collectors/unreal-collector/tests -v

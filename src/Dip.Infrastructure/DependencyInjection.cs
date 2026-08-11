@@ -73,6 +73,15 @@ public static class DependencyInjection
         services.AddScoped<IDurableJobRepository, DurableJobRepository>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IBenchmarkRepository, BenchmarkRepository>();
+        services.AddScoped<IGameReplayRepository, GameReplayRepository>();
+        services.AddScoped<IPerformanceBudgetRepository, PerformanceBudgetRepository>();
+        services.AddScoped<IHardwareBacktestRepository, HardwareBacktestRepository>();
+        services.AddScoped<IChangeRiskRepository, ChangeRiskRepository>();
+        services.AddScoped<IRegressionTriageRepository, RegressionTriageRepository>();
+        services.AddScoped<IReleaseReadinessRepository, ReleaseReadinessRepository>();
+        services.AddScoped<IExternalWorkItemRepository, ExternalWorkItemRepository>();
+        services.AddScoped<IReleaseEvidenceRepository, ReleaseEvidenceRepository>();
+        services.AddScoped<IRepositoryGraphRepository, RepositoryGraphRepository>();
         services.Configure<Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions>(configuration.GetSection(Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions.SectionName));
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IP2ExperimentRunner, Dip.Infrastructure.P2Intelligence.P2ExperimentRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();
@@ -92,6 +101,13 @@ public static class DependencyInjection
                 :new Dip.Infrastructure.Artifacts.LocalArtifactStore(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>());
         });
         services.AddSingleton<Dip.Application.Features.Benchmarks.IBenchmarkExecutor,Dip.Infrastructure.Benchmarks.BenchmarkExecutor>();
+        services.Configure<Dip.Infrastructure.Replay.GameReplayOptions>(configuration.GetSection(Dip.Infrastructure.Replay.GameReplayOptions.SectionName));
+        services.Configure<Dip.Infrastructure.Provenance.ReleaseProvenanceOptions>(configuration.GetSection(Dip.Infrastructure.Provenance.ReleaseProvenanceOptions.SectionName));
+        services.AddSingleton<Dip.Application.Abstractions.Replay.IGameReplayExecutor,Dip.Infrastructure.Replay.GameReplayExecutor>();
+        services.AddSingleton<Dip.Application.Abstractions.WorkItems.IExternalWorkItemConnector,Dip.Infrastructure.WorkItems.GitHubWorkItemConnector>();
+        services.AddSingleton<Dip.Application.Abstractions.Provenance.IReleaseProvenanceCollector,Dip.Infrastructure.Provenance.ReleaseProvenanceCollector>();
+        services.AddSingleton<Dip.Infrastructure.Observability.DipOperationalMetrics>();
+        services.AddSingleton<Dip.Application.Abstractions.Observability.IDipOperationalMetrics>(sp=>sp.GetRequiredService<Dip.Infrastructure.Observability.DipOperationalMetrics>());
         services.Configure<Dip.Application.Features.Jobs.DurableJobQueueOptions>(configuration.GetSection(Dip.Application.Features.Jobs.DurableJobQueueOptions.SectionName));
 
         services.Configure<QaExecutionOptions>(configuration.GetSection(QaExecutionOptions.SectionName));

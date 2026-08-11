@@ -7,7 +7,9 @@ public enum DurableJobType
     Soak,
     GitBisect,
     MediaRegression,
-    Benchmark
+    Benchmark,
+    GameSessionReplay,
+    ReleaseEvidence
 }
 
 public enum DurableJobStatus
@@ -40,7 +42,11 @@ public enum IncidentEventType
     StatusChanged,
     BenchmarkRegression,
     Resolved,
-    Reopened
+    Reopened,
+    ReplayRegression,
+    ChangeRiskRaised,
+    ReleaseBlocked,
+    WorkItemLinked
 }
 
 public enum BenchmarkRunStatus

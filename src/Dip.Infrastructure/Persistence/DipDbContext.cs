@@ -39,6 +39,20 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<BenchmarkRun> BenchmarkRuns => Set<BenchmarkRun>();
     public DbSet<BenchmarkMetric> BenchmarkMetrics => Set<BenchmarkMetric>();
     public DbSet<BenchmarkComparison> BenchmarkComparisons => Set<BenchmarkComparison>();
+    public DbSet<GameReplaySession> GameReplaySessions => Set<GameReplaySession>();
+    public DbSet<GameReplayRun> GameReplayRuns => Set<GameReplayRun>();
+    public DbSet<GameReplayMetric> GameReplayMetrics => Set<GameReplayMetric>();
+    public DbSet<PerformanceBudgetProfile> PerformanceBudgetProfiles => Set<PerformanceBudgetProfile>();
+    public DbSet<PerformanceBudgetEvaluation> PerformanceBudgetEvaluations => Set<PerformanceBudgetEvaluation>();
+    public DbSet<HardwareBacktest> HardwareBacktests => Set<HardwareBacktest>();
+    public DbSet<ChangeRiskAssessment> ChangeRiskAssessments => Set<ChangeRiskAssessment>();
+    public DbSet<RegressionTriage> RegressionTriages => Set<RegressionTriage>();
+    public DbSet<ReleaseReadinessSnapshot> ReleaseReadinessSnapshots => Set<ReleaseReadinessSnapshot>();
+    public DbSet<ExternalWorkItemLink> ExternalWorkItemLinks => Set<ExternalWorkItemLink>();
+    public DbSet<ReleaseEvidenceBundle> ReleaseEvidenceBundles => Set<ReleaseEvidenceBundle>();
+    public DbSet<RepositoryNode> RepositoryNodes => Set<RepositoryNode>();
+    public DbSet<RepositoryDependency> RepositoryDependencies => Set<RepositoryDependency>();
+    public DbSet<CrossRepositoryImpact> CrossRepositoryImpacts => Set<CrossRepositoryImpact>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

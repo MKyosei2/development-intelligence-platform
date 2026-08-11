@@ -1,60 +1,60 @@
 @page "/dashboard/{ProjectId:guid}/intelligence"
+@using Dip.Application.Features.ChangeRisk
+@using Dip.Application.Features.Dashboard
+@using Dip.Application.Features.Incidents
 @using Dip.Application.Features.Intelligence
+@using Dip.Application.Features.Jobs
+@using Dip.Application.Features.Performance
+@using Dip.Application.Features.Release
+@using Dip.Application.Features.Replay
 @inject Dip.Web.Services.ApiClient Api
 
-<PageTitle>P2 Intelligence</PageTitle>
-
-<h1>Project Intelligence</h1>
-<p class="text-muted">Forward-looking decision support grounded in Project Truth evidence. Forecasts are estimates, not guarantees.</p>
-@if (_loading)
-{
-    <p>Loading...</p>
-}
-else if (_error is not null)
-{
-    <div class="alert alert-danger">@_error</div>
-}
+<PageTitle>Development Intelligence</PageTitle>
+<h1>Development Intelligence</h1>
+<p class="text-muted">Evidence-backed operational view. Forecasts and risk scores are decision support, not guarantees.</p>
+@if (_loading){<p>Loading...</p>}
+else if (_error is not null){<div class="alert alert-danger">@_error</div>}
 else
 {
     <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Release risk</div><div class="display-6">@(_forecast?.ReleaseRiskPercent.ToString("0.#") ?? "—")%</div><div>@_forecast?.Confidence confidence</div></div></div></div>
-        <div class="col-md-8"><div class="card h-100"><div class="card-body"><div class="small text-muted">Estimated completion window</div><div class="h3">@Window()</div><div class="small text-muted">Range prediction based on current evidence volume, progress and blockers.</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Release readiness</div><div class="h2">@(_overview?.ReleaseDecision ?? "Not evaluated")</div><div>@(_overview?.ReleaseConfidence?.ToString("0.#") ?? "—")% confidence</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Active incidents</div><div class="h2">@(_overview?.ActiveIncidents ?? 0)</div><div>@(_overview?.CriticalIncidents ?? 0) critical</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Durable jobs</div><div class="h2">@(_overview?.RunningJobs ?? 0)</div><div>@(_overview?.FailedJobs ?? 0) failed/timed out recently</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Change risk</div><div class="h2">@(_overview?.ChangeRiskLevel ?? "Not assessed")</div><div>@(_overview?.ChangeRiskScore?.ToString("0.#") ?? "—") / 100</div></div></div></div>
     </div>
-    <div class="card mb-4"><div class="card-header"><strong>What should be addressed now</strong></div><div class="card-body">@if (_brief?.Priorities.Count > 0){<ol>@foreach (var p in _brief.Priorities){<li class="mb-3"><strong>@p.Subject — @p.Situation</strong><div>@p.Why</div><div class="text-muted">Next: @p.NextAction · @p.Confidence</div></li>}</ol>}else{<p class="mb-0 text-muted">No evidence-backed priority found.</p>}</div></div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card"><div class="card-body"><strong>@(_overview?.ReplaySessions ?? 0)</strong> replay scenarios</div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><strong>@(_overview?.RecentBudgetFailures ?? 0)</strong> budget failures</div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><strong>@(_overview?.OpenWorkItems ?? 0)</strong> linked work items</div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><strong>@(_overview?.RepositoryNodes ?? 0)</strong> repos / <strong>@(_overview?.RepositoryDependencies ?? 0)</strong> dependencies</div></div></div>
+    </div>
+
+    @if (_readiness is not null)
+    {
+        <div class="card mb-4"><div class="card-header"><strong>Release Readiness — @_readiness.Decision</strong></div><div class="card-body"><p>@_readiness.Summary</p>@if(_readiness.Blockers.Count>0){<div class="text-danger"><strong>Blockers</strong><ul>@foreach(var x in _readiness.Blockers){<li>@x</li>}</ul></div>}@if(_readiness.RequiredActions.Count>0){<strong>Required actions</strong><ol>@foreach(var x in _readiness.RequiredActions){<li>@x</li>}</ol>}</div></div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6"><div class="card h-100"><div class="card-header"><strong>Incident Intelligence</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Severity</th><th>Incident</th><th>Status</th><th>Occurrences</th></tr></thead><tbody>@foreach(var i in _incidents.Take(10)){<tr><td>@i.Severity</td><td>@i.Title</td><td>@i.Status</td><td>@i.Occurrences</td></tr>}</tbody></table></div>@if(_incidents.Count==0){<p class="p-3 text-muted mb-0">No incidents.</p>}</div></div></div>
+        <div class="col-lg-6"><div class="card h-100"><div class="card-header"><strong>Durable Jobs</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Type</th><th>Status</th><th>Progress</th><th>Stage</th></tr></thead><tbody>@foreach(var j in _jobs.Take(10)){<tr><td>@j.Type</td><td>@j.Status</td><td>@j.ProgressPercent.ToString("0.#")%</td><td>@j.CurrentStage</td></tr>}</tbody></table></div>@if(_jobs.Count==0){<p class="p-3 text-muted mb-0">No jobs.</p>}</div></div></div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6"><div class="card h-100"><div class="card-header"><strong>Game Regression Replay</strong></div><div class="card-body"><p><strong>@_replays.Count</strong> deterministic replay scenario(s) configured.</p>@foreach(var r in _replays.Take(6)){<div>• @r.Name — @r.Scene · seed @r.RandomSeed</div>}</div></div></div>
+        <div class="col-lg-6"><div class="card h-100"><div class="card-header"><strong>Platform Performance Budgets</strong></div><div class="card-body"><p><strong>@_budgets.Count</strong> applicable budget profile(s).</p>@foreach(var b in _budgets.Take(6)){<div>• @b.Platform / @b.TargetProfile — @b.Name</div>}</div></div></div>
+    </div>
+
     <div class="row g-3">
-        <div class="col-md-6"><div class="card"><div class="card-header">Since yesterday</div><div class="card-body">@foreach (var x in _brief?.Changes ?? Array.Empty<string>()){<div>• @x</div>}</div></div></div>
-        <div class="col-md-6"><div class="card"><div class="card-header">Why health/risk changed</div><div class="card-body">@foreach (var x in _brief?.HealthChangeReasons ?? Array.Empty<string>()){<div>• @x</div>}</div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Hardware prediction calibration</div><div class="h3">@(_overview?.HardwareCalibration.MeanAbsoluteErrorPercent.ToString("0.##") ?? "0")%</div><div>MAE · @(_overview?.HardwareCalibration.Samples ?? 0) samples</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Release risk forecast</div><div class="h3">@(_forecast?.ReleaseRiskPercent.ToString("0.#") ?? "—")%</div><div>@_forecast?.Confidence confidence</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Estimated completion window</div><div class="h5">@Window()</div></div></div></div>
     </div>
 }
 <div class="mt-4"><a href="@($"/dashboard/{ProjectId}")">← Project Truth</a></div>
 
 @code {
-    [Parameter] public Guid ProjectId { get; set; }
-    private bool _loading = true;
-    private string? _error;
-    private ForecastResult? _forecast;
-    private PmDecisionBrief? _brief;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        _loading = true;
-        _error = null;
-        try
-        {
-            _forecast = await Api.GetForecastAsync(ProjectId);
-            _brief = await Api.GetDecisionBriefAsync(ProjectId);
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
-        finally
-        {
-            _loading = false;
-        }
-    }
-
-    private string Window() => _forecast?.EarliestCompletionUtc is null || _forecast.LatestCompletionUtc is null
-        ? "Not enough evidence"
-        : $"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
+    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();
+    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+    private string Window()=>_forecast?.EarliestCompletionUtc is null||_forecast.LatestCompletionUtc is null?"Not enough evidence":$"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
 }

@@ -11,7 +11,7 @@ public sealed record BenchmarkExecutionSpec(
     int TimeoutSeconds=30,
     decimal WarningRegressionPercent=10m,
     decimal FailureRegressionPercent=20m);
-public sealed record BenchmarkJobRequest(Guid ProjectId,Guid DefinitionId,string SubjectKey,string CommitSha,string? EnvironmentFingerprint=null);
+public sealed record BenchmarkJobRequest(Guid ProjectId,Guid DefinitionId,string SubjectKey,string CommitSha,string? EnvironmentFingerprint=null,Guid? PerformanceBudgetProfileId=null);
 public sealed record BenchmarkDefinitionDto(Guid Id,string Key,string Name,string Kind,bool Enabled,BenchmarkExecutionSpec Configuration);
 public sealed record BenchmarkSample(int Iteration,bool Passed,bool TimedOut,int? StatusCode,long DurationMicroseconds,string? Error);
 public sealed record BenchmarkExecutionResult(IReadOnlyList<BenchmarkSample> Samples,string EnvironmentFingerprint,string DetailJson);

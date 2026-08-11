@@ -102,14 +102,13 @@ Source implementation now includes:
 
 These items are marked **implemented in source**, not runtime-verified. Runtime completion requires a .NET 8 build/test pass plus live PostgreSQL/Redis and selected Artifact Store verification for the exact resulting revision.
 
-## Remaining production-hardening work
+## Development Intelligence expansion — 2026-08-12
 
-The following remain outside this changeset:
+The Upgrade8-based source now also implements the requested concrete expansion: Intelligence Dashboard aggregation, deterministic Game Session Regression Replay, platform Performance Budgets, an Unreal collector, real-device hardware backtesting/calibration, deterministic Change Risk, automatic evidence-based Regression Triage, Release Readiness gating, explicit GitHub Issue work-item creation, Release Provenance/CycloneDX SBOM bundles, OpenTelemetry/Prometheus/Grafana observability, and a Multi-repository Dependency Graph. The persistence model is extended by `202608120003_AddDevelopmentIntelligenceExpansion`.
 
-- external Claim/work-item connectors and canonical work-item resolution across issue trackers/chat tools;
-- real-device calibration/backtesting needed to validate minimum-hardware and forecast accuracy at production scale;
-- fixed-environment benchmark execution that replaces portfolio `TBD` values with measured evidence;
-- broader operational observability and multi-repository dependency intelligence.
+These items are **implemented in source, not automatically runtime-verified**. Completion evidence still requires a .NET 8 build/test for the exact revision, clean and legacy PostgreSQL migration runs, live Redis/Worker durable-job tests, selected Local/MinIO artifact round trips, OTLP export verification, and real Unity/Unreal/device runs for engine/hardware-specific paths. Real-device calibration remains empty until measured samples are actually recorded, and portfolio benchmark `TBD` values remain untouched until fixed-environment measurements exist.
+
+The GitHub Issues connector is the implemented external work-item path in this phase; Jira/Linear are not represented as implemented. Universal/unknown-language QA abstraction remains intentionally deferred to the final architectural phase.
 
 ## 2026-08-11 Upgrade6 CI repair package
 

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
+using Dip.Application.Abstractions.Observability;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,17 +11,18 @@ namespace Dip.Api.Controllers;
 public sealed class MetricsController : ControllerBase
 {
     private readonly ApiMetricsRegistry _metrics;
+    private readonly IDipOperationalMetrics _operational;
 
-    public MetricsController(ApiMetricsRegistry metrics)
+    public MetricsController(ApiMetricsRegistry metrics,IDipOperationalMetrics operational)
     {
-        _metrics = metrics;
+        _metrics = metrics;_operational=operational;
     }
 
     [AllowAnonymous]
     [HttpGet("/metrics")]
     [Produces("text/plain")]
     public ContentResult GetMetrics() => Content(
-        _metrics.Render(),
+        _metrics.Render()+_operational.RenderPrometheus(),
         "text/plain; version=0.0.4; charset=utf-8",
         Encoding.UTF8);
 }

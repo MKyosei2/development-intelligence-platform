@@ -127,6 +127,7 @@ public interface IDurableJobRepository
     Task<IReadOnlyList<DurableJob>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
     Task<DurableJob?> TryClaimAsync(Guid id,string owner,DateTimeOffset now,TimeSpan lease,CancellationToken ct);
     Task<IReadOnlyList<DurableJob>> ListExpiredLeasesAsync(DateTimeOffset now,int take,CancellationToken ct);
+    Task<long> CountQueuedAsync(CancellationToken ct);
 }
 public interface IIncidentRepository
 {
@@ -138,6 +139,7 @@ public interface IIncidentRepository
     Task AddEventAsync(IncidentEvent incidentEvent,CancellationToken ct);
     Task<IReadOnlyList<Incident>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
     Task<IReadOnlyList<IncidentEvent>> ListEventsAsync(Guid incidentId,CancellationToken ct);
+    Task<IReadOnlyList<IncidentOccurrence>> ListOccurrencesAsync(Guid incidentId,int take,CancellationToken ct);
 }
 public interface IBenchmarkRepository
 {
@@ -155,3 +157,71 @@ public interface IBenchmarkRepository
 }
 
 public interface IUnitOfWork{Task<int> SaveChangesAsync(CancellationToken ct);}
+
+public interface IGameReplayRepository
+{
+    Task AddSessionAsync(GameReplaySession session,CancellationToken ct);
+    Task<GameReplaySession?> GetSessionAsync(Guid id,CancellationToken ct);
+    Task<GameReplaySession?> GetSessionByKeyAsync(Guid projectId,string key,CancellationToken ct);
+    Task<IReadOnlyList<GameReplaySession>> ListSessionsAsync(Guid projectId,CancellationToken ct);
+    Task AddRunAsync(GameReplayRun run,CancellationToken ct);
+    Task<GameReplayRun?> GetRunAsync(Guid id,CancellationToken ct);
+    Task<GameReplayRun?> FindBaselineRunAsync(Guid projectId,Guid sessionId,string hardwareFingerprint,string excludingCommit,CancellationToken ct);
+    Task AddMetricsAsync(IEnumerable<GameReplayMetric> metrics,CancellationToken ct);
+    Task<IReadOnlyList<GameReplayMetric>> ListMetricsAsync(Guid runId,CancellationToken ct);
+}
+public interface IPerformanceBudgetRepository
+{
+    Task AddProfileAsync(PerformanceBudgetProfile profile,CancellationToken ct);
+    Task<PerformanceBudgetProfile?> GetProfileAsync(Guid id,CancellationToken ct);
+    Task<PerformanceBudgetProfile?> GetProfileByKeyAsync(Guid? projectId,string key,CancellationToken ct);
+    Task<IReadOnlyList<PerformanceBudgetProfile>> ListProfilesAsync(Guid? projectId,CancellationToken ct);
+    Task AddEvaluationAsync(PerformanceBudgetEvaluation evaluation,CancellationToken ct);
+    Task<IReadOnlyList<PerformanceBudgetEvaluation>> ListEvaluationsAsync(Guid projectId,int take,CancellationToken ct);
+}
+public interface IHardwareBacktestRepository
+{
+    Task AddAsync(HardwareBacktest backtest,CancellationToken ct);
+    Task<IReadOnlyList<HardwareBacktest>> ListAsync(Guid projectId,Guid? hardwareProfileId,int take,CancellationToken ct);
+}
+public interface IChangeRiskRepository
+{
+    Task AddAsync(ChangeRiskAssessment assessment,CancellationToken ct);
+    Task<ChangeRiskAssessment?> GetLatestAsync(Guid projectId,string? commitSha,CancellationToken ct);
+    Task<IReadOnlyList<ChangeRiskAssessment>> ListAsync(Guid projectId,int take,CancellationToken ct);
+}
+public interface IRegressionTriageRepository
+{
+    Task AddAsync(RegressionTriage triage,CancellationToken ct);
+    Task<RegressionTriage?> GetLatestForIncidentAsync(Guid incidentId,CancellationToken ct);
+    Task<IReadOnlyList<RegressionTriage>> ListAsync(Guid projectId,int take,CancellationToken ct);
+}
+public interface IReleaseReadinessRepository
+{
+    Task AddAsync(ReleaseReadinessSnapshot snapshot,CancellationToken ct);
+    Task<ReleaseReadinessSnapshot?> GetLatestAsync(Guid projectId,CancellationToken ct);
+    Task<IReadOnlyList<ReleaseReadinessSnapshot>> ListAsync(Guid projectId,int take,CancellationToken ct);
+}
+public interface IExternalWorkItemRepository
+{
+    Task AddAsync(ExternalWorkItemLink link,CancellationToken ct);
+    Task<ExternalWorkItemLink?> FindByIncidentAsync(Guid incidentId,Dip.Domain.Enums.ExternalWorkItemProvider provider,CancellationToken ct);
+    Task<IReadOnlyList<ExternalWorkItemLink>> ListAsync(Guid projectId,CancellationToken ct);
+}
+public interface IReleaseEvidenceRepository
+{
+    Task AddAsync(ReleaseEvidenceBundle bundle,CancellationToken ct);
+    Task<ReleaseEvidenceBundle?> GetLatestAsync(Guid projectId,CancellationToken ct);
+    Task<IReadOnlyList<ReleaseEvidenceBundle>> ListAsync(Guid projectId,int take,CancellationToken ct);
+}
+public interface IRepositoryGraphRepository
+{
+    Task AddNodeAsync(RepositoryNode node,CancellationToken ct);
+    Task<RepositoryNode?> GetNodeAsync(Guid id,CancellationToken ct);
+    Task<RepositoryNode?> GetNodeByKeyAsync(Guid projectId,string key,CancellationToken ct);
+    Task<IReadOnlyList<RepositoryNode>> ListNodesAsync(Guid projectId,CancellationToken ct);
+    Task AddDependencyAsync(RepositoryDependency dependency,CancellationToken ct);
+    Task<IReadOnlyList<RepositoryDependency>> ListDependenciesAsync(Guid projectId,CancellationToken ct);
+    Task AddImpactAsync(CrossRepositoryImpact impact,CancellationToken ct);
+    Task<CrossRepositoryImpact?> GetLatestImpactAsync(Guid projectId,string commitSha,CancellationToken ct);
+}

@@ -15,15 +15,17 @@ public sealed class AdaptiveQaPlanner
     private readonly IAdaptiveQaPlanRepository _plans;
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
+    private readonly IChangeRiskRepository? _changeRisk;
 
     public AdaptiveQaPlanner(
         IEvidenceRepository evidence,
         IP2IntelligenceRepository intelligence,
         IAdaptiveQaPlanRepository plans,
         IUnitOfWork uow,
-        ISystemClock clock)
+        ISystemClock clock,
+        IChangeRiskRepository? changeRisk=null)
     {
-        _evidence=evidence;_intelligence=intelligence;_plans=plans;_uow=uow;_clock=clock;
+_evidence=evidence;_intelligence=intelligence;_plans=plans;_uow=uow;_clock=clock;_changeRisk=changeRisk;
     }
 
     public async Task<AdaptiveQaPlanDto> PlanAsync(AdaptiveQaPlanCommand command,CancellationToken ct)
@@ -39,6 +41,7 @@ public sealed class AdaptiveQaPlanner
         var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n",changed)))).ToLowerInvariant();
         var history=await _evidence.ListForProjectAsync(command.ProjectId,_clock.UtcNow.AddDays(-90),ct);
         var recentFailures=history.Where(x=>x.Outcome==EvidenceOutcome.Failed||x.Outcome==EvidenceOutcome.Warning).ToArray();
+        var latestChangeRisk=_changeRisk is null?null:await _changeRisk.GetLatestAsync(command.ProjectId,null,ct);
 
         var steps=new Dictionary<string,AdaptiveQaStep>(StringComparer.OrdinalIgnoreCase);
         void Add(string id,string name,string category,string reason,decimal baseRisk,decimal minutes,bool required=false)
@@ -90,6 +93,13 @@ public sealed class AdaptiveQaPlanner
             {
                 Add("network-fuzz","Protocol/API fuzzing","fuzz","Network/serialization code changed.",65m,12m);
                 Add("runtime-repeat","Runtime reliability repeats","reliability","Network behavior can be timing-dependent.",62m,10m);
+            }
+            if(latestChangeRisk?.RiskLevel is ChangeRiskLevel.High or ChangeRiskLevel.Critical)
+            {
+                Add("game-replay","Deterministic game-session regression replay","runtime",$"Change Risk is {latestChangeRisk.RiskLevel} ({latestChangeRisk.RiskScore:0.#}/100).",88m,12m,true);
+                Add("performance-budget","Platform performance budget gate","performance","High-risk changes require target-platform budget evidence.",86m,8m,true);
+                Add("high-risk-fuzz","High-risk fuzzing","fuzz","High-risk change requires additional robustness evidence.",80m,12m,latestChangeRisk.RiskLevel==ChangeRiskLevel.Critical);
+                Add("high-risk-soak","High-risk soak/reliability","reliability","Critical/high change risk warrants sustained execution.",82m,20m,latestChangeRisk.RiskLevel==ChangeRiskLevel.Critical);
             }
         }
 
