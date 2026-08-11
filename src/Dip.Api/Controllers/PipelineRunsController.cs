@@ -24,29 +24,15 @@ public sealed record PipelineRunResponse(
 public sealed class PipelineRunsController : ControllerBase
 {
     private readonly IPipelineRunRepository _repository;
-
-    public PipelineRunsController(
-        IPipelineRunRepository repository)
-    {
-        _repository = repository;
-    }
+    public PipelineRunsController(IPipelineRunRepository repository) => _repository = repository;
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(
-        typeof(PipelineRunResponse),
-        StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PipelineRunResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PipelineRunResponse>> Get(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<PipelineRunResponse>> Get(Guid id, CancellationToken cancellationToken)
     {
-        var run = await _repository.GetByIdAsync(
-            id,
-            cancellationToken);
-
-        if (run is null)
-            return NotFound();
-
+        var run = await _repository.GetByIdAsync(id, cancellationToken);
+        if (run is null) return NotFound();
         return Ok(new PipelineRunResponse(
             run.Id,
             run.ProjectId,

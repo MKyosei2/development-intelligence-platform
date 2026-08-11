@@ -92,3 +92,16 @@ The following are intentionally not misrepresented as fixed by this changeset be
 - durable remote artifact storage/retention for QA/P2 evidence;
 - external Claim/work-item connectors and canonical work-item resolution across issue trackers/chat tools;
 - real-device calibration/backtesting needed to validate minimum-hardware and forecast accuracy at production scale.
+
+## 2026-08-11 Upgrade6 CI repair package
+
+The Upgrade6 repair package addresses the seven compiler errors observed in the
+latest `.NET CI` run (three missing P2 E2E client methods, two missing Web API
+client methods and two `MediaRegressionRunner` declaration-space collisions).
+It also restores current-main compatibility files missing from the prior
+reconstructed package and registers the restored legacy intelligence services.
+
+Static package validation is recorded in
+`artifacts/package-validation/UPGRADE6_FIX_STATIC_VALIDATION.txt`.
+The revision is still **not runtime-verified** until a .NET 8 build/test run and
+live Integration/E2E workflow succeed for the exact resulting revision.

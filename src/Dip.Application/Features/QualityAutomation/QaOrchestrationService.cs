@@ -65,7 +65,7 @@ public sealed class QaOrchestrationService
                 QaLanguage.Python=>await _python.RunAsync(command,workspace,artifactRoot,cancellationToken),
                 QaLanguage.CSharp=>await _csharp.RunAsync(command,workspace,artifactRoot,cancellationToken),
                 QaLanguage.Cpp=>await _cpp.RunAsync(command,workspace,artifactRoot,cancellationToken),
-                _=>throw new ArgumentOutOfRangeException(nameof(command.Language))
+                _=>throw new ArgumentOutOfRangeException(nameof(command), command.Language, "Unsupported QA language.")
             };
         }
         catch(Exception ex) when(ex is not OperationCanceledException)

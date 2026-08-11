@@ -190,6 +190,37 @@ internal sealed class DipScenarioClient : IDisposable
         return (await response.Content.ReadFromJsonAsync<ForecastE2EResponse>(JsonOptions))!;
     }
 
+    public async Task<P2DailyChangeE2EResponse> GetP2DailyChangeAsync(ProjectResponse project)
+    {
+        var response = await _httpClient.GetAsync($"/api/v1/p2/projects/{project.Id}/daily-change");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return await response.Content.ReadFromJsonAsync<P2DailyChangeE2EResponse>(JsonOptions)
+            ?? throw new InvalidDataException("P2 daily-change API returned an empty response.");
+    }
+
+    public async Task<P2DecisionBriefE2EResponse> GetP2DecisionBriefAsync(ProjectResponse project)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            "/api/v1/p2/decision-brief",
+            new
+            {
+                projectId = project.Id,
+                dependencies = (Dictionary<string, IReadOnlyList<string>>?)null
+            });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return await response.Content.ReadFromJsonAsync<P2DecisionBriefE2EResponse>(JsonOptions)
+            ?? throw new InvalidDataException("P2 decision-brief API returned an empty response.");
+    }
+
+    public async Task<P2HealthChangeE2EResponse> GetP2HealthChangeAsync(ProjectResponse project)
+    {
+        var response = await _httpClient.GetAsync($"/api/v1/p2/projects/{project.Id}/health-change");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return await response.Content.ReadFromJsonAsync<P2HealthChangeE2EResponse>(JsonOptions)
+            ?? throw new InvalidDataException("P2 health-change API returned an empty response.");
+    }
+
+
     public async Task<HttpResponseMessage> SendSignedGitHubWebhookAsync(
         string deliveryId,
         string eventName,
@@ -312,3 +343,40 @@ internal sealed record ForecastE2EResponse(
     DateTimeOffset? EarliestCompletionUtc,
     DateTimeOffset? LatestCompletionUtc,
     IReadOnlyList<string> Reasons);
+internal sealed class P2DailyChangeE2EResponse
+{
+    public int NewEvidence { get; init; }
+    public int NewFailures { get; init; }
+    public int ResolvedOrSucceeded { get; init; }
+    public int NewClaims { get; init; }
+    public int NewContradictions { get; init; }
+    public IReadOnlyList<string> Highlights { get; init; } = Array.Empty<string>();
+}
+
+internal sealed class P2DecisionPriorityE2EResponse
+{
+    public int Priority { get; init; }
+    public string SubjectKey { get; init; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
+    public string Why { get; init; } = string.Empty;
+    public string SuggestedNextAction { get; init; } = string.Empty;
+    public string EvidenceConfidence { get; init; } = string.Empty;
+}
+
+internal sealed class P2DecisionBriefE2EResponse
+{
+    public Guid ProjectId { get; init; }
+    public string OverallStatus { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public IReadOnlyList<P2DecisionPriorityE2EResponse> Priorities { get; init; } = Array.Empty<P2DecisionPriorityE2EResponse>();
+}
+
+internal sealed class P2HealthChangeE2EResponse
+{
+    public decimal? PreviousHealth { get; init; }
+    public decimal? CurrentHealth { get; init; }
+    public decimal? Difference { get; init; }
+    public string Explanation { get; init; } = string.Empty;
+    public IReadOnlyList<string> Reasons { get; init; } = Array.Empty<string>();
+}
+

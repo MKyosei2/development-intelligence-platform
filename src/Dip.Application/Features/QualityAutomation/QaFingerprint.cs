@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Domain.Enums;
@@ -14,7 +15,7 @@ public static class QaFingerprint
             Normalize(finding.ExceptionType),
             Normalize(finding.RuleId),
             NormalizePath(finding.FilePath),
-            finding.Line?.ToString() ?? string.Empty,
+            finding.Line?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
             Normalize(finding.Function),
             Normalize(FirstMeaningfulLine(finding.StackTrace ?? finding.Message)));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stable)));

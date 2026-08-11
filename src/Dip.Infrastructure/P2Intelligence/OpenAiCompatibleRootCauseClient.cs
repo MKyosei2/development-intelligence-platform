@@ -10,7 +10,7 @@ namespace Dip.Infrastructure.P2Intelligence;
 /// Optional OpenAI-compatible evidence-grounded root-cause client. It is
 /// disabled by default. Only the evidence bundle assembled by DIP is sent.
 /// </summary>
-public sealed class OpenAiCompatibleRootCauseClient : IAiRootCauseClient
+public sealed class OpenAiCompatibleRootCauseClient : IAiRootCauseClient, IDisposable
 {
     private readonly HttpClient _http;
     private readonly P2IntelligenceOptions _options;
@@ -54,4 +54,7 @@ public sealed class OpenAiCompatibleRootCauseClient : IAiRootCauseClient
         content??=doc.RootElement.GetRawText();
         return new(_options.AiModel,content);
     }
+
+    public void Dispose() => _http.Dispose();
+
 }

@@ -22,6 +22,12 @@ public static class DependencyInjection
         services.AddScoped<ProjectTruthService>();
         services.AddScoped<QaOrchestrationService>();
         services.AddScoped<HardwareOrchestrationService>();
+        services.AddScoped<Dip.Application.Features.Intelligence.P2OrchestrationService>();
+        services.AddScoped<Dip.Application.Features.Intelligence.AdaptiveQaPlanner>();
+        services.AddScoped<Dip.Application.Features.Intelligence.CommunityHardwareService>();
+        services.AddScoped<Dip.Application.Features.Intelligence.RootCauseIntelligenceService>();
+        services.AddScoped<Dip.Application.Features.Intelligence.ForecastAndDecisionService>();
+        services.AddScoped<Dip.Application.Features.Intelligence.P2AnalysisService>();
         services.AddScoped<HardwareCommunityIntelligenceService>();
         services.AddScoped<AdaptiveQaPlanner>();
         services.AddScoped<P2TechnicalIntelligenceService>();

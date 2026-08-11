@@ -39,15 +39,15 @@ public sealed class MediaRegressionRunner(
         if(sizeA is null||sizeB is null)return Failure(command.Type,"Could not read image dimensions.",RelativeArtifact(root));
         if(sizeA!=sizeB)
         {
-            var detail=JsonSerializer.Serialize(new{baseline=sizeA,current=sizeB,reason="dimension-mismatch"});
-            return Build(command,100m,98m,"Image dimensions differ.",RelativeArtifact(root),detail,"0s");
+            var dimensionMismatchDetail=JsonSerializer.Serialize(new{baseline=sizeA,current=sizeB,reason="dimension-mismatch"});
+            return Build(command,100m,98m,"Image dimensions differ.",RelativeArtifact(root),dimensionMismatchDetail,"0s");
         }
         var a=Path.Combine(root,"baseline.rgb");var b=Path.Combine(root,"current.rgb");
         if(!await DecodeFrameAsync(ffmpeg,baseline,a,null,root,ct)||!await DecodeFrameAsync(ffmpeg,current,b,null,root,ct))
             return Failure(command.Type,"Could not decode one or both images.",RelativeArtifact(root));
         var diff=CompareRgb(await File.ReadAllBytesAsync(a,ct),await File.ReadAllBytesAsync(b,ct),sizeA.Value.Width,sizeA.Value.Height,Path.Combine(root,"difference.ppm"));
-        var detail=JsonSerializer.Serialize(new{sizeA.Value.Width,sizeA.Value.Height,diff.MeanDifferencePercent,diff.ChangedPixelPercent,diff.MaxChannelDifference});
-        return Build(command,diff.MeanDifferencePercent,99m,$"{diff.ChangedPixelPercent:0.##}% of pixels changed.",RelativeArtifact(root),detail,"0s");
+        var comparisonDetail=JsonSerializer.Serialize(new{sizeA.Value.Width,sizeA.Value.Height,diff.MeanDifferencePercent,diff.ChangedPixelPercent,diff.MaxChannelDifference});
+        return Build(command,diff.MeanDifferencePercent,99m,$"{diff.ChangedPixelPercent:0.##}% of pixels changed.",RelativeArtifact(root),comparisonDetail,"0s");
     }
 
     private async Task<MediaRegressionResult> AnalyzeVideoAsync(
@@ -61,8 +61,8 @@ public sealed class MediaRegressionRunner(
             return Failure(command.Type,"Could not probe video metadata.",RelativeArtifact(root));
         if(sizeA!=sizeB)
         {
-            var detail=JsonSerializer.Serialize(new{baseline=sizeA,current=sizeB,durationA,durationB,reason="dimension-mismatch"});
-            return Build(command,100m,95m,"Video dimensions differ.",RelativeArtifact(root),detail,"0s");
+            var dimensionMismatchDetail=JsonSerializer.Serialize(new{baseline=sizeA,current=sizeB,durationA,durationB,reason="dimension-mismatch"});
+            return Build(command,100m,95m,"Video dimensions differ.",RelativeArtifact(root),dimensionMismatchDetail,"0s");
         }
         var sampleFps=Math.Clamp(command.VideoSampleFps,1,10);
         var interval=1d/sampleFps;
@@ -87,8 +87,8 @@ public sealed class MediaRegressionRunner(
         var average=decimal.Round(total/compared,3);
         var durationDelta=Math.Abs(durationA.Value-durationB.Value);
         if(durationDelta>.25)average=Math.Min(100m,average+(decimal)Math.Min(20d,durationDelta*2d));
-        var detail=JsonSerializer.Serialize(new{samples=compared,averageDifferencePercent=average,maxDifferencePercent=max,durationA,durationB,durationDeltaSeconds=durationDelta,firstDifference=first});
-        return Build(command,average,Math.Min(98m,75m+compared/10m),$"Compared {compared} sampled frame(s). Maximum sampled difference {max:0.##}%.",RelativeArtifact(root),detail,first);
+        var comparisonDetail=JsonSerializer.Serialize(new{samples=compared,averageDifferencePercent=average,maxDifferencePercent=max,durationA,durationB,durationDeltaSeconds=durationDelta,firstDifference=first});
+        return Build(command,average,Math.Min(98m,75m+compared/10m),$"Compared {compared} sampled frame(s). Maximum sampled difference {max:0.##}%.",RelativeArtifact(root),comparisonDetail,first);
     }
 
     private async Task<MediaRegressionResult> AnalyzeAudioAsync(

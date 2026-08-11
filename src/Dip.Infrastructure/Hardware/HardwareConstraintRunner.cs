@@ -52,7 +52,7 @@ public sealed class HardwareConstraintRunner
     }
     private static bool ApplyMemoryLimit(IntPtr job,long memoryMb)
     {
-        if(!OperatingSystem.IsWindows()||memoryMb<=0)return false;var info=new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();info.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_PROCESS_MEMORY;info.ProcessMemoryLimit=(UIntPtr)((ulong)memoryMb*1024UL*1024UL);
+        if(!OperatingSystem.IsWindows()||memoryMb<=0)return false;var info=new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();info.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_PROCESS_MEMORY;var memoryBytes=checked((ulong)memoryMb*1024UL*1024UL);info.ProcessMemoryLimit=checked((UIntPtr)memoryBytes);
         var size=Marshal.SizeOf(info);var ptr=Marshal.AllocHGlobal(size);try{Marshal.StructureToPtr(info,ptr,false);return SetInformationJobObject(job,JobObjectExtendedLimitInformation,ptr,(uint)size);}finally{Marshal.FreeHGlobal(ptr);}
     }
     private const uint JOB_OBJECT_CPU_RATE_CONTROL_ENABLE=0x1,JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP=0x4,JOB_OBJECT_LIMIT_PROCESS_MEMORY=0x100;private const int JobObjectExtendedLimitInformation=9,JobObjectCpuRateControlInformation=15;
