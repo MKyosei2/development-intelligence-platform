@@ -1,14 +1,3 @@
-using Dip.Application.Features.GitHub;
-using Microsoft.Extensions.DependencyInjection;
-
+using Dip.Application.Features.GitHub;using Microsoft.Extensions.DependencyInjection;
 namespace Dip.Application;
-
-public static class GitHubApplicationDependencyInjection
-{
-    public static IServiceCollection AddGitHubApplication(
-        this IServiceCollection services)
-    {
-        services.AddScoped<GitHubWebhookProcessor>();
-        return services;
-    }
-}
+public static class GitHubApplicationDependencyInjection{public static IServiceCollection AddGitHubApplication(this IServiceCollection services){services.AddScoped<GitHubWebhookProcessor>();return services;}}

@@ -12,5 +12,8 @@ public enum EvidenceSourceType
     Unity = 7,
     Maya = 8,
     Collector = 9,
-    HumanReport = 10
+    HumanReport = 10,
+    CommunityHardware = 11,
+    Analysis = 12,
+    AiAssistant = 13
 }

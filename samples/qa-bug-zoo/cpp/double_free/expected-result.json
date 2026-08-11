@@ -1,0 +1,1 @@
+{"category":"memory-safety","severity":"Critical","exceptionType":"double-free","mustReproduce":true}

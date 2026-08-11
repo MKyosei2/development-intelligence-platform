@@ -1,37 +1,6 @@
 namespace Dip.Api.Middleware;
-
 public static class RawBodyBufferingExtensions
 {
-    private const string GitHubWebhookPath = "/api/v1/webhooks/github";
-    private const int MemoryBufferThresholdBytes = 64 * 1024;
-    private const long MaximumBufferBytes = 5L * 1024 * 1024;
-
-    public static IApplicationBuilder UseGitHubWebhookBodyBuffering(
-        this IApplicationBuilder app)
-    {
-        ArgumentNullException.ThrowIfNull(app);
-
-        return app.UseWhen(
-            context => context.Request.Path.StartsWithSegments(
-                GitHubWebhookPath,
-                StringComparison.OrdinalIgnoreCase),
-            branch => branch.Use(async (context, next) =>
-            {
-                context.Request.EnableBuffering(
-                    MemoryBufferThresholdBytes,
-                    MaximumBufferBytes);
-
-                try
-                {
-                    await next(context);
-                }
-                finally
-                {
-                    if (context.Request.Body.CanSeek)
-                    {
-                        context.Request.Body.Position = 0;
-                    }
-                }
-            }));
-    }
+ const string PathValue="/api/v1/webhooks/github";const int Threshold=64*1024;const long Max=5L*1024*1024;
+ public static IApplicationBuilder UseGitHubWebhookBodyBuffering(this IApplicationBuilder app){ArgumentNullException.ThrowIfNull(app);return app.UseWhen(c=>c.Request.Path.StartsWithSegments(PathValue,StringComparison.OrdinalIgnoreCase),branch=>branch.Use(async(context,next)=>{context.Request.EnableBuffering(Threshold,Max);try{await next(context);}finally{if(context.Request.Body.CanSeek)context.Request.Body.Position=0;}}));}
 }

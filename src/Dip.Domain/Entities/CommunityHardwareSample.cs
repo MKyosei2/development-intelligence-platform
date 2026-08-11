@@ -1,5 +1,4 @@
 namespace Dip.Domain.Entities;
-
 public sealed class CommunityHardwareSample
 {
     private CommunityHardwareSample() { }

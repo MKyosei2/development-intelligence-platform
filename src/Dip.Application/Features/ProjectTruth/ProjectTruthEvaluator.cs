@@ -45,7 +45,7 @@ public sealed class ProjectTruthEvaluator
         var assessmentMap = claimAssessments.ToDictionary(item => item.ClaimId);
         var confidence = _confidence.Evaluate(evidence, now);
         var progress = _progress.Evaluate(latestClaims, assessmentMap);
-        var blockers = _blockers.Evaluate(latestClaims, assessmentMap, evidence);
+        var blockers = _blockers.Evaluate(latestClaims, assessmentMap, evidence, now);
         var contradictions = claimAssessments.Count(item =>
             item.Status == ClaimVerificationStatus.Contradicted);
         var unverified = claimAssessments.Count(item =>

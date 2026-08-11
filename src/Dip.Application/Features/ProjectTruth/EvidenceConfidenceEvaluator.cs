@@ -1,3 +1,4 @@
+using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -24,13 +25,17 @@ public sealed class EvidenceConfidenceEvaluator
         if (recent.Length == 0)
             return EvidenceConfidence.Unverified;
 
-        var distinctSources = recent
+        var effective = recent
+            .Select(item => new { Item = item, Confidence = EvidenceFreshnessPolicy.EffectiveConfidence(item, now) })
+            .ToArray();
+
+        var distinctSources = effective
             .Where(item => item.Confidence >= EvidenceConfidence.High)
-            .Select(item => item.SourceType)
+            .Select(item => item.Item.SourceType)
             .Distinct()
             .Count();
 
-        var strongest = recent.Max(item => item.Confidence);
+        var strongest = effective.Max(item => item.Confidence);
 
         if (strongest == EvidenceConfidence.Verified && distinctSources >= 3)
             return EvidenceConfidence.Verified;

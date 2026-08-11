@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(dip_bug_zoo_double_free LANGUAGES CXX)
+add_executable(dip_bug_double_free main.cpp)
+enable_testing()
+add_test(NAME double_free COMMAND dip_bug_double_free)

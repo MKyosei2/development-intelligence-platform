@@ -5,7 +5,7 @@ using Dip.Application.Features.Projects;
 using Dip.Application.Features.Quality;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Application.Features.Hardware;
-using Dip.Application.Features.Intelligence;
+using Dip.Application.Features.P2Intelligence;
 using Dip.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,12 +22,11 @@ public static class DependencyInjection
         services.AddScoped<ProjectTruthService>();
         services.AddScoped<QaOrchestrationService>();
         services.AddScoped<HardwareOrchestrationService>();
-        services.AddScoped<P2OrchestrationService>();
-        services.AddScoped<CommunityHardwareService>();
+        services.AddScoped<HardwareCommunityIntelligenceService>();
         services.AddScoped<AdaptiveQaPlanner>();
-        services.AddScoped<RootCauseIntelligenceService>();
-        services.AddScoped<ForecastAndDecisionService>();
-        services.AddScoped<P2AnalysisService>();
+        services.AddScoped<P2TechnicalIntelligenceService>();
+        services.AddScoped<EvidenceGroundedRootCauseService>();
+        services.AddScoped<ProjectDecisionIntelligenceService>();
         services.AddScoped<OutboxWriter>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();

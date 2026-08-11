@@ -64,6 +64,15 @@ public static class DependencyInjection
         services.AddSingleton<IMutationRunner, MutationRunner>();
         services.AddScoped<IOutboxRepository, OutboxRepository>();
         services.AddScoped<IDashboardReadRepository, DashboardReadRepository>();
+        services.AddScoped<IP2IntelligenceRepository, P2IntelligenceRepository>();
+        services.AddScoped<IHardwareCommunityRepository, HardwareCommunityRepository>();
+        services.AddScoped<IDecisionTraceRepository, DecisionTraceRepository>();
+        services.AddScoped<IAdaptiveQaPlanRepository, AdaptiveQaPlanRepository>();
+        services.Configure<Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions>(configuration.GetSection(Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions.SectionName));
+        services.AddSingleton<Dip.Application.Features.P2Intelligence.IP2ExperimentRunner, Dip.Infrastructure.P2Intelligence.P2ExperimentRunner>();
+        services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();
+        services.AddSingleton<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>();
+        services.AddSingleton<Dip.Application.Features.P2Intelligence.IAiRootCauseClient>(sp => sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>());
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());
         services.AddSingleton<ISystemClock, SystemClock>();
 

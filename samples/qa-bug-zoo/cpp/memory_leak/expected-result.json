@@ -1,1 +1,1 @@
-{"category":"memory-leak","severity":"Warning","exceptionType":"MemoryLeak","mustReproduce":false,"note":"LeakSanitizer-backed on platforms where leak detection is available."}
+{"category":"memory-leak","severity":"Warning","exceptionType":"MemoryLeak","mustReproduce":false,"optionalOnWindows":true,"note":"LeakSanitizer-backed on platforms where leak detection is available."}

@@ -13,6 +13,7 @@ public sealed class ProjectTruthService
     private readonly IProjectClaimRepository _claims;
     private readonly IClaimEvidenceLinkRepository _links;
     private readonly IProjectTruthRepository _truth;
+    private readonly IDecisionTraceRepository _decisionTraces;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISystemClock _clock;
     private readonly ProjectTruthEvaluator _evaluator;
@@ -23,6 +24,7 @@ public sealed class ProjectTruthService
         IProjectClaimRepository claims,
         IClaimEvidenceLinkRepository links,
         IProjectTruthRepository truth,
+        IDecisionTraceRepository decisionTraces,
         IUnitOfWork unitOfWork,
         ISystemClock clock,
         ProjectTruthEvaluator evaluator)
@@ -32,6 +34,7 @@ public sealed class ProjectTruthService
         _claims = claims;
         _links = links;
         _truth = truth;
+        _decisionTraces = decisionTraces;
         _unitOfWork = unitOfWork;
         _clock = clock;
         _evaluator = evaluator;
@@ -53,6 +56,7 @@ public sealed class ProjectTruthService
             cancellationToken);
         var claims = await _claims.ListByProjectAsync(projectId, cancellationToken);
 
+        var previousSnapshot = await _truth.GetLatestAsync(projectId, cancellationToken);
         var assessment = _evaluator.Evaluate(claims, evidence, _clock.UtcNow);
         var claimsById = claims.ToDictionary(item => item.Id);
 
@@ -96,6 +100,45 @@ public sealed class ProjectTruthService
             _clock.UtcNow);
 
         await _truth.AddAsync(snapshot, cancellationToken);
+
+        var previousHealth = previousSnapshot?.HealthScore.ToString("0.##") ?? "No previous snapshot";
+        var previousState = previousSnapshot is null
+            ? "Unknown"
+            : $"{previousSnapshot.TruthStatus}/{previousSnapshot.RiskLevel}";
+        var newState = $"{assessment.TruthStatus}/{assessment.RiskLevel}";
+        if (previousSnapshot is null
+            || previousSnapshot.TruthStatus != assessment.TruthStatus
+            || previousSnapshot.RiskLevel != assessment.RiskLevel
+            || Math.Abs(previousSnapshot.HealthScore - assessment.HealthScore) >= 0.01m)
+        {
+            var evidenceIds = evidence
+                .OrderByDescending(item => item.ObservedAtUtc)
+                .Take(20)
+                .Select(item => item.Id)
+                .ToArray();
+            var reason = previousSnapshot is null
+                ? "Initial Project Truth snapshot was established from the available evidence."
+                : $"Project Truth changed from {previousState} / health {previousHealth} to {newState} / health {assessment.HealthScore:0.##}.";
+            await _decisionTraces.AddAsync(new DecisionTrace(
+                Guid.NewGuid(),
+                projectId,
+                "ProjectTruthChanged",
+                "project",
+                $"{previousState}; health={previousHealth}",
+                $"{newState}; health={assessment.HealthScore:0.##}",
+                reason,
+                JsonSerializer.Serialize(evidenceIds),
+                JsonSerializer.Serialize(new
+                {
+                    assessment.Summary,
+                    assessment.TopActions,
+                    blockers = assessment.Blockers,
+                    contradictionCount = assessment.ContradictionCount,
+                    unverifiedClaimCount = assessment.UnverifiedClaimCount
+                }),
+                _clock.UtcNow), cancellationToken);
+        }
+
         project.UpdateHealth(new HealthScore(assessment.HealthScore), _clock.UtcNow);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -1,8 +1,11 @@
 using System;
+using System.Globalization;
+using System.IO;
 using Dip.UnityCollector.Editor.Analysis;
 using Dip.UnityCollector.Editor.Configuration;
 using Dip.UnityCollector.Editor.Models;
 using Dip.UnityCollector.Editor.Reporting;
+using Dip.UnityCollector.Runtime;
 using UnityEditor;
 using UnityEngine;
 
@@ -13,25 +16,28 @@ namespace Dip.UnityCollector.Editor.Cli
         public static void Run()
         {
             var started = DateTimeOffset.UtcNow;
+            var output = GetArg("-dipOutput");
             var report = new CollectorReport
             {
+                collectorVersion = "0.2.0",
                 projectId = GetArg("-dipProjectId"),
                 commitSha = GetArg("-dipCommitSha"),
                 branch = GetArg("-dipBranch"),
                 startedAt = started.ToString("O")
             };
 
+            var exitCode = 0;
             try
             {
                 var settings = UnityCollectorSettings.LoadOrCreate();
-                TextureAnalyzer.Analyze(report, settings.maxTextureSize);
-                MeshAnalyzer.Analyze(report, settings.maxMeshTriangles);
-                MaterialAnalyzer.Analyze(report, settings.maxMaterialsPerRenderer);
-                ReferenceAnalyzer.AnalyzeOpenScenes(report);
-                report.status = "succeeded";
+                AnalyzeProject(report, settings, GetOptionalArg("-dipRuntimeMetrics"));
+                report.status = report.issues.Exists(issue => string.Equals(issue.severity, "Critical", StringComparison.OrdinalIgnoreCase))
+                    ? "warning"
+                    : "succeeded";
             }
             catch (Exception ex)
             {
+                exitCode = 1;
                 report.status = "failed";
                 report.issues.Add(new CollectorIssue
                 {
@@ -42,23 +48,144 @@ namespace Dip.UnityCollector.Editor.Cli
                     source = "UnityCollectorCli"
                 });
                 Debug.LogException(ex);
-                EditorApplication.Exit(1);
             }
             finally
             {
                 report.finishedAt = DateTimeOffset.UtcNow.ToString("O");
-                UnityCollectorReportWriter.Write(GetArg("-dipOutput"), report);
+                UnityCollectorReportWriter.Write(output, report);
+            }
+
+            if (exitCode != 0)
+                EditorApplication.Exit(exitCode);
+        }
+
+        public static void AnalyzeProject(CollectorReport report, UnityCollectorSettings settings, string runtimeMetricsPath = null)
+        {
+            if (report == null) throw new ArgumentNullException(nameof(report));
+            if (settings == null) throw new ArgumentNullException(nameof(settings));
+
+            TextureAnalyzer.Analyze(report, settings.maxTextureSize);
+            MeshAnalyzer.Analyze(report, settings.maxMeshTriangles);
+            MaterialAnalyzer.Analyze(report, settings.maxMaterialsPerRenderer);
+            BuildSettingsAnalyzer.Analyze(report);
+            AnimationAnalyzer.Analyze(report, settings.maxAnimationCurvesPerClip);
+            SceneAnalyzer.Analyze(report, settings.maxSceneGameObjects, settings.analyzeAllEnabledBuildScenes);
+            IngestRuntimePerformance(report, settings, runtimeMetricsPath);
+        }
+
+        private static void IngestRuntimePerformance(CollectorReport report, UnityCollectorSettings settings, string explicitPath)
+        {
+            var path = string.IsNullOrWhiteSpace(explicitPath) ? settings.runtimePerformanceReportPath : explicitPath;
+            if (string.IsNullOrWhiteSpace(path)) return;
+            var fullPath = Path.IsPathRooted(path) ? path : Path.GetFullPath(path);
+
+            if (!File.Exists(fullPath))
+            {
+                if (!string.IsNullOrWhiteSpace(explicitPath))
+                {
+                    report.issues.Add(new CollectorIssue
+                    {
+                        category = "performance",
+                        severity = "Warning",
+                        title = "Requested runtime performance evidence is missing",
+                        description = $"The runtime probe report was not found: {fullPath}",
+                        source = fullPath
+                    });
+                }
+                return;
+            }
+
+            PerformanceProbe.Snapshot snapshot;
+            try
+            {
+                snapshot = JsonUtility.FromJson<PerformanceProbe.Snapshot>(File.ReadAllText(fullPath));
+            }
+            catch (Exception ex)
+            {
+                report.issues.Add(new CollectorIssue
+                {
+                    category = "performance",
+                    severity = "Warning",
+                    title = "Runtime performance evidence could not be parsed",
+                    description = ex.Message,
+                    source = fullPath
+                });
+                return;
+            }
+
+            if (snapshot == null || snapshot.sampleCount <= 0)
+            {
+                report.issues.Add(new CollectorIssue
+                {
+                    category = "performance",
+                    severity = "Warning",
+                    title = "Runtime performance evidence has no samples",
+                    description = "PerformanceProbe produced no post-warmup frame samples.",
+                    source = fullPath
+                });
+                return;
+            }
+
+            AddMetric(report, "runtime_frame_samples", snapshot.sampleCount, "count");
+            AddMetric(report, "frame_time_avg_ms", snapshot.averageFrameMs, "ms");
+            AddMetric(report, "frame_time_p50_ms", snapshot.p50FrameMs, "ms");
+            AddMetric(report, "frame_time_p95_ms", snapshot.p95FrameMs, "ms");
+            AddMetric(report, "frame_time_p99_ms", snapshot.p99FrameMs, "ms");
+            AddMetric(report, "frame_time_max_ms", snapshot.maxFrameMs, "ms");
+            AddMetric(report, "mono_used_max_mb", snapshot.maxMonoUsedMb, "MB");
+            AddMetric(report, "total_allocated_max_mb", snapshot.maxTotalAllocatedMb, "MB");
+            AddMetric(report, "gc_gen0_collections", snapshot.gcCollectionDelta0, "count");
+            AddMetric(report, "gc_gen1_collections", snapshot.gcCollectionDelta1, "count");
+            AddMetric(report, "gc_gen2_collections", snapshot.gcCollectionDelta2, "count");
+
+            if (snapshot.p95FrameMs >= settings.criticalFrameTimeP95Ms)
+            {
+                AddPerformanceIssue(report, "Critical", "Critical p95 frame-time regression risk",
+                    $"p95 frame time is {snapshot.p95FrameMs.ToString("0.###", CultureInfo.InvariantCulture)} ms; configured critical threshold is {settings.criticalFrameTimeP95Ms:0.###} ms.", fullPath);
+            }
+            else if (snapshot.p95FrameMs >= settings.warningFrameTimeP95Ms)
+            {
+                AddPerformanceIssue(report, "Warning", "p95 frame time exceeds target",
+                    $"p95 frame time is {snapshot.p95FrameMs.ToString("0.###", CultureInfo.InvariantCulture)} ms; configured warning threshold is {settings.warningFrameTimeP95Ms:0.###} ms.", fullPath);
+            }
+
+            if (snapshot.maxMonoUsedMb >= settings.warningMonoMemoryMb)
+            {
+                AddPerformanceIssue(report, "Warning", "Managed memory exceeds configured envelope",
+                    $"Maximum Mono used memory is {snapshot.maxMonoUsedMb:0.##} MB; configured threshold is {settings.warningMonoMemoryMb:0.##} MB.", fullPath);
             }
         }
 
+        private static void AddMetric(CollectorReport report, string name, double value, string unit) => report.metrics.Add(new CollectorMetric
+        {
+            name = name,
+            value = value,
+            unit = unit
+        });
+
+        private static void AddPerformanceIssue(CollectorReport report, string severity, string title, string description, string source) => report.issues.Add(new CollectorIssue
+        {
+            category = "performance",
+            severity = severity,
+            title = title,
+            description = description,
+            source = source
+        });
+
         private static string GetArg(string name)
+        {
+            var value = GetOptionalArg(name);
+            if (!string.IsNullOrWhiteSpace(value)) return value;
+            throw new ArgumentException($"Missing required argument: {name}");
+        }
+
+        private static string GetOptionalArg(string name)
         {
             var args = Environment.GetCommandLineArgs();
             for (var i = 0; i < args.Length - 1; i++)
                 if (args[i] == name)
                     return args[i + 1];
-
-            throw new ArgumentException($"Missing required argument: {name}");
+            return null;
         }
     }
 }

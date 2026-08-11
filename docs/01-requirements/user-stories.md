@@ -21,3 +21,16 @@
 ## 設計原則
 
 DIPは人物の信用度や「嘘をついた確率」を算出しない。評価対象は常にClaim（報告内容）とEvidence（観測事実）の一致度である。
+
+## P2 / Decision Intelligence
+
+- PMとして、昨日から何が変わり、Healthがなぜ変化したかをEvidence付きで知りたい
+- PMとして、リリース遅延リスクと完成見込みを断定ではなくConfidence付きの範囲として確認したい
+- PMとして、報告が継続していても客観Evidenceが更新されていない作業を「人物評価」ではなくStagnationとして把握したい
+- PMとして、依存作業が未確認のとき downstream 作業のRiskを知りたい
+- Tech Leadとして、回帰が最初に発生したrevisionを隔離環境で探索したい
+- Engineerとして、flaky/runtime reliability/soak/fuzz/mutation/media regressionを必要な変更だけに絞って実行したい
+- TAとして、Visual/Video/Audioの差分をEvidence Artifactとして確認したい
+- 個人利用者として、所有していない全CPU/GPUを用意せず、opt-in Community HardwareとCalibrationからTarget capabilityを評価したい
+- PMとして、AIの推測ではなくEvidence IDで根拠付けされた原因候補と次の確認行動だけを受け取りたい
+

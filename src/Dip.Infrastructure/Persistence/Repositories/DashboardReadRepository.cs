@@ -163,6 +163,24 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
             .Take(5)
             .ToListAsync(cancellationToken);
 
+        var recentP2 = await _db.P2IntelligenceRecords
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(12)
+            .Select(x => new DashboardP2Signal(
+                x.Id, x.Kind.ToString(), x.Status.ToString(), x.Score, x.Confidence.ToString(), x.Summary, x.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+
+        var decisionTraces = await _db.DecisionTraces
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(10)
+            .Select(x => new DashboardDecisionTrace(
+                x.Id, x.DecisionType, x.SubjectKey, x.PreviousValue, x.NewValue, x.Reason, x.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+
         var details = new ProjectDashboardDetails(
             project.Id,
             project.Name,
@@ -197,7 +215,9 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
         return details with
         {
             RecentQaRuns = recentQa,
-            RecentHardwareSimulations = recentHardware
+            RecentHardwareSimulations = recentHardware,
+            RecentDecisionIntelligence = recentP2,
+            DecisionTraces = decisionTraces
         };
     }
 

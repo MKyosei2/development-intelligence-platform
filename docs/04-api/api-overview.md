@@ -60,3 +60,38 @@ POST /api/v1/hardware/estimate-minimum
 ```
 
 QA and simulation write technical results as `EvidenceRecord` entries. The Project Truth evaluator remains the final project-level decision layer. Runtime and simulation executable paths are restricted to the configured QA workspace.
+
+## P2 Decision Intelligence
+
+```text
+POST /api/v1/p2/community-hardware
+GET  /api/v1/p2/community-hardware/confidence
+POST /api/v1/p2/community-hardware/profile
+POST /api/v1/p2/portability
+POST /api/v1/p2/adaptive-qa-plan
+POST /api/v1/p2/reliability/flaky-test
+POST /api/v1/p2/reliability/runtime
+POST /api/v1/p2/reliability/soak
+POST /api/v1/p2/regression/bisect
+POST /api/v1/p2/regression/origin
+POST /api/v1/p2/mutation
+POST /api/v1/p2/fuzz
+POST /api/v1/p2/media/regression
+POST /api/v1/p2/root-cause
+GET  /api/v1/p2/projects/{projectId}/similar-incidents
+GET  /api/v1/p2/projects/{projectId}/freshness
+GET  /api/v1/p2/projects/{projectId}/conflicts
+GET  /api/v1/p2/projects/{projectId}/schedule-risk
+GET  /api/v1/p2/projects/{projectId}/completion-forecast
+GET  /api/v1/p2/projects/{projectId}/stagnation
+POST /api/v1/p2/dependency-risk
+GET  /api/v1/p2/projects/{projectId}/daily-change
+GET  /api/v1/p2/projects/{projectId}/health-change
+GET  /api/v1/p2/projects/{projectId}/historical-risk
+POST /api/v1/p2/decision-brief
+GET  /api/v1/p2/projects/{projectId}/decision-traces
+GET  /api/v1/p2/projects/{projectId}/intelligence
+```
+
+Execution endpoints accept only workspace-relative targets inside `Qa:WorkspaceRoot`. Community Hardware upload requires explicit consent. Prediction/AI endpoints produce decision-support context and cannot by themselves create a measured product failure.
+

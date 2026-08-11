@@ -5,5 +5,7 @@ public enum HardwareProfileSource
     LocalCalibration,
     BuiltInProfile,
     ImportedCalibration,
-    SimulationTarget
+    SimulationTarget,
+    RealDevice,
+    CommunityAggregate
 }

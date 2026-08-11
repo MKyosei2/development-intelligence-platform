@@ -24,7 +24,7 @@ else if (_dashboard is not null)
             <h1 class="mb-1">@_dashboard.Name</h1>
             <p class="text-muted mb-0">@_dashboard.Repository</p>
         </div>
-        <div class="d-flex gap-2"><a class="btn btn-primary" href="@($"/dashboard/{ProjectId}/intelligence")">P2 Intelligence</a><a class="btn btn-outline-secondary" href="/">Back</a></div>
+        <a class="btn btn-outline-secondary" href="/">Back</a>
     </div>
 
     <div class="alert @TruthAlert(_dashboard.TruthStatus) d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -157,6 +157,72 @@ else if (_dashboard is not null)
                                 </tbody>
                             </table>
                         </div>
+                    }
+                </div>
+            </section>
+
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-uppercase text-muted fw-semibold">P2</div>
+                        <h2 class="h4 mb-0">Decision Intelligence</h2>
+                    </div>
+                    <span class="badge text-bg-secondary">@_dashboard.RecentDecisionIntelligence.Count signal(s)</span>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        These are evidence-backed decision-support signals: schedule risk, completion range, stagnation,
+                        regressions, reliability and hardware intelligence. Predictions remain estimates and never override measured Project Truth.
+                    </p>
+                    @if (_dashboard.RecentDecisionIntelligence.Count == 0)
+                    {
+                        <p class="mb-0 text-muted">No P2 decision-intelligence result has been generated yet.</p>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var signal in _dashboard.RecentDecisionIntelligence.Take(8))
+                            {
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between gap-3">
+                                        <div>
+                                            <div class="small text-muted">@signal.Kind · @signal.Confidence</div>
+                                            <strong>@signal.Summary</strong>
+                                        </div>
+                                        <div class="text-end text-nowrap">
+                                            <span class="badge @P2Badge(signal.Status)">@signal.Status</span>
+                                            @if (signal.Score is { } score)
+                                            {
+                                                <div class="small text-muted">@score.ToString("0.#") / 100</div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h2 class="h4 mb-0">Why did Project Truth change?</h2>
+                </div>
+                <div class="card-body">
+                    @if (_dashboard.DecisionTraces.Count == 0)
+                    {
+                        <p class="mb-0 text-muted">No Project Truth transition has been recorded yet.</p>
+                    }
+                    else
+                    {
+                        @foreach (var trace in _dashboard.DecisionTraces.Take(5))
+                        {
+                            <div class="border-bottom pb-2 mb-2">
+                                <div class="small text-muted">@FormatDate(trace.CreatedAtUtc) · @trace.DecisionType</div>
+                                <div><strong>@trace.PreviousValue</strong> → <strong>@trace.NewValue</strong></div>
+                                <div class="small">@trace.Reason</div>
+                            </div>
+                        }
                     }
                 </div>
             </section>
@@ -496,6 +562,15 @@ else if (_dashboard is not null)
         "High" => "text-bg-danger",
         "Critical" => "text-bg-danger",
         _ => "text-bg-secondary"
+    };
+
+    private static string P2Badge(string status) => status switch
+    {
+        "Failed" => "text-bg-danger",
+        "Warning" => "text-bg-warning",
+        "Passed" => "text-bg-success",
+        "InfrastructureFailure" => "text-bg-secondary",
+        _ => "text-bg-info"
     };
 
     private static string VerificationBadge(string status) => status switch

@@ -80,4 +80,27 @@ public interface IPerformanceSimulationRepository
     Task<PerformanceSimulationRun?> GetAsync(Guid id,CancellationToken ct);
     Task<IReadOnlyList<PerformanceSimulationRun>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
 }
+
+public interface IP2IntelligenceRepository
+{
+    Task AddAsync(P2IntelligenceRecord record,CancellationToken ct);
+    Task<IReadOnlyList<P2IntelligenceRecord>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
+    Task<IReadOnlyList<P2IntelligenceRecord>> ListByKindAsync(Guid projectId,Dip.Domain.Enums.P2IntelligenceKind kind,int take,CancellationToken ct);
+}
+public interface IHardwareCommunityRepository
+{
+    Task AddAsync(HardwareCommunitySample sample,CancellationToken ct);
+    Task<IReadOnlyList<HardwareCommunitySample>> ListAsync(string profileKey,string platform,int take,CancellationToken ct);
+}
+public interface IDecisionTraceRepository
+{
+    Task AddAsync(DecisionTrace trace,CancellationToken ct);
+    Task<IReadOnlyList<DecisionTrace>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
+}
+public interface IAdaptiveQaPlanRepository
+{
+    Task AddAsync(AdaptiveQaPlanSnapshot plan,CancellationToken ct);
+    Task<AdaptiveQaPlanSnapshot?> GetLatestAsync(Guid projectId,CancellationToken ct);
+}
+
 public interface IUnitOfWork{Task<int> SaveChangesAsync(CancellationToken ct);}

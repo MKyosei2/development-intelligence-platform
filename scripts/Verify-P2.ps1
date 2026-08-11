@@ -33,16 +33,21 @@ try {
 
     $required = @(
         'src/Dip.Application/Features/Intelligence/P2OrchestrationService.cs',
-        'src/Dip.Application/Features/Intelligence/AdaptiveQaPlanner.cs',
-        'src/Dip.Application/Features/Intelligence/RootCauseIntelligenceService.cs',
         'src/Dip.Application/Features/Intelligence/ForecastAndDecisionService.cs',
+        'src/Dip.Application/Features/P2Intelligence/AdaptiveQaPlanner.cs',
+        'src/Dip.Application/Features/P2Intelligence/EvidenceGroundedRootCauseService.cs',
+        'src/Dip.Application/Features/P2Intelligence/P2TechnicalIntelligenceService.cs',
+        'src/Dip.Application/Features/P2Intelligence/ProjectDecisionIntelligenceService.cs',
         'src/Dip.Infrastructure/Intelligence/IntelligenceExecutionSafety.cs',
         'src/Dip.Infrastructure/Intelligence/MinimumHardwareRunner.cs',
         'src/Dip.Infrastructure/Intelligence/RegressionRunner.cs',
         'src/Dip.Infrastructure/Intelligence/ReliabilityRunner.cs',
         'src/Dip.Infrastructure/Intelligence/MutationRunner.cs',
-        'src/Dip.Api/Controllers/IntelligenceController.cs',
-        'tests/Dip.EndToEndTests/Scenarios/P2IntelligenceScenario.cs'
+        'src/Dip.Infrastructure/P2Intelligence/P2ExperimentRunner.cs',
+        'src/Dip.Infrastructure/P2Intelligence/MediaRegressionRunner.cs',
+        'src/Dip.Api/Controllers/P2IntelligenceController.cs',
+        'tests/Dip.EndToEndTests/Scenarios/P2IntelligenceScenario.cs',
+        'tests/Dip.EndToEndTests/Scenarios/P2DecisionIntelligenceScenario.cs'
     )
 
     foreach ($file in $required) {

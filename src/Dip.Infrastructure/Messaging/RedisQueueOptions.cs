@@ -1,9 +1,7 @@
 namespace Dip.Infrastructure.Messaging;
-
 public sealed class RedisQueueOptions
 {
     public const string SectionName = "RedisQueue";
-
     public string StreamName { get; set; } = "dip:events";
     public string DeadLetterStreamName { get; set; } = "dip:events:dead-letter";
     public string ConsumerGroup { get; set; } = "dip-workers";

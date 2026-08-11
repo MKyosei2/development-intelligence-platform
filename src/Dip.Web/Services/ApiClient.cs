@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
-using Dip.Application.Features.Intelligence;
 
 namespace Dip.Web.Services;
 
@@ -80,11 +79,5 @@ public sealed class ApiClient
         var encoded=string.Join('/',relativePath.Split('/',StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
         return new Uri(_httpClient.BaseAddress??throw new InvalidOperationException("API BaseAddress is missing."),$"api/v1/qa/runs/{runId}/artifacts/{encoded}").ToString();
     }
-
-    public async Task<ForecastResult?> GetForecastAsync(Guid projectId,CancellationToken cancellationToken=default)
-        =>await _httpClient.GetFromJsonAsync<ForecastResult>($"api/v1/intelligence/projects/{projectId}/forecast",cancellationToken);
-
-    public async Task<PmDecisionBrief?> GetDecisionBriefAsync(Guid projectId,CancellationToken cancellationToken=default)
-        =>await _httpClient.GetFromJsonAsync<PmDecisionBrief>($"api/v1/intelligence/projects/{projectId}/brief",cancellationToken);
 
 }

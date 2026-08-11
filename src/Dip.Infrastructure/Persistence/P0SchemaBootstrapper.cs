@@ -5,7 +5,7 @@ namespace Dip.Infrastructure.Persistence;
 /// <summary>
 /// The repository historically used EnsureCreated and has no EF migration
 /// baseline. EnsureCreated cannot add tables to an already-created database.
-/// This idempotent bootstrap therefore adds the Project Truth P0 and Technical Evidence P1 tables
+/// This idempotent bootstrap therefore adds the Project Truth P0, Technical Evidence P1, and Decision Intelligence P2 tables
 /// when the installation is still in the no-migrations mode.
 /// </summary>
 public static class P0SchemaBootstrapper
@@ -161,33 +161,72 @@ public static class P0SchemaBootstrapper
             "CREATE INDEX IF NOT EXISTS ix_hardware_calibrations_project_time ON hardware_calibrations (project_id, measured_at_utc);",
             "CREATE INDEX IF NOT EXISTS ix_performance_simulation_project_time ON performance_simulation_runs (project_id, created_at_utc);",
             """
-            CREATE TABLE IF NOT EXISTS community_hardware_samples (
-                id uuid PRIMARY KEY, hardware_key varchar(160) NOT NULL, platform varchar(80) NOT NULL, cpu_arch varchar(80) NOT NULL,
-                gpu_vendor varchar(80) NOT NULL, os_family varchar(80) NOT NULL, driver_family varchar(160) NULL,
-                cpu_single_score numeric(12,3) NOT NULL, cpu_multi_score numeric(12,3) NOT NULL, gpu_score numeric(12,3) NOT NULL,
-                memory_score numeric(12,3) NOT NULL, storage_score numeric(12,3) NOT NULL, thermal_score numeric(12,3) NOT NULL,
-                memory_mb bigint NOT NULL, source_fingerprint varchar(64) NOT NULL, measured_at_utc timestamptz NOT NULL
-            );
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS intelligence_runs (
-                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
-                type varchar(40) NOT NULL, subject_key varchar(200) NOT NULL, artifact_root varchar(1000) NOT NULL,
-                input_json varchar(32000) NOT NULL, result_json varchar(32000) NULL, status varchar(40) NOT NULL,
-                created_at_utc timestamptz NOT NULL, started_at_utc timestamptz NULL, finished_at_utc timestamptz NULL
-            );
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS project_forecasts (
-                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
-                forecast_type varchar(80) NOT NULL, risk_percent numeric(5,2) NOT NULL, earliest_utc timestamptz NULL,
-                latest_utc timestamptz NULL, confidence varchar(40) NOT NULL, rationale_json varchar(32000) NOT NULL,
+            CREATE TABLE IF NOT EXISTS p2_intelligence_records (
+                id uuid PRIMARY KEY,
+                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                subject_key varchar(200) NOT NULL,
+                kind varchar(80) NOT NULL,
+                status varchar(40) NOT NULL,
+                score numeric(5,2) NULL,
+                confidence varchar(40) NOT NULL,
+                summary varchar(4000) NOT NULL,
+                payload_json varchar(32000) NOT NULL,
+                source_reference varchar(1000) NULL,
                 created_at_utc timestamptz NOT NULL
             );
             """,
-            "CREATE INDEX IF NOT EXISTS ix_community_hardware_key_time ON community_hardware_samples (hardware_key, measured_at_utc);",
-            "CREATE INDEX IF NOT EXISTS ix_intelligence_project_time ON intelligence_runs (project_id, created_at_utc);",
-            "CREATE INDEX IF NOT EXISTS ix_forecast_project_time ON project_forecasts (project_id, created_at_utc);"
+            """
+            CREATE TABLE IF NOT EXISTS hardware_community_samples (
+                id uuid PRIMARY KEY,
+                profile_key varchar(160) NOT NULL,
+                platform varchar(80) NOT NULL,
+                hardware_key_hash varchar(64) NOT NULL,
+                os_family varchar(120) NOT NULL,
+                driver_family varchar(160) NOT NULL,
+                cpu_single_score numeric(12,3) NOT NULL,
+                cpu_multi_score numeric(12,3) NOT NULL,
+                gpu_score numeric(12,3) NOT NULL,
+                memory_score numeric(12,3) NOT NULL,
+                storage_score numeric(12,3) NOT NULL,
+                thermal_retention_percent numeric(5,2) NOT NULL,
+                available_memory_mb bigint NOT NULL,
+                real_device boolean NOT NULL,
+                consent_granted boolean NOT NULL,
+                measured_at_utc timestamptz NOT NULL,
+                received_at_utc timestamptz NOT NULL
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS decision_traces (
+                id uuid PRIMARY KEY,
+                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                decision_type varchar(120) NOT NULL,
+                subject_key varchar(200) NOT NULL,
+                previous_value varchar(500) NOT NULL,
+                new_value varchar(500) NOT NULL,
+                reason varchar(4000) NOT NULL,
+                evidence_ids_json varchar(16000) NOT NULL,
+                detail_json varchar(32000) NOT NULL,
+                created_at_utc timestamptz NOT NULL
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS adaptive_qa_plan_snapshots (
+                id uuid PRIMARY KEY,
+                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                change_set_hash varchar(64) NOT NULL,
+                risk_score numeric(5,2) NOT NULL,
+                estimated_minutes numeric(8,2) NOT NULL,
+                plan_json varchar(32000) NOT NULL,
+                created_at_utc timestamptz NOT NULL
+            );
+            """,
+            "CREATE INDEX IF NOT EXISTS ix_p2_intelligence_project_kind_time ON p2_intelligence_records (project_id, kind, created_at_utc);",
+            "CREATE INDEX IF NOT EXISTS ix_p2_intelligence_project_subject_time ON p2_intelligence_records (project_id, subject_key, created_at_utc);",
+            "CREATE INDEX IF NOT EXISTS ix_hardware_community_profile_time ON hardware_community_samples (profile_key, platform, received_at_utc);",
+            "CREATE INDEX IF NOT EXISTS ix_hardware_community_hash_time ON hardware_community_samples (hardware_key_hash, measured_at_utc);",
+            "CREATE INDEX IF NOT EXISTS ix_decision_traces_project_time ON decision_traces (project_id, created_at_utc);",
+            "CREATE INDEX IF NOT EXISTS ix_adaptive_qa_plan_project_time ON adaptive_qa_plan_snapshots (project_id, created_at_utc);"
         };
 
         foreach (var statement in statements)

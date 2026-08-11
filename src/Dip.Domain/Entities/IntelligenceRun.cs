@@ -1,6 +1,5 @@
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
-
 public sealed class IntelligenceRun
 {
     private IntelligenceRun() { }

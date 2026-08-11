@@ -1,3 +1,4 @@
+using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -35,28 +36,35 @@ public sealed class ClaimVerificationEvaluator
             .Take(50)
             .ToArray();
 
+        var resolved = EvidenceConflictPolicy.Resolve(relevant, now);
+        var authoritative = resolved.Select(item => item.Authoritative).ToArray();
+
         var links = relevant.Select(item =>
         {
-            var relation = item.Outcome switch
-            {
-                EvidenceOutcome.Failed => EvidenceRelation.Contradicts,
-                EvidenceOutcome.Succeeded => EvidenceRelation.Supports,
-                _ => EvidenceRelation.Neutral
-            };
+            var isAuthoritative = authoritative.Any(x => x.Id == item.Id);
+            var relation = !isAuthoritative
+                ? EvidenceRelation.Neutral
+                : item.Outcome switch
+                {
+                    EvidenceOutcome.Failed => EvidenceRelation.Contradicts,
+                    EvidenceOutcome.Succeeded => EvidenceRelation.Supports,
+                    _ => EvidenceRelation.Neutral
+                };
 
+            var freshness = EvidenceFreshnessPolicy.Freshness(item, now);
             var reason = relation switch
             {
-                EvidenceRelation.Supports => $"{item.EvidenceKind} succeeded.",
-                EvidenceRelation.Contradicts => $"{item.EvidenceKind} failed.",
-                _ => $"{item.EvidenceKind} is contextual evidence."
+                EvidenceRelation.Supports => $"{item.EvidenceKind} succeeded ({freshness}).",
+                EvidenceRelation.Contradicts => $"{item.EvidenceKind} failed ({freshness}).",
+                _ => $"{item.EvidenceKind} is contextual, superseded, or stale evidence ({freshness})."
             };
 
             return new ClaimEvidenceAssessment(item.Id, relation, reason);
         }).ToArray();
 
-        var strongFailures = relevant
+        var strongFailures = authoritative
             .Where(item => item.Outcome == EvidenceOutcome.Failed)
-            .Where(item => item.Confidence >= EvidenceConfidence.High)
+            .Where(item => EvidenceFreshnessPolicy.IsFreshEnoughForVerification(item, now))
             .ToArray();
 
         if (strongFailures.Length > 0)
@@ -68,16 +76,17 @@ public sealed class ClaimVerificationEvaluator
                 links);
         }
 
-        var strongSupports = relevant
+        var strongSupports = authoritative
             .Where(item => item.Outcome == EvidenceOutcome.Succeeded)
-            .Where(item => item.Confidence >= EvidenceConfidence.High)
+            .Where(item => EvidenceFreshnessPolicy.IsFreshEnoughForVerification(item, now))
             .GroupBy(item => item.EvidenceKind, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
 
-        var warningCount = relevant.Count(item =>
+        var warningCount = authoritative.Count(item =>
             item.Outcome == EvidenceOutcome.Warning
-            && item.Confidence >= EvidenceConfidence.High);
+            && EvidenceFreshnessPolicy.EffectiveConfidence(item, now) >= EvidenceConfidence.High
+            && EvidenceFreshnessPolicy.Freshness(item, now) != "Stale");
 
         var completionClaim = CompletionTokens.Any(token =>
             claim.ClaimedStatus.Contains(token, StringComparison.OrdinalIgnoreCase));

@@ -67,6 +67,13 @@ public sealed record DashboardQaRun(
 public sealed record DashboardHardwareSimulation(
     Guid Id, string ProfileName, string Platform, string Status, decimal ConfidencePercent, DateTimeOffset CreatedAtUtc);
 
+
+public sealed record DashboardP2Signal(
+    Guid Id,string Kind,string Status,decimal? Score,string Confidence,string Summary,DateTimeOffset CreatedAtUtc);
+
+public sealed record DashboardDecisionTrace(
+    Guid Id,string DecisionType,string SubjectKey,string PreviousValue,string NewValue,string Reason,DateTimeOffset CreatedAtUtc);
+
 public sealed record ProjectDashboardDetails(
     Guid ProjectId,
     string Name,
@@ -100,6 +107,8 @@ public sealed record ProjectDashboardDetails(
 {
     public IReadOnlyList<DashboardQaRun> RecentQaRuns { get; init; } = Array.Empty<DashboardQaRun>();
     public IReadOnlyList<DashboardHardwareSimulation> RecentHardwareSimulations { get; init; } = Array.Empty<DashboardHardwareSimulation>();
+    public IReadOnlyList<DashboardP2Signal> RecentDecisionIntelligence { get; init; } = Array.Empty<DashboardP2Signal>();
+    public IReadOnlyList<DashboardDecisionTrace> DecisionTraces { get; init; } = Array.Empty<DashboardDecisionTrace>();
 }
 
 

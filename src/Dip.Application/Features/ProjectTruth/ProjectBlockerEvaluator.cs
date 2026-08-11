@@ -1,3 +1,4 @@
+using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -13,7 +14,8 @@ public sealed class ProjectBlockerEvaluator
     public IReadOnlyList<ProjectBlocker> Evaluate(
         IReadOnlyCollection<ProjectClaim> claims,
         IReadOnlyDictionary<Guid, ClaimVerificationAssessment> assessments,
-        IReadOnlyCollection<EvidenceRecord> evidence)
+        IReadOnlyCollection<EvidenceRecord> evidence,
+        DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(claims);
         ArgumentNullException.ThrowIfNull(assessments);
@@ -21,18 +23,16 @@ public sealed class ProjectBlockerEvaluator
 
         var blockers = new List<ProjectBlocker>();
 
-        // Only the latest observation for a subject/kind pair is authoritative.
-        var latestEvidence = evidence
-            .GroupBy(
-                item => $"{item.SubjectKey}\u001f{item.EvidenceKind}",
-                StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.OrderByDescending(item => item.ObservedAtUtc).First())
+        // Resolve conflicting observations using P2 evidence authority and freshness.
+        var latestEvidence = EvidenceConflictPolicy.Resolve(evidence, now)
+            .Select(group => group.Authoritative)
             .ToArray();
 
         foreach (var item in latestEvidence)
         {
             if (item.Outcome != EvidenceOutcome.Failed
-                || item.Confidence < EvidenceConfidence.High)
+                || EvidenceFreshnessPolicy.EffectiveConfidence(item, now) < EvidenceConfidence.High
+                || EvidenceFreshnessPolicy.Freshness(item, now) == "Stale")
             {
                 continue;
             }

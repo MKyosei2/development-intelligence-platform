@@ -1,9 +1,12 @@
 {
   "name": "com.mkyosei.dip.collector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "DIP Unity Collector",
-  "description": "Collects Unity project quality metrics for Development Intelligence Platform.",
+  "description": "Evidence-first Unity project, scene, animation, reference and runtime performance QA collector for Development Intelligence Platform.",
   "unity": "2022.3",
+  "dependencies": {
+    "com.unity.test-framework": "1.1.33"
+  },
   "author": {
     "name": "MKyosei2"
   }
