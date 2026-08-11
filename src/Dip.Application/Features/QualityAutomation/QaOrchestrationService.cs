@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.ProjectTruth;
+using Dip.Application.Features.Incidents;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -23,6 +24,7 @@ public sealed class QaOrchestrationService
     private readonly IQaWorkspaceResolver _workspace;
     private readonly ProjectTruthService _truth;
     private readonly PmEvidenceTranslator _pm;
+    private readonly IncidentAggregationService _incidents;
 
     public QaOrchestrationService(
         IProjectRepository projects,
@@ -38,10 +40,11 @@ public sealed class QaOrchestrationService
         IReproductionCoordinator reproduction,
         IQaWorkspaceResolver workspace,
         ProjectTruthService truth,
-        PmEvidenceTranslator pm)
+        PmEvidenceTranslator pm,
+        IncidentAggregationService incidents)
     {
         _projects=projects;_runs=runs;_findings=findings;_attempts=attempts;_evidence=evidence;_unitOfWork=unitOfWork;_clock=clock;
-        _python=python;_csharp=csharp;_cpp=cpp;_reproduction=reproduction;_workspace=workspace;_truth=truth;_pm=pm;
+        _python=python;_csharp=csharp;_cpp=cpp;_reproduction=reproduction;_workspace=workspace;_truth=truth;_pm=pm;_incidents=incidents;
     }
 
     public async Task<QaRunResultDto> RunAsync(QaExecutionCommand command,CancellationToken cancellationToken)
@@ -82,6 +85,8 @@ public sealed class QaOrchestrationService
             candidate.Title,candidate.Message,QaFingerprint.Create(command.Language,candidate),candidate.FilePath,candidate.Line,candidate.Column,candidate.Function,
             candidate.ExceptionType,candidate.StackTrace,candidate.RuleId,_clock.UtcNow)).ToList();
         await _findings.AddRangeAsync(findingEntities,cancellationToken);await _unitOfWork.SaveChangesAsync(cancellationToken);
+        foreach(var finding in findingEntities.Where(x=>x.Severity is Severity.Critical or Severity.Warning))
+            await _incidents.ObserveQaFindingAsync(finding,command.CommitSha,cancellationToken);
 
         if(command.AutomaticallyReproduce&&!string.IsNullOrWhiteSpace(command.RuntimeExecutable))
         {
@@ -99,6 +104,8 @@ public sealed class QaOrchestrationService
                 }
                 finding.ApplyReproduction(reproduced.Status,reproduced.ReproducedAttempts,reproduced.TotalAttempts);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                if(reproduced.Status==ReproductionStatus.Reproduced)
+                    await _incidents.AttachReproductionAsync(command.ProjectId,finding.Fingerprint,$"Automatically reproduced {reproduced.ReproducedAttempts}/{reproduced.TotalAttempts} attempt(s).",cancellationToken);
             }
         }
 

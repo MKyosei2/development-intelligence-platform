@@ -29,6 +29,16 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<HardwareCommunitySample> HardwareCommunitySamples => Set<HardwareCommunitySample>();
     public DbSet<DecisionTrace> DecisionTraces => Set<DecisionTrace>();
     public DbSet<AdaptiveQaPlanSnapshot> AdaptiveQaPlanSnapshots => Set<AdaptiveQaPlanSnapshot>();
+    public DbSet<ArtifactBlob> ArtifactBlobs => Set<ArtifactBlob>();
+    public DbSet<ArtifactRecord> ArtifactRecords => Set<ArtifactRecord>();
+    public DbSet<DurableJob> DurableJobs => Set<DurableJob>();
+    public DbSet<Incident> Incidents => Set<Incident>();
+    public DbSet<IncidentOccurrence> IncidentOccurrences => Set<IncidentOccurrence>();
+    public DbSet<IncidentEvent> IncidentEvents => Set<IncidentEvent>();
+    public DbSet<BenchmarkDefinition> BenchmarkDefinitions => Set<BenchmarkDefinition>();
+    public DbSet<BenchmarkRun> BenchmarkRuns => Set<BenchmarkRun>();
+    public DbSet<BenchmarkMetric> BenchmarkMetrics => Set<BenchmarkMetric>();
+    public DbSet<BenchmarkComparison> BenchmarkComparisons => Set<BenchmarkComparison>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

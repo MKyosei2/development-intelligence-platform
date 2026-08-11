@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.ProjectTruth;
+using Dip.Application.Features.Incidents;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -19,6 +20,7 @@ public sealed class P2TechnicalIntelligenceService
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
     private readonly ProjectTruthService _truth;
+    private readonly IncidentAggregationService _incidents;
 
     public P2TechnicalIntelligenceService(
         IP2ExperimentRunner experiments,
@@ -30,10 +32,11 @@ public sealed class P2TechnicalIntelligenceService
         IEvidenceRepository evidence,
         IUnitOfWork uow,
         ISystemClock clock,
-        ProjectTruthService truth)
+        ProjectTruthService truth,
+        IncidentAggregationService incidents)
     {
         _experiments=experiments;_media=media;_testImpact=testImpact;_symbolicator=symbolicator;_gameRegression=gameRegression;
-        _records=records;_evidence=evidence;_uow=uow;_clock=clock;_truth=truth;
+        _records=records;_evidence=evidence;_uow=uow;_clock=clock;_truth=truth;_incidents=incidents;
     }
 
     public async Task<FlakyResult> RunFlakyAsync(RepeatedRunCommand command,bool runtime,CancellationToken ct)
@@ -94,6 +97,8 @@ public sealed class P2TechnicalIntelligenceService
                 "Regression origin isolated",summary,EvidenceConfidence.High,result.ArtifactReference,json,_clock.UtcNow,_clock.UtcNow),ct);
         }
         await _uow.SaveChangesAsync(ct);await _truth.RecalculateAsync(command.Target.ProjectId,ct);
+        if(result.FirstBadCommit is not null)
+            await _incidents.AttachRegressionAsync(command.Target.ProjectId,command.Target.SubjectKey,result.FirstBadCommit,result.ArtifactReference,ct);
         return result;
     }
 
@@ -116,7 +121,10 @@ public sealed class P2TechnicalIntelligenceService
             revision is null?0m:Math.Clamp(change,0m,100m),EvidenceConfidence.Medium,
             revision is null?"No material regression origin was detected in the supplied series.":$"Material regression begins at {revision}.",
             json,null,_clock.UtcNow),ct);
-        await _uow.SaveChangesAsync(ct);return result;
+        await _uow.SaveChangesAsync(ct);
+        if(result.RegressionRevision is not null)
+            await _incidents.AttachRegressionAsync(projectId,subjectKey,result.RegressionRevision,null,ct);
+        return result;
     }
 
     public async Task<MutationResult> RunMutationAsync(MutationCommand command,CancellationToken ct)
@@ -164,6 +172,7 @@ public sealed class P2TechnicalIntelligenceService
             null,result.Status=="Resolved"?EvidenceConfidence.Verified:EvidenceConfidence.High,
             result.Summary,JsonSerializer.Serialize(result),result.ArtifactReference,_clock.UtcNow),ct);
         await _uow.SaveChangesAsync(ct);
+        await _incidents.AttachSymbolicationAsync(command.ProjectId,command.SubjectKey,result.Status,result.Summary,result.ArtifactReference,result.Frames,ct);
         return result;
     }
 

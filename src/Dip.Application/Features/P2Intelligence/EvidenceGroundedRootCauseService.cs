@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.ProjectTruth;
+using Dip.Application.Features.Incidents;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -14,15 +15,17 @@ public sealed class EvidenceGroundedRootCauseService
     private readonly IAiRootCauseClient _ai;
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
+    private readonly IncidentAggregationService _incidents;
 
     public EvidenceGroundedRootCauseService(
         IEvidenceRepository evidence,
         IP2IntelligenceRepository intelligence,
         IAiRootCauseClient ai,
         IUnitOfWork uow,
-        ISystemClock clock)
+        ISystemClock clock,
+        IncidentAggregationService incidents)
     {
-        _evidence=evidence;_intelligence=intelligence;_ai=ai;_uow=uow;_clock=clock;
+        _evidence=evidence;_intelligence=intelligence;_ai=ai;_uow=uow;_clock=clock;_incidents=incidents;
     }
 
     public async Task<RootCauseResult> AnalyzeAsync(RootCauseCommand command,CancellationToken ct)
@@ -64,6 +67,8 @@ public sealed class EvidenceGroundedRootCauseService
         }
 
         await StoreAsync(command,result,ct);
+        if(result.Candidates.Count>0)
+            await _incidents.AttachRootCauseAsync(command.ProjectId,command.SubjectKey,result.Summary,result,ct);
         return result;
     }
 

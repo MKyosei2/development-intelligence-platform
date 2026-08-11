@@ -104,4 +104,54 @@ public interface IAdaptiveQaPlanRepository
     Task<AdaptiveQaPlanSnapshot?> GetLatestAsync(Guid projectId,CancellationToken ct);
 }
 
+public interface IArtifactRepository
+{
+    Task<ArtifactBlob?> FindBlobAsync(string provider,string sha256,CancellationToken ct);
+    Task<ArtifactBlob> GetOrCreateBlobAsync(ArtifactBlob candidate,CancellationToken ct);
+    Task<ArtifactRecord?> GetRecordAsync(Guid id,CancellationToken ct);
+    Task<ArtifactRecord?> GetRecordForUpdateAsync(Guid id,CancellationToken ct);
+    Task<ArtifactBlob?> GetBlobAsync(Guid id,CancellationToken ct);
+    Task<ArtifactBlob?> GetBlobForUpdateAsync(Guid id,CancellationToken ct);
+    Task AddBlobAsync(ArtifactBlob blob,CancellationToken ct);
+    Task AddRecordAsync(ArtifactRecord record,CancellationToken ct);
+    Task<IReadOnlyList<ArtifactRecord>> ListForJobAsync(Guid jobId,CancellationToken ct);
+    Task<IReadOnlyList<ArtifactRecord>> ListExpiredAsync(DateTimeOffset now,int take,CancellationToken ct);
+    Task<bool> HasRecordsForBlobAsync(Guid blobId,CancellationToken ct);
+    void RemoveRecord(ArtifactRecord record);
+    void RemoveBlob(ArtifactBlob blob);
+}
+public interface IDurableJobRepository
+{
+    Task AddAsync(DurableJob job,CancellationToken ct);
+    Task<DurableJob?> GetAsync(Guid id,CancellationToken ct);
+    Task<IReadOnlyList<DurableJob>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
+    Task<DurableJob?> TryClaimAsync(Guid id,string owner,DateTimeOffset now,TimeSpan lease,CancellationToken ct);
+    Task<IReadOnlyList<DurableJob>> ListExpiredLeasesAsync(DateTimeOffset now,int take,CancellationToken ct);
+}
+public interface IIncidentRepository
+{
+    Task<Incident?> FindByFingerprintAsync(Guid projectId,string fingerprint,CancellationToken ct);
+    Task<Incident?> GetAsync(Guid id,CancellationToken ct);
+    Task<Incident?> FindLatestOpenForSubjectAsync(Guid projectId,string subjectKey,CancellationToken ct);
+    Task AddAsync(Incident incident,CancellationToken ct);
+    Task AddOccurrenceAsync(IncidentOccurrence occurrence,CancellationToken ct);
+    Task AddEventAsync(IncidentEvent incidentEvent,CancellationToken ct);
+    Task<IReadOnlyList<Incident>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
+    Task<IReadOnlyList<IncidentEvent>> ListEventsAsync(Guid incidentId,CancellationToken ct);
+}
+public interface IBenchmarkRepository
+{
+    Task AddDefinitionAsync(BenchmarkDefinition definition,CancellationToken ct);
+    Task<BenchmarkDefinition?> GetDefinitionAsync(Guid id,CancellationToken ct);
+    Task<BenchmarkDefinition?> GetDefinitionByKeyAsync(string key,CancellationToken ct);
+    Task<IReadOnlyList<BenchmarkDefinition>> ListDefinitionsAsync(CancellationToken ct);
+    Task AddRunAsync(BenchmarkRun run,CancellationToken ct);
+    Task<BenchmarkRun?> GetRunAsync(Guid id,CancellationToken ct);
+    Task<BenchmarkRun?> FindBaselineAsync(Guid projectId,Guid definitionId,string environmentFingerprint,string configurationHash,string excludingCommit,CancellationToken ct);
+    Task AddMetricsAsync(IEnumerable<BenchmarkMetric> metrics,CancellationToken ct);
+    Task<IReadOnlyList<BenchmarkMetric>> ListMetricsAsync(Guid runId,CancellationToken ct);
+    Task AddComparisonsAsync(IEnumerable<BenchmarkComparison> comparisons,CancellationToken ct);
+    Task<IReadOnlyList<BenchmarkComparison>> ListComparisonsAsync(Guid runId,CancellationToken ct);
+}
+
 public interface IUnitOfWork{Task<int> SaveChangesAsync(CancellationToken ct);}

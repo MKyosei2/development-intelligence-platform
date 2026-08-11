@@ -39,12 +39,17 @@ current relationship between a Claim and the available Evidence.
 
 ## Database compatibility
 
-The repository currently has no EF Core migration baseline. Existing
-installations created through `EnsureCreated` are therefore extended by the
-idempotent `P0SchemaBootstrapper`, which creates only the new Project Truth
-P0 tables when the application is still in no-migrations mode. A formal
-migration baseline should replace this bootstrapper in a later database
-migration phase.
+A formal EF Core migration baseline is now implemented in source.
+`202608120001_InitialBaseline` represents the pre-migration DIP schema and
+`202608120002_AddDurablePlatformIntelligence` adds the durable artifact/job/
+incident/benchmark schema. `LegacyMigrationAdopter` validates a historical
+`EnsureCreated` database before recording the baseline as applied; incompatible
+legacy schemas fail closed instead of being silently adopted. `DbInitializer`
+then uses `MigrateAsync` as the normal schema-evolution path.
+
+This source state is **not live-migration verified** until both a clean PostgreSQL
+database and a representative historical DIP database have successfully run the
+migration path in the target .NET/PostgreSQL environment.
 
 ## P1 technical evidence expansion
 
@@ -83,15 +88,28 @@ P2 must **not** be declared runtime-verified until `scripts/Verify-P2.ps1` compl
 
 Universal / unknown-language QA adapters are intentionally **not** part of this phase. They remain a final-stage architectural generalization after the current QA and game-development evidence paths are validated.
 
+## Durable platform-intelligence implementation — 2026-08-12
+
+Source implementation now includes:
+
+- formal EF Core baseline + fail-closed legacy adoption;
+- durable artifact metadata/blob storage with Local and MinIO providers plus retention;
+- PostgreSQL-source-of-truth asynchronous jobs with Redis delivery, leases, heartbeat, cancellation, retry and recovery;
+- durable Fuzz/Mutation/Soak/Git Bisect/Media execution paths;
+- Incident/Occurrence/Event lifecycle and timeline aggregation above existing QA crash fingerprints;
+- regression-origin, native symbolication and evidence-grounded root-cause incident connections;
+- benchmark definitions/runs/metrics/comparisons, durable benchmark jobs and Benchmark -> Artifact -> Evidence -> Project Truth -> Incident integration.
+
+These items are marked **implemented in source**, not runtime-verified. Runtime completion requires a .NET 8 build/test pass plus live PostgreSQL/Redis and selected Artifact Store verification for the exact resulting revision.
+
 ## Remaining production-hardening work
 
-The following are intentionally not misrepresented as fixed by this changeset because they require a larger product/deployment decision rather than a local bug patch:
+The following remain outside this changeset:
 
-- formal EF Core migration baseline replacing bootstrap-only schema evolution;
-- durable asynchronous job queue/status API for long P2 runs;
-- durable remote artifact storage/retention for QA/P2 evidence;
 - external Claim/work-item connectors and canonical work-item resolution across issue trackers/chat tools;
-- real-device calibration/backtesting needed to validate minimum-hardware and forecast accuracy at production scale.
+- real-device calibration/backtesting needed to validate minimum-hardware and forecast accuracy at production scale;
+- fixed-environment benchmark execution that replaces portfolio `TBD` values with measured evidence;
+- broader operational observability and multi-repository dependency intelligence.
 
 ## 2026-08-11 Upgrade6 CI repair package
 

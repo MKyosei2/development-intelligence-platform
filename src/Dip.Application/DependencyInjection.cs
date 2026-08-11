@@ -29,12 +29,17 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.Intelligence.ForecastAndDecisionService>();
         services.AddScoped<Dip.Application.Features.Intelligence.P2AnalysisService>();
         services.AddScoped<HardwareCommunityIntelligenceService>();
-        services.AddScoped<AdaptiveQaPlanner>();
+        services.AddScoped<Dip.Application.Features.P2Intelligence.AdaptiveQaPlanner>();
         services.AddScoped<P2TechnicalIntelligenceService>();
         services.AddSingleton<GameRegressionEvaluator>();
         services.AddScoped<EvidenceGroundedRootCauseService>();
         services.AddScoped<ProjectDecisionIntelligenceService>();
         services.AddScoped<OutboxWriter>();
+        services.AddScoped<Dip.Application.Features.Artifacts.ArtifactService>();
+        services.AddScoped<Dip.Application.Features.Jobs.DurableJobService>();
+        services.AddScoped<Dip.Application.Features.Jobs.P2JobEnqueueService>();
+        services.AddScoped<Dip.Application.Features.Incidents.IncidentAggregationService>();
+        services.AddScoped<Dip.Application.Features.Benchmarks.BenchmarkOrchestrationService>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();
         services.AddSingleton<QualityGateEvaluator>();

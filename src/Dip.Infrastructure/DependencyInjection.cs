@@ -28,6 +28,7 @@ public static class DependencyInjection
             throw new InvalidOperationException("ConnectionStrings:PostgreSql is missing.");
 
         services.AddDbContext<DipDbContext>(options => options.UseNpgsql(postgresConnection));
+        services.AddScoped<LegacyMigrationAdopter>();
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IPipelineRunRepository, PipelineRunRepository>();
         services.AddScoped<IMetricRepository, MetricRepository>();
@@ -68,6 +69,10 @@ public static class DependencyInjection
         services.AddScoped<IHardwareCommunityRepository, HardwareCommunityRepository>();
         services.AddScoped<IDecisionTraceRepository, DecisionTraceRepository>();
         services.AddScoped<IAdaptiveQaPlanRepository, AdaptiveQaPlanRepository>();
+        services.AddScoped<IArtifactRepository, ArtifactRepository>();
+        services.AddScoped<IDurableJobRepository, DurableJobRepository>();
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddScoped<IBenchmarkRepository, BenchmarkRepository>();
         services.Configure<Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions>(configuration.GetSection(Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions.SectionName));
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IP2ExperimentRunner, Dip.Infrastructure.P2Intelligence.P2ExperimentRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();
@@ -77,6 +82,17 @@ public static class DependencyInjection
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IAiRootCauseClient>(sp => sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>());
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());
         services.AddSingleton<ISystemClock, SystemClock>();
+
+        services.Configure<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>(configuration.GetSection(Dip.Infrastructure.Artifacts.ArtifactStoreOptions.SectionName));
+        services.AddSingleton<Dip.Application.Abstractions.Artifacts.IArtifactStore>(sp =>
+        {
+            var options=sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>().Value;
+            return options.Provider.Equals("Minio",StringComparison.OrdinalIgnoreCase)
+                ?new Dip.Infrastructure.Artifacts.MinioArtifactStore(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>())
+                :new Dip.Infrastructure.Artifacts.LocalArtifactStore(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>());
+        });
+        services.AddSingleton<Dip.Application.Features.Benchmarks.IBenchmarkExecutor,Dip.Infrastructure.Benchmarks.BenchmarkExecutor>();
+        services.Configure<Dip.Application.Features.Jobs.DurableJobQueueOptions>(configuration.GetSection(Dip.Application.Features.Jobs.DurableJobQueueOptions.SectionName));
 
         services.Configure<QaExecutionOptions>(configuration.GetSection(QaExecutionOptions.SectionName));
         services.AddSingleton<IQaWorkspaceResolver, QaWorkspaceResolver>();

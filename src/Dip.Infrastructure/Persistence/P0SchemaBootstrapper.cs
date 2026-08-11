@@ -3,10 +3,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Dip.Infrastructure.Persistence;
 
 /// <summary>
-/// The repository historically used EnsureCreated and has no EF migration
-/// baseline. EnsureCreated cannot add tables to an already-created database.
-/// This idempotent bootstrap therefore adds the Project Truth P0, Technical Evidence P1, and Decision Intelligence P2 tables
-/// when the installation is still in the no-migrations mode.
+/// Historical compatibility helper retained for repair tooling only. Normal startup now uses the formal EF Core migration chain via DbInitializer and LegacyMigrationAdopter. Do not use this helper for schema evolution.
 /// </summary>
 public static class P0SchemaBootstrapper
 {
@@ -21,8 +18,8 @@ public static class P0SchemaBootstrapper
             """
             CREATE TABLE IF NOT EXISTS evidence_records (
                 id uuid PRIMARY KEY,
-                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
-                pipeline_run_id uuid NULL REFERENCES pipeline_runs ("Id") ON DELETE SET NULL,
+                project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
+                pipeline_run_id uuid NULL REFERENCES "PipelineRuns" ("Id") ON DELETE SET NULL,
                 subject_key varchar(200) NOT NULL,
                 source_type varchar(40) NOT NULL,
                 evidence_kind varchar(120) NOT NULL,
@@ -39,7 +36,7 @@ public static class P0SchemaBootstrapper
             """
             CREATE TABLE IF NOT EXISTS project_claims (
                 id uuid PRIMARY KEY,
-                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 subject_key varchar(200) NOT NULL,
                 claimed_status varchar(120) NOT NULL,
                 claimed_progress numeric(5,2) NULL,
@@ -53,7 +50,7 @@ public static class P0SchemaBootstrapper
             """
             CREATE TABLE IF NOT EXISTS project_truth_snapshots (
                 id uuid PRIMARY KEY,
-                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 truth_status varchar(40) NOT NULL,
                 risk_level varchar(40) NOT NULL,
                 health_score numeric(5,2) NOT NULL,
@@ -72,7 +69,7 @@ public static class P0SchemaBootstrapper
             """
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id uuid PRIMARY KEY,
-                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 category varchar(80) NOT NULL,
                 action varchar(120) NOT NULL,
                 actor varchar(200) NOT NULL,
@@ -99,7 +96,7 @@ public static class P0SchemaBootstrapper
             "CREATE INDEX IF NOT EXISTS ix_audit_project_time ON audit_logs (project_id, created_at_utc);",
             """
             CREATE TABLE IF NOT EXISTS qa_runs (
-                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 subject_key varchar(200) NOT NULL, language varchar(40) NOT NULL, workspace_relative_path varchar(500) NOT NULL,
                 commit_sha varchar(64) NULL, artifact_root varchar(1000) NOT NULL, status varchar(40) NOT NULL,
                 finding_count integer NOT NULL, critical_finding_count integer NOT NULL, warning_finding_count integer NOT NULL,
@@ -108,7 +105,7 @@ public static class P0SchemaBootstrapper
             """,
             """
             CREATE TABLE IF NOT EXISTS qa_findings (
-                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 qa_run_id uuid NOT NULL REFERENCES qa_runs (id) ON DELETE CASCADE, subject_key varchar(200) NOT NULL,
                 language varchar(40) NOT NULL, category varchar(120) NOT NULL, severity varchar(40) NOT NULL, tool varchar(120) NOT NULL,
                 title varchar(240) NOT NULL, message varchar(8000) NOT NULL, fingerprint varchar(64) NOT NULL,
@@ -120,7 +117,7 @@ public static class P0SchemaBootstrapper
             """,
             """
             CREATE TABLE IF NOT EXISTS reproduction_attempts (
-                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 qa_finding_id uuid NOT NULL REFERENCES qa_findings (id) ON DELETE CASCADE, attempt_number integer NOT NULL,
                 status varchar(40) NOT NULL, reproduced boolean NOT NULL, crashed boolean NOT NULL, timed_out boolean NOT NULL,
                 exit_code integer NULL, duration_ms bigint NOT NULL, artifact_directory varchar(1000) NOT NULL,
@@ -140,7 +137,7 @@ public static class P0SchemaBootstrapper
             """,
             """
             CREATE TABLE IF NOT EXISTS hardware_calibrations (
-                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 machine_fingerprint varchar(64) NOT NULL, cpu_single_score numeric(12,3) NOT NULL,
                 cpu_multi_score numeric(12,3) NOT NULL, gpu_score numeric(12,3) NOT NULL,
                 memory_score numeric(12,3) NOT NULL, storage_score numeric(12,3) NOT NULL,
@@ -149,7 +146,7 @@ public static class P0SchemaBootstrapper
             """,
             """
             CREATE TABLE IF NOT EXISTS performance_simulation_runs (
-                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                id uuid PRIMARY KEY, project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 hardware_profile_id uuid NOT NULL REFERENCES hardware_profiles (id) ON DELETE RESTRICT,
                 subject_key varchar(200) NOT NULL, artifact_directory varchar(1000) NOT NULL, status varchar(40) NOT NULL,
                 confidence_percent numeric(5,2) NOT NULL, result_json varchar(32000) NULL,
@@ -163,7 +160,7 @@ public static class P0SchemaBootstrapper
             """
             CREATE TABLE IF NOT EXISTS p2_intelligence_records (
                 id uuid PRIMARY KEY,
-                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 subject_key varchar(200) NOT NULL,
                 kind varchar(80) NOT NULL,
                 status varchar(40) NOT NULL,
@@ -199,7 +196,7 @@ public static class P0SchemaBootstrapper
             """
             CREATE TABLE IF NOT EXISTS decision_traces (
                 id uuid PRIMARY KEY,
-                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 decision_type varchar(120) NOT NULL,
                 subject_key varchar(200) NOT NULL,
                 previous_value varchar(500) NOT NULL,
@@ -213,7 +210,7 @@ public static class P0SchemaBootstrapper
             """
             CREATE TABLE IF NOT EXISTS adaptive_qa_plan_snapshots (
                 id uuid PRIMARY KEY,
-                project_id uuid NOT NULL REFERENCES projects ("Id") ON DELETE CASCADE,
+                project_id uuid NOT NULL REFERENCES "Projects" ("Id") ON DELETE CASCADE,
                 change_set_hash varchar(64) NOT NULL,
                 risk_score numeric(5,2) NOT NULL,
                 estimated_minutes numeric(8,2) NOT NULL,
