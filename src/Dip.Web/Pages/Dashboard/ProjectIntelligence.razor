@@ -45,6 +45,15 @@ else
                     <div class="col-md-2"><div class="small text-muted">Milestones</div><div class="h3">@_management.Milestones.Completed / @_management.Milestones.Total</div><div>@_management.Milestones.AtRisk at risk</div></div>
                     <div class="col-md-2"><div class="small text-muted">Scope growth</div><div class="h3">@_management.Scope.ScopeGrowthPercent.ToString("0.#")%</div><div>@_management.Scope.IncompleteHighPriority high priority open</div></div>
                 </div>
+                <div class="alert alert-light border mb-3"><strong>Management summary</strong><div>@_management.Summary.PlainLanguageSummary</div><div class="small text-muted mt-1">Primary concern: @_management.Summary.PrimaryConcern</div></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-2"><div class="small text-muted">Open risks</div><div class="h3">@_management.Risks.Open</div><div>@_management.Risks.Critical critical</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Pending decisions</div><div class="h3">@_management.Decisions.DecisionsPending</div><div>@_management.Decisions.OverdueActions overdue actions</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Resource options</div><div class="h3">@_management.Resources.Recommendations.Count</div><div>reallocation candidates</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Scope changes</div><div class="h3">@_management.ScopeChanges.Proposed</div><div>@_management.ScopeChanges.PendingScheduleDays day(s) pending impact</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Escalations</div><div class="h3">@_management.Alerts.Total</div><div>@_management.Alerts.Critical critical / @_management.Alerts.High high</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Risk exposure</div><div class="h3">@_management.Risks.TotalExposure.ToString("0.#")</div><div>aggregate exposure</div></div>
+                </div>
                 <div class="row g-3 mb-3">
                     <div class="col-lg-6">
                         <h6>Team / Workstream workload</h6>
@@ -60,6 +69,10 @@ else
                         @foreach(var x in _management.Schedule.Items.Where(x=>x.IsCritical||x.Status=="Blocked").Take(8)){<tr><td>@x.Name</td><td>@x.DueAtUtc.ToString("MM-dd")</td><td>@x.ForecastFinishUtc.ToString("MM-dd")</td><td>@x.Status</td></tr>}
                         </tbody></table></div>
                     </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><strong>Risk register / escalation</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Risk</th><th>Exposure</th><th>Review</th></tr></thead><tbody>@foreach(var r in _management.Risks.Items.Where(r=>!Done(r.Status)).Take(6)){<tr><td>@r.Title</td><td>@r.ExposureScore.ToString("0.#") · @r.ExposureLevel</td><td>@(r.ReviewOverdue?"Overdue":r.ReviewDueUtc?.ToString("MM-dd")??"—")</td></tr>}</tbody></table></div></div></div></div>
+                    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><strong>Decisions / actions</strong></div><div class="card-body"><div><strong>@_management.Decisions.DecisionsPending</strong> pending decision(s) · <strong>@_management.Decisions.OverdueActions</strong> overdue action(s)</div>@foreach(var d in _management.Summary.DecisionsRequired.Take(5)){<div class="small mt-1">• @d</div>}</div></div></div>
                 </div>
                 @if(_management.ActionsRequired.Count>0){<div class="alert alert-warning mb-3"><strong>Management actions required</strong><ol class="mb-0">@foreach(var a in _management.ActionsRequired.Take(8)){<li>@a</li>}</ol></div>}
                 <div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-success btn-sm" href="@Api.ManagementWorkbookUrl(ProjectId)">Export Excel management workbook</a><span class="small text-muted align-self-center">Google Sheets bidirectional sync is available through the Project Control API.</span></div>
@@ -114,4 +127,5 @@ else
     [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();private ProjectControlDashboardDto? _projectControl;private ManagementDashboardDto? _management;
     protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);_projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);_management=await Api.GetManagementDashboardAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
     private string Window()=>_forecast?.EarliestCompletionUtc is null||_forecast.LatestCompletionUtc is null?"Not enough evidence":$"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
+    private static bool Done(string status)=>status.Equals("Done",StringComparison.OrdinalIgnoreCase)||status.Equals("Completed",StringComparison.OrdinalIgnoreCase)||status.Equals("Closed",StringComparison.OrdinalIgnoreCase)||status.Equals("Resolved",StringComparison.OrdinalIgnoreCase);
 }

@@ -28,6 +28,15 @@ public sealed class ReleaseReadinessService
         else if(openManagementBlockers.Length>0)warnings.Add($"{openManagementBlockers.Length} management blocker(s) remain open.");
         var incompleteHighPriorityRequirements=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.Requirement&&IsHighPriorityRequirementOpen(x));
         if(incompleteHighPriorityRequirements>0){warnings.Add($"{incompleteHighPriorityRequirements} high-priority in-scope requirement(s) are incomplete.");actions.Add("Confirm incomplete high-priority requirements are either completed or explicitly removed/deferred from release scope.");}
+        var openManagementRisks=graphNodes.Where(x=>x.Type==DevelopmentGraphNodeType.Risk&&!IsResolvedManagementStatus(x.Status)).ToArray();
+        var criticalManagementRisks=openManagementRisks.Count(x=>ManagementRiskExposure(x)>=70m);
+        var highManagementRisks=openManagementRisks.Count(x=>ManagementRiskExposure(x)>=45m&&ManagementRiskExposure(x)<70m);
+        if(criticalManagementRisks>0){blockers.Add($"{criticalManagementRisks} critical management risk(s) remain open.");actions.Add("Review mitigation, ownership, and release impact for every critical management risk.");}
+        else if(highManagementRisks>0)warnings.Add($"{highManagementRisks} high management risk(s) remain open.");
+        var overdueManagementActions=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.ActionItem&&!IsResolvedManagementStatus(x.Status)&&IsPastDue(x,"DueAtUtc",_clock.UtcNow));
+        if(overdueManagementActions>0){warnings.Add($"{overdueManagementActions} management action item(s) are overdue.");actions.Add("Escalate overdue release-relevant actions or explicitly re-plan their due dates.");}
+        var unresolvedScopeChanges=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.ChangeRequest&&!IsFinalChangeStatus(x.Status)&&IsMaterialScopeChange(x));
+        if(unresolvedScopeChanges>0){warnings.Add($"{unresolvedScopeChanges} material scope change request(s) are unresolved.");actions.Add("Approve, reject, or defer material scope changes before committing the final release scope/date.");}
         var blockedMilestones=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.Milestone&&IsBlockingStatus(x.Status));
         if(blockedMilestones>0){blockers.Add($"{blockedMilestones} milestone(s) are blocked/at risk on the Development Graph.");actions.Add("Resolve critical-path milestone blockers or explicitly rescope the release.");}
         var notReadyFeatures=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.Feature&&IsBlockingStatus(x.Status));
@@ -52,6 +61,19 @@ public sealed class ReleaseReadinessService
     private static bool IsHighPriorityRequirementOpen(DevelopmentGraphNode node)
     {
         if(IsResolvedManagementStatus(node.Status))return false;try{using var d=JsonDocument.Parse(node.MetadataJson);var r=d.RootElement;var priority=r.TryGetProperty("Priority",out var p)?p.GetString():"Medium";var scope=r.TryGetProperty("ScopeState",out var sc)?sc.GetString():"Included";return (priority is "Critical" or "High")&&scope is not ("Deferred" or "Removed");}catch{return false;}
+    }
+    private static decimal ManagementRiskExposure(DevelopmentGraphNode node)
+    {
+        try{using var d=JsonDocument.Parse(node.MetadataJson);var root=d.RootElement;var p=root.TryGetProperty("ProbabilityPercent",out var pe)&&pe.TryGetDecimal(out var pv)?pv:0m;var i=root.TryGetProperty("ImpactPercent",out var ie)&&ie.TryGetDecimal(out var iv)?iv:0m;return Math.Clamp(p,0m,100m)*Math.Clamp(i,0m,100m)/100m;}catch{return 0m;}
+    }
+    private static bool IsPastDue(DevelopmentGraphNode node,string property,DateTimeOffset now)
+    {
+        try{using var d=JsonDocument.Parse(node.MetadataJson);return d.RootElement.TryGetProperty(property,out var v)&&v.TryGetDateTimeOffset(out var due)&&due<now;}catch{return false;}
+    }
+    private static bool IsFinalChangeStatus(string status)=>status.Equals("Approved",StringComparison.OrdinalIgnoreCase)||status.Equals("Rejected",StringComparison.OrdinalIgnoreCase)||status.Equals("Cancelled",StringComparison.OrdinalIgnoreCase)||status.Equals("Closed",StringComparison.OrdinalIgnoreCase);
+    private static bool IsMaterialScopeChange(DevelopmentGraphNode node)
+    {
+        try{using var d=JsonDocument.Parse(node.MetadataJson);var r=d.RootElement;var days=r.TryGetProperty("ScheduleDaysDelta",out var de)&&de.TryGetInt32(out var dv)?Math.Abs(dv):0;var risk=r.TryGetProperty("RiskDeltaPercent",out var re)&&re.TryGetDecimal(out var rv)?Math.Abs(rv):0m;var engineering=r.TryGetProperty("EngineeringHoursDelta",out var ee)&&ee.TryGetDecimal(out var ev)?Math.Abs(ev):0m;return days>0||risk>=10m||engineering>=40m;}catch{return false;}
     }
     private static bool IsBlockingStatus(string status)=>status is "Blocked" or "AtRisk" or "NotReady" or "Failed" or "Critical";
     private static bool IsFailedStatus(string status)=>status.Equals("Failed",StringComparison.OrdinalIgnoreCase)||status.Equals("Failure",StringComparison.OrdinalIgnoreCase)||status.Equals("Error",StringComparison.OrdinalIgnoreCase)||status.Equals("Cancelled",StringComparison.OrdinalIgnoreCase);

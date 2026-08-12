@@ -220,6 +220,56 @@ public sealed class ProjectControlController(
     public Task<ScopeOverviewDto> GetScope(Guid projectId,CancellationToken ct)
         =>management.GetScopeAsync(projectId,ct);
 
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("risks")]
+    public Task<DevelopmentGraphNodeDto> UpsertRisk([FromBody]UpsertRiskCommand command,CancellationToken ct)
+        =>work.UpsertRiskAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/risks")]
+    public Task<RiskRegisterDto> GetRisks(Guid projectId,CancellationToken ct)
+        =>management.GetRisksAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("management-decisions")]
+    public Task<DevelopmentGraphNodeDto> UpsertManagementDecision([FromBody]UpsertManagementDecisionCommand command,CancellationToken ct)
+        =>work.UpsertManagementDecisionAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("management-actions")]
+    public Task<DevelopmentGraphNodeDto> UpsertManagementAction([FromBody]UpsertActionItemCommand command,CancellationToken ct)
+        =>work.UpsertActionItemAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/decision-actions")]
+    public Task<DecisionActionOverviewDto> GetDecisionActions(Guid projectId,CancellationToken ct)
+        =>management.GetDecisionsAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("resource-allocations")]
+    public Task<DevelopmentGraphNodeDto> UpsertResourceAllocation([FromBody]UpsertResourceAllocationCommand command,CancellationToken ct)
+        =>work.UpsertResourceAllocationAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/resource-allocations")]
+    public Task<ResourceAllocationOverviewDto> GetResourceAllocations(Guid projectId,[FromQuery]int horizonWeeks=8,CancellationToken ct=default)
+        =>management.GetResourceAllocationsAsync(projectId,horizonWeeks,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("change-requests")]
+    public Task<DevelopmentGraphNodeDto> UpsertChangeRequest([FromBody]UpsertChangeRequestCommand command,CancellationToken ct)
+        =>work.UpsertChangeRequestAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/scope-changes")]
+    public Task<ScopeChangeOverviewDto> GetScopeChanges(Guid projectId,CancellationToken ct)
+        =>management.GetScopeChangesAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/management-alerts")]
+    public Task<EscalationOverviewDto> GetManagementAlerts(Guid projectId,[FromQuery]int horizonWeeks=8,CancellationToken ct=default)
+        =>management.GetAlertsAsync(projectId,horizonWeeks,ct);
+
     [Authorize(Policy=Policies.ProjectRead)]
     [HttpGet("projects/{projectId:guid}/management-dashboard")]
     public Task<ManagementDashboardDto> GetManagementDashboard(Guid projectId,[FromQuery]int horizonWeeks=8,CancellationToken ct=default)

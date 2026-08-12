@@ -96,6 +96,77 @@ public sealed class WorkManagementService
         await _graph.LinkAsync(new(c.ProjectId,task.Id,milestone.Id,DevelopmentGraphEdgeType.ScheduledFor,90m,false,"{}"),ct);
     }
 
+    public async Task<DevelopmentGraphNodeDto> UpsertRiskAsync(UpsertRiskCommand c,CancellationToken ct)
+    {
+        ValidateKey(c.Key);
+        var probability=Math.Clamp(c.ProbabilityPercent,0m,100m);var impact=Math.Clamp(c.ImpactPercent,0m,100m);var exposure=probability*impact/100m;
+        var affected=(c.AffectedItems??[]).Where(x=>x is not null&&NotBlank(x.Type)&&NotBlank(x.Key)).DistinctBy(x=>$"{x.Type}:{x.Key}",StringComparer.OrdinalIgnoreCase).ToArray();
+        var meta=JsonSerializer.Serialize(new{c.Key,c.Description,ProbabilityPercent=probability,ImpactPercent=impact,ExposureScore=exposure,c.Category,OwnerRole=Trim(c.OwnerRole,200),c.ReviewDueUtc,Trigger=Trim(c.Trigger,2000),Mitigation=Trim(c.Mitigation,4000),AffectedItems=affected});
+        var risk=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.Risk,$"risk:{c.Key}",c.Title,c.Status,"DIP",c.ExternalReference,meta),ct);
+        foreach(var item in affected)
+        {
+            var (type,key)=ResolveTypeAndKey(item.Type,item.Key);var target=await Need(c.ProjectId,type,key,item.Type,ct);
+            await _graph.LinkAsync(new(c.ProjectId,risk.Id,target.Id,DevelopmentGraphEdgeType.Affects,Math.Clamp(exposure,10m,100m),exposure>=70m,JsonSerializer.Serialize(new{managementRisk=true})),ct);
+        }
+        return risk;
+    }
+
+    public async Task<DevelopmentGraphNodeDto> UpsertManagementDecisionAsync(UpsertManagementDecisionCommand c,CancellationToken ct)
+    {
+        ValidateKey(c.Key);var related=(c.RelatedItems??[]).Where(x=>x is not null&&NotBlank(x.Type)&&NotBlank(x.Key)).DistinctBy(x=>$"{x.Type}:{x.Key}",StringComparer.OrdinalIgnoreCase).ToArray();
+        var meta=JsonSerializer.Serialize(new{c.Key,c.Decision,c.Rationale,DecisionOwnerRole=Trim(c.DecisionOwnerRole,200),c.DecisionDueUtc,c.DecidedAtUtc,RelatedItems=related});
+        var decision=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.ManagementDecision,$"decision:{c.Key}",c.Title,c.Status,"DIP",c.ExternalReference,meta),ct);
+        foreach(var item in related)
+        {
+            var (type,key)=ResolveTypeAndKey(item.Type,item.Key);var target=await Need(c.ProjectId,type,key,item.Type,ct);
+            await _graph.LinkAsync(new(c.ProjectId,decision.Id,target.Id,DevelopmentGraphEdgeType.RelatesTo,75m,false,JsonSerializer.Serialize(new{managementDecision=true})),ct);
+        }
+        return decision;
+    }
+
+    public async Task<DevelopmentGraphNodeDto> UpsertActionItemAsync(UpsertActionItemCommand c,CancellationToken ct)
+    {
+        ValidateKey(c.Key);var priority=NormalizePriority(c.Priority);var completion=Math.Clamp(c.CompletionPercent,0m,100m);
+        var meta=JsonSerializer.Serialize(new{c.Key,Priority=priority,OwnerRole=Trim(c.OwnerRole,200),c.DueAtUtc,CompletionPercent=completion,DecisionKey=Trim(c.DecisionKey,240),Target=c.Target});
+        var action=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.ActionItem,$"action:{c.Key}",c.Title,c.Status,"DIP",c.ExternalReference,meta),ct);
+        if(NotBlank(c.DecisionKey))
+        {
+            var decision=await Need(c.ProjectId,DevelopmentGraphNodeType.ManagementDecision,$"decision:{c.DecisionKey}","decision",ct);
+            await _graph.LinkAsync(new(c.ProjectId,decision.Id,action.Id,DevelopmentGraphEdgeType.ResultsIn,90m,false,"{\"managementAction\":true}"),ct);
+        }
+        if(c.Target is not null&&NotBlank(c.Target.Type)&&NotBlank(c.Target.Key))
+        {
+            var (type,key)=ResolveTypeAndKey(c.Target.Type,c.Target.Key);var target=await Need(c.ProjectId,type,key,c.Target.Type,ct);
+            var edgeType=type==DevelopmentGraphNodeType.Risk?DevelopmentGraphEdgeType.Mitigates:DevelopmentGraphEdgeType.RelatesTo;
+            await _graph.LinkAsync(new(c.ProjectId,action.Id,target.Id,edgeType,85m,type==DevelopmentGraphNodeType.Risk,"{}"),ct);
+        }
+        return action;
+    }
+
+    public async Task<DevelopmentGraphNodeDto> UpsertResourceAllocationAsync(UpsertResourceAllocationCommand c,CancellationToken ct)
+    {
+        ValidateKey(c.Key);ValidateKey(c.ToWorkstreamKey);if(c.CapacityHoursPerWeek<=0m)throw new ArgumentOutOfRangeException(nameof(c.CapacityHoursPerWeek));if(c.EndUtc<c.StartUtc)throw new ArgumentException("Allocation end must not precede start.",nameof(c));
+        var target=await Need(c.ProjectId,DevelopmentGraphNodeType.Workstream,$"workstream:{c.ToWorkstreamKey}","workstream",ct);DevelopmentGraphNode? source=null;
+        if(NotBlank(c.FromWorkstreamKey))source=await Need(c.ProjectId,DevelopmentGraphNodeType.Workstream,$"workstream:{c.FromWorkstreamKey}","workstream",ct);
+        var meta=JsonSerializer.Serialize(new{c.Key,c.FromWorkstreamKey,c.ToWorkstreamKey,CapacityHoursPerWeek=Math.Clamp(c.CapacityHoursPerWeek,0.1m,100000m),c.StartUtc,c.EndUtc,Rationale=Trim(c.Rationale,4000),DecisionKey=Trim(c.DecisionKey,240)});
+        var allocation=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.ResourceAllocation,$"allocation:{c.Key}",$"Allocation to {target.Name}",c.Status,"DIP",null,meta),ct);
+        await _graph.LinkAsync(new(c.ProjectId,allocation.Id,target.Id,DevelopmentGraphEdgeType.AllocatesTo,90m,false,"{}"),ct);
+        if(source is not null)await _graph.LinkAsync(new(c.ProjectId,allocation.Id,source.Id,DevelopmentGraphEdgeType.RelatesTo,60m,false,"{\"allocationSource\":true}"),ct);
+        if(NotBlank(c.DecisionKey)){var decision=await Need(c.ProjectId,DevelopmentGraphNodeType.ManagementDecision,$"decision:{c.DecisionKey}","decision",ct);await _graph.LinkAsync(new(c.ProjectId,decision.Id,allocation.Id,DevelopmentGraphEdgeType.ResultsIn,90m,false,"{}"),ct);}
+        return allocation;
+    }
+
+    public async Task<DevelopmentGraphNodeDto> UpsertChangeRequestAsync(UpsertChangeRequestCommand c,CancellationToken ct)
+    {
+        ValidateKey(c.Key);var requirements=(c.RequirementKeys??[]).Where(NotBlank).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();var workstreams=(c.WorkstreamKeys??[]).Where(NotBlank).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var requested=c.RequestedAtUtc??_clock.UtcNow;var meta=JsonSerializer.Serialize(new{c.Key,c.Description,Priority=NormalizePriority(c.Priority),RequestedByRole=Trim(c.RequestedByRole,200),RequestedAtUtc=requested,EngineeringHoursDelta=c.EngineeringHoursDelta,ArtHoursDelta=c.ArtHoursDelta,QaHoursDelta=c.QaHoursDelta,ScheduleDaysDelta=c.ScheduleDaysDelta,RiskDeltaPercent=c.RiskDeltaPercent,RequirementKeys=requirements,WorkstreamKeys=workstreams,DecisionKey=Trim(c.DecisionKey,240)});
+        var request=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.ChangeRequest,$"change:{c.Key}",c.Title,c.Status,"DIP",c.ExternalReference,meta),ct);
+        foreach(var key in requirements){var target=await Need(c.ProjectId,DevelopmentGraphNodeType.Requirement,$"requirement:{key}","requirement",ct);await _graph.LinkAsync(new(c.ProjectId,request.Id,target.Id,DevelopmentGraphEdgeType.Impacts,85m,NormalizePriority(c.Priority) is "Critical" or "High","{}"),ct);}
+        foreach(var key in workstreams){var target=await Need(c.ProjectId,DevelopmentGraphNodeType.Workstream,$"workstream:{key}","workstream",ct);await _graph.LinkAsync(new(c.ProjectId,request.Id,target.Id,DevelopmentGraphEdgeType.Impacts,85m,NormalizePriority(c.Priority) is "Critical" or "High","{}"),ct);}
+        if(NotBlank(c.DecisionKey)){var decision=await Need(c.ProjectId,DevelopmentGraphNodeType.ManagementDecision,$"decision:{c.DecisionKey}","decision",ct);await _graph.LinkAsync(new(c.ProjectId,request.Id,decision.Id,DevelopmentGraphEdgeType.Requires,90m,true,"{}"),ct);}
+        return request;
+    }
+
     internal static bool IsInCurrentScope(DevelopmentGraphNode n)
     {
         if(n.Type!=DevelopmentGraphNodeType.Requirement)return false;var scope=MetaString(n,"ScopeState","Included");
@@ -129,7 +200,7 @@ public sealed class WorkManagementService
     {
         ValidateKey(key);var normalized=type.Trim().ToLowerInvariant();return normalized switch
         {
-            "task"=>(DevelopmentGraphNodeType.Task,$"task:{key}"),"workstream"=>(DevelopmentGraphNodeType.Workstream,$"workstream:{key}"),"team"=>(DevelopmentGraphNodeType.Team,$"team:{key}"),"milestone"=>(DevelopmentGraphNodeType.Milestone,$"milestone:{key}"),"requirement"=>(DevelopmentGraphNodeType.Requirement,$"requirement:{key}"),"feature"=>(DevelopmentGraphNodeType.Feature,$"feature:{key}"),_=>throw new ArgumentException($"Unsupported management node type '{type}'.",nameof(type))
+            "task"=>(DevelopmentGraphNodeType.Task,$"task:{key}"),"workstream"=>(DevelopmentGraphNodeType.Workstream,$"workstream:{key}"),"team"=>(DevelopmentGraphNodeType.Team,$"team:{key}"),"milestone"=>(DevelopmentGraphNodeType.Milestone,$"milestone:{key}"),"requirement"=>(DevelopmentGraphNodeType.Requirement,$"requirement:{key}"),"feature"=>(DevelopmentGraphNodeType.Feature,$"feature:{key}"),"blocker"=>(DevelopmentGraphNodeType.Blocker,$"blocker:{key}"),"risk"=>(DevelopmentGraphNodeType.Risk,$"risk:{key}"),"decision"=>(DevelopmentGraphNodeType.ManagementDecision,$"decision:{key}"),"action"=>(DevelopmentGraphNodeType.ActionItem,$"action:{key}"),"change"=>(DevelopmentGraphNodeType.ChangeRequest,$"change:{key}"),_=>throw new ArgumentException($"Unsupported management node type '{type}'.",nameof(type))
         };
     }
     private static void ValidateKey(string key){if(string.IsNullOrWhiteSpace(key)||key.Trim().Length>240)throw new ArgumentException("Key is required and must be at most 240 characters.",nameof(key));}
