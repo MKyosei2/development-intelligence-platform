@@ -23,6 +23,7 @@ public sealed class GitHubWebhookProcessor
     private readonly IQueueClient _queue;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ProjectTruthService _truth;
+    private readonly GitHubDevelopmentGraphIngestor _developmentGraph;
 
     public GitHubWebhookProcessor(
         IProcessedWebhookRepository webhooks,
@@ -30,7 +31,8 @@ public sealed class GitHubWebhookProcessor
         IEvidenceRepository evidence,
         IQueueClient queue,
         IUnitOfWork unitOfWork,
-        ProjectTruthService truth)
+        ProjectTruthService truth,
+        GitHubDevelopmentGraphIngestor developmentGraph)
     {
         _webhooks = webhooks;
         _projects = projects;
@@ -38,6 +40,7 @@ public sealed class GitHubWebhookProcessor
         _queue = queue;
         _unitOfWork = unitOfWork;
         _truth = truth;
+        _developmentGraph = developmentGraph;
     }
 
     public async Task<GitHubWebhookProcessResult> ProcessAsync(
@@ -124,7 +127,10 @@ public sealed class GitHubWebhookProcessor
             // If a previous request committed the webhook/evidence but failed
             // while refreshing Project Truth, a GitHub retry repairs the view.
             if (project is not null)
+            {
+                await _developmentGraph.IngestAsync(project.Id,eventName,payloadJson,cancellationToken);
                 await _truth.RecalculateAsync(project.Id, cancellationToken);
+            }
 
             return new(
                 true,
@@ -184,7 +190,10 @@ public sealed class GitHubWebhookProcessor
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         if (project is not null)
+        {
+            await _developmentGraph.IngestAsync(project.Id,eventName,payloadJson,cancellationToken);
             await _truth.RecalculateAsync(project.Id, cancellationToken);
+        }
 
         return new(
             false,
@@ -282,6 +291,46 @@ public sealed class GitHubWebhookProcessor
                 var checkName = ReadNestedString(root, "check_run", "name") ?? "check";
                 title = $"CI check {checkName}: {conclusion ?? "updated"}";
                 summary = $"GitHub check '{checkName}' concluded '{conclusion ?? "unknown"}'.";
+                break;
+            }
+
+            case "pull_request_review":
+            {
+                kind = "pull-request-review";
+                var state = ReadNestedString(root, "review", "state") ?? action;
+                outcome = state.Equals("approved", StringComparison.OrdinalIgnoreCase)
+                    ? EvidenceOutcome.Succeeded
+                    : state.Equals("changes_requested", StringComparison.OrdinalIgnoreCase)
+                        ? EvidenceOutcome.Warning
+                        : EvidenceOutcome.Changed;
+                title = $"Pull request #{pullRequestNumber} review: {state}";
+                summary = $"GitHub review state '{state}' was observed for pull request #{pullRequestNumber}.";
+                break;
+            }
+
+            case "release":
+            {
+                kind = "release";
+                outcome = action.Equals("published", StringComparison.OrdinalIgnoreCase)
+                    ? EvidenceOutcome.Succeeded
+                    : EvidenceOutcome.Changed;
+                var tag = ReadNestedString(root, "release", "tag_name") ?? "untagged";
+                title = $"GitHub release {tag}: {action}";
+                summary = $"Release tag '{tag}' emitted GitHub action '{action}'.";
+                break;
+            }
+
+            case "deployment":
+            case "deployment_status":
+            {
+                kind = "deployment";
+                var state = normalizedEvent == "deployment_status"
+                    ? ReadNestedString(root, "deployment_status", "state") ?? action
+                    : action;
+                outcome = OutcomeFromConclusion(state);
+                if (outcome == EvidenceOutcome.Unknown) outcome = EvidenceOutcome.Changed;
+                title = $"GitHub deployment: {state}";
+                summary = $"Deployment activity was observed with state '{state}'.";
                 break;
             }
 

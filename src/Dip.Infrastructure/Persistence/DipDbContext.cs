@@ -53,6 +53,8 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<RepositoryNode> RepositoryNodes => Set<RepositoryNode>();
     public DbSet<RepositoryDependency> RepositoryDependencies => Set<RepositoryDependency>();
     public DbSet<CrossRepositoryImpact> CrossRepositoryImpacts => Set<CrossRepositoryImpact>();
+    public DbSet<DevelopmentGraphNode> DevelopmentGraphNodes => Set<DevelopmentGraphNode>();
+    public DbSet<DevelopmentGraphEdge> DevelopmentGraphEdges => Set<DevelopmentGraphEdge>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

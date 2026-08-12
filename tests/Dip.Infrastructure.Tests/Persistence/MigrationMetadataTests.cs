@@ -19,6 +19,7 @@ public sealed class MigrationMetadataTests
         Assert.Contains("202608120001_InitialBaseline",migrations);
         Assert.Contains("202608120002_AddDurablePlatformIntelligence",migrations);
         Assert.Contains("202608120003_AddDevelopmentIntelligenceExpansion",migrations);
+        Assert.Contains("202608120004_AddProjectControlGraph",migrations);
         Assert.Contains("DurableJob",entities);
         Assert.Contains("ArtifactRecord",entities);
         Assert.Contains("Incident",entities);
@@ -32,5 +33,7 @@ public sealed class MigrationMetadataTests
         Assert.Contains("ExternalWorkItemLink",entities);
         Assert.Contains("ReleaseEvidenceBundle",entities);
         Assert.Contains("RepositoryDependency",entities);
+        Assert.Contains("DevelopmentGraphNode",entities);
+        Assert.Contains("DevelopmentGraphEdge",entities);
     }
 }

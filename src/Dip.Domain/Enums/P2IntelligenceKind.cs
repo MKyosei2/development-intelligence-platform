@@ -35,5 +35,15 @@ public enum P2IntelligenceKind
     HealthChange = 30,
     TestImpact = 31,
     GamePerformanceRegression = 32,
-    NativeSymbolication = 33
+    NativeSymbolication = 33,
+    ChangeImpact = 34,
+    BlastRadius = 35,
+    ReviewIntelligence = 36,
+    FeatureReadiness = 37,
+    AcceptanceCriteria = 38,
+    AssetIntelligence = 39,
+    MilestoneCriticalPath = 40,
+    WhatIfSimulation = 41,
+    ExternalCi = 42,
+    VersionControlSync = 43
 }

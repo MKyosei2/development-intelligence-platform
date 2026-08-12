@@ -1,0 +1,21 @@
+namespace Dip.Domain.Enums;
+
+public enum DevelopmentGraphNodeType
+{
+    Repository, Branch, Commit, PullRequest, Review, ChangeSet, File, Component,
+    Build, CiRun, Test, QaFinding, Incident, WorkItem, Feature, AcceptanceCriterion,
+    Asset, Milestone, Release, Deployment, Evidence
+}
+
+public enum DevelopmentGraphEdgeType
+{
+    Contains, BelongsTo, Changes, DependsOn, Affects, Impacts, TestedBy, VerifiedBy,
+    BuiltBy, Blocks, Targets, Reviews, Produces, RelatesTo, Requires, Implements,
+    EvidenceFor, Deploys, RegressedBy, CriticalPath
+}
+
+public enum VersionControlProvider { GitHub, Perforce }
+public enum ExternalCiProvider { GitHubActions, Jenkins, Generic }
+public enum ProjectControlRiskLevel { Low, Medium, High, Critical }
+public enum ReadinessState { Unknown, NotReady, NeedsAttention, Ready, Blocked }
+public enum MilestoneState { Planned, Active, AtRisk, Blocked, Completed, Cancelled }

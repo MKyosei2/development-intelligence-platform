@@ -34,10 +34,14 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Unity Collector verification failed.' }
     }
 
+    & (Join-Path $PSScriptRoot 'Verify-ProjectControl.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Project Control verification failed.' }
+
     $requiredEvidence = @(
         'artifacts\final-verification\PROJECT_COMPLETION.txt',
         'artifacts\p1-verification\P1_LOCAL_VERIFICATION.txt',
-        'artifacts\qa-bug-zoo\qa-bug-zoo-results.json'
+        'artifacts\qa-bug-zoo\qa-bug-zoo-results.json',
+        'artifacts\project-control-verification\PROJECT_CONTROL_SOURCE_VERIFICATION_PASS.txt'
     )
     if (-not $SkipP2) { $requiredEvidence += 'artifacts\P2_VERIFICATION_PASS.txt' }
     if (-not $SkipUnity) { $requiredEvidence += 'artifacts\unity-verification\UNITY_COLLECTOR_VERIFICATION_PASS.txt' }
@@ -53,6 +57,7 @@ try {
         'P1=PASS',
         "P2=$(if($SkipP2){'SKIPPED'}else{'PASS'})",
         'BugZoo=PASS',
+        'ProjectControl=PASS',
         "Unity=$(if($SkipUnity){'SKIPPED'}else{'PASS'})"
     )
     if ($partial) {

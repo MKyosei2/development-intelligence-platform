@@ -79,7 +79,7 @@ try {
         "INTEGRATION_EXECUTED=$([bool]$RunIntegration)",
         "E2E_EXECUTED=$([bool]$RunEndToEnd)",
         "DOCKER_CONFIG_EXECUTED=$([bool]$RunDockerConfig)",
-        'MIGRATIONS_EXPECTED=202608120001_InitialBaseline;202608120002_AddDurablePlatformIntelligence;202608120003_AddDevelopmentIntelligenceExpansion',
+        'MIGRATIONS_EXPECTED=202608120001_InitialBaseline;202608120002_AddDurablePlatformIntelligence;202608120003_AddDevelopmentIntelligenceExpansion;202608120004_AddProjectControlGraph',
         'UNIVERSAL_QA_DEFERRED=true',
         "UTC=$([DateTimeOffset]::UtcNow.ToString('O'))"
     ) | Set-Content -LiteralPath $pass -Encoding UTF8

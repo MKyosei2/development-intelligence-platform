@@ -128,4 +128,8 @@ public sealed class ApiClient
     public async Task<ChangeRiskDto?> GetLatestChangeRiskAsync(Guid projectId,CancellationToken cancellationToken=default)
     {using var response=await _httpClient.GetAsync($"api/v1/change-risk/projects/{projectId}/latest",cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;response.EnsureSuccessStatusCode();return await response.Content.ReadFromJsonAsync<ChangeRiskDto>(cancellationToken:cancellationToken);}
 
+    public async Task<ProjectControlDashboardDto> GetProjectControlDashboardAsync(Guid projectId,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<ProjectControlDashboardDto>($"api/v1/project-control/projects/{projectId}/dashboard",cancellationToken)
+          ??throw new InvalidDataException("Project Control dashboard API returned an empty response.");
+
 }

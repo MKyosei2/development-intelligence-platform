@@ -50,6 +50,18 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.WorkItems.WorkItemService>();
         services.AddScoped<Dip.Application.Features.Release.ReleaseEvidenceService>();
         services.AddScoped<Dip.Application.Features.Dashboard.IntelligenceDashboardService>();
+        services.AddScoped<Dip.Application.Features.DevelopmentGraph.DevelopmentGraphService>();
+        services.AddScoped<Dip.Application.Features.DevelopmentGraph.ProjectControlTestImpactService>();
+        services.AddScoped<Dip.Application.Features.ChangeImpact.ChangeImpactAnalysisService>();
+        services.AddScoped<Dip.Application.Features.Milestones.MilestoneIntelligenceService>();
+        services.AddScoped<Dip.Application.Features.FeatureControl.FeatureReadinessService>();
+        services.AddScoped<Dip.Application.Features.Review.ReviewIntelligenceService>();
+        services.AddScoped<Dip.Application.Features.Assets.AssetIntelligenceService>();
+        services.AddScoped<Dip.Application.Features.Decisions.DecisionLogService>();
+        services.AddScoped<Dip.Application.Features.Scenarios.WhatIfSimulationService>();
+        services.AddScoped<Dip.Application.Features.Integrations.VersionControlSyncService>();
+        services.AddScoped<Dip.Application.Features.Integrations.ExternalCiIntegrationService>();
+        services.AddScoped<Dip.Application.Features.Dashboard.ProjectControlDashboardService>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();
         services.AddSingleton<QualityGateEvaluator>();

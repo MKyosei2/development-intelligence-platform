@@ -416,6 +416,26 @@ public sealed class DipDbContextModelSnapshot : ModelSnapshot
             b.ToTable("cross_repository_impacts"); b.HasKey(x=>x.Id); b.Property(x=>x.Id).HasColumnName("id"); b.Property(x=>x.ProjectId).HasColumnName("project_id"); b.Property(x=>x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64); b.Property(x=>x.SourceRepositoryId).HasColumnName("source_repository_id"); b.Property(x=>x.Level).HasColumnName("level").HasConversion<string>().HasMaxLength(40); b.Property(x=>x.AffectedRepositoryIdsJson).HasColumnName("affected_repository_ids_json").HasMaxLength(16000); b.Property(x=>x.ReasonsJson).HasColumnName("reasons_json").HasMaxLength(16000); b.Property(x=>x.AnalyzedAtUtc).HasColumnName("analyzed_at_utc"); b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade); b.HasOne<RepositoryNode>().WithMany().HasForeignKey(x=>x.SourceRepositoryId).OnDelete(DeleteBehavior.Cascade); b.HasIndex(x=>new{x.ProjectId,x.CommitSha,x.AnalyzedAtUtc});
         });
 
+        // Frozen from DevelopmentGraphConfigurations.cs: DevelopmentGraphNodeConfiguration
+        modelBuilder.Entity<DevelopmentGraphNode>(b =>
+        {
+            b.ToTable("development_graph_nodes"); b.HasKey(x=>x.Id); b.Property(x=>x.Id).HasColumnName("id"); b.Property(x=>x.ProjectId).HasColumnName("project_id");
+            b.Property(x=>x.Type).HasColumnName("node_type").HasConversion<string>().HasMaxLength(60); b.Property(x=>x.Key).HasColumnName("node_key").HasMaxLength(300); b.Property(x=>x.Name).HasColumnName("name").HasMaxLength(300); b.Property(x=>x.Status).HasColumnName("status").HasMaxLength(80);
+            b.Property(x=>x.Provider).HasColumnName("provider").HasMaxLength(80); b.Property(x=>x.ExternalReference).HasColumnName("external_reference").HasMaxLength(2000); b.Property(x=>x.MetadataJson).HasColumnName("metadata_json").HasMaxLength(64000);
+            b.Property(x=>x.FirstObservedAtUtc).HasColumnName("first_observed_at_utc"); b.Property(x=>x.LastObservedAtUtc).HasColumnName("last_observed_at_utc"); b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x=>new{x.ProjectId,x.Type,x.Key}).IsUnique(); b.HasIndex(x=>new{x.ProjectId,x.Type,x.Status}); b.HasIndex(x=>new{x.ProjectId,x.LastObservedAtUtc});
+        });
+
+        // Frozen from DevelopmentGraphConfigurations.cs: DevelopmentGraphEdgeConfiguration
+        modelBuilder.Entity<DevelopmentGraphEdge>(b =>
+        {
+            b.ToTable("development_graph_edges"); b.HasKey(x=>x.Id); b.Property(x=>x.Id).HasColumnName("id"); b.Property(x=>x.ProjectId).HasColumnName("project_id"); b.Property(x=>x.SourceNodeId).HasColumnName("source_node_id"); b.Property(x=>x.TargetNodeId).HasColumnName("target_node_id");
+            b.Property(x=>x.Type).HasColumnName("edge_type").HasConversion<string>().HasMaxLength(60); b.Property(x=>x.Weight).HasColumnName("weight").HasPrecision(6,2); b.Property(x=>x.Critical).HasColumnName("critical"); b.Property(x=>x.MetadataJson).HasColumnName("metadata_json").HasMaxLength(32000);
+            b.Property(x=>x.FirstObservedAtUtc).HasColumnName("first_observed_at_utc"); b.Property(x=>x.LastObservedAtUtc).HasColumnName("last_observed_at_utc"); b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<DevelopmentGraphNode>().WithMany().HasForeignKey(x=>x.SourceNodeId).OnDelete(DeleteBehavior.Cascade); b.HasOne<DevelopmentGraphNode>().WithMany().HasForeignKey(x=>x.TargetNodeId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x=>new{x.ProjectId,x.SourceNodeId,x.TargetNodeId,x.Type}).IsUnique(); b.HasIndex(x=>new{x.ProjectId,x.SourceNodeId}); b.HasIndex(x=>new{x.ProjectId,x.TargetNodeId});
+        });
+
         // Frozen from ProjectClaimConfiguration.cs: ProjectClaimConfiguration
         modelBuilder.Entity<ProjectClaim>(b =>
         {

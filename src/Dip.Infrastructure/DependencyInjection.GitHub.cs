@@ -8,6 +8,7 @@ public static class GitHubDependencyInjection
   services.Configure<GitHubOptions>(configuration.GetSection(GitHubOptions.SectionName));
   services.AddSingleton<IGitHubWebhookVerifier,GitHubWebhookVerifier>();
   services.AddScoped<IProcessedWebhookRepository,ProcessedWebhookRepository>();
+  services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,Dip.Infrastructure.Integrations.GitHubVersionControlConnector>();
   return services;
  }
 }

@@ -30,6 +30,26 @@ else
         <div class="col-md-3"><div class="card"><div class="card-body"><strong>@(_overview?.RepositoryNodes ?? 0)</strong> repos / <strong>@(_overview?.RepositoryDependencies ?? 0)</strong> dependencies</div></div></div>
     </div>
 
+    @if (_projectControl is not null)
+    {
+        <div class="card mb-4">
+            <div class="card-header"><strong>Project Control — Action Required</strong></div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-2"><div class="small text-muted">Graph</div><div class="h4">@_projectControl.GraphNodes</div><div>@_projectControl.GraphEdges edges</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Features</div><div class="h4">@_projectControl.Features</div><div>@_projectControl.NotReadyFeatures not ready</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Milestones</div><div class="h4">@_projectControl.Milestones</div><div>@_projectControl.BlockedMilestones blocked</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Assets</div><div class="h4">@_projectControl.Assets</div><div>@_projectControl.CriticalAssets critical</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Reviews</div><div class="h4">@_projectControl.OpenReviews</div><div>need attention</div></div>
+                    <div class="col-md-2"><div class="small text-muted">CI</div><div class="h4">@_projectControl.FailedCiRuns</div><div>failed runs</div></div>
+                </div>
+                <div class="mb-2"><strong>Decision status:</strong> @_projectControl.DecisionStatus</div>
+                @if(_projectControl.ActionsRequired.Count>0){<strong>Actions required</strong><ol>@foreach(var x in _projectControl.ActionsRequired.Take(8)){<li>@x</li>}</ol>}
+                @if(_projectControl.MaterialRisks.Count>0){<strong>Material risks</strong><ul>@foreach(var x in _projectControl.MaterialRisks.Take(8)){<li>@x</li>}</ul>}
+            </div>
+        </div>
+    }
+
     @if (_readiness is not null)
     {
         <div class="card mb-4"><div class="card-header"><strong>Release Readiness — @_readiness.Decision</strong></div><div class="card-body"><p>@_readiness.Summary</p>@if(_readiness.Blockers.Count>0){<div class="text-danger"><strong>Blockers</strong><ul>@foreach(var x in _readiness.Blockers){<li>@x</li>}</ul></div>}@if(_readiness.RequiredActions.Count>0){<strong>Required actions</strong><ol>@foreach(var x in _readiness.RequiredActions){<li>@x</li>}</ol>}</div></div>
@@ -54,7 +74,7 @@ else
 <div class="mt-4"><a href="@($"/dashboard/{ProjectId}")">← Project Truth</a></div>
 
 @code {
-    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();
-    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();private ProjectControlDashboardDto? _projectControl;
+    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);_projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
     private string Window()=>_forecast?.EarliestCompletionUtc is null||_forecast.LatestCompletionUtc is null?"Not enough evidence":$"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
 }

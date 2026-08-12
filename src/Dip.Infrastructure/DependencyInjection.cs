@@ -82,6 +82,11 @@ public static class DependencyInjection
         services.AddScoped<IExternalWorkItemRepository, ExternalWorkItemRepository>();
         services.AddScoped<IReleaseEvidenceRepository, ReleaseEvidenceRepository>();
         services.AddScoped<IRepositoryGraphRepository, RepositoryGraphRepository>();
+        services.AddScoped<IDevelopmentGraphRepository, DevelopmentGraphRepository>();
+        services.Configure<Dip.Infrastructure.Integrations.PerforceOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.PerforceOptions.SectionName));
+        services.Configure<Dip.Infrastructure.Integrations.JenkinsOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.JenkinsOptions.SectionName));
+        services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,Dip.Infrastructure.Integrations.PerforceVersionControlConnector>();
+        services.AddSingleton<Dip.Application.Abstractions.Integrations.IExternalCiConnector,Dip.Infrastructure.Integrations.JenkinsCiConnector>();
         services.Configure<Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions>(configuration.GetSection(Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions.SectionName));
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IP2ExperimentRunner, Dip.Infrastructure.P2Intelligence.P2ExperimentRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();

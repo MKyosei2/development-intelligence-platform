@@ -122,3 +122,9 @@ Static package validation is recorded in
 `artifacts/package-validation/UPGRADE6_FIX_STATIC_VALIDATION.txt`.
 The revision is still **not runtime-verified** until a .NET 8 build/test run and
 live Integration/E2E workflow succeed for the exact resulting revision.
+
+## Project Control / Development Graph — 2026-08-12
+
+Source implementation includes the central Development Graph, GitHub/Perforce version-control normalization, Change Impact/Blast Radius, Release Readiness integration, Milestone/Critical Path, Test Impact graph links, Review Intelligence, Feature Readiness, Acceptance Criteria Evidence, Asset Intelligence, cross-repository graph bridging, Decision Log/Brief, What-if simulation and Jenkins/normalized external CI ingestion.
+
+This phase intentionally keeps hardcoded QA language scope to Python/C++/C#. It is **implemented in source, not runtime-verified** until the exact resulting revision passes .NET build/tests, PostgreSQL migration/application, connector smoke tests and live dashboard/API verification. See `docs/PROJECT_CONTROL_IMPLEMENTATION_20260812.md`.
