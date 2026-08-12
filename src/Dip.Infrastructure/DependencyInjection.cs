@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<IReleaseEvidenceRepository, ReleaseEvidenceRepository>();
         services.AddScoped<IRepositoryGraphRepository, RepositoryGraphRepository>();
         services.AddScoped<IDevelopmentGraphRepository, DevelopmentGraphRepository>();
+        services.AddSingleton<Dip.Application.Abstractions.Spreadsheets.IGoogleSheetsConnector,Dip.Infrastructure.Spreadsheets.GoogleSheetsRestConnector>();
         services.Configure<Dip.Infrastructure.Integrations.PerforceOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.PerforceOptions.SectionName));
         services.Configure<Dip.Infrastructure.Integrations.JenkinsOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.JenkinsOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,Dip.Infrastructure.Integrations.PerforceVersionControlConnector>();

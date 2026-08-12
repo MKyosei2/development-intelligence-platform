@@ -4,14 +4,14 @@ public enum DevelopmentGraphNodeType
 {
     Repository, Branch, Commit, PullRequest, Review, ChangeSet, File, Component,
     Build, CiRun, Test, QaFinding, Incident, WorkItem, Feature, AcceptanceCriterion,
-    Asset, Milestone, Release, Deployment, Evidence
+    Asset, Team, Workstream, Task, Blocker, Requirement, ScopeBaseline, Milestone, Release, Deployment, Evidence
 }
 
 public enum DevelopmentGraphEdgeType
 {
     Contains, BelongsTo, Changes, DependsOn, Affects, Impacts, TestedBy, VerifiedBy,
     BuiltBy, Blocks, Targets, Reviews, Produces, RelatesTo, Requires, Implements,
-    EvidenceFor, Deploys, RegressedBy, CriticalPath
+    EvidenceFor, Deploys, RegressedBy, CriticalPath, AssignedTo, OwnedBy, ScheduledFor, Satisfies
 }
 
 public enum VersionControlProvider { GitHub, Perforce }

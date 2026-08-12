@@ -22,6 +22,12 @@ public sealed class ReleaseReadinessService
         var latestBundle=await _releaseEvidence.GetLatestAsync(r.ProjectId,ct);if(latestBundle is null||!string.Equals(latestBundle.CommitSha,r.CommitSha,StringComparison.OrdinalIgnoreCase)){warnings.Add("No release provenance/SBOM bundle is attached to this exact commit.");actions.Add("Generate a release evidence bundle for the candidate commit.");}
         var risk=await _risk.GetLatestAsync(r.ProjectId,r.CommitSha,ct);if(risk is not null&&risk.RiskLevel is ChangeRiskLevel.Critical){blockers.Add($"Change risk for {r.CommitSha} is Critical ({risk.RiskScore:0.#}/100).");actions.Add("Run the expanded high-risk QA plan and reassess change risk.");}else if(risk is not null&&risk.RiskLevel is ChangeRiskLevel.High)warnings.Add($"Change risk is High ({risk.RiskScore:0.#}/100).");
         var graphNodes=await _graph.ListNodesAsync(r.ProjectId,null,ct);
+        var openManagementBlockers=graphNodes.Where(x=>x.Type==DevelopmentGraphNodeType.Blocker&&!IsResolvedManagementStatus(x.Status)).ToArray();
+        var criticalManagementBlockers=openManagementBlockers.Count(IsCriticalManagementBlocker);
+        if(criticalManagementBlockers>0){blockers.Add($"{criticalManagementBlockers} critical management blocker(s) remain open.");actions.Add("Resolve or explicitly mitigate critical schedule/workstream blockers before release.");}
+        else if(openManagementBlockers.Length>0)warnings.Add($"{openManagementBlockers.Length} management blocker(s) remain open.");
+        var incompleteHighPriorityRequirements=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.Requirement&&IsHighPriorityRequirementOpen(x));
+        if(incompleteHighPriorityRequirements>0){warnings.Add($"{incompleteHighPriorityRequirements} high-priority in-scope requirement(s) are incomplete.");actions.Add("Confirm incomplete high-priority requirements are either completed or explicitly removed/deferred from release scope.");}
         var blockedMilestones=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.Milestone&&IsBlockingStatus(x.Status));
         if(blockedMilestones>0){blockers.Add($"{blockedMilestones} milestone(s) are blocked/at risk on the Development Graph.");actions.Add("Resolve critical-path milestone blockers or explicitly rescope the release.");}
         var notReadyFeatures=graphNodes.Count(x=>x.Type==DevelopmentGraphNodeType.Feature&&IsBlockingStatus(x.Status));
@@ -37,6 +43,16 @@ public sealed class ReleaseReadinessService
         var decision=blockers.Count>0?ReleaseDecision.NoGo:warnings.Count>0?ReleaseDecision.ConditionalGo:ReleaseDecision.Go;var confidence=Math.Clamp(45m+Math.Min(35m,evidence.Count*2m)+(truth is null?0m:10m)+(budgetEvaluations.Count>0?10m:0m),0m,100m);var summary=decision switch{ReleaseDecision.Go=>"GO: no evidence-backed release blocker is currently open.",ReleaseDecision.ConditionalGo=>"CONDITIONAL GO: no hard blocker is open, but warnings require explicit review.",_=>"NO-GO: one or more evidence-backed release blockers must be resolved."};var entity=new ReleaseReadinessSnapshot(Guid.NewGuid(),r.ProjectId,r.CommitSha,decision,confidence,JsonSerializer.Serialize(blockers),JsonSerializer.Serialize(warnings),JsonSerializer.Serialize(actions.Distinct()),summary,_clock.UtcNow);await _repo.AddAsync(entity,ct);await _uow.SaveChangesAsync(ct);return Map(entity);
     }
     public async Task<ReleaseReadinessDto?> GetLatestAsync(Guid projectId,CancellationToken ct){var x=await _repo.GetLatestAsync(projectId,ct);return x is null?null:Map(x);}
+
+    private static bool IsResolvedManagementStatus(string status)=>status.Equals("Resolved",StringComparison.OrdinalIgnoreCase)||status.Equals("Closed",StringComparison.OrdinalIgnoreCase)||status.Equals("Done",StringComparison.OrdinalIgnoreCase)||status.Equals("Completed",StringComparison.OrdinalIgnoreCase);
+    private static bool IsCriticalManagementBlocker(DevelopmentGraphNode node)
+    {
+        try{using var d=JsonDocument.Parse(node.MetadataJson);return d.RootElement.TryGetProperty("Severity",out var s)&&string.Equals(s.GetString(),"Critical",StringComparison.OrdinalIgnoreCase);}catch{return node.Status.Equals("Critical",StringComparison.OrdinalIgnoreCase);}
+    }
+    private static bool IsHighPriorityRequirementOpen(DevelopmentGraphNode node)
+    {
+        if(IsResolvedManagementStatus(node.Status))return false;try{using var d=JsonDocument.Parse(node.MetadataJson);var r=d.RootElement;var priority=r.TryGetProperty("Priority",out var p)?p.GetString():"Medium";var scope=r.TryGetProperty("ScopeState",out var sc)?sc.GetString():"Included";return (priority is "Critical" or "High")&&scope is not ("Deferred" or "Removed");}catch{return false;}
+    }
     private static bool IsBlockingStatus(string status)=>status is "Blocked" or "AtRisk" or "NotReady" or "Failed" or "Critical";
     private static bool IsFailedStatus(string status)=>status.Equals("Failed",StringComparison.OrdinalIgnoreCase)||status.Equals("Failure",StringComparison.OrdinalIgnoreCase)||status.Equals("Error",StringComparison.OrdinalIgnoreCase)||status.Equals("Cancelled",StringComparison.OrdinalIgnoreCase);
     private static bool IsCriterionBlocking(DevelopmentGraphNode node)

@@ -8,6 +8,7 @@ using Dip.Application.Features.Jobs;
 using Dip.Application.Features.Incidents;
 using Dip.Application.Features.ChangeRisk;
 using Dip.Application.Features.Intelligence;
+using Dip.Application.Features.Management;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
 
@@ -127,6 +128,13 @@ public sealed class ApiClient
 
     public async Task<ChangeRiskDto?> GetLatestChangeRiskAsync(Guid projectId,CancellationToken cancellationToken=default)
     {using var response=await _httpClient.GetAsync($"api/v1/change-risk/projects/{projectId}/latest",cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;response.EnsureSuccessStatusCode();return await response.Content.ReadFromJsonAsync<ChangeRiskDto>(cancellationToken:cancellationToken);}
+
+    public async Task<ManagementDashboardDto> GetManagementDashboardAsync(Guid projectId,int horizonWeeks=8,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<ManagementDashboardDto>($"api/v1/project-control/projects/{projectId}/management-dashboard?horizonWeeks={Math.Clamp(horizonWeeks,1,26)}",cancellationToken)
+          ??throw new InvalidDataException("Management dashboard API returned an empty response.");
+
+    public string ManagementWorkbookUrl(Guid projectId)
+        =>new Uri(_httpClient.BaseAddress??throw new InvalidOperationException("API BaseAddress is missing."),$"api/v1/project-control/projects/{projectId}/management.xlsx").ToString();
 
     public async Task<ProjectControlDashboardDto> GetProjectControlDashboardAsync(Guid projectId,CancellationToken cancellationToken=default)
         =>await _httpClient.GetFromJsonAsync<ProjectControlDashboardDto>($"api/v1/project-control/projects/{projectId}/dashboard",cancellationToken)

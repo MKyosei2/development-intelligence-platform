@@ -3,6 +3,7 @@
 @using Dip.Application.Features.Dashboard
 @using Dip.Application.Features.Incidents
 @using Dip.Application.Features.Intelligence
+@using Dip.Application.Features.Management
 @using Dip.Application.Features.Jobs
 @using Dip.Application.Features.Performance
 @using Dip.Application.Features.Release
@@ -30,10 +31,46 @@ else
         <div class="col-md-3"><div class="card"><div class="card-body"><strong>@(_overview?.RepositoryNodes ?? 0)</strong> repos / <strong>@(_overview?.RepositoryDependencies ?? 0)</strong> dependencies</div></div></div>
     </div>
 
+
+    @if (_management is not null)
+    {
+        <div class="card mb-4 border-primary">
+            <div class="card-header"><strong>Management Control Center</strong> <span class="badge bg-secondary">@_management.OverallStatus</span></div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-2"><div class="small text-muted">Project health</div><div class="h3">@_management.HealthScore.ToString("0.#")</div><div>/ 100</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Schedule</div><div class="h5">@_management.Schedule.Status</div><div>@_management.Schedule.DelayDays day(s) delay</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Capacity bottlenecks</div><div class="h3">@_management.Capacity.Bottlenecks.Count</div><div>team/workstream</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Open blockers</div><div class="h3">@_management.Blockers.Open</div><div>@_management.Blockers.Critical critical</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Milestones</div><div class="h3">@_management.Milestones.Completed / @_management.Milestones.Total</div><div>@_management.Milestones.AtRisk at risk</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Scope growth</div><div class="h3">@_management.Scope.ScopeGrowthPercent.ToString("0.#")%</div><div>@_management.Scope.IncompleteHighPriority high priority open</div></div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-lg-6">
+                        <h6>Team / Workstream workload</h6>
+                        <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Workstream</th><th>Team</th><th>Load</th><th>Status</th></tr></thead><tbody>
+                        @foreach(var w in _management.Capacity.Workstreams.Take(8)){<tr><td>@w.Name</td><td>@w.TeamName</td><td style="min-width:150px"><div class="progress" role="progressbar"><div class="progress-bar" style="width:@Math.Min(100m,w.UtilizationPercent)%">@w.UtilizationPercent.ToString("0.#")%</div></div></td><td>@w.Status</td></tr>}
+                        </tbody></table></div>
+                    </div>
+                    <div class="col-lg-6">
+                        <h6>Critical path / schedule</h6>
+                        <p class="mb-1"><strong>Forecast finish:</strong> @(_management.Schedule.ForecastFinishUtc?.ToString("yyyy-MM-dd") ?? "Not available")</p>
+                        <p class="small text-muted">@string.Join(" → ", _management.Schedule.CriticalPath.Take(8))</p>
+                        <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Item</th><th>Due</th><th>Forecast</th><th>Status</th></tr></thead><tbody>
+                        @foreach(var x in _management.Schedule.Items.Where(x=>x.IsCritical||x.Status=="Blocked").Take(8)){<tr><td>@x.Name</td><td>@x.DueAtUtc.ToString("MM-dd")</td><td>@x.ForecastFinishUtc.ToString("MM-dd")</td><td>@x.Status</td></tr>}
+                        </tbody></table></div>
+                    </div>
+                </div>
+                @if(_management.ActionsRequired.Count>0){<div class="alert alert-warning mb-3"><strong>Management actions required</strong><ol class="mb-0">@foreach(var a in _management.ActionsRequired.Take(8)){<li>@a</li>}</ol></div>}
+                <div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-success btn-sm" href="@Api.ManagementWorkbookUrl(ProjectId)">Export Excel management workbook</a><span class="small text-muted align-self-center">Google Sheets bidirectional sync is available through the Project Control API.</span></div>
+            </div>
+        </div>
+    }
+
     @if (_projectControl is not null)
     {
         <div class="card mb-4">
-            <div class="card-header"><strong>Project Control — Action Required</strong></div>
+            <div class="card-header"><strong>Supporting Technical Evidence</strong></div>
             <div class="card-body">
                 <div class="row g-3 mb-3">
                     <div class="col-md-2"><div class="small text-muted">Graph</div><div class="h4">@_projectControl.GraphNodes</div><div>@_projectControl.GraphEdges edges</div></div>
@@ -74,7 +111,7 @@ else
 <div class="mt-4"><a href="@($"/dashboard/{ProjectId}")">← Project Truth</a></div>
 
 @code {
-    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();private ProjectControlDashboardDto? _projectControl;
-    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);_projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();private ProjectControlDashboardDto? _projectControl;private ManagementDashboardDto? _management;
+    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);_projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);_management=await Api.GetManagementDashboardAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
     private string Window()=>_forecast?.EarliestCompletionUtc is null||_forecast.LatestCompletionUtc is null?"Not enough evidence":$"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
 }

@@ -8,6 +8,7 @@ using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Features.FeatureControl;
 using Dip.Application.Features.Integrations;
 using Dip.Application.Features.Milestones;
+using Dip.Application.Features.Management;
 using Dip.Application.Features.P2Intelligence;
 using Dip.Application.Features.Review;
 using Dip.Application.Features.Scenarios;
@@ -31,7 +32,11 @@ public sealed class ProjectControlController(
     WhatIfSimulationService scenarios,
     VersionControlSyncService versionControl,
     ExternalCiIntegrationService ci,
-    ProjectControlDashboardService dashboard):ControllerBase
+    ProjectControlDashboardService dashboard,
+    WorkManagementService work,
+    ManagementAnalyticsService management,
+    ManagementDashboardService managementDashboard,
+    ManagementSpreadsheetService spreadsheets):ControllerBase
 {
     [Authorize(Policy=Policies.ProjectRead)]
     [HttpGet("projects/{projectId:guid}/graph")]
@@ -137,6 +142,104 @@ public sealed class ProjectControlController(
     [HttpPost("ci/ingest")]
     public Task<NormalizedCiRun> IngestCi([FromBody]NormalizedCiRun run,CancellationToken ct)
         =>ci.IngestAsync(run,ct);
+
+
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("teams")]
+    public Task<DevelopmentGraphNodeDto> UpsertTeam([FromBody]UpsertTeamCommand command,CancellationToken ct)
+        =>work.UpsertTeamAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("workstreams")]
+    public Task<DevelopmentGraphNodeDto> UpsertWorkstream([FromBody]UpsertWorkstreamCommand command,CancellationToken ct)
+        =>work.UpsertWorkstreamAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("tasks")]
+    public Task<DevelopmentGraphNodeDto> UpsertTask([FromBody]UpsertTaskCommand command,CancellationToken ct)
+        =>work.UpsertTaskAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("management-dependencies")]
+    public async Task<IActionResult> LinkManagementDependency([FromBody]LinkManagementDependencyCommand command,CancellationToken ct)
+    { await work.LinkDependencyAsync(command,ct);return NoContent(); }
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("blockers")]
+    public Task<DevelopmentGraphNodeDto> UpsertBlocker([FromBody]UpsertBlockerCommand command,CancellationToken ct)
+        =>work.UpsertBlockerAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("requirements")]
+    public Task<DevelopmentGraphNodeDto> UpsertRequirement([FromBody]UpsertRequirementCommand command,CancellationToken ct)
+        =>work.UpsertRequirementAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("requirement-links")]
+    public async Task<IActionResult> LinkRequirement([FromBody]LinkRequirementCommand command,CancellationToken ct)
+    { await work.LinkRequirementAsync(command,ct);return NoContent(); }
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("scope-baselines")]
+    public Task<DevelopmentGraphNodeDto> CreateScopeBaseline([FromBody]CreateScopeBaselineCommand command,CancellationToken ct)
+        =>work.CreateScopeBaselineAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("task-milestones")]
+    public async Task<IActionResult> LinkTaskMilestone([FromBody]LinkTaskToMilestoneCommand command,CancellationToken ct)
+    { await work.LinkTaskToMilestoneAsync(command,ct);return NoContent(); }
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/capacity")]
+    public Task<CapacityOverviewDto> GetCapacity(Guid projectId,[FromQuery]int horizonWeeks=8,CancellationToken ct=default)
+        =>management.GetCapacityAsync(projectId,horizonWeeks,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/schedule")]
+    public Task<ManagementScheduleDto> GetSchedule(Guid projectId,CancellationToken ct)
+        =>management.GetScheduleAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/blockers")]
+    public Task<BlockerOverviewDto> GetBlockers(Guid projectId,CancellationToken ct)
+        =>management.GetBlockersAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/management-dependencies")]
+    public Task<DependencyOverviewDto> GetDependencies(Guid projectId,CancellationToken ct)
+        =>management.GetDependenciesAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/management-milestones")]
+    public Task<ManagementMilestoneOverviewDto> GetManagementMilestones(Guid projectId,CancellationToken ct)
+        =>management.GetMilestonesAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/scope")]
+    public Task<ScopeOverviewDto> GetScope(Guid projectId,CancellationToken ct)
+        =>management.GetScopeAsync(projectId,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/management-dashboard")]
+    public Task<ManagementDashboardDto> GetManagementDashboard(Guid projectId,[FromQuery]int horizonWeeks=8,CancellationToken ct=default)
+        =>managementDashboard.GetAsync(projectId,horizonWeeks,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/management.xlsx")]
+    public async Task<IActionResult> ExportManagementWorkbook(Guid projectId,CancellationToken ct)
+    { var bytes=await spreadsheets.ExportXlsxAsync(projectId,ct);return File(bytes,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",$"dip-management-{projectId:N}.xlsx"); }
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("projects/{projectId:guid}/management.xlsx/import")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<SpreadsheetImportResult> ImportManagementWorkbook(Guid projectId,IFormFile file,CancellationToken ct)
+    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheets.ImportXlsxAsync(projectId,stream,ct); }
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("google-sheets/sync")]
+    public Task<GoogleSheetsSyncResult> SyncGoogleSheets([FromBody]GoogleSheetsSyncCommand command,CancellationToken ct)
+        =>spreadsheets.SyncGoogleAsync(command,ct);
 
     [Authorize(Policy=Policies.ProjectRead)]
     [HttpGet("projects/{projectId:guid}/dashboard")]

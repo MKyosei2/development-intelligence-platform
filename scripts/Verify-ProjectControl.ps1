@@ -30,7 +30,16 @@ try {
         'src\Dip.Infrastructure\Integrations\PerforceVersionControlConnector.cs',
         'src\Dip.Infrastructure\Integrations\JenkinsCiConnector.cs',
         'src\Dip.Infrastructure\Persistence\Migrations\202608120004_AddProjectControlGraph.cs',
-        'src\Dip.Api\Controllers\ProjectControlController.cs'
+        'src\Dip.Api\Controllers\ProjectControlController.cs',
+        'src\Dip.Application\Features\Management\ManagementContracts.cs',
+        'src\Dip.Application\Features\Management\WorkManagementService.cs',
+        'src\Dip.Application\Features\Management\ManagementAnalyticsService.cs',
+        'src\Dip.Application\Features\Management\ManagementSpreadsheetService.cs',
+        'src\Dip.Application\Features\Management\ManagementXlsxCodec.cs',
+        'src\Dip.Application\Features\Dashboard\ManagementDashboardService.cs',
+        'src\Dip.Application\Abstractions\Spreadsheets\IGoogleSheetsConnector.cs',
+        'src\Dip.Infrastructure\Spreadsheets\GoogleSheetsRestConnector.cs',
+        'docs\MANAGEMENT_INTELLIGENCE.md'
     )
     foreach($relative in $required){if(-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)){throw "Missing Project Control source file: $relative"}}
 
@@ -68,6 +77,17 @@ try {
         'PERFORCE_CONNECTOR_SOURCE=PASS',
         'WHAT_IF_SIMULATION=PASS',
         'JENKINS_EXTERNAL_CI_SOURCE=PASS',
+        'MANAGEMENT_INTELLIGENCE=PASS',
+        'TEAM_WORKLOAD_CAPACITY=PASS',
+        'TASK_WORKSTREAM_MANAGEMENT=PASS',
+        'SCHEDULE_GANTT=PASS',
+        'CRITICAL_PATH_MANAGEMENT=PASS',
+        'BLOCKER_MANAGEMENT=PASS',
+        'DEPENDENCY_MANAGEMENT=PASS',
+        'MILESTONE_MANAGEMENT=PASS',
+        'REQUIREMENT_SCOPE_MANAGEMENT=PASS',
+        'EXCEL_XLSX_BIDIRECTIONAL=PASS',
+        'GOOGLE_SHEETS_BIDIRECTIONAL_SOURCE=PASS',
         "INTEGRATION_EXECUTED=$([bool]$RunIntegration)",
         "E2E_EXECUTED=$([bool]$RunEndToEnd)",
         "UTC=$([DateTimeOffset]::UtcNow.ToString('O'))"
