@@ -135,14 +135,14 @@ public sealed class P2OrchestrationService
             {
                 var correction = Math.Clamp(1m / calibration.CalibrationFactor, 0.75m, 1.50m);
                 decimal Correct(decimal value) => Math.Min(100m, decimal.Round(value * correction, 2));
-                var confidence = decimal.Round(Math.Clamp(rawResult.ConfidencePercent * .6m + calibration.ConfidencePercent * .4m, 0m, 95m), 2);
+                var calibratedConfidence = decimal.Round(Math.Clamp(rawResult.ConfidencePercent * .6m + calibration.ConfidencePercent * .4m, 0m, 95m), 2);
                 result = rawResult with
                 {
                     SafeCpuPercent = Correct(rawResult.SafeCpuPercent),
                     SafeGpuPercent = Correct(rawResult.SafeGpuPercent),
                     SafeMemoryPercent = Correct(rawResult.SafeMemoryPercent),
                     SafeStoragePercent = Correct(rawResult.SafeStoragePercent),
-                    ConfidencePercent = confidence,
+                    ConfidencePercent = calibratedConfidence,
                     EvidenceJson = JsonSerializer.Serialize(new { simulation = rawResult.EvidenceJson, realDeviceBacktest = calibration, correctionFactor = correction }, new JsonSerializerOptions { WriteIndented = true })
                 };
             }
