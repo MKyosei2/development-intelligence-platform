@@ -9,16 +9,39 @@ public static class QaFingerprint
 {
     public static string Create(QaLanguage language,QaFindingCandidate finding)
     {
-        var stable = string.Join('|',
-            language,
-            Normalize(finding.Category),
-            Normalize(finding.ExceptionType),
-            Normalize(finding.RuleId),
-            NormalizePath(finding.FilePath),
-            finding.Line?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
-            Normalize(finding.Function),
-            Normalize(FirstMeaningfulLine(finding.StackTrace ?? finding.Message)));
+        var category=Normalize(finding.Category);
+        var stable = language==QaLanguage.Python&&category=="runtime"
+            ? PythonRuntimeStable(finding)
+            : string.Join('|',
+                language,
+                category,
+                Normalize(finding.ExceptionType),
+                Normalize(finding.RuleId),
+                NormalizePath(finding.FilePath),
+                finding.Line?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                Normalize(finding.Function),
+                Normalize(FirstMeaningfulLine(finding.StackTrace ?? finding.Message)));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stable)));
+    }
+
+    private static string PythonRuntimeStable(QaFindingCandidate finding)
+    {
+        var exceptionType=Normalize(finding.ExceptionType);
+        var message=Normalize(finding.Message);
+        if(string.IsNullOrEmpty(exceptionType))
+        {
+            var colon=message.IndexOf(':');
+            if(colon>0)
+            {
+                var candidate=message[..colon].Trim();
+                if(candidate.EndsWith("error",StringComparison.Ordinal)||candidate.EndsWith("exception",StringComparison.Ordinal))
+                {
+                    exceptionType=candidate;
+                    message=message[(colon+1)..].Trim();
+                }
+            }
+        }
+        return string.Join('|',QaLanguage.Python,"runtime",exceptionType,message);
     }
 
     private static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant();
