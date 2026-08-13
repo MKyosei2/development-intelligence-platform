@@ -5,12 +5,15 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class ProjectConfiguration :
-    IEntityTypeConfiguration<Project>
+public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
 {
     public void Configure(EntityTypeBuilder<Project> builder)
     {
-        builder.ToTable("projects");
+        // Keep this mapping identical to the formal legacy baseline. This
+        // configuration and ProjectCoreConfiguration are both discovered by
+        // ApplyConfigurationsFromAssembly, so conflicting names here would
+        // produce a model/schema mismatch at runtime.
+        builder.ToTable("Projects");
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.Name)
@@ -18,23 +21,21 @@ public sealed class ProjectConfiguration :
             .IsRequired();
 
         builder.Property(x => x.RepositoryUrl)
-            .HasMaxLength(500)
+            .HasMaxLength(2000)
             .IsRequired();
 
         builder.Property(x => x.DefaultBranch)
             .HasMaxLength(200)
             .IsRequired();
 
-        // HealthScore is a value object, not an owned entity.
         builder.Property(x => x.HealthScore)
             .HasConversion(
                 score => score.Value,
                 value => new HealthScore(value))
-            .HasColumnName("health_score")
+            .HasColumnName("HealthScore")
             .HasPrecision(5, 2)
             .IsRequired();
 
-        builder.HasIndex(x => x.RepositoryUrl)
-            .IsUnique();
+        builder.HasIndex(x => x.RepositoryUrl);
     }
 }
