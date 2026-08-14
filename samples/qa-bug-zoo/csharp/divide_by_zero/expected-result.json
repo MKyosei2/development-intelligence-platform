@@ -1,1 +1,1 @@
-{"category":"runtime","severity":"Critical","exceptionType":"DivideByZeroException","mustReproduce":true}
+{"category":"runtime","severity":"Critical","exceptionType":"System.DivideByZeroException","mustReproduce":true}
