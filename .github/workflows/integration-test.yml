@@ -51,6 +51,8 @@ jobs:
       GitHub__WebhookSecret: integration-test-secret
       GitHub__Token: integration-test-token
       DIP_API_URL: http://127.0.0.1:7001
+      Qa__WorkspaceRoot: ${{ github.workspace }}
+      Qa__ArtifactRoot: ${{ github.workspace }}/artifacts/qa
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -117,6 +119,7 @@ jobs:
             TestResults
             api.log
             worker.log
+            artifacts/qa
           if-no-files-found: warn
           retention-days: 14
 

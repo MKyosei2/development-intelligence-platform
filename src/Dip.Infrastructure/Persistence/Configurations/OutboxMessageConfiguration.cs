@@ -4,13 +4,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class OutboxMessageConfiguration :
-    IEntityTypeConfiguration<OutboxMessage>
+public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
 {
-    public void Configure(
-        EntityTypeBuilder<OutboxMessage> builder)
+    public void Configure(EntityTypeBuilder<OutboxMessage> builder)
     {
-        builder.ToTable("outbox_messages");
+        builder.ToTable("OutboxMessages");
         builder.HasKey(message => message.Id);
 
         builder.Property(message => message.MessageType)
@@ -18,7 +16,7 @@ public sealed class OutboxMessageConfiguration :
             .IsRequired();
 
         builder.Property(message => message.PayloadJson)
-            .HasColumnType("jsonb")
+            .HasColumnType("text")
             .IsRequired();
 
         builder.Property(message => message.CorrelationId)
@@ -31,8 +29,6 @@ public sealed class OutboxMessageConfiguration :
         builder.Property(message => message.LastError)
             .HasMaxLength(4000);
 
-        // This prevents two worker instances that selected the same pending
-        // row from both acquiring it and publishing it.
         builder.Property(message => message.AttemptCount)
             .IsConcurrencyToken();
 
@@ -40,10 +36,7 @@ public sealed class OutboxMessageConfiguration :
         {
             message.ProcessedAtUtc,
             message.NextAttemptAtUtc,
-            message.LockedUntilUtc,
-            message.CreatedAtUtc
+            message.LockedUntilUtc
         });
-
-        builder.HasIndex(message => message.CorrelationId);
     }
 }

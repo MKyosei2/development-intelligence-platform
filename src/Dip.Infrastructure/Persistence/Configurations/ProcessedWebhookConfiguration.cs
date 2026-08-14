@@ -4,21 +4,15 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class ProcessedWebhookConfiguration :
-    IEntityTypeConfiguration<ProcessedWebhook>
+public sealed class ProcessedWebhookConfiguration : IEntityTypeConfiguration<ProcessedWebhook>
 {
-    public void Configure(
-        EntityTypeBuilder<ProcessedWebhook> builder)
+    public void Configure(EntityTypeBuilder<ProcessedWebhook> builder)
     {
-        builder.ToTable("processed_webhooks");
-
-        // ProcessedWebhook does not have a separate Id property.
-        // GitHub delivery IDs are unique and are the natural primary key.
+        builder.ToTable("ProcessedWebhooks");
         builder.HasKey(x => x.DeliveryId);
 
         builder.Property(x => x.DeliveryId)
-            .HasMaxLength(200)
-            .IsRequired();
+            .HasMaxLength(200);
 
         builder.Property(x => x.EventName)
             .HasMaxLength(100)
@@ -31,7 +25,6 @@ public sealed class ProcessedWebhookConfiguration :
         builder.Property(x => x.LastError)
             .HasMaxLength(4000);
 
-        builder.HasIndex(x => x.ProcessedAtUtc);
         builder.HasIndex(x => x.ReceivedAtUtc);
     }
 }

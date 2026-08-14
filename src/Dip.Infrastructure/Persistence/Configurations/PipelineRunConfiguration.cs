@@ -5,14 +5,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class PipelineRunConfiguration :
-    IEntityTypeConfiguration<PipelineRun>
+public sealed class PipelineRunConfiguration : IEntityTypeConfiguration<PipelineRun>
 {
-    public void Configure(
-        EntityTypeBuilder<PipelineRun> builder)
+    public void Configure(EntityTypeBuilder<PipelineRun> builder)
     {
-        builder.ToTable("pipeline_runs");
+        // Keep this mapping identical to the formal legacy baseline. This
+        // configuration and PipelineRunCoreConfiguration are both discovered by
+        // ApplyConfigurationsFromAssembly, so conflicting mappings would produce
+        // a model/schema mismatch at runtime.
+        builder.ToTable("PipelineRuns");
         builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.CommitSha)
+            .HasConversion(
+                sha => sha.Value,
+                value => new CommitSha(value))
+            .HasColumnName("CommitSha")
+            .HasMaxLength(64)
+            .IsRequired();
 
         builder.Property(x => x.ExternalRunId)
             .HasMaxLength(200)
@@ -30,22 +40,13 @@ public sealed class PipelineRunConfiguration :
             .HasMaxLength(50)
             .IsRequired();
 
-        builder.Property(x => x.Status)
-            .HasConversion<string>()
-            .HasMaxLength(40)
-            .IsRequired();
-
         builder.Property(x => x.FailureReason)
             .HasMaxLength(2000);
 
-        // CommitSha is a value object, not an owned entity.
-        builder.Property(x => x.CommitSha)
-            .HasConversion(
-                sha => sha.Value,
-                value => new CommitSha(value))
-            .HasColumnName("commit_sha")
-            .HasMaxLength(64)
-            .IsRequired();
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => new
         {

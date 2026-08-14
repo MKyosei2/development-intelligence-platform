@@ -15,6 +15,7 @@ using Dip.Application.Features.Scenarios;
 using Dip.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ProjectControlDecisionBriefDto = Dip.Application.Features.Decisions.DecisionBriefDto;
 
 namespace Dip.Api.Controllers;
 
@@ -120,7 +121,7 @@ public sealed class ProjectControlController(
 
     [Authorize(Policy=Policies.ProjectRead)]
     [HttpGet("projects/{projectId:guid}/decision-brief")]
-    public Task<DecisionBriefDto> GetDecisionBrief(Guid projectId,CancellationToken ct)
+    public Task<ProjectControlDecisionBriefDto> GetDecisionBrief(Guid projectId,CancellationToken ct)
         =>decisions.BuildBriefAsync(projectId,ct);
 
     [Authorize(Policy=Policies.ProjectWrite)]
@@ -142,8 +143,6 @@ public sealed class ProjectControlController(
     [HttpPost("ci/ingest")]
     public Task<NormalizedCiRun> IngestCi([FromBody]NormalizedCiRun run,CancellationToken ct)
         =>ci.IngestAsync(run,ct);
-
-
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("teams")]

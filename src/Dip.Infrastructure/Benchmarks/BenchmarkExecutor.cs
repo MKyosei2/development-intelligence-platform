@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using Dip.Application.Features.Benchmarks;
 using Dip.Application.Features.QualityAutomation;
+using Dip.Infrastructure.QualityAutomation;
 
 namespace Dip.Infrastructure.Benchmarks;
 

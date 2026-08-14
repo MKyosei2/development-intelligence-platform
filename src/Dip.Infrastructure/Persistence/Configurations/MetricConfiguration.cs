@@ -8,28 +8,28 @@ public sealed class MetricConfiguration : IEntityTypeConfiguration<Metric>
 {
     public void Configure(EntityTypeBuilder<Metric> builder)
     {
-        builder.ToTable("metrics");
+        // Keep the runtime model aligned with MetricCoreConfiguration and the
+        // immutable legacy migration baseline.
+        builder.ToTable("Metrics");
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.Name).HasMaxLength(120).IsRequired();
         builder.Property(x => x.Unit).HasMaxLength(30).IsRequired();
-        builder.Property(x => x.Value).HasPrecision(28, 8);
-        builder.Property(x => x.BaselineValue).HasPrecision(28, 8);
-        builder.Property(x => x.Difference).HasPrecision(28, 8);
+        builder.Property(x => x.Value).HasPrecision(18, 6);
+        builder.Property(x => x.BaselineValue).HasPrecision(18, 6);
+        builder.Property(x => x.Difference).HasPrecision(18, 6);
         builder.Property(x => x.DifferencePercent).HasPrecision(12, 4);
-        builder.Property(x => x.EnvironmentId).HasMaxLength(100);
-        builder.Property(x => x.ScenarioId).HasMaxLength(100);
-        builder.Property(x => x.Platform).HasMaxLength(100);
-        builder.Property(x => x.BuildConfiguration).HasMaxLength(100);
-        builder.Property(x => x.BenchmarkVersion).HasMaxLength(100);
+        builder.Property(x => x.EnvironmentId).HasMaxLength(120);
+        builder.Property(x => x.ScenarioId).HasMaxLength(120);
+        builder.Property(x => x.Platform).HasMaxLength(80);
+        builder.Property(x => x.BuildConfiguration).HasMaxLength(80);
+        builder.Property(x => x.BenchmarkVersion).HasMaxLength(80);
 
-        builder.HasIndex(x => x.PipelineRunId);
-        builder.HasIndex(x => new
-        {
-            x.PipelineRunId,
-            x.Name,
-            x.EnvironmentId,
-            x.ScenarioId
-        });
+        builder.HasOne<PipelineRun>()
+            .WithMany()
+            .HasForeignKey(x => x.PipelineRunId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new { x.PipelineRunId, x.Name });
     }
 }
