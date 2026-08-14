@@ -45,8 +45,12 @@ jobs:
           sudo apt-get install -y cmake clang-tidy cppcheck
       - name: Build solution
         run: dotnet build DevelopmentIntelligencePlatform.sln -c Release
-      - name: Test solution
-        run: dotnet test DevelopmentIntelligencePlatform.sln -c Release --no-build --logger 'trx;LogFileName=universal-qa.trx' --results-directory artifacts/test-results
+      - name: Domain tests
+        run: dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj -c Release --no-build --logger 'trx;LogFileName=domain.trx' --results-directory artifacts/test-results
+      - name: Application tests
+        run: dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj -c Release --no-build --logger 'trx;LogFileName=application.trx' --results-directory artifacts/test-results
+      - name: Infrastructure tests
+        run: dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj -c Release --no-build --logger 'trx;LogFileName=infrastructure.trx' --results-directory artifacts/test-results
       - name: Run multilingual Bug Zoo
         shell: pwsh
         run: ./scripts/Invoke-QaBugZoo.ps1
