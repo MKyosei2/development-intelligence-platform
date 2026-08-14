@@ -1,0 +1,65 @@
+name: Runtime Verification
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'collectors/unity-collector/**'
+      - 'scripts/Verify-RuntimeEvidence.ps1'
+      - 'scripts/Verify-UnityCollector.ps1'
+      - '.github/workflows/runtime-verification.yml'
+  workflow_dispatch:
+    inputs:
+      run_unity:
+        description: 'Run full Unity verification on a self-hosted Windows runner labelled unity'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  windows-dotnet:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Verify Windows and .NET runtime
+        shell: pwsh
+        run: ./scripts/Verify-RuntimeEvidence.ps1 -DotNetOnly
+      - name: Upload Windows/.NET evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-dotnet-runtime-evidence
+          path: artifacts/runtime-verification
+          if-no-files-found: error
+
+  unity-full:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_unity
+    runs-on: [self-hosted, Windows, X64, unity]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Verify Windows/.NET/Unity runtime
+        shell: pwsh
+        env:
+          UNITY_EDITOR_PATH: ${{ vars.UNITY_EDITOR_PATH }}
+        run: ./scripts/Verify-RuntimeEvidence.ps1 -UnityPath "$env:UNITY_EDITOR_PATH"
+      - name: Upload full runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-dotnet-unity-runtime-evidence
+          path: |
+            artifacts/runtime-verification
+            artifacts/unity-verification
+          if-no-files-found: error
