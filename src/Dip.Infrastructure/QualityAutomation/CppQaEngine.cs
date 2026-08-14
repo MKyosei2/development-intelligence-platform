@@ -15,10 +15,13 @@ public sealed class CppQaEngine(ProcessExecutor executor):IQaAdapter,ICppHardcod
         var sanitizerEnvironment=new Dictionary<string,string>{{"ASAN_OPTIONS",OperatingSystem.IsWindows()?"halt_on_error=1":"detect_leaks=1:halt_on_error=1"},{"UBSAN_OPTIONS","print_stacktrace=1:halt_on_error=0"}};
         var build=Path.Combine(workspace,".dipqa","asan-build");Directory.CreateDirectory(build);
         var flags=OperatingSystem.IsWindows()?"/W4 /fsanitize=address /Zi":"-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";
-        await Run("cmake-configure",cmake,["-S",workspace,"-B",build,"-DCMAKE_BUILD_TYPE=RelWithDebInfo",$"-DCMAKE_CXX_FLAGS={flags}"],Severity.Critical,"configure");
+        await Run("cmake-configure",cmake,["-S",workspace,"-B",build,"-DCMAKE_BUILD_TYPE=RelWithDebInfo","-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",$"-DCMAKE_CXX_FLAGS={flags}"],Severity.Critical,"configure");
         await Run("cmake-build",cmake,["--build",build,"--config","RelWithDebInfo","--parallel"],Severity.Critical,"compile");
         var ctest=ProcessExecutor.FindExecutable("ctest");if(ctest is not null)await Run("ctest",ctest,["--test-dir",build,"-C","RelWithDebInfo","--output-on-failure"],Severity.Warning,"test",sanitizerEnvironment);else AddUnavailable("ctest");
-        var clangTidy=ProcessExecutor.FindExecutable("clang-tidy");if(clangTidy is not null)await RunClangTidy(clangTidy,build);else AddUnavailable("clang-tidy");
+        var clangTidy=ProcessExecutor.FindExecutable("clang-tidy");
+        if(clangTidy is not null&&File.Exists(Path.Combine(build,"compile_commands.json")))await RunClangTidy(clangTidy,build);
+        else if(clangTidy is null)AddUnavailable("clang-tidy");
+        else tools.Add(new("clang-tidy",false,false,null,0,string.Empty,string.Empty,"clang-tidy skipped because the selected CMake generator did not emit compile_commands.json."));
         var cppcheck=ProcessExecutor.FindExecutable("cppcheck");if(cppcheck is not null)await Run("cppcheck",cppcheck,["--enable=warning,performance,portability","--inline-suppr","--quiet",workspace],Severity.Warning,"static-analysis");else AddUnavailable("cppcheck");
         if(!string.IsNullOrWhiteSpace(command.RuntimeExecutable))
         {
