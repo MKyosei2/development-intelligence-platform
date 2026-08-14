@@ -135,7 +135,7 @@ The connector reads one specific build's JSON API and normalizes status, revisio
 
 ## QA language scope
 
-This phase intentionally keeps hardcoded QA depth focused on **Python, C++ and C#**. Universal/multi-language QA remains a later architectural phase. Test-impact integration reuses the existing selector instead of duplicating QA engines.
+This 2026-08-12 phase intentionally kept deep QA focused on **Python, C++ and C#**. The later 2026-08-14 Universal QA layer now routes those deep adapters together with additional built-in/manifest adapters through extensible `LanguageId`; Test Impact continues to reuse the shared selector rather than duplicating QA engines.
 
 ## Verification contract
 

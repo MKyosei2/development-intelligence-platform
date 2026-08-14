@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
 
@@ -67,12 +68,15 @@ internal static partial class QaParsing
         if(text.Contains("tests failed",StringComparison.OrdinalIgnoreCase)||text.Contains("FAILED",StringComparison.Ordinal)&&tool.Contains("ctest",StringComparison.OrdinalIgnoreCase))list.Add(new("test",Severity.Warning,tool,"C++ tests failed",LastLineContaining(text,"fail"),RuleId:"ctest"));
         return Deduplicate(list);
     }
-    public static IReadOnlyList<QaFindingCandidate> ParseForLanguage(QaLanguage language,string tool,string stdout,string stderr,bool timedOut=false)
+    public static IReadOnlyList<QaFindingCandidate> ParseForLanguage(LanguageId language,string tool,string stdout,string stderr,bool timedOut=false)
     {
         var text=stdout+"\n"+stderr;
-        return language switch{QaLanguage.Python=>ParsePython(tool,text,timedOut),QaLanguage.CSharp=>ParseCSharp(tool,text,timedOut),QaLanguage.Cpp=>ParseCpp(tool,text,timedOut),_=>Array.Empty<QaFindingCandidate>()};
+        if(language==LanguageId.Python)return ParsePython(tool,text,timedOut);
+        if(language==LanguageId.CSharp)return ParseCSharp(tool,text,timedOut);
+        if(language==LanguageId.Cpp||language==LanguageId.C)return ParseCpp(tool,text,timedOut);
+        return Array.Empty<QaFindingCandidate>();
     }
-    public static bool MatchesFingerprint(Dip.Domain.Enums.QaLanguage language,string expected,string stdout,string stderr,bool timedOut=false)
+    public static bool MatchesFingerprint(LanguageId language,string expected,string stdout,string stderr,bool timedOut=false)
         =>ParseForLanguage(language,"reproduction",stdout,stderr,timedOut).Any(x=>QaFingerprint.Create(language,x)==expected);
     private static IReadOnlyList<QaFindingCandidate> Deduplicate(IEnumerable<QaFindingCandidate> list)=>list.GroupBy(x=>string.Join('|',x.Category,x.FilePath,x.Line,x.ExceptionType,x.Message),StringComparer.Ordinal).Select(x=>x.First()).Take(200).ToArray();
     private static string Trim(string text)=>text.Length<=30000?text:text[..30000];

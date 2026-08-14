@@ -1,0 +1,25 @@
+{
+  "languages": [
+    {
+      "id": "customlang",
+      "extensions": [
+        ".diptest"
+      ],
+      "commands": [
+        {
+          "name": "custom-compiler",
+          "executable": "python",
+          "arguments": [
+            "-c",
+            "import pathlib,sys; p=sys.argv[1]; compile(pathlib.Path(p).read_text(encoding='utf-8'),p,'exec')",
+            "{file}"
+          ],
+          "perFile": true,
+          "category": "compile",
+          "severity": "critical",
+          "reports": []
+        }
+      ]
+    }
+  ]
+}

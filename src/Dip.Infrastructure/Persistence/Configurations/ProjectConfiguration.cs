@@ -15,27 +15,12 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
         // produce a model/schema mismatch at runtime.
         builder.ToTable("Projects");
         builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.Name)
-            .HasMaxLength(120)
-            .IsRequired();
-
-        builder.Property(x => x.RepositoryUrl)
-            .HasMaxLength(2000)
-            .IsRequired();
-
-        builder.Property(x => x.DefaultBranch)
-            .HasMaxLength(200)
-            .IsRequired();
-
+        builder.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        builder.Property(x => x.RepositoryUrl).HasMaxLength(2000).IsRequired();
+        builder.Property(x => x.DefaultBranch).HasMaxLength(200).IsRequired();
         builder.Property(x => x.HealthScore)
-            .HasConversion(
-                score => score.Value,
-                value => new HealthScore(value))
-            .HasColumnName("HealthScore")
-            .HasPrecision(5, 2)
-            .IsRequired();
-
+            .HasConversion(score => score.Value,value => new HealthScore(value))
+            .HasColumnName("HealthScore").HasPrecision(5, 2).IsRequired();
         builder.HasIndex(x => x.RepositoryUrl);
     }
 }

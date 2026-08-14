@@ -3,7 +3,7 @@
 P1 strengthens Project Truth; it does not replace Project Truth with QA.
 
 ```text
-Python / C# / C++ hardcoded QA
+Python / C# / C++ deep specialized QA adapters
   -> Finding + stable fingerprint
   -> automatic reproduction (3 or 5 attempts)
   -> screen/audio/log/dump/environment artifacts
@@ -24,7 +24,7 @@ EvidenceRecord + Claim
 
 ## Language-specific QA
 
-No language-independent QA adapter is introduced in P1. `PythonQaEngine`, `CSharpQaEngine`, and `CppQaEngine` are separate implementations and the application orchestrator switches explicitly on `QaLanguage`.
+The deep `PythonQaEngine`, `CSharpQaEngine`, and `CppQaEngine` implementations remain, but they now implement the shared `IQaAdapter` contract. `QaAdapterRegistry` selects them by extensible `LanguageId`; other languages use generic or manifest adapters.
 
 ### Python
 - `python -m compileall`

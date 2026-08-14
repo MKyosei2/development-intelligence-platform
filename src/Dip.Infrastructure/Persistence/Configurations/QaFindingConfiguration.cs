@@ -1,4 +1,5 @@
 using Dip.Domain.Entities;
+using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,7 +12,7 @@ public sealed class QaFindingConfiguration : IEntityTypeConfiguration<QaFinding>
         b.ToTable("qa_findings"); b.HasKey(x=>x.Id);
         b.Property(x=>x.Id).HasColumnName("id"); b.Property(x=>x.ProjectId).HasColumnName("project_id"); b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");
         b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200).IsRequired();
-        b.Property(x=>x.Language).HasColumnName("language").HasConversion<string>().HasMaxLength(40).IsRequired();
+        b.Property(x=>x.Language).HasColumnName("language").HasConversion(v=>v.Value,v=>LanguageId.Parse(v)).HasMaxLength(40).IsRequired();
         b.Property(x=>x.Category).HasColumnName("category").HasMaxLength(120).IsRequired();
         b.Property(x=>x.Severity).HasColumnName("severity").HasConversion<string>().HasMaxLength(40).IsRequired();
         b.Property(x=>x.Tool).HasColumnName("tool").HasMaxLength(120).IsRequired();

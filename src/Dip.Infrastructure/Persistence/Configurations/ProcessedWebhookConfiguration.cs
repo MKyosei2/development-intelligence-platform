@@ -10,21 +10,10 @@ public sealed class ProcessedWebhookConfiguration : IEntityTypeConfiguration<Pro
     {
         builder.ToTable("ProcessedWebhooks");
         builder.HasKey(x => x.DeliveryId);
-
-        builder.Property(x => x.DeliveryId)
-            .HasMaxLength(200);
-
-        builder.Property(x => x.EventName)
-            .HasMaxLength(100)
-            .IsRequired();
-
-        builder.Property(x => x.PayloadHash)
-            .HasMaxLength(64)
-            .IsRequired();
-
-        builder.Property(x => x.LastError)
-            .HasMaxLength(4000);
-
+        builder.Property(x => x.DeliveryId).HasMaxLength(200);
+        builder.Property(x => x.EventName).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.PayloadHash).HasMaxLength(64).IsRequired();
+        builder.Property(x => x.LastError).HasMaxLength(4000);
         builder.HasIndex(x => x.ReceivedAtUtc);
     }
 }

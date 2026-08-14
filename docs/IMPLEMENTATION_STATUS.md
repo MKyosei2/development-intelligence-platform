@@ -86,7 +86,7 @@ P2 must **not** be declared runtime-verified until `scripts/Verify-P2.ps1` compl
 | Unity Runtime PerformanceProbe | Implemented | Real Unity Player/Editor runtime metrics |
 | Portfolio readiness orchestration | Implemented | `PORTFOLIO_READINESS_PASS.txt` only after all non-skipped verification phases pass |
 
-Universal / unknown-language QA adapters are intentionally **not** part of this phase. They remain a final-stage architectural generalization after the current QA and game-development evidence paths are validated.
+Universal / unknown-language QA adapters were deferred in this historical phase; they are now implemented by the 2026-08-14 Universal QA layer documented later in this file.
 
 ## Durable platform-intelligence implementation — 2026-08-12
 
@@ -108,7 +108,7 @@ The Upgrade8-based source now also implements the requested concrete expansion: 
 
 These items are **implemented in source, not automatically runtime-verified**. Completion evidence still requires a .NET 8 build/test for the exact revision, clean and legacy PostgreSQL migration runs, live Redis/Worker durable-job tests, selected Local/MinIO artifact round trips, OTLP export verification, and real Unity/Unreal/device runs for engine/hardware-specific paths. Real-device calibration remains empty until measured samples are actually recorded, and portfolio benchmark `TBD` values remain untouched until fixed-environment measurements exist.
 
-The GitHub Issues connector is the implemented external work-item path in this phase; Jira/Linear are not represented as implemented. Universal/unknown-language QA abstraction remains intentionally deferred to the final architectural phase.
+The GitHub Issues connector is the implemented external work-item path in this phase; Jira/Linear are not represented as implemented. The Universal/unknown-language QA abstraction that was deferred here is now implemented by the 2026-08-14 Universal QA layer documented later in this file.
 
 ## 2026-08-11 Upgrade6 CI repair package
 
@@ -128,3 +128,21 @@ live Integration/E2E workflow succeed for the exact resulting revision.
 Source implementation includes the central Development Graph, GitHub/Perforce version-control normalization, Change Impact/Blast Radius, Release Readiness integration, Milestone/Critical Path, Test Impact graph links, Review Intelligence, Feature Readiness, Acceptance Criteria Evidence, Asset Intelligence, cross-repository graph bridging, Decision Log/Brief, What-if simulation and Jenkins/normalized external CI ingestion.
 
 This phase intentionally keeps hardcoded QA language scope to Python/C++/C#. It is **implemented in source, not runtime-verified** until the exact resulting revision passes .NET build/tests, PostgreSQL migration/application, connector smoke tests and live dashboard/API verification. See `docs/PROJECT_CONTROL_IMPLEMENTATION_20260812.md`.
+
+
+## 2026-08-14 Universal QA S-priority implementation
+
+| Area | Code state | Exact-revision completion evidence |
+|---|---|---|
+| Extensible `LanguageId` | Implemented | Domain/build tests on target .NET |
+| Universal Adapter Registry | Implemented | Universal QA Bug Zoo |
+| Build/Framework/Game Engine detection | Implemented | detector tests + Bug Zoo/profile evidence |
+| SARIF / JSON / JUnit normalization | Implemented | normalizer tests + structured-report cases |
+| Multi-language Bug Zoo | Implemented | `artifacts/qa-bug-zoo/qa-bug-zoo-results.json` |
+| Unknown/proprietary language manifest | Implemented | `customlang` Bug Zoo cases |
+| Formal Windows/.NET/Unity verification | Runner implemented | `artifacts/formal-portfolio-verification/FORMAL_PORTFOLIO_VERIFICATION_PASS.txt` for exact commit |
+| Portfolio benchmark measurement | Runner implemented | `artifacts/portfolio-benchmark/portfolio-benchmark-results.json` for exact commit |
+
+The former closed `QaLanguage` enum has been removed. Existing persisted values (`Python`, `CSharp`, `Cpp`) remain readable through `LanguageId` aliases, so the QA language column does not require a destructive schema migration. Python/C#/C++ remain deep specialized adapters; additional languages use the built-in generic adapter or `.dip/qa.json`. Structured diagnostics are normalized before textual fallbacks.
+
+This generated source tree **does not claim Windows/.NET/Unity runtime PASS or benchmark numbers until those runners are executed on the target machine for the exact revision**. This prevents previous-revision evidence from being mislabeled.

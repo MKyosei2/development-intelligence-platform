@@ -64,7 +64,7 @@ try {
         'PROJECT_CONTROL_SOURCE_VERIFICATION=PASS',
         "DOTNET_SDK=$version",
         'MIGRATION=202608120004_AddProjectControlGraph',
-        'QA_LANGUAGE_SCOPE=Python;C++;C#',
+        'QA_LANGUAGE_SCOPE=Universal LanguageId adapters; deep=Python,C++,C#',
         'DEVELOPMENT_GRAPH=PASS',
         'CHANGE_IMPACT=PASS',
         'RELEASE_READINESS_INTEGRATION=PASS',

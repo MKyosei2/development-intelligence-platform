@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 
 namespace Dip.Infrastructure.QualityAutomation;
@@ -9,6 +10,7 @@ namespace Dip.Infrastructure.QualityAutomation;
 public sealed class ReproductionCoordinator(
     ProcessExecutor executor,
     EnvironmentSnapshotService snapshots,
+    UniversalDiagnosticNormalizer normalizer,
     IOptions<QaExecutionOptions> options):IReproductionCoordinator
 {
     private readonly QaExecutionOptions _options=options.Value;
@@ -57,7 +59,7 @@ public sealed class ReproductionCoordinator(
             if(capture is not null)await FinalizeCaptureAsync(capture);
         }
         sw.Stop();
-        var diagnostics=QaParsing.ParseForLanguage(scenario.Language,"reproduction",execution.StandardOutput,execution.StandardError,execution.TimedOut);
+        var diagnostics=normalizer.NormalizeText(scenario.Language,"reproduction",execution.StandardOutput,execution.StandardError,execution.TimedOut);
         var matches=diagnostics.Any(x=>QaFingerprint.Create(scenario.Language,x)==scenario.ExpectedFingerprint);
         var crashed=!execution.TimedOut&&diagnostics.Any(x=>x.Category is "runtime" or "native-crash" or "memory-safety" or "undefined-behavior");
         var status=execution.TimedOut?(matches?ReproductionStatus.Reproduced:ReproductionStatus.TimedOut):matches?ReproductionStatus.Reproduced:ReproductionStatus.NotReproduced;
@@ -68,17 +70,17 @@ public sealed class ReproductionCoordinator(
 
     private (string Executable,IReadOnlyList<string> Arguments,bool Watchdog) BuildExecution(ReproductionScenario scenario,string dump,string stdout,string stderr)
     {
-        if(scenario.Language==QaLanguage.Python&&scenario.Executable.EndsWith(".py",StringComparison.OrdinalIgnoreCase))
+        if(scenario.Language==LanguageId.Python&&scenario.Executable.EndsWith(".py",StringComparison.OrdinalIgnoreCase))
         {
             var python=ProcessExecutor.FindExecutable("python")??ProcessExecutor.FindExecutable("python3")??throw new FileNotFoundException("Python executable not found for reproduction.");
             return(python,new[]{scenario.Executable}.Concat(scenario.Arguments).ToArray(),false);
         }
-        if(scenario.Language==QaLanguage.CSharp&&scenario.Executable.EndsWith(".dll",StringComparison.OrdinalIgnoreCase))
+        if(scenario.Language==LanguageId.CSharp&&scenario.Executable.EndsWith(".dll",StringComparison.OrdinalIgnoreCase))
         {
             var dotnet=ProcessExecutor.FindExecutable("dotnet")??throw new FileNotFoundException("dotnet executable not found for reproduction.");
             return(dotnet,new[]{scenario.Executable}.Concat(scenario.Arguments).ToArray(),false);
         }
-        if(OperatingSystem.IsWindows()&&scenario.Language==QaLanguage.Cpp)
+        if(OperatingSystem.IsWindows()&&scenario.Language==LanguageId.Cpp)
         {
             var watchdog=ResolveConfigured(_options.CrashWatchdogPath);
             if(File.Exists(watchdog))
@@ -104,9 +106,9 @@ public sealed class ReproductionCoordinator(
     {
         try{using(capture){using var cts=new CancellationTokenSource(TimeSpan.FromSeconds(8));await capture.WaitForExitAsync(cts.Token);}}catch{try{capture.Kill(true);}catch{}}
     }
-    private async Task TryCollectManagedEvidenceAsync(QaLanguage language,int pid,string dump,string workspace)
+    private async Task TryCollectManagedEvidenceAsync(LanguageId language,int pid,string dump,string workspace)
     {
-        if(language!=QaLanguage.CSharp)return;var root=Path.GetDirectoryName(dump)!;
+        if(language!=LanguageId.CSharp)return;var root=Path.GetDirectoryName(dump)!;
         var stackTool=ProcessExecutor.FindExecutable("dotnet-stack");
         if(stackTool is not null)
         {

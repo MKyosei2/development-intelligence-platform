@@ -178,6 +178,6 @@ Use `-RunIntegration` and `-RunEndToEnd` only when the required PostgreSQL/Redis
 
 The packaging environment used to assemble this source does not have .NET 8, PowerShell, Docker, Unity, or Unreal Engine. Therefore source/static validation, Python collector tests, and native tests must not be interpreted as proof that those unavailable runtime paths passed.
 
-## Intentionally deferred
+## Historical deferral note
 
-Universal/unknown-language QA remains the **final** architectural phase. The current expansion strengthens concrete Python/C#/C++/Unity/Unreal/game-development paths first so any later abstraction is derived from verified behavior rather than hypothetical adapters.
+At the time of the 2026-08-12 expansion, Universal/unknown-language QA was intentionally deferred. It is now implemented by the 2026-08-14 `LanguageId` + `IQaAdapter` layer. The concrete Python/C#/C++/Unity/game paths remain the deepest evidence providers, and runtime verification is still required on the exact source revision.

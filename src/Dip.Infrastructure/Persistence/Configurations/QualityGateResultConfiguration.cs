@@ -13,17 +13,8 @@ public sealed class QualityGateResultConfiguration : IEntityTypeConfiguration<Qu
         builder.Property(x => x.Status).HasMaxLength(40).IsRequired();
         builder.Property(x => x.Score).HasPrecision(5, 2);
         builder.Property(x => x.ReasonsJson).HasMaxLength(16000).IsRequired();
-
-        builder.HasOne<Project>()
-            .WithMany()
-            .HasForeignKey(x => x.ProjectId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasOne<PipelineRun>()
-            .WithMany()
-            .HasForeignKey(x => x.PipelineRunId)
-            .OnDelete(DeleteBehavior.Cascade);
-
+        builder.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<PipelineRun>().WithMany().HasForeignKey(x => x.PipelineRunId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(x => new { x.ProjectId, x.EvaluatedAtUtc });
     }
 }

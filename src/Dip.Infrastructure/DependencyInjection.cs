@@ -48,9 +48,21 @@ public static class DependencyInjection
         services.AddScoped<IIntelligenceRunStore, IntelligenceRunStore>();
         services.AddScoped<IProjectForecastStore, ProjectForecastStore>();
         services.AddSingleton<ProcessExecutor>();
+        services.AddSingleton<UniversalDiagnosticNormalizer>();
         services.AddSingleton<PythonQaEngine>();
         services.AddSingleton<CSharpQaEngine>();
         services.AddSingleton<CppQaEngine>();
+        services.AddSingleton<GenericCommandQaAdapter>();
+        services.AddSingleton<UnityProjectQaAdapter>();
+        services.AddSingleton<ManifestQaAdapter>();
+        services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<ManifestQaAdapter>());
+        services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<UnityProjectQaAdapter>());
+        services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<PythonQaEngine>());
+        services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<CSharpQaEngine>());
+        services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<CppQaEngine>());
+        services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<GenericCommandQaAdapter>());
+        services.AddSingleton<IQaAdapterRegistry,QaAdapterRegistry>();
+        services.AddSingleton<IRepositoryTechnologyDetector,RepositoryTechnologyDetector>();
         services.AddSingleton<ReproductionCoordinator>();
         services.AddSingleton<EnvironmentSnapshotService>();
         services.AddSingleton<HardwareCalibrationService>();
@@ -118,9 +130,6 @@ public static class DependencyInjection
 
         services.Configure<QaExecutionOptions>(configuration.GetSection(QaExecutionOptions.SectionName));
         services.AddSingleton<IQaWorkspaceResolver, QaWorkspaceResolver>();
-        services.AddSingleton<IPythonHardcodedQaRunner>(sp => sp.GetRequiredService<PythonQaEngine>());
-        services.AddSingleton<ICSharpHardcodedQaRunner>(sp => sp.GetRequiredService<CSharpQaEngine>());
-        services.AddSingleton<ICppHardcodedQaRunner>(sp => sp.GetRequiredService<CppQaEngine>());
         services.AddSingleton<IReproductionCoordinator>(sp => sp.GetRequiredService<ReproductionCoordinator>());
         services.AddSingleton<IHardwareCalibrationRunner>(sp => sp.GetRequiredService<HardwareCalibrationService>());
         services.AddSingleton<IPerformanceSimulationRunner>(sp => sp.GetRequiredService<PerformanceSimulationService>());

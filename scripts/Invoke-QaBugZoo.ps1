@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$AllowMissingTools,
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [string[]]$RequireLanguages = @('python','csharp','cpp','javascript','customlang')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +16,7 @@ if (-not (Test-Path -LiteralPath $project)) { throw "Bug Zoo verifier project is
 
 $args = @('run', '--project', $project, '--configuration', 'Release', '--', '--root', $root, '--output', $OutputDirectory)
 if ($AllowMissingTools) { $args += '--allow-missing-tools' }
+if ($RequireLanguages.Count -gt 0) { $args += @('--require-languages', ($RequireLanguages -join ',')) }
 
 Push-Location $root
 try {

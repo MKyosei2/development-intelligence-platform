@@ -225,7 +225,7 @@ internal static class InitialBaselineSql
             subject_key varchar(200) NOT NULL, language varchar(40) NOT NULL,
             category varchar(120) NOT NULL, severity varchar(40) NOT NULL, tool varchar(120) NOT NULL,
             title varchar(240) NOT NULL, message varchar(8000) NOT NULL, fingerprint varchar(64) NOT NULL,
-            file_path varchar(1000) NULL, line integer NULL, "column" integer NULL, function varchar(500) NULL,
+            file_path varchar(1000) NULL, line integer NULL, column integer NULL, function varchar(500) NULL,
             exception_type varchar(300) NULL, stack_trace varchar(32000) NULL, rule_id varchar(300) NULL,
             reproduction_status varchar(40) NOT NULL, reproduced_attempts integer NOT NULL,
             total_attempts integer NOT NULL, observed_at_utc timestamptz NOT NULL

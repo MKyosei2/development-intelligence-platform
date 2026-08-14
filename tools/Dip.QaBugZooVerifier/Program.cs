@@ -3,255 +3,45 @@ using System.Text;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;
 
-var options = Options.Parse(args);
-var root = Path.GetFullPath(options.Root ?? FindRepositoryRoot(Environment.CurrentDirectory));
-var zooRoot = Path.Combine(root, "samples", "qa-bug-zoo");
-var outputRoot = Path.GetFullPath(options.Output ?? Path.Combine(root, "artifacts", "qa-bug-zoo"));
-Directory.CreateDirectory(outputRoot);
-
-if (!Directory.Exists(zooRoot))
-    throw new DirectoryNotFoundException($"Bug Zoo was not found: {zooRoot}");
-
-var allCases = Directory.EnumerateFiles(zooRoot, "expected-result.json", SearchOption.AllDirectories)
-    .Select(path => BugZooCase.Load(zooRoot, path))
-    .OrderBy(item => item.Language)
-    .ThenBy(item => item.Name, StringComparer.Ordinal)
-    .ToArray();
-var skippedCases = allCases.Where(item => !item.IsSupportedOnCurrentPlatform()).ToArray();
-var cases = allCases.Where(item => item.IsSupportedOnCurrentPlatform()).ToArray();
-
-var executor = new ProcessExecutor();
-var engines = new Dictionary<QaLanguage, Func<QaExecutionCommand, string, string, CancellationToken, Task<HardcodedQaResult>>>
+var options=Options.Parse(args);var root=Path.GetFullPath(options.Root??FindRepositoryRoot(Environment.CurrentDirectory));var zooRoot=Path.Combine(root,"samples","qa-bug-zoo");var outputRoot=Path.GetFullPath(options.Output??Path.Combine(root,"artifacts","qa-bug-zoo"));Directory.CreateDirectory(outputRoot);
+if(!Directory.Exists(zooRoot))throw new DirectoryNotFoundException($"Bug Zoo was not found: {zooRoot}");
+var allCases=Directory.EnumerateFiles(zooRoot,"expected-result.json",SearchOption.AllDirectories).Select(path=>BugZooCase.Load(zooRoot,path)).OrderBy(x=>x.Language.Value).ThenBy(x=>x.Name,StringComparer.Ordinal).ToArray();var skippedCases=allCases.Where(x=>!x.IsSupportedOnCurrentPlatform()).ToArray();var cases=allCases.Where(x=>x.IsSupportedOnCurrentPlatform()).ToArray();
+var executor=new ProcessExecutor();var normalizer=new UniversalDiagnosticNormalizer();var adapters=new IQaAdapter[]{new ManifestQaAdapter(executor,normalizer),new UnityProjectQaAdapter(executor,normalizer),new PythonQaEngine(executor,normalizer),new CSharpQaEngine(executor,normalizer),new CppQaEngine(executor,normalizer),new GenericCommandQaAdapter(executor,normalizer)};var registry=new QaAdapterRegistry(adapters);var detector=new RepositoryTechnologyDetector();
+var results=new List<CaseResult>();
+foreach(var testCase in cases)
 {
-    [QaLanguage.Python] = new PythonQaEngine(executor).RunAsync,
-    [QaLanguage.CSharp] = new CSharpQaEngine(executor).RunAsync,
-    [QaLanguage.Cpp] = new CppQaEngine(executor).RunAsync
-};
-
-var results = new List<CaseResult>();
-foreach (var testCase in cases)
-{
-    var artifactRoot = Path.Combine(outputRoot, "cases", testCase.Language.ToString().ToLowerInvariant(), testCase.Name);
-    RecreateDirectory(artifactRoot);
-    var stopwatch = Stopwatch.StartNew();
+    var artifactRoot=Path.Combine(outputRoot,"cases",testCase.Language.Value,testCase.Name);RecreateDirectory(artifactRoot);var stopwatch=Stopwatch.StartNew();
     try
     {
-        var command = BuildCommand(testCase);
-        var first = await engines[testCase.Language](command, testCase.Workspace, Path.Combine(artifactRoot, "first"), CancellationToken.None);
-        var relevant = RelevantFindings(first.Findings, testCase).ToArray();
-        var noisy = first.Findings.Where(finding => finding.Severity is Severity.Critical or Severity.Warning).ToArray();
-        var detected = testCase.ExpectNoFindings ? noisy.Length == 0 : relevant.Length > 0;
-        var reproduced = false;
-        var reproducibleAttempts = 0;
-
-        if (testCase.MustReproduce && relevant.Length > 0)
+        var profile=await detector.DetectAsync(testCase.Workspace,CancellationToken.None);var selection=registry.Resolve(testCase.Language,profile,testCase.Workspace).FirstOrDefault();if(selection is null)throw new InvalidOperationException($"No adapter for {testCase.Language}.");var command=BuildCommand(testCase);var first=await selection.Adapter.RunAsync(command,testCase.Workspace,Path.Combine(artifactRoot,"first"),CancellationToken.None);var relevant=RelevantFindings(first.Findings,testCase).ToArray();var noisy=first.Findings.Where(x=>x.Severity is Severity.Critical or Severity.Warning).ToArray();var infrastructure=first.Tools.Count==0||first.Tools.All(x=>!x.WasAvailable);var detected=testCase.ExpectNoFindings?noisy.Length==0:relevant.Length>0;var reproduced=false;var reproducibleAttempts=0;
+        if(testCase.MustReproduce&&relevant.Length>0&&!infrastructure)
         {
-            var firstFingerprints = relevant.Select(finding => QaFingerprint.Create(testCase.Language, finding)).ToHashSet(StringComparer.Ordinal);
-            for (var attempt = 1; attempt <= 2; attempt++)
-            {
-                var repeat = await engines[testCase.Language](command, testCase.Workspace, Path.Combine(artifactRoot, $"repeat-{attempt}"), CancellationToken.None);
-                var repeatFingerprints = RelevantFindings(repeat.Findings, testCase)
-                    .Select(finding => QaFingerprint.Create(testCase.Language, finding));
-                if (repeatFingerprints.Any(firstFingerprints.Contains))
-                    reproducibleAttempts++;
-            }
-            reproduced = reproducibleAttempts > 0;
+            var firstFingerprints=relevant.Select(x=>QaFingerprint.Create(testCase.Language,x)).ToHashSet(StringComparer.Ordinal);for(var attempt=1;attempt<=2;attempt++){var repeat=await selection.Adapter.RunAsync(command,testCase.Workspace,Path.Combine(artifactRoot,$"repeat-{attempt}"),CancellationToken.None);if(RelevantFindings(repeat.Findings,testCase).Select(x=>QaFingerprint.Create(testCase.Language,x)).Any(firstFingerprints.Contains))reproducibleAttempts++;}reproduced=reproducibleAttempts>0;
         }
-
-        stopwatch.Stop();
-        results.Add(new CaseResult(
-            testCase.Language.ToString(), testCase.Name, testCase.ExpectNoFindings, testCase.MustReproduce,
-            detected, reproduced, reproducibleAttempts, 2, false, stopwatch.ElapsedMilliseconds,
-            noisy.Length, relevant.FirstOrDefault()?.Category, relevant.FirstOrDefault()?.Severity.ToString(),
-            relevant.FirstOrDefault()?.ExceptionType, relevant.FirstOrDefault()?.RuleId,
-            first.Tools.Select(tool => new ToolResult(tool.Tool, tool.WasAvailable, tool.Succeeded, tool.ExitCode, tool.DurationMs)).ToArray(),
-            null));
+        stopwatch.Stop();results.Add(new(testCase.Language.Value,testCase.Name,selection.Adapter.AdapterId,testCase.ExpectNoFindings,testCase.MustReproduce,detected,reproduced,reproducibleAttempts,2,infrastructure,stopwatch.ElapsedMilliseconds,noisy.Length,relevant.FirstOrDefault()?.Category,relevant.FirstOrDefault()?.Severity.ToString(),relevant.FirstOrDefault()?.ExceptionType,relevant.FirstOrDefault()?.RuleId,first.Tools.Select(t=>new ToolResult(t.Tool,t.WasAvailable,t.Succeeded,t.ExitCode,t.DurationMs)).ToArray(),profile.BuildSystems,profile.Frameworks,profile.GameEngines,null));
     }
-    catch (Exception ex) when (ex is not OperationCanceledException)
-    {
-        stopwatch.Stop();
-        results.Add(new CaseResult(
-            testCase.Language.ToString(), testCase.Name, testCase.ExpectNoFindings, testCase.MustReproduce,
-            false, false, 0, 0, true, stopwatch.ElapsedMilliseconds, 0, null, null, null, null,
-            Array.Empty<ToolResult>(), ex.ToString()));
-    }
+    catch(Exception ex) when(ex is not OperationCanceledException){stopwatch.Stop();results.Add(new(testCase.Language.Value,testCase.Name,"unresolved",testCase.ExpectNoFindings,testCase.MustReproduce,false,false,0,0,true,stopwatch.ElapsedMilliseconds,0,null,null,null,null,Array.Empty<ToolResult>(),Array.Empty<string>(),Array.Empty<string>(),Array.Empty<string>(),ex.ToString()));}
 }
+var bugCases=results.Where(x=>!x.ExpectNoFindings&&!x.InfrastructureFailure).ToArray();var cleanCases=results.Where(x=>x.ExpectNoFindings&&!x.InfrastructureFailure).ToArray();var reproducibleCases=results.Where(x=>x.MustReproduce&&!x.InfrastructureFailure).ToArray();var detectedCount=bugCases.Count(x=>x.Detected);var falsePositives=cleanCases.Count(x=>!x.Detected);var reproducedCount=reproducibleCases.Count(x=>x.Reproduced);var infrastructureFailures=results.Count(x=>x.InfrastructureFailure);var requiredSet=options.RequiredLanguages.Select(x=>x.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);var blockingInfrastructureFailures=results.Count(x=>x.InfrastructureFailure&&(requiredSet.Count==0||requiredSet.Contains(x.Language)));var recall=Percent(detectedCount,bugCases.Length);var fpRate=Percent(falsePositives,cleanCases.Length);var reproRate=Percent(reproducedCount,reproducibleCases.Length);var median=Median(results.Where(x=>!x.InfrastructureFailure).Select(x=>x.DurationMs).ToArray());var executedLanguages=results.Where(x=>!x.InfrastructureFailure).Select(x=>x.Language).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x=>x).ToArray();var missingRequired=options.RequiredLanguages.Where(x=>!executedLanguages.Contains(x.Value,StringComparer.OrdinalIgnoreCase)).Select(x=>x.Value).ToArray();
+var summary=new{schemaVersion="2.0",adapterArchitecture="universal",generatedAt=DateTimeOffset.UtcNow,repositoryRoot=root,cases=results.Count,injectedBugCases=bugCases.Length,detectedBugCases=detectedCount,detectionRecallPercent=recall,cleanControlCases=cleanCases.Length,falsePositiveCases=falsePositives,falsePositiveRatePercent=fpRate,reproductionEligibleCases=reproducibleCases.Length,reproducedCases=reproducedCount,reproductionRatePercent=reproRate,infrastructureFailures,blockingInfrastructureFailures,executedLanguages,requiredLanguages=options.RequiredLanguages.Select(x=>x.Value).ToArray(),missingRequiredLanguages=missingRequired,platformSkippedCases=skippedCases.Select(x=>$"{x.Language.Value}/{x.Name}").ToArray(),medianCaseDurationMs=median,results};var jsonOptions=new JsonSerializerOptions{WriteIndented=true};await File.WriteAllTextAsync(Path.Combine(outputRoot,"qa-bug-zoo-results.json"),JsonSerializer.Serialize(summary,jsonOptions));await File.WriteAllTextAsync(Path.Combine(outputRoot,"qa-bug-zoo-results.md"),Markdown(results,recall,fpRate,reproRate,infrastructureFailures,skippedCases,executedLanguages,missingRequired,median));
+Console.WriteLine($"Bug Zoo: languages {string.Join(", ",executedLanguages)}; recall {recall:0.##}%; false positives {fpRate:0.##}%; reproduction {reproRate:0.##}%.");Console.WriteLine($"Evidence: {Path.Combine(outputRoot,"qa-bug-zoo-results.json")}");
+if(missingRequired.Length>0)return 6;if(blockingInfrastructureFailures>0&&!options.AllowMissingTools)return 2;if(bugCases.Any(x=>!x.Detected))return 3;if(cleanCases.Any(x=>!x.Detected))return 4;if(reproducibleCases.Any(x=>x.Detected&&!x.Reproduced))return 5;return 0;
 
-var bugCases = results.Where(result => !result.ExpectNoFindings).ToArray();
-var cleanCases = results.Where(result => result.ExpectNoFindings).ToArray();
-var reproducibleCases = results.Where(result => result.MustReproduce).ToArray();
-var detected = bugCases.Count(result => result.Detected);
-var falsePositives = cleanCases.Count(result => !result.Detected);
-var reproduced = reproducibleCases.Count(result => result.Reproduced);
-var infrastructureFailures = results.Count(result => result.InfrastructureFailure);
-var detectionRecall = Percent(detected, bugCases.Length);
-var falsePositiveRate = Percent(falsePositives, cleanCases.Length);
-var reproductionRate = Percent(reproduced, reproducibleCases.Length);
-var medianDuration = Median(results.Where(r => !r.InfrastructureFailure).Select(r => r.DurationMs).ToArray());
-
-var summary = new
+static QaExecutionCommand BuildCommand(BugZooCase c){var runtime=c.RuntimeExecutable;if(string.IsNullOrWhiteSpace(runtime)){if(c.Language==LanguageId.Python&&File.Exists(Path.Combine(c.Workspace,"app.py")))runtime="app.py";else if(c.Language==LanguageId.CSharp&&(c.MustReproduce||string.Equals(c.Category,"runtime",StringComparison.OrdinalIgnoreCase)||string.Equals(c.Category,"hang",StringComparison.OrdinalIgnoreCase)))runtime=CSharpRuntime(c.Workspace);}var timeout=string.Equals(c.Category,"hang",StringComparison.OrdinalIgnoreCase)?5:120;return new(Guid.Empty,$"bug-zoo:{c.Language.Value}:{c.Name}",c.Language,".",null,runtime,Array.Empty<string>(),timeout,false,false,false);}
+static string? CSharpRuntime(string workspace){var project=Directory.EnumerateFiles(workspace,"*.csproj",SearchOption.TopDirectoryOnly).FirstOrDefault();if(project is null)return null;return Path.Combine("bin","Release","net8.0",Path.GetFileNameWithoutExtension(project)+".dll");}
+static IEnumerable<QaFindingCandidate> RelevantFindings(IEnumerable<QaFindingCandidate> findings,BugZooCase c){if(c.ExpectNoFindings)return Array.Empty<QaFindingCandidate>();return findings.Where(f=>string.Equals(f.Category,c.Category,StringComparison.OrdinalIgnoreCase)&&string.Equals(f.Severity.ToString(),c.Severity,StringComparison.OrdinalIgnoreCase)&&(string.IsNullOrWhiteSpace(c.ExceptionType)||string.Equals(f.ExceptionType,c.ExceptionType,StringComparison.OrdinalIgnoreCase))&&(string.IsNullOrWhiteSpace(c.RuleId)||string.Equals(f.RuleId,c.RuleId,StringComparison.OrdinalIgnoreCase)));}
+static decimal Percent(int n,int d)=>d==0?0:decimal.Round(100m*n/d,2);static long Median(long[] v){if(v.Length==0)return 0;Array.Sort(v);return v.Length%2==1?v[v.Length/2]:(v[v.Length/2-1]+v[v.Length/2])/2;}static void RecreateDirectory(string p){if(Directory.Exists(p))Directory.Delete(p,true);Directory.CreateDirectory(p);}static string FindRepositoryRoot(string start){var d=new DirectoryInfo(Path.GetFullPath(start));while(d is not null){if(Directory.Exists(Path.Combine(d.FullName,"samples","qa-bug-zoo")))return d.FullName;d=d.Parent;}throw new DirectoryNotFoundException("Unable to locate repository root.");}
+static string Markdown(IReadOnlyList<CaseResult> results,decimal recall,decimal fp,decimal repro,int infra,IReadOnlyList<BugZooCase> skipped,IReadOnlyList<string> languages,IReadOnlyList<string> missing,long median){var sb=new StringBuilder();sb.AppendLine("# DIP Universal QA Bug Zoo Results").AppendLine();sb.AppendLine($"- Executed languages: **{string.Join(", ",languages)}**");sb.AppendLine($"- Detection recall: **{recall:0.##}%**");sb.AppendLine($"- False-positive rate: **{fp:0.##}%**");sb.AppendLine($"- Stable-fingerprint reproduction: **{repro:0.##}%**");sb.AppendLine($"- Infrastructure failures: **{infra}**");sb.AppendLine($"- Platform skipped: **{skipped.Count}**");sb.AppendLine($"- Missing required languages: **{(missing.Count==0?"none":string.Join(", ",missing))}**");sb.AppendLine($"- Median case duration: **{median} ms**").AppendLine();sb.AppendLine("| Language | Adapter | Case | Expected | Detected | Reproduced | Infra | ms |").AppendLine("|---|---|---|---|---:|---:|---:|---:|");foreach(var r in results)sb.AppendLine($"| {r.Language} | {r.Adapter} | {r.Name} | {(r.ExpectNoFindings?"clean":r.MatchedCategory??"bug")} | {(r.Detected?"yes":"no")} | {(r.MustReproduce?(r.Reproduced?"yes":"no"):"n/a")} | {(r.InfrastructureFailure?"fail":"ok")} | {r.DurationMs} |");return sb.ToString();}
+sealed record ToolResult(string Tool,bool WasAvailable,bool Succeeded,int? ExitCode,long DurationMs);sealed record CaseResult(string Language,string Name,string Adapter,bool ExpectNoFindings,bool MustReproduce,bool Detected,bool Reproduced,int ReproducedAttempts,int ReproductionAttempts,bool InfrastructureFailure,long DurationMs,int FindingCount,string? MatchedCategory,string? MatchedSeverity,string? MatchedExceptionType,string? MatchedRuleId,IReadOnlyList<ToolResult> Tools,IReadOnlyList<string> BuildSystems,IReadOnlyList<string> Frameworks,IReadOnlyList<string> GameEngines,string? Error);
+sealed record BugZooCase(LanguageId Language,string Name,string Workspace,bool ExpectNoFindings,string? Category,string? Severity,string? ExceptionType,string? RuleId,bool MustReproduce,bool OptionalOnWindows,bool OptionalOnNonWindows,string? RuntimeExecutable)
 {
-    schemaVersion = "1.0",
-    generatedAt = DateTimeOffset.UtcNow,
-    repositoryRoot = root,
-    cases = results.Count,
-    injectedBugCases = bugCases.Length,
-    detectedBugCases = detected,
-    detectionRecallPercent = detectionRecall,
-    cleanControlCases = cleanCases.Length,
-    falsePositiveCases = falsePositives,
-    falsePositiveRatePercent = falsePositiveRate,
-    reproductionEligibleCases = reproducibleCases.Length,
-    reproducedCases = reproduced,
-    reproductionRatePercent = reproductionRate,
-    infrastructureFailures,
-    platformSkippedCases = skippedCases.Select(item => $"{item.Language}/{item.Name}").ToArray(),
-    medianCaseDurationMs = medianDuration,
-    results
-};
-
-var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
-await File.WriteAllTextAsync(Path.Combine(outputRoot, "qa-bug-zoo-results.json"), JsonSerializer.Serialize(summary, jsonOptions));
-await File.WriteAllTextAsync(Path.Combine(outputRoot, "qa-bug-zoo-results.md"), Markdown(results, bugCases.Length, detected, detectionRecall, cleanCases.Length, falsePositives, falsePositiveRate, reproducibleCases.Length, reproduced, reproductionRate, infrastructureFailures, skippedCases, medianDuration));
-
-Console.WriteLine($"Bug Zoo: detected {detected}/{bugCases.Length} ({detectionRecall:0.##}%), false positives {falsePositives}/{cleanCases.Length} ({falsePositiveRate:0.##}%), reproduced {reproduced}/{reproducibleCases.Length} ({reproductionRate:0.##}%).");
-Console.WriteLine($"Evidence: {Path.Combine(outputRoot, "qa-bug-zoo-results.json")}");
-
-if (infrastructureFailures > 0 && !options.AllowMissingTools) return 2;
-if (bugCases.Any(result => !result.Detected && !result.InfrastructureFailure)) return 3;
-if (cleanCases.Any(result => !result.Detected && !result.InfrastructureFailure)) return 4;
-if (reproducibleCases.Any(result => result.Detected && !result.Reproduced && !result.InfrastructureFailure)) return 5;
-return 0;
-
-static QaExecutionCommand BuildCommand(BugZooCase testCase)
-{
-    var runtime = testCase.Language switch
-    {
-        QaLanguage.Python => File.Exists(Path.Combine(testCase.Workspace, "app.py")) ? "app.py" : null,
-        QaLanguage.CSharp when testCase.MustReproduce || string.Equals(testCase.Category, "runtime", StringComparison.OrdinalIgnoreCase) || string.Equals(testCase.Category, "hang", StringComparison.OrdinalIgnoreCase)
-            => CSharpRuntime(testCase.Workspace),
-        _ => null
-    };
-    var timeout = string.Equals(testCase.Category, "hang", StringComparison.OrdinalIgnoreCase) ? 5 : 120;
-    return new QaExecutionCommand(Guid.Empty, $"bug-zoo:{testCase.Language}:{testCase.Name}", testCase.Language, ".", null, runtime, Array.Empty<string>(), timeout, false, false, false);
+    public static BugZooCase Load(string zooRoot,string expectedPath){using var doc=JsonDocument.Parse(File.ReadAllText(expectedPath));var j=doc.RootElement;var workspace=Path.GetDirectoryName(expectedPath)!;var relative=Path.GetRelativePath(zooRoot,workspace).Replace('\\','/').Split('/');if(relative.Length<2)throw new InvalidDataException($"Unexpected Bug Zoo path: {workspace}");return new(LanguageId.Parse(relative[0]),relative[1],workspace,B(j,"expectNoFindings"),S(j,"category"),S(j,"severity"),S(j,"exceptionType"),S(j,"ruleId"),B(j,"mustReproduce"),B(j,"optionalOnWindows"),B(j,"optionalOnNonWindows"),S(j,"runtimeExecutable"));}
+    public bool IsSupportedOnCurrentPlatform()=>!(OperatingSystem.IsWindows()&&OptionalOnWindows)&&!(!OperatingSystem.IsWindows()&&OptionalOnNonWindows);static string? S(JsonElement j,string n)=>j.TryGetProperty(n,out var v)&&v.ValueKind==JsonValueKind.String?v.GetString():null;static bool B(JsonElement j,string n)=>j.TryGetProperty(n,out var v)&&v.ValueKind==JsonValueKind.True;
 }
-
-static string? CSharpRuntime(string workspace)
+sealed record Options(string? Root,string? Output,bool AllowMissingTools,IReadOnlyList<LanguageId> RequiredLanguages)
 {
-    var project = Directory.EnumerateFiles(workspace, "*.csproj", SearchOption.TopDirectoryOnly).FirstOrDefault();
-    if (project is null) return null;
-    var assembly = Path.GetFileNameWithoutExtension(project);
-    return Path.Combine("bin", "Release", "net8.0", assembly + ".dll");
-}
-
-static IEnumerable<QaFindingCandidate> RelevantFindings(IEnumerable<QaFindingCandidate> findings, BugZooCase testCase)
-{
-    if (testCase.ExpectNoFindings) return Array.Empty<QaFindingCandidate>();
-    return findings.Where(finding =>
-        string.Equals(finding.Category, testCase.Category, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(finding.Severity.ToString(), testCase.Severity, StringComparison.OrdinalIgnoreCase) &&
-        (string.IsNullOrWhiteSpace(testCase.ExceptionType) || string.Equals(finding.ExceptionType, testCase.ExceptionType, StringComparison.OrdinalIgnoreCase)) &&
-        (string.IsNullOrWhiteSpace(testCase.RuleId) || string.Equals(finding.RuleId, testCase.RuleId, StringComparison.OrdinalIgnoreCase)));
-}
-
-static decimal Percent(int numerator, int denominator) => denominator == 0 ? 0 : decimal.Round(100m * numerator / denominator, 2);
-static long Median(long[] values)
-{
-    if (values.Length == 0) return 0;
-    Array.Sort(values);
-    return values.Length % 2 == 1 ? values[values.Length / 2] : (values[values.Length / 2 - 1] + values[values.Length / 2]) / 2;
-}
-static void RecreateDirectory(string path)
-{
-    if (Directory.Exists(path)) Directory.Delete(path, true);
-    Directory.CreateDirectory(path);
-}
-static string FindRepositoryRoot(string start)
-{
-    var current = new DirectoryInfo(Path.GetFullPath(start));
-    while (current != null)
-    {
-        if (Directory.Exists(Path.Combine(current.FullName, "samples", "qa-bug-zoo"))) return current.FullName;
-        current = current.Parent;
-    }
-    throw new DirectoryNotFoundException("Unable to locate repository root containing samples/qa-bug-zoo.");
-}
-static string Markdown(IReadOnlyList<CaseResult> results, int bugCount, int detected, decimal recall, int cleanCount, int falsePositives, decimal fpRate, int reproCount, int reproduced, decimal reproRate, int infraFailures, IReadOnlyList<BugZooCase> skippedCases, long medianMs)
-{
-    var sb = new StringBuilder();
-    sb.AppendLine("# DIP QA Bug Zoo Results").AppendLine();
-    sb.AppendLine($"- Injected bugs: **{bugCount}**");
-    sb.AppendLine($"- Detected: **{detected}/{bugCount} ({recall:0.##}%)**");
-    sb.AppendLine($"- Clean controls: **{cleanCount}**");
-    sb.AppendLine($"- False positives: **{falsePositives}/{cleanCount} ({fpRate:0.##}%)**");
-    sb.AppendLine($"- Reproduced: **{reproduced}/{reproCount} ({reproRate:0.##}%)**");
-    sb.AppendLine($"- Infrastructure failures: **{infraFailures}**");
-    sb.AppendLine($"- Platform-skipped cases: **{skippedCases.Count}**");
-    if (skippedCases.Count > 0) sb.AppendLine($"  - {string.Join(", ", skippedCases.Select(item => $"{item.Language}/{item.Name}"))}");
-    sb.AppendLine($"- Median case duration: **{medianMs} ms**").AppendLine();
-    sb.AppendLine("| Language | Case | Expected | Detected | Reproduced | Infrastructure | Duration ms |");
-    sb.AppendLine("|---|---|---|---:|---:|---:|---:|");
-    foreach (var result in results)
-        sb.AppendLine($"| {result.Language} | {result.Name} | {(result.ExpectNoFindings ? "clean" : result.MatchedCategory ?? "bug")} | {(result.Detected ? "yes" : "no")} | {(result.MustReproduce ? (result.Reproduced ? "yes" : "no") : "n/a")} | {(result.InfrastructureFailure ? "fail" : "ok")} | {result.DurationMs} |");
-    sb.AppendLine().AppendLine("Results are evidence from the actual DIP language QA engines. A clean-control failure is counted as a false positive.");
-    return sb.ToString();
-}
-
-sealed record ToolResult(string Tool, bool WasAvailable, bool Succeeded, int? ExitCode, long DurationMs);
-sealed record CaseResult(string Language, string Name, bool ExpectNoFindings, bool MustReproduce, bool Detected, bool Reproduced, int ReproducedAttempts, int ReproductionAttempts, bool InfrastructureFailure, long DurationMs, int FindingCount, string? MatchedCategory, string? MatchedSeverity, string? MatchedExceptionType, string? MatchedRuleId, IReadOnlyList<ToolResult> Tools, string? Error);
-
-sealed record BugZooCase(QaLanguage Language, string Name, string Workspace, bool ExpectNoFindings, string? Category, string? Severity, string? ExceptionType, string? RuleId, bool MustReproduce, bool OptionalOnWindows, bool OptionalOnNonWindows)
-{
-    public static BugZooCase Load(string zooRoot, string expectedPath)
-    {
-        using var document = JsonDocument.Parse(File.ReadAllText(expectedPath));
-        var json = document.RootElement;
-        var workspace = Path.GetDirectoryName(expectedPath)!;
-        var relative = Path.GetRelativePath(zooRoot, workspace).Replace('\\', '/').Split('/');
-        if (relative.Length < 2) throw new InvalidDataException($"Unexpected Bug Zoo path: {workspace}");
-        var language = relative[0].ToLowerInvariant() switch
-        {
-            "python" => QaLanguage.Python,
-            "csharp" => QaLanguage.CSharp,
-            "cpp" => QaLanguage.Cpp,
-            _ => throw new InvalidDataException($"Unsupported Bug Zoo language folder: {relative[0]}")
-        };
-        return new BugZooCase(
-            language,
-            relative[1],
-            workspace,
-            GetBool(json, "expectNoFindings"),
-            GetString(json, "category"),
-            GetString(json, "severity"),
-            GetString(json, "exceptionType"),
-            GetString(json, "ruleId"),
-            GetBool(json, "mustReproduce"),
-            GetBool(json, "optionalOnWindows"),
-            GetBool(json, "optionalOnNonWindows"));
-    }
-    public bool IsSupportedOnCurrentPlatform() => !(OperatingSystem.IsWindows() && OptionalOnWindows) && !(!OperatingSystem.IsWindows() && OptionalOnNonWindows);
-    static string? GetString(JsonElement json, string name) => json.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-    static bool GetBool(JsonElement json, string name) => json.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
-}
-
-sealed record Options(string? Root, string? Output, bool AllowMissingTools)
-{
-    public static Options Parse(string[] args)
-    {
-        string? root = null;
-        string? output = null;
-        var allowMissing = false;
-        for (var index = 0; index < args.Length; index++)
-        {
-            switch (args[index])
-            {
-                case "--root" when index + 1 < args.Length: root = args[++index]; break;
-                case "--output" when index + 1 < args.Length: output = args[++index]; break;
-                case "--allow-missing-tools": allowMissing = true; break;
-            }
-        }
-        return new Options(root, output, allowMissing);
-    }
+    public static Options Parse(string[] args){string? root=null,output=null;var allow=false;var required=new List<LanguageId>();for(var i=0;i<args.Length;i++){switch(args[i]){case "--root" when i+1<args.Length:root=args[++i];break;case "--output" when i+1<args.Length:output=args[++i];break;case "--allow-missing-tools":allow=true;break;case "--require-languages" when i+1<args.Length:required.AddRange(args[++i].Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).Select(LanguageId.Parse));break;}}return new(root,output,allow,required);}
 }

@@ -71,10 +71,10 @@ buildable and evidence-backed before adding more architectural breadth.
 
 ## Final architectural phase
 
-14. **Universal / unknown-language QA abstraction**
-    - Implement only after the current Python/C#/C++/Unity/game QA paths are runtime-verified.
-    - Introduce a capability-based tool adapter rather than forcing every language into the existing enum.
-    - Keep language-specific evidence and reproducibility contracts explicit.
+14. **Universal / unknown-language QA abstraction — IMPLEMENTED 2026-08-14**
+    - Replaced the closed language enum with extensible `LanguageId`.
+    - Added capability-based adapters and `.dip/qa.json` for new/proprietary languages.
+    - Kept language-specific evidence and reproducibility contracts explicit.
+    - Exact-revision runtime evidence is still required for every toolchain that is claimed as verified.
 
-This is intentionally last so the abstraction is derived from verified concrete
-QA paths instead of being designed around hypothetical languages too early.
+This item was originally deferred so the abstraction could be derived from concrete QA paths rather than hypothetical languages.

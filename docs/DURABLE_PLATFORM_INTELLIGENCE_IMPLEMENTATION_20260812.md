@@ -157,6 +157,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Verify-DurablePlatformIntelli
 
 For live infrastructure verification, also run the Integration/E2E workflows against PostgreSQL/Redis and, when selected, MinIO. A revision is not described as runtime-verified until those checks are green for that exact revision.
 
-## Deferred by design
+## Historical deferral note
 
-Universal/unknown-language QA abstraction is intentionally unchanged and remains the final architectural phase, after the concrete Python/C#/C++/Unity/game QA paths are runtime-verified.
+This 2026-08-12 phase intentionally left Universal/unknown-language QA unchanged. The deferred abstraction is now implemented by the 2026-08-14 `LanguageId` + adapter architecture; exact-revision runtime evidence remains separate from source implementation.
