@@ -17,7 +17,7 @@ public sealed class PythonQaEngine(ProcessExecutor executor):IQaAdapter,IPythonH
         await Run("python-compileall",python,["-m","compileall","-q","."],Severity.Critical,"syntax");
         await Run("ruff",python,["-m","ruff","check","."],Severity.Warning,"static-analysis");
         await Run("mypy",python,["-m","mypy","."],Severity.Warning,"type-check");
-        await Run("pytest",python,["-m","pytest","-q","--disable-warnings","--maxfail=25"],Severity.Warning,"test");
+        await RunPytest();
         if(!string.IsNullOrWhiteSpace(command.RuntimeExecutable))
         {
             var runtime=command.RuntimeExecutable!;IEnumerable<string> args;string executable;
@@ -27,10 +27,24 @@ public sealed class PythonQaEngine(ProcessExecutor executor):IQaAdapter,IPythonH
             if(runtime.EndsWith(".py",StringComparison.OrdinalIgnoreCase)&&runtimeResult.Tool.Succeeded)await RunMemoryProbe(runtime,command.RuntimeArguments??Array.Empty<string>());
         }
         return new(Language,tools,findings,QaToolSupport.JsonSummary(Language,tools,findings));
+
         async Task<(QaToolExecution Tool,IReadOnlyList<QaFindingCandidate> Findings,ProcessExecutionResult? Process)> Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category)
         {
             var result=await QaToolSupport.ExecuteAsync(executor,name,executable,args,workspace,artifactRoot,env,timeout,Language,fallback,category,ct);tools.Add(result.Tool);findings.AddRange(result.Findings);return result;
         }
+
+        async Task RunPytest()
+        {
+            var result=await QaToolSupport.ExecuteAsync(executor,"pytest",python,["-m","pytest","-q","--disable-warnings","--maxfail=25"],workspace,artifactRoot,env,timeout,Language,Severity.Warning,"test",ct);
+            var noTests=result.Process?.ExitCode==5&&((result.Process.StandardOutput?.Contains("no tests ran",StringComparison.OrdinalIgnoreCase)??false)||(result.Process.StandardError?.Contains("no tests ran",StringComparison.OrdinalIgnoreCase)??false));
+            if(noTests)
+            {
+                tools.Add(result.Tool with{Succeeded=true,Summary="pytest completed with no tests collected; this is neutral evidence, not a test failure."});
+                return;
+            }
+            tools.Add(result.Tool);findings.AddRange(result.Findings);
+        }
+
         async Task RunMemoryProbe(string target,IReadOnlyList<string> runtimeArgs)
         {
             const string probe="import runpy,sys,tracemalloc; target=sys.argv[1]; sys.argv=[target,*sys.argv[2:]]; tracemalloc.start(5); before=tracemalloc.take_snapshot(); state=runpy.run_path(target,run_name='__main__'); after=tracemalloc.take_snapshot(); net=sum(max(0,s.size_diff) for s in after.compare_to(before,'lineno')); current,peak=tracemalloc.get_traced_memory(); print(f'DIP_TRACEMALLOC_NET_BYTES={net}'); print(f'DIP_TRACEMALLOC_PEAK_BYTES={peak}')";
