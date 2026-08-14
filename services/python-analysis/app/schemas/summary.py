@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
+
 from app.schemas.common import EvidenceItem
+
 
 class SummaryInput(BaseModel):
     project_id: str
@@ -16,6 +18,7 @@ class SummaryInput(BaseModel):
     fps_regression_percent: float = 0
     memory_regression_percent: float = 0
     evidence: list[EvidenceItem] = Field(default_factory=list)
+
 
 class SummaryResponse(BaseModel):
     overall_status: str

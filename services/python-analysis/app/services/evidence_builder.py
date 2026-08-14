@@ -1,5 +1,6 @@
 from app.schemas.common import EvidenceItem
 
+
 class EvidenceBuilder:
     @staticmethod
     def ids(items: list[EvidenceItem]) -> list[str]:

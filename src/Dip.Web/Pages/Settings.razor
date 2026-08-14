@@ -1,0 +1,44 @@
+@page "/settings"
+@inject IConfiguration Configuration
+
+<PageTitle>Settings | DIP</PageTitle>
+
+<section class="page-heading">
+    <div><div class="eyebrow">Platform</div><h1>Settings</h1><p>Runtime configuration visible to the GUI. Secrets are never rendered here.</p></div>
+</section>
+
+<div class="settings-grid">
+    <div class="card">
+        <div class="card-header"><strong>Runtime</strong></div>
+        <div class="card-body settings-list">
+            <div><span>Internal API</span><code>@(Configuration["Api:BaseUrl"] ?? "not configured")</code></div>
+            <div><span>Browser API</span><code>@(Configuration["Api:PublicBaseUrl"] ?? "not configured")</code></div>
+            <div><span>Authentication</span><strong>@(RequireAuthentication ? "GitHub OAuth required" : "Local development mode")</strong></div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><strong>Startup</strong></div>
+        <div class="card-body">
+            <p>Use the root launcher for the complete GUI stack.</p>
+            <code class="command-block">Start-DIP.cmd</code>
+            <p class="small text-muted mt-2">Add <code>-WithMonitoring</code> to start OpenTelemetry, Prometheus and Grafana. Add <code>-RequireAuthentication</code> after GitHub OAuth variables are configured.</p>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><strong>Formal verification</strong></div>
+        <div class="card-body">
+            <p>First verify the complete GUI stack in an isolated environment.</p>
+            <code class="command-block">.\scripts\Verify-GuiRuntime.ps1</code>
+            <p class="small text-muted mt-2">Formal portfolio verification also includes this GUI runtime check.</p>
+            <code class="command-block">.\scripts\Verify-PortfolioFormal.ps1 -UnityPath "&lt;Unity.exe&gt;"</code>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><strong>Data safety</strong></div>
+        <div class="card-body"><p>Stop-DIP preserves PostgreSQL, Redis and artifact volumes. Use <code>Stop-DIP.cmd -PurgeData</code> only when a full local reset is intended.</p></div>
+    </div>
+</div>
+
+@code {
+    private bool RequireAuthentication => Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
+}

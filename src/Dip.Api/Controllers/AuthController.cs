@@ -24,16 +24,19 @@ public sealed class AuthController : ControllerBase
     private readonly GitHubOAuthClient _githubOAuthClient;
     private readonly JwtTokenIssuer _tokenIssuer;
     private readonly IDataProtector _stateProtector;
+    private readonly AuthOptions _options;
 
     public AuthController(
         GitHubOAuthClient githubOAuthClient,
         JwtTokenIssuer tokenIssuer,
-        IDataProtectionProvider dataProtectionProvider)
+        IDataProtectionProvider dataProtectionProvider,
+        IOptions<AuthOptions> options)
     {
         _githubOAuthClient = githubOAuthClient;
         _tokenIssuer = tokenIssuer;
         _stateProtector = dataProtectionProvider.CreateProtector(
             "dip.github-oauth.state.v1");
+        _options = options.Value;
     }
 
     [AllowAnonymous]
@@ -123,6 +126,27 @@ public sealed class AuthController : ControllerBase
             callbackUrl,
             cancellationToken);
         var token = _tokenIssuer.CreateToken(user);
+        var role = _tokenIssuer.ResolveRole(user.Login);
+
+        if (!string.IsNullOrWhiteSpace(_options.WebCallbackUrl))
+        {
+            if (!Uri.TryCreate(_options.WebCallbackUrl, UriKind.Absolute, out var webCallback)
+                || (webCallback.Scheme != Uri.UriSchemeHttp
+                    && webCallback.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new InvalidOperationException(
+                    "Authentication:WebCallbackUrl must be an absolute HTTP(S) URL.");
+            }
+
+            return Content(
+                BuildWebCallbackPage(
+                    webCallback.ToString(),
+                    token,
+                    user.Login,
+                    role),
+                "text/html",
+                Encoding.UTF8);
+        }
 
         return Ok(new
         {
@@ -130,7 +154,7 @@ public sealed class AuthController : ControllerBase
             tokenType = "Bearer",
             expiresInSeconds = _tokenIssuer.LifetimeSeconds,
             githubLogin = user.Login,
-            role = _tokenIssuer.ResolveRole(user.Login)
+            role
         });
     }
 
@@ -152,6 +176,33 @@ public sealed class AuthController : ControllerBase
     [Authorize(Policy = Policies.Admin)]
     [HttpGet("admin-check")]
     public IActionResult AdminCheck() => Ok(new { authorized = true });
+
+    private static string BuildWebCallbackPage(
+        string callbackUrl,
+        string token,
+        string login,
+        string role)
+    {
+        var action = System.Net.WebUtility.HtmlEncode(callbackUrl);
+        var encodedToken = System.Net.WebUtility.HtmlEncode(token);
+        var encodedLogin = System.Net.WebUtility.HtmlEncode(login);
+        var encodedRole = System.Net.WebUtility.HtmlEncode(role);
+
+        return $"""
+            <!doctype html>
+            <html lang="en">
+            <head><meta charset="utf-8"><title>DIP sign-in</title></head>
+            <body>
+              <form id="dip-auth" method="post" action="{action}">
+                <input type="hidden" name="accessToken" value="{encodedToken}">
+                <input type="hidden" name="githubLogin" value="{encodedLogin}">
+                <input type="hidden" name="role" value="{encodedRole}">
+              </form>
+              <script>document.getElementById('dip-auth').submit();</script>
+            </body>
+            </html>
+            """;
+    }
 
     private string BuildCallbackUrl()
     {
@@ -184,6 +235,7 @@ public sealed class AuthOptions
     public const string SectionName = "Authentication";
 
     public bool RequireAuthenticatedUser { get; init; }
+    public string WebCallbackUrl { get; init; } = string.Empty;
     public GitHubAuthOptions GitHub { get; init; } = new();
     public JwtAuthOptions Jwt { get; init; } = new();
 }

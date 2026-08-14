@@ -1,18 +1,5 @@
 <Project>
-  <!--
-    Repository-wide MSBuild targets belong here.
-
-    This file intentionally contains no mandatory build step yet. Keeping a
-    valid Project root prevents MSBuild import failures while avoiding hidden
-    behavior that could break local builds or CI.
-  -->
-
-  <Target
-    Name="DipPrintBuildContext"
-    BeforeTargets="BeforeBuild"
-    Condition="'$(DIP_VERBOSE_BUILD)' == 'true'">
-    <Message
-      Importance="High"
-      Text="DIP build: $(MSBuildProjectName) | $(Configuration) | $(TargetFramework)" />
+  <Target Name="DipPrintBuildContext" BeforeTargets="BeforeBuild" Condition="'$(DIP_VERBOSE_BUILD)' == 'true'">
+    <Message Importance="High" Text="DIP build: $(MSBuildProjectName) | $(Configuration) | $(TargetFramework)" />
   </Target>
 </Project>

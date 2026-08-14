@@ -1,2 +1,154 @@
+@using Dip.Application.Features.Dashboard
 @inherits LayoutComponentBase
-<div class="page"><main><div class="top-row px-4"><a href="/">Development Intelligence Platform</a></div><article class="content px-4">@Body</article></main></div>
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject ApiClient Api
+@inject IConfiguration Configuration
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" href="/">
+            <span class="brand-mark">DI</span>
+            <span><strong>DIP</strong><small>Development Intelligence</small></span>
+        </a>
+
+        <div class="project-picker">
+            <label for="project-select">Active project</label>
+            <select id="project-select" value="@(_currentProjectId?.ToString() ?? string.Empty)" @onchange="ProjectChanged">
+                <option value="">Portfolio / all projects</option>
+                @foreach (var project in _projects)
+                {
+                    <option value="@project.ProjectId">@project.Name</option>
+                }
+            </select>
+        </div>
+
+        <nav class="side-nav" aria-label="Primary navigation">
+            <a class="@NavClass("/", exact: true)" href="/"><span>◫</span> Portfolio</a>
+            <a class="@NavClass("/system")" href="/system"><span>●</span> System Status</a>
+            <a class="@NavClass("/projects/new")" href="/projects/new"><span>＋</span> New Project</a>
+
+            @if (_currentProjectId is { } projectId)
+            {
+                <div class="nav-section">Project</div>
+                <a class="@NavClass($"/dashboard/{projectId}", exact: true)" href="@($"/dashboard/{projectId}")"><span>▦</span> Project Truth</a>
+                <a class="@NavClass($"/dashboard/{projectId}/intelligence")" href="@($"/dashboard/{projectId}/intelligence")"><span>◆</span> Intelligence</a>
+                <a class="@NavClass($"/dashboard/{projectId}/qa-governance")" href="@($"/dashboard/{projectId}/qa-governance")"><span>✓</span> QA Governance</a>
+            }
+
+            <div class="nav-section">Platform</div>
+            <a class="@NavClass("/settings")" href="/settings"><span>⚙</span> Settings</a>
+        </nav>
+
+        <div class="sidebar-footer">
+            @if (_requireAuthentication)
+            {
+                <AuthorizeView>
+                    <Authorized Context="auth">
+                        <div class="user-chip">
+                            <span class="user-avatar">@Initial(auth.User.Identity?.Name)</span>
+                            <span><strong>@(auth.User.Identity?.Name ?? "Signed in")</strong><small>@Role(auth.User)</small></span>
+                        </div>
+                        <a class="sidebar-action" href="/auth/logout">Sign out</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="btn btn-primary w-100" href="/auth/login">Sign in with GitHub</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            }
+            else
+            {
+                <div class="local-mode"><span class="status-dot healthy"></span><span><strong>Local development</strong><small>Authentication disabled</small></span></div>
+            }
+        </div>
+    </aside>
+
+    <div class="main-column">
+        <header class="app-header">
+            <div>
+                <div class="eyebrow">@(_currentProjectId is null ? "Portfolio" : "Active project")</div>
+                <div class="header-title">@CurrentProjectName</div>
+            </div>
+            <div class="header-actions">
+                <a class="status-link" href="/system"><span class="status-dot neutral"></span> System status</a>
+                <a class="btn btn-primary btn-sm" href="/projects/new">New project</a>
+            </div>
+        </header>
+
+        <main class="content">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<ProjectDashboardSummary> _projects = Array.Empty<ProjectDashboardSummary>();
+    private Guid? _currentProjectId;
+    private bool _requireAuthentication;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _requireAuthentication = Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
+        Navigation.LocationChanged += OnLocationChanged;
+        ResolveProjectFromLocation();
+        try
+        {
+            _projects = await Api.GetProjectsAsync();
+        }
+        catch
+        {
+            _projects = Array.Empty<ProjectDashboardSummary>();
+        }
+    }
+
+    private string CurrentProjectName => _currentProjectId is { } id
+        ? _projects.FirstOrDefault(x => x.ProjectId == id)?.Name ?? "Project"
+        : "All projects";
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        ResolveProjectFromLocation();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void ResolveProjectFromLocation()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length >= 2
+            && segments[0].Equals("dashboard", StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParse(segments[1], out var projectId))
+        {
+            _currentProjectId = projectId;
+            return;
+        }
+        _currentProjectId = null;
+    }
+
+    private void ProjectChanged(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        if (Guid.TryParse(value, out var projectId))
+            Navigation.NavigateTo($"/dashboard/{projectId}");
+        else
+            Navigation.NavigateTo("/");
+    }
+
+    private string NavClass(string target, bool exact = false)
+    {
+        var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+        if (path == "//") path = "/";
+        var active = exact
+            ? path.Equals(target, StringComparison.OrdinalIgnoreCase)
+            : path.StartsWith(target, StringComparison.OrdinalIgnoreCase);
+        return active ? "active" : string.Empty;
+    }
+
+    private static string Initial(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "U" : value.Trim()[0].ToString().ToUpperInvariant();
+
+    private static string Role(System.Security.Claims.ClaimsPrincipal user) =>
+        user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Member";
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

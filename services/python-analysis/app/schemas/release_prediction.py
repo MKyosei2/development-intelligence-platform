@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
+
 from app.schemas.common import EvidenceItem
+
 
 class ReleasePredictionRequest(BaseModel):
     project_id: str
@@ -12,6 +14,7 @@ class ReleasePredictionRequest(BaseModel):
     average_review_wait_hours: float = Field(default=0, ge=0)
     weekly_velocity: float = Field(default=0, ge=0)
     evidence: list[EvidenceItem] = Field(default_factory=list)
+
 
 class ReleasePredictionResponse(BaseModel):
     confidence: float = Field(ge=0, le=100)

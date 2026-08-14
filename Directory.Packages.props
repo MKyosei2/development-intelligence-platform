@@ -1,11 +1,3 @@
 <Project>
-  <!--
-    Package versions are currently declared directly in each .csproj file.
-    Central package management therefore remains disabled to preserve
-    compatibility. Move every PackageReference version into this file before
-    changing this value to true.
-  -->
-  <PropertyGroup>
-    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-  </PropertyGroup>
+  <PropertyGroup><ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally></PropertyGroup>
 </Project>

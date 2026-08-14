@@ -13,6 +13,8 @@ using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Application.Features.QualityGovernance;
 using Dip.Application.Features.Authorization;
+using Dip.Application.Features.Projects;
+using Dip.Application.Features.SystemStatus;
 using Dip.Domain.Enums;
 
 namespace Dip.Web.Services;
@@ -42,6 +44,27 @@ public sealed class ApiClient
                    cancellationToken)
                ?? Array.Empty<ProjectDashboardSummary>();
     }
+
+    public async Task<ProjectDto> CreateProjectAsync(
+        CreateProjectCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            "api/projects",
+            command,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ProjectDto>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidDataException("Project API returned an empty response.");
+    }
+
+    public async Task<SystemStatusDto> GetSystemStatusAsync(
+        CancellationToken cancellationToken = default)
+        => await _httpClient.GetFromJsonAsync<SystemStatusDto>(
+               "api/v1/system/status",
+               cancellationToken)
+           ?? throw new InvalidDataException("System status API returned an empty response.");
 
     public async Task<ProjectDashboardDetails?> GetProjectAsync(
         Guid projectId,
@@ -88,7 +111,7 @@ public sealed class ApiClient
     public string QaArtifactUrl(Guid runId,string relativePath)
     {
         var encoded=string.Join('/',relativePath.Split('/',StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
-        return new Uri(_httpClient.BaseAddress??throw new InvalidOperationException("API BaseAddress is missing."),$"api/v1/qa/runs/{runId}/artifacts/{encoded}").ToString();
+        return $"/downloads/qa/{runId}/artifacts/{encoded}";
     }
 
     public async Task<ForecastResult> GetForecastAsync(
@@ -137,7 +160,7 @@ public sealed class ApiClient
           ??throw new InvalidDataException("Management dashboard API returned an empty response.");
 
     public string ManagementWorkbookUrl(Guid projectId)
-        =>new Uri(_httpClient.BaseAddress??throw new InvalidOperationException("API BaseAddress is missing."),$"api/v1/project-control/projects/{projectId}/management.xlsx").ToString();
+        =>$"/downloads/projects/{projectId}/management.xlsx";
 
     public async Task<ProjectControlDashboardDto> GetProjectControlDashboardAsync(Guid projectId,CancellationToken cancellationToken=default)
         =>await _httpClient.GetFromJsonAsync<ProjectControlDashboardDto>($"api/v1/project-control/projects/{projectId}/dashboard",cancellationToken)

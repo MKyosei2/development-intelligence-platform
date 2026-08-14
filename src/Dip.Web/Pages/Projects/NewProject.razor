@@ -1,0 +1,101 @@
+@page "/projects/new"
+@using System.ComponentModel.DataAnnotations
+@using Dip.Application.Features.Projects
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>New Project | DIP</PageTitle>
+
+<section class="page-heading narrow-heading">
+    <div>
+        <div class="eyebrow">Project setup</div>
+        <h1>Create project</h1>
+        <p>Register a repository and create the management workspace from the GUI.</p>
+    </div>
+</section>
+
+<div class="form-shell">
+    <div class="card">
+        <div class="card-header"><strong>Project identity</strong><span>Required</span></div>
+        <div class="card-body">
+            @if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+            <EditForm Model="_model" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="validation-summary" />
+
+                <div class="form-group">
+                    <label class="form-label" for="project-name">Project name</label>
+                    <InputText id="project-name" class="form-control" @bind-Value="_model.Name" placeholder="Example: Character Pipeline" />
+                    <div class="form-text">Displayed in the portfolio and management dashboard.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="repository-url">Repository URL</label>
+                    <InputText id="repository-url" class="form-control" @bind-Value="_model.RepositoryUrl" placeholder="https://github.com/owner/repository" />
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="default-branch">Default branch</label>
+                        <InputText id="default-branch" class="form-control" @bind-Value="_model.DefaultBranch" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="release-date">Target release date</label>
+                        <InputDate id="release-date" class="form-control" @bind-Value="_model.ReleaseDate" />
+                        <div class="form-text">Optional.</div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a class="btn btn-outline-secondary" href="/">Cancel</a>
+                    <button class="btn btn-primary" type="submit" disabled="@_saving">@(_saving ? "Creating…" : "Create project")</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+
+    <aside class="form-aside">
+        <div class="callout">
+            <strong>What happens next?</strong>
+            <ol>
+                <li>The project is persisted in PostgreSQL.</li>
+                <li>Authenticated creators become Project Owner.</li>
+                <li>Project Truth, Intelligence and QA Governance become available immediately.</li>
+            </ol>
+        </div>
+    </aside>
+</div>
+
+@code {
+    private readonly NewProjectModel _model = new();
+    private bool _saving;
+    private string? _error;
+
+    private async Task CreateAsync()
+    {
+        _saving = true;
+        _error = null;
+        try
+        {
+            DateTimeOffset? release = _model.ReleaseDate is { } date
+                ? new DateTimeOffset(DateTime.SpecifyKind(date.Date, DateTimeKind.Utc))
+                : null;
+            var created = await Api.CreateProjectAsync(new CreateProjectCommand(
+                _model.Name.Trim(),
+                _model.RepositoryUrl.Trim(),
+                _model.DefaultBranch.Trim(),
+                release));
+            Navigation.NavigateTo($"/dashboard/{created.Id}");
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _saving = false; }
+    }
+
+    private sealed class NewProjectModel
+    {
+        [Required, StringLength(200, MinimumLength = 2)] public string Name { get; set; } = string.Empty;
+        [Required, Url, StringLength(2000)] public string RepositoryUrl { get; set; } = string.Empty;
+        [Required, StringLength(200)] public string DefaultBranch { get; set; } = "main";
+        public DateTime? ReleaseDate { get; set; }
+    }
+}

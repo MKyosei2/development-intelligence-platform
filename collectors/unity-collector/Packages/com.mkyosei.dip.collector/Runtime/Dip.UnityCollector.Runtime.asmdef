@@ -1,0 +1,14 @@
+{
+  "name": "Dip.UnityCollector.Runtime",
+  "rootNamespace": "Dip.UnityCollector.Runtime",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

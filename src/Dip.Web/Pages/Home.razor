@@ -1,132 +1,98 @@
 @page "/"
 @using Dip.Application.Features.Dashboard
-@inject Dip.Web.Services.ApiClient Api
+@inject ApiClient Api
 
-<PageTitle>Development Intelligence Platform</PageTitle>
+<PageTitle>Portfolio | DIP</PageTitle>
 
-<div class="mb-4">
-    <h1>Development Intelligence Platform</h1>
-    <p class="lead text-muted mb-0">
-        Project Truth: reported progress is separated from objective evidence so non-technical production staff can see what is actually verified.
-    </p>
-</div>
+<section class="page-heading">
+    <div>
+        <div class="eyebrow">Portfolio command center</div>
+        <h1>Development Intelligence</h1>
+        <p>Objective evidence, delivery risk, QA governance and management decisions in one place.</p>
+    </div>
+    <div class="heading-actions">
+        <a class="btn btn-outline-secondary" href="/system">System status</a>
+        <a class="btn btn-primary" href="/projects/new">Create project</a>
+    </div>
+</section>
 
 @if (_loading)
 {
-    <p>Loading projects...</p>
+    <div class="empty-state"><div class="spinner"></div><strong>Loading projects…</strong></div>
 }
 else if (_error is not null)
 {
-    <div class="alert alert-danger">@_error</div>
+    <div class="alert alert-danger">
+        <strong>Could not load the portfolio.</strong>
+        <div>@_error</div>
+        <div class="small mt-2">Check System Status. If authentication is enabled, sign in from the sidebar.</div>
+    </div>
 }
 else if (_projects.Count == 0)
 {
-    <p>No projects are registered.</p>
+    <div class="empty-state card">
+        <div class="empty-icon">＋</div>
+        <h2>No projects yet</h2>
+        <p>Create the first project entirely from the GUI. It will automatically receive an Owner membership in authenticated mode.</p>
+        <a class="btn btn-primary" href="/projects/new">Create first project</a>
+    </div>
 }
 else
 {
+    <div class="metric-grid mb-4">
+        <div class="metric-card"><span>Projects</span><strong>@_projects.Count</strong><small>registered</small></div>
+        <div class="metric-card"><span>At risk</span><strong>@_projects.Count(x => x.RiskLevel is "High" or "Critical")</strong><small>high / critical</small></div>
+        <div class="metric-card"><span>Blocked</span><strong>@_projects.Sum(x => x.BlockerCount)</strong><small>active blockers</small></div>
+        <div class="metric-card"><span>Evidence gaps</span><strong>@_projects.Sum(x => x.ContradictionCount)</strong><small>mismatches</small></div>
+    </div>
+
+    <div class="section-heading"><div><h2>Projects</h2><p>Open a project to inspect evidence-backed progress and release risk.</p></div></div>
     <div class="row g-3">
         @foreach (var project in _projects)
         {
             <div class="col-12 col-md-6 col-xl-4">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start gap-2">
-                            <div>
-                                <h2 class="h5 mb-1">@project.Name</h2>
-                                <p class="text-muted small mb-3">@project.Repository</p>
-                            </div>
-                            <span class="badge @TruthBadge(project.TruthStatus)">@project.TruthStatus</span>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <div class="border rounded p-2 h-100">
-                                    <div class="small text-muted">Evidence-backed</div>
-                                    <div class="h4 mb-0">@project.VerifiedProgress.ToString("0.#")%</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="border rounded p-2 h-100">
-                                    <div class="small text-muted">Reported</div>
-                                    <div class="h4 mb-0">@FormatProgress(project.ReportedProgress)</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <dl class="row mb-0 small">
-                            <dt class="col-6">Risk</dt>
-                            <dd class="col-6"><span class="badge @RiskBadge(project.RiskLevel)">@project.RiskLevel</span></dd>
-                            <dt class="col-6">Evidence confidence</dt>
-                            <dd class="col-6">@project.EvidenceConfidence</dd>
-                            <dt class="col-6">Blockers</dt>
-                            <dd class="col-6">@project.BlockerCount</dd>
-                            <dt class="col-6">Mismatches</dt>
-                            <dd class="col-6">@project.ContradictionCount</dd>
-                        </dl>
-
-                        @if (project.ReportedProgress is { } reported
-                            && reported - project.VerifiedProgress >= 20m)
-                        {
-                            <div class="alert alert-warning py-2 px-3 mt-3 mb-0 small">
-                                Reported progress is ahead of evidence-backed progress by
-                                <strong>@((reported - project.VerifiedProgress).ToString("0.#")) points</strong>.
-                            </div>
-                        }
+                <a class="project-card" href="@($"/dashboard/{project.ProjectId}")">
+                    <div class="project-card-top">
+                        <div class="project-icon">@ProjectInitial(project.Name)</div>
+                        <span class="badge @TruthBadge(project.TruthStatus)">@project.TruthStatus</span>
                     </div>
-                    <div class="card-footer bg-transparent">
-                        <a class="btn btn-primary w-100"
-                           href="@($"/dashboard/{project.ProjectId}")">
-                            Open Project Truth
-                        </a>
+                    <h3>@project.Name</h3>
+                    <p class="repo-path">@project.Repository</p>
+                    <div class="project-progress-row">
+                        <div><span>Evidence-backed</span><strong>@project.VerifiedProgress.ToString("0.#")%</strong></div>
+                        <div><span>Reported</span><strong>@FormatProgress(project.ReportedProgress)</strong></div>
                     </div>
-                </div>
+                    <div class="progress-track"><div class="progress-fill" style="width:@Clamp(project.VerifiedProgress)%"></div></div>
+                    <div class="project-meta">
+                        <span><small>Risk</small><strong class="@RiskText(project.RiskLevel)">@project.RiskLevel</strong></span>
+                        <span><small>Confidence</small><strong>@project.EvidenceConfidence</strong></span>
+                        <span><small>Blockers</small><strong>@project.BlockerCount</strong></span>
+                    </div>
+                    @if (project.ReportedProgress is { } reported && reported - project.VerifiedProgress >= 20m)
+                    {
+                        <div class="inline-warning">Reported progress is @(reported - project.VerifiedProgress).ToString("0.#") points ahead of evidence.</div>
+                    }
+                </a>
             </div>
         }
     </div>
 }
 
 @code {
-    private IReadOnlyList<ProjectDashboardSummary> _projects =
-        Array.Empty<ProjectDashboardSummary>();
-
+    private IReadOnlyList<ProjectDashboardSummary> _projects = Array.Empty<ProjectDashboardSummary>();
     private bool _loading = true;
     private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            _projects = await Api.GetProjectsAsync();
-        }
-        catch (Exception exception)
-        {
-            _error = exception.Message;
-        }
-        finally
-        {
-            _loading = false;
-        }
+        try { _projects = await Api.GetProjectsAsync(); }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _loading = false; }
     }
 
-    private static string FormatProgress(decimal? value) =>
-        value is null ? "—" : $"{value:0.#}%";
-
-    private static string TruthBadge(string status) => status switch
-    {
-        "Healthy" => "text-bg-success",
-        "Attention" => "text-bg-warning",
-        "AtRisk" => "text-bg-danger",
-        "Blocked" => "text-bg-danger",
-        _ => "text-bg-secondary"
-    };
-
-    private static string RiskBadge(string risk) => risk switch
-    {
-        "Low" => "text-bg-success",
-        "Medium" => "text-bg-warning",
-        "High" => "text-bg-danger",
-        "Critical" => "text-bg-danger",
-        _ => "text-bg-secondary"
-    };
+    private static string ProjectInitial(string value) => string.IsNullOrWhiteSpace(value) ? "P" : value.Trim()[0].ToString().ToUpperInvariant();
+    private static string FormatProgress(decimal? value) => value is null ? "—" : $"{value:0.#}%";
+    private static decimal Clamp(decimal value) => Math.Clamp(value, 0m, 100m);
+    private static string TruthBadge(string status) => status switch { "Healthy" => "text-bg-success", "Attention" => "text-bg-warning", "AtRisk" or "Blocked" => "text-bg-danger", _ => "text-bg-secondary" };
+    private static string RiskText(string risk) => risk switch { "High" or "Critical" => "text-danger", "Medium" => "text-warning", _ => "text-success" };
 }

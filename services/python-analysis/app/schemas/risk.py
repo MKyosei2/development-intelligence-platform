@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
+
 from app.schemas.common import EvidenceItem
+
 
 class RiskFactorInput(BaseModel):
     changed_files: int = Field(default=0, ge=0)
@@ -12,15 +14,18 @@ class RiskFactorInput(BaseModel):
     critical_issues: int = Field(default=0, ge=0)
     warning_issues: int = Field(default=0, ge=0)
 
+
 class RiskRequest(BaseModel):
     project_id: str
     pull_request_id: str
     factors: RiskFactorInput
 
+
 class RiskContribution(BaseModel):
     factor: str
     points: float
     explanation: str
+
 
 class RiskResponse(BaseModel):
     score: float = Field(ge=0, le=100)

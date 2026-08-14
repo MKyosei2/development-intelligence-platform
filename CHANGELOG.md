@@ -10,6 +10,8 @@ will be applied when the first public version is released.
 
 ### Added
 
+- Upgrade8-based Development Intelligence expansion: Intelligence Dashboard, deterministic game-session replay, target performance budgets, Unreal Engine collector, real-device hardware backtesting, Change Risk, automatic regression triage, Release Readiness gate, GitHub Issue work-item integration, release provenance/CycloneDX SBOM, OpenTelemetry observability, and multi-repository dependency impact.
+- EF Core migration `202608120003_AddDevelopmentIntelligenceExpansion` for the expansion persistence model and global performance-budget presets.
 - Initial layered architecture for Domain, Application, Infrastructure, API,
   Worker, Shared contracts, and Blazor Web.
 - Collector report ingestion and validation foundations.

@@ -1,5 +1,7 @@
 from statistics import fmean, pstdev
+
 from app.schemas.anomaly import AnomalyPoint, AnomalyRequest, AnomalyResponse
+
 
 class AnomalyDetector:
     def detect(self, request: AnomalyRequest, default_threshold: float) -> AnomalyResponse:
@@ -12,12 +14,17 @@ class AnomalyDetector:
             for point in request.points:
                 zscore = (point.value - mean) / standard_deviation
                 if abs(zscore) >= threshold:
-                    anomalies.append(AnomalyPoint(
-                        timestamp=point.timestamp,
-                        value=point.value,
-                        zscore=round(zscore, 4),
-                        reason=f"Absolute z-score {abs(zscore):.2f} exceeded threshold {threshold:.2f}.",
-                    ))
+                    anomalies.append(
+                        AnomalyPoint(
+                            timestamp=point.timestamp,
+                            value=point.value,
+                            zscore=round(zscore, 4),
+                            reason=(
+                                f"Absolute z-score {abs(zscore):.2f} exceeded "
+                                f"threshold {threshold:.2f}."
+                            ),
+                        )
+                    )
         return AnomalyResponse(
             metric_name=request.metric_name,
             sample_count=len(values),

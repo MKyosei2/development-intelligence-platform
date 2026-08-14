@@ -1,11 +1,11 @@
 from app.schemas.summary import SummaryInput, SummaryResponse
 from app.services.evidence_builder import EvidenceBuilder
 
+
 class SummaryGenerator:
     def generate(self, request: SummaryInput) -> SummaryResponse:
         risks: list[str] = []
         actions: list[str] = []
-
         if request.failed_builds > 0:
             risks.append(f"{request.failed_builds} build(s) are failing.")
             actions.append("Assign the latest build failure and verify the failing stage.")
@@ -27,11 +27,9 @@ class SummaryGenerator:
         if request.memory_regression_percent >= 10:
             risks.append(f"Memory usage increased by {request.memory_regression_percent:.1f}%.")
             actions.append("Review recently added assets and allocations.")
-
         if not risks:
             risks.append("No major risk was detected from the supplied project metrics.")
             actions.append("Continue monitoring trends and verify the next pipeline run.")
-
         overall_status = (
             "critical" if request.health_score < 40 or request.critical_issues > 0
             else "at_risk" if request.health_score < 70 or len(risks) >= 3

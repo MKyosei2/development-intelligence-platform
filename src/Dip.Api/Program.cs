@@ -44,6 +44,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<ApiMetricsRegistry>();
 builder.Services.AddHttpClient<GitHubOAuthClient>();
+builder.Services.AddHttpClient("system-status", client => client.Timeout = TimeSpan.FromSeconds(5));
 var otlpEndpoint=builder.Configuration["OpenTelemetry:OtlpEndpoint"]??"http://localhost:4317";
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r=>r.AddService("dip-api"))
@@ -206,7 +207,10 @@ app.Use(async (context, next) =>
     }
 });
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();

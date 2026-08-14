@@ -1,11 +1,13 @@
 import re
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class LogClassification:
     category: str
     severity: str
     matched_rule: str
+
 
 class LogClassifier:
     _rules = (

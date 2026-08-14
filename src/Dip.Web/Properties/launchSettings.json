@@ -3,10 +3,14 @@
     "Dip.Web": {
       "commandName": "Project",
       "launchBrowser": true,
+      "launchUrl": "",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Api__BaseUrl": "http://127.0.0.1:5080/",
+        "Api__PublicBaseUrl": "http://127.0.0.1:5080/",
+        "Authentication__RequireAuthenticatedUser": "false"
       },
-      "applicationUrl": "https://localhost:62279;http://localhost:62280"
+      "applicationUrl": "http://127.0.0.1:5081"
     }
   }
 }

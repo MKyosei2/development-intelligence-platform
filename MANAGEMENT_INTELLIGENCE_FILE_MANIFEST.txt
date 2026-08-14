@@ -1,0 +1,36 @@
+Management Intelligence S-priority implementation
+===================================================
+
+Modified existing files:
+- src/Dip.Domain/Enums/ProjectControlEnums.cs
+- src/Dip.Api/Controllers/ProjectControlController.cs
+- src/Dip.Application/DependencyInjection.cs
+- src/Dip.Infrastructure/DependencyInjection.cs
+- src/Dip.Application/Features/Release/ReleaseReadinessService.cs
+- src/Dip.Web/Services/ApiClient.cs
+- src/Dip.Web/Pages/Dashboard/ProjectIntelligence.razor
+- scripts/Verify-ProjectControl.ps1
+- README.md
+
+Added integrated source files:
+- src/Dip.Application/Features/Management/ManagementContracts.cs
+- src/Dip.Application/Features/Management/WorkManagementService.cs
+- src/Dip.Application/Features/Management/ManagementAnalyticsService.cs
+- src/Dip.Application/Features/Management/ManagementSpreadsheetService.cs
+- src/Dip.Application/Features/Management/ManagementXlsxCodec.cs
+- src/Dip.Application/Features/Dashboard/ManagementDashboardService.cs
+- src/Dip.Application/Abstractions/Spreadsheets/IGoogleSheetsConnector.cs
+- src/Dip.Infrastructure/Spreadsheets/GoogleSheetsRestConnector.cs
+- docs/MANAGEMENT_INTELLIGENCE.md
+
+Implemented scope:
+PASS Team Workload / Capacity
+PASS Task / Workstream Management
+PASS Schedule / Gantt
+PASS Critical Path
+PASS Blocker Management
+PASS Dependency Management
+PASS Milestone Management
+PASS Requirement / Scope Management
+PASS Excel .xlsx export/import
+PASS Google Sheets bidirectional REST synchronization
