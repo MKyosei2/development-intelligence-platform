@@ -1,19 +1,19 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 
 namespace Dip.Application.Features.QualityAutomation;
 
 public static class QaFingerprint
 {
-    public static string Create(QaLanguage language,QaFindingCandidate finding)
+    public static string Create(LanguageId language,QaFindingCandidate finding)
     {
         var category=Normalize(finding.Category);
-        var stable = language==QaLanguage.Python&&category=="runtime"
+        var stable = language==LanguageId.Python&&category=="runtime"
             ? PythonRuntimeStable(finding)
             : string.Join('|',
-                language,
+                language.Value,
                 category,
                 Normalize(finding.ExceptionType),
                 Normalize(finding.RuleId),
@@ -41,7 +41,7 @@ public static class QaFingerprint
                 }
             }
         }
-        return string.Join('|',QaLanguage.Python,"runtime",exceptionType,message);
+        return string.Join('|',LanguageId.Python.Value,"runtime",exceptionType,message);
     }
 
     private static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant();
