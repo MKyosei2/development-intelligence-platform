@@ -29,7 +29,15 @@ public sealed class CppQaEngine(ProcessExecutor executor):IQaAdapter,ICppHardcod
             await Run("cpp-runtime-asan",executable,command.RuntimeArguments??Array.Empty<string>(),Severity.Critical,"runtime",sanitizerEnvironment);
         }
         return new(Language,tools,findings,QaToolSupport.JsonSummary(Language,tools,findings));
-        async Task Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category,IReadOnlyDictionary<string,string>? environment=null){var result=await QaToolSupport.ExecuteAsync(executor,name,executable,args,workspace,artifactRoot,environment,timeout,Language,fallback,category,ct);tools.Add(result.Tool);findings.AddRange(result.Findings);}
+        async Task Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category,IReadOnlyDictionary<string,string>? environment=null)
+        {
+            var result=await QaToolSupport.ExecuteAsync(executor,name,executable,args,workspace,artifactRoot,environment,timeout,Language,fallback,category,ct);
+            tools.Add(result.Tool);
+            if(name.Equals("ctest",StringComparison.OrdinalIgnoreCase)&&result.Tool.Succeeded)
+                findings.AddRange(result.Findings.Where(x=>!x.Category.Equals("test",StringComparison.OrdinalIgnoreCase)));
+            else
+                findings.AddRange(result.Findings);
+        }
         void AddUnavailable(string name)=>tools.Add(new(name,false,false,null,0,string.Empty,string.Empty,$"{name} is unavailable; optional analysis was skipped."));
         async Task RunClangTidy(string executable,string buildDir)
         {
