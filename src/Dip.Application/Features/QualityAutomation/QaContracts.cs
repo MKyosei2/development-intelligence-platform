@@ -1,11 +1,12 @@
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 
 namespace Dip.Application.Features.QualityAutomation;
 
 public sealed record QaExecutionCommand(
     Guid ProjectId,
     string SubjectKey,
-    QaLanguage Language,
+    LanguageId? Language,
     string WorkspaceRelativePath,
     string? CommitSha,
     string? RuntimeExecutable,
@@ -13,7 +14,8 @@ public sealed record QaExecutionCommand(
     int TimeoutSeconds = 120,
     bool AutomaticallyReproduce = true,
     bool RecordScreen = true,
-    bool RecordSystemAudio = true);
+    bool RecordSystemAudio = true,
+    bool AutoDetectTechnologies = true);
 
 public sealed record QaFindingCandidate(
     string Category,
@@ -40,15 +42,34 @@ public sealed record QaToolExecution(
     string Summary);
 
 public sealed record HardcodedQaResult(
-    QaLanguage Language,
+    LanguageId Language,
     IReadOnlyList<QaToolExecution> Tools,
     IReadOnlyList<QaFindingCandidate> Findings,
     string SummaryJson);
 
+public sealed record WorkspaceTechnologyProfile(
+    IReadOnlyList<LanguageId> Languages,
+    IReadOnlyList<string> BuildSystems,
+    IReadOnlyList<string> Frameworks,
+    IReadOnlyList<string> GameEngines,
+    IReadOnlyList<string> Evidence)
+{
+    public static WorkspaceTechnologyProfile Empty { get; } = new([], [], [], [], []);
+    public LanguageId? PrimaryLanguage => Languages.Count == 0 ? null : Languages[0];
+}
+
+public sealed record DiagnosticDocument(
+    string Tool,
+    string Format,
+    string Content,
+    string? SourcePath = null,
+    Severity FallbackSeverity = Severity.Warning,
+    string FallbackCategory = "diagnostic");
+
 public sealed record ReproductionScenario(
     Guid ProjectId,
     Guid FindingId,
-    QaLanguage Language,
+    LanguageId Language,
     string WorkspacePath,
     string QaRunArtifactRoot,
     string Executable,
@@ -106,7 +127,6 @@ public sealed record QaFindingDto(
     int ReproducedAttempts,
     int TotalAttempts);
 
-
 public sealed record QaCrashClusterDto(
     string Fingerprint,
     string Category,
@@ -118,22 +138,36 @@ public sealed record QaCrashClusterDto(
     int ReproducedOccurrences,
     IReadOnlyList<string> Subjects);
 
-public interface IPythonHardcodedQaRunner
+public interface IQaAdapter
 {
+    LanguageId Language { get; }
+    int Priority => 0;
+    bool CanHandle(WorkspaceTechnologyProfile profile) => profile.Languages.Contains(Language);
     Task<HardcodedQaResult> RunAsync(QaExecutionCommand command,string workspace,string artifactRoot,CancellationToken cancellationToken);
 }
-public interface ICSharpHardcodedQaRunner
+
+public interface IQaAdapterRegistry
 {
-    Task<HardcodedQaResult> RunAsync(QaExecutionCommand command,string workspace,string artifactRoot,CancellationToken cancellationToken);
+    IReadOnlyList<LanguageId> SupportedLanguages { get; }
+    IQaAdapter Resolve(LanguageId language);
+    bool TryResolve(LanguageId language,out IQaAdapter? adapter);
 }
-public interface ICppHardcodedQaRunner
+
+public interface IWorkspaceTechnologyDetector
 {
-    Task<HardcodedQaResult> RunAsync(QaExecutionCommand command,string workspace,string artifactRoot,CancellationToken cancellationToken);
+    Task<WorkspaceTechnologyProfile> DetectAsync(string workspace,CancellationToken cancellationToken);
 }
+
+public interface IDiagnosticNormalizer
+{
+    IReadOnlyList<QaFindingCandidate> Normalize(LanguageId language,DiagnosticDocument document);
+}
+
 public interface IReproductionCoordinator
 {
     Task<ReproductionResult> ReproduceAsync(ReproductionScenario scenario,CancellationToken cancellationToken);
 }
+
 public interface IQaWorkspaceResolver
 {
     string Resolve(string workspaceRelativePath);
