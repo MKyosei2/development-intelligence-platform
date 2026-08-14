@@ -1,0 +1,61 @@
+name: Universal QA Evidence
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/Dip.QaBugZooVerifier/**'
+      - 'samples/qa-bug-zoo/**'
+      - 'scripts/Invoke-QaBugZoo.ps1'
+      - '.github/workflows/universal-qa-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  multilingual-bug-zoo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+      - name: Install QA toolchains
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install ruff mypy pytest
+          npm install --global typescript
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          sudo apt-get update
+          sudo apt-get install -y cmake clang-tidy cppcheck
+      - name: Build solution
+        run: dotnet build DevelopmentIntelligencePlatform.sln -c Release
+      - name: Test solution
+        run: dotnet test DevelopmentIntelligencePlatform.sln -c Release --no-build --logger 'trx;LogFileName=universal-qa.trx' --results-directory artifacts/test-results
+      - name: Run multilingual Bug Zoo
+        shell: pwsh
+        run: ./scripts/Invoke-QaBugZoo.ps1
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-qa-evidence
+          path: |
+            artifacts/qa-bug-zoo
+            artifacts/test-results
+          if-no-files-found: warn
