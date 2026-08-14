@@ -1,4 +1,5 @@
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 
 namespace Dip.Domain.Entities;
 
@@ -10,14 +11,14 @@ public sealed class QaRun
         Guid id,
         Guid projectId,
         string subjectKey,
-        QaLanguage language,
+        LanguageId language,
         string workspaceRelativePath,
         string? commitSha,
         string artifactRoot,
         DateTimeOffset createdAtUtc)
     {
         if (projectId == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(projectId));
-        if (!Enum.IsDefined(language)) throw new ArgumentOutOfRangeException(nameof(language));
+        if (string.IsNullOrWhiteSpace(language.Value)) throw new ArgumentException("Language is required.", nameof(language));
         Id = id == Guid.Empty ? Guid.NewGuid() : id;
         ProjectId = projectId;
         SubjectKey = Required(subjectKey, 200, nameof(subjectKey));
@@ -32,7 +33,7 @@ public sealed class QaRun
     public Guid Id { get; private set; }
     public Guid ProjectId { get; private set; }
     public string SubjectKey { get; private set; } = string.Empty;
-    public QaLanguage Language { get; private set; }
+    public LanguageId Language { get; private set; }
     public string WorkspaceRelativePath { get; private set; } = string.Empty;
     public string? CommitSha { get; private set; }
     public string ArtifactRoot { get; private set; } = string.Empty;
