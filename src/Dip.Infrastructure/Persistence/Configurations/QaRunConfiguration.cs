@@ -1,4 +1,5 @@
 using Dip.Domain.Entities;
+using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,7 +13,7 @@ public sealed class QaRunConfiguration : IEntityTypeConfiguration<QaRun>
         b.Property(x=>x.Id).HasColumnName("id");
         b.Property(x=>x.ProjectId).HasColumnName("project_id");
         b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200).IsRequired();
-        b.Property(x=>x.Language).HasColumnName("language").HasConversion<string>().HasMaxLength(40).IsRequired();
+        b.Property(x=>x.Language).HasColumnName("language").HasConversion(v=>v.Value,v=>LanguageId.Parse(v)).HasMaxLength(40).IsRequired();
         b.Property(x=>x.WorkspaceRelativePath).HasColumnName("workspace_relative_path").HasMaxLength(500).IsRequired();
         b.Property(x=>x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64);
         b.Property(x=>x.ArtifactRoot).HasColumnName("artifact_root").HasMaxLength(1000).IsRequired();
