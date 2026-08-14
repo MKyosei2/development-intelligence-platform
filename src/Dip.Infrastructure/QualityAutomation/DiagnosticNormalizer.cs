@@ -71,7 +71,7 @@ public sealed class DiagnosticNormalizer : IDiagnosticNormalizer
             var name=test.Attribute("name")?.Value??"test";
             var cls=test.Attribute("classname")?.Value;
             var file=test.Attribute("file")?.Value;
-            var line=int.TryParse(test.Attribute("line")?.Value,out var n)?n:null;
+            int? line=int.TryParse(test.Attribute("line")?.Value,out var n)?n:null;
             foreach(var failure in test.Elements().Where(x=>x.Name.LocalName is "failure" or "error"))
             {
                 var isError=failure.Name.LocalName=="error";
