@@ -1,10 +1,14 @@
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
 
-public sealed class PythonQaEngine(ProcessExecutor executor):IPythonHardcodedQaRunner
+public sealed class PythonQaEngine(ProcessExecutor executor):IQaAdapter
 {
+    public LanguageId Language => LanguageId.Python;
+    public int Priority => 100;
+
     public async Task<HardcodedQaResult> RunAsync(QaExecutionCommand command,string workspace,string artifactRoot,CancellationToken ct)
     {
         var python=ProcessExecutor.FindExecutable("python")??ProcessExecutor.FindExecutable("python3")??throw new FileNotFoundException("Python executable was not found in PATH.");
@@ -28,18 +32,18 @@ public sealed class PythonQaEngine(ProcessExecutor executor):IPythonHardcodedQaR
             if(runtime.EndsWith(".py",StringComparison.OrdinalIgnoreCase)&&runtimeResult.Tool.Succeeded)
                 await RunMemoryProbe(runtime,command.RuntimeArguments??Array.Empty<string>());
         }
-        return new(QaLanguage.Python,tools,findings,QaToolSupport.JsonSummary(QaLanguage.Python,tools,findings));
+        return new(Language,tools,findings,QaToolSupport.JsonSummary(Language,tools,findings));
 
         async Task<(QaToolExecution Tool,IReadOnlyList<QaFindingCandidate> Findings,ProcessExecutionResult? Process)> Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category)
         {
-            var result=await QaToolSupport.ExecuteAsync(executor,name,executable,args,workspace,artifactRoot,env,timeout,QaLanguage.Python,fallback,category,ct);
+            var result=await QaToolSupport.ExecuteAsync(executor,name,executable,args,workspace,artifactRoot,env,timeout,Language,fallback,category,ct);
             tools.Add(result.Tool);findings.AddRange(result.Findings);return result;
         }
         async Task RunMemoryProbe(string target,IReadOnlyList<string> runtimeArgs)
         {
             const string probe="import runpy,sys,tracemalloc; target=sys.argv[1]; sys.argv=[target,*sys.argv[2:]]; tracemalloc.start(5); before=tracemalloc.take_snapshot(); state=runpy.run_path(target,run_name='__main__'); after=tracemalloc.take_snapshot(); net=sum(max(0,s.size_diff) for s in after.compare_to(before,'lineno')); current,peak=tracemalloc.get_traced_memory(); print(f'DIP_TRACEMALLOC_NET_BYTES={net}'); print(f'DIP_TRACEMALLOC_PEAK_BYTES={peak}')";
             var args=new List<string>{"-X","tracemalloc=5","-c",probe,target};args.AddRange(runtimeArgs);
-            var result=await QaToolSupport.ExecuteAsync(executor,"python-tracemalloc",python,args,workspace,artifactRoot,env,timeout,QaLanguage.Python,Severity.Warning,"memory-growth",ct);
+            var result=await QaToolSupport.ExecuteAsync(executor,"python-tracemalloc",python,args,workspace,artifactRoot,env,timeout,Language,Severity.Warning,"memory-growth",ct);
             tools.Add(result.Tool);findings.AddRange(result.Findings);
             if(result.Process is null||!result.Tool.Succeeded)return;
             var net=Marker(result.Process.StandardOutput,"DIP_TRACEMALLOC_NET_BYTES");
