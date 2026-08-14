@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 
 namespace Dip.Infrastructure.QualityAutomation;
@@ -59,7 +60,7 @@ public sealed class ReproductionCoordinator(
         sw.Stop();
         var diagnostics=QaParsing.ParseForLanguage(scenario.Language,"reproduction",execution.StandardOutput,execution.StandardError,execution.TimedOut);
         var matches=diagnostics.Any(x=>QaFingerprint.Create(scenario.Language,x)==scenario.ExpectedFingerprint);
-        var crashed=!execution.TimedOut&&diagnostics.Any(x=>x.Category is "runtime" or "native-crash" or "memory-safety" or "undefined-behavior");
+        var crashed=!execution.TimedOut&&diagnostics.Any(x=>x.Category is "runtime" or "native-crash" or "memory-safety" or "undefined-behavior" or "data-race");
         var status=execution.TimedOut?(matches?ReproductionStatus.Reproduced:ReproductionStatus.TimedOut):matches?ReproductionStatus.Reproduced:ReproductionStatus.NotReproduced;
         var payload=new{attempt,reproduced=matches,crashed,timedOut=execution.TimedOut,execution.ExitCode,durationMs=execution.DurationMs,video=File.Exists(video)?video:null,audio=File.Exists(audio)?audio:null,dump=File.Exists(dump)?dump:null,environment=envPath,stdout=execution.StandardOutputPath,stderr=execution.StandardErrorPath};
         var json=JsonSerializer.Serialize(payload,new JsonSerializerOptions{WriteIndented=true});await File.WriteAllTextAsync(resultPath,json,ct);
@@ -68,17 +69,17 @@ public sealed class ReproductionCoordinator(
 
     private (string Executable,IReadOnlyList<string> Arguments,bool Watchdog) BuildExecution(ReproductionScenario scenario,string dump,string stdout,string stderr)
     {
-        if(scenario.Language==QaLanguage.Python&&scenario.Executable.EndsWith(".py",StringComparison.OrdinalIgnoreCase))
+        if(scenario.Language==LanguageId.Python&&scenario.Executable.EndsWith(".py",StringComparison.OrdinalIgnoreCase))
         {
             var python=ProcessExecutor.FindExecutable("python")??ProcessExecutor.FindExecutable("python3")??throw new FileNotFoundException("Python executable not found for reproduction.");
             return(python,new[]{scenario.Executable}.Concat(scenario.Arguments).ToArray(),false);
         }
-        if(scenario.Language==QaLanguage.CSharp&&scenario.Executable.EndsWith(".dll",StringComparison.OrdinalIgnoreCase))
+        if(scenario.Language==LanguageId.CSharp&&scenario.Executable.EndsWith(".dll",StringComparison.OrdinalIgnoreCase))
         {
             var dotnet=ProcessExecutor.FindExecutable("dotnet")??throw new FileNotFoundException("dotnet executable not found for reproduction.");
             return(dotnet,new[]{scenario.Executable}.Concat(scenario.Arguments).ToArray(),false);
         }
-        if(OperatingSystem.IsWindows()&&scenario.Language==QaLanguage.Cpp)
+        if(OperatingSystem.IsWindows()&&(scenario.Language==LanguageId.Cpp||scenario.Language.Is("c")))
         {
             var watchdog=ResolveConfigured(_options.CrashWatchdogPath);
             if(File.Exists(watchdog))
@@ -100,13 +101,15 @@ public sealed class ReproductionCoordinator(
             return Process.Start(psi);
         }catch{return null;}
     }
+
     private async Task FinalizeCaptureAsync(Process capture)
     {
         try{using(capture){using var cts=new CancellationTokenSource(TimeSpan.FromSeconds(8));await capture.WaitForExitAsync(cts.Token);}}catch{try{capture.Kill(true);}catch{}}
     }
-    private async Task TryCollectManagedEvidenceAsync(QaLanguage language,int pid,string dump,string workspace)
+
+    private async Task TryCollectManagedEvidenceAsync(LanguageId language,int pid,string dump,string workspace)
     {
-        if(language!=QaLanguage.CSharp)return;var root=Path.GetDirectoryName(dump)!;
+        if(language!=LanguageId.CSharp)return;var root=Path.GetDirectoryName(dump)!;
         var stackTool=ProcessExecutor.FindExecutable("dotnet-stack");
         if(stackTool is not null)
         {
@@ -118,5 +121,6 @@ public sealed class ReproductionCoordinator(
         var dumpDir=Path.Combine(root,"dotnet-dump");Directory.CreateDirectory(dumpDir);
         await executor.RunAsync(tool,["collect","--process-id",pid.ToString(),"--output",dump,"--type","Full"],workspace,null,TimeSpan.FromSeconds(20),Path.Combine(dumpDir,"stdout.log"),Path.Combine(dumpDir,"stderr.log"),CancellationToken.None);
     }
+
     private static string ResolveConfigured(string value)=>Path.IsPathRooted(value)?value:Path.GetFullPath(value);
 }
