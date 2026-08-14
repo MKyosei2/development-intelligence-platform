@@ -1,0 +1,67 @@
+name: Portfolio Benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'services/**'
+      - 'infrastructure/**'
+      - 'docker-compose.yml'
+      - 'scripts/measure_portfolio_benchmarks.py'
+      - '.github/workflows/portfolio-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      DIP_REQUIRE_AUTHENTICATION: 'false'
+      API_PORT: '5080'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and start benchmark stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose up -d --build postgres redis python-analysis api
+      - name: Wait for API
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:5080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs api
+          exit 1
+      - name: Measure fixed scenarios
+        shell: bash
+        run: python scripts/measure_portfolio_benchmarks.py --base-url http://127.0.0.1:5080 --output artifacts/portfolio-benchmark
+      - name: Show service diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=250 api postgres redis python-analysis || true
+      - name: Upload measured benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-benchmark-evidence
+          path: artifacts/portfolio-benchmark
+          if-no-files-found: warn
+      - name: Stop stack
+        if: always()
+        shell: bash
+        run: docker compose down -v --remove-orphans
