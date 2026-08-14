@@ -43,7 +43,9 @@ Push-Location $root
 try {
     Invoke-VerifiedStep 'dotnet-restore' { dotnet restore .\DevelopmentIntelligencePlatform.sln --nologo }
     Invoke-VerifiedStep 'dotnet-build-release' { dotnet build .\DevelopmentIntelligencePlatform.sln -c Release --no-restore --nologo -v minimal }
-    Invoke-VerifiedStep 'dotnet-test-release' { dotnet test .\DevelopmentIntelligencePlatform.sln -c Release --no-build --nologo --logger 'trx;LogFileName=runtime-verification.trx' --results-directory $OutputDirectory }
+    Invoke-VerifiedStep 'domain-tests' { dotnet test .\tests\Dip.Domain.Tests\Dip.Domain.Tests.csproj -c Release --no-build --nologo --logger 'trx;LogFileName=runtime-domain.trx' --results-directory $OutputDirectory }
+    Invoke-VerifiedStep 'application-tests' { dotnet test .\tests\Dip.Application.Tests\Dip.Application.Tests.csproj -c Release --no-build --nologo --logger 'trx;LogFileName=runtime-application.trx' --results-directory $OutputDirectory }
+    Invoke-VerifiedStep 'infrastructure-tests' { dotnet test .\tests\Dip.Infrastructure.Tests\Dip.Infrastructure.Tests.csproj -c Release --no-build --nologo --logger 'trx;LogFileName=runtime-infrastructure.trx' --results-directory $OutputDirectory }
 
     $unity = [ordered]@{ required=(-not $DotNetOnly); status=if($DotNetOnly){'NOT_REQUESTED'}else{'PENDING'}; version=$null; executable=$null }
     if (-not $DotNetOnly) {
@@ -57,7 +59,7 @@ try {
     }
 
     $payload = [ordered]@{
-        schemaVersion = '1.0'
+        schemaVersion = '1.1'
         status = if($DotNetOnly){'WINDOWS_DOTNET_PASS'}else{'PASS'}
         commit = $commit
         startedAtUtc = $started.ToString('O')
@@ -70,7 +72,12 @@ try {
             computerName = $env:COMPUTERNAME
             githubRunner = $env:RUNNER_NAME
         }
-        windowsDotNet = [ordered]@{ status='PASS'; configuration='Release' }
+        windowsDotNet = [ordered]@{
+            status='PASS'
+            configuration='Release'
+            scope='full solution build + Domain/Application/Infrastructure tests'
+            note='Service-backed API/E2E verification is provided separately by Integration and E2E Tests.'
+        }
         unity = $unity
         steps = $steps
     }
