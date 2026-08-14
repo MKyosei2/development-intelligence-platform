@@ -1,4 +1,6 @@
 using Dip.Api.Authorization;
+using Dip.Application.Features.Authorization;
+using Dip.Domain.Enums;
 using Dip.Application.Features.QualityAutomation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +25,7 @@ public sealed class QaController(QaOrchestrationService service) : ControllerBas
         service.GetCrashClustersAsync(projectId,take<=0?50:take,ct);
 
     [Authorize(Policy=Policies.ProjectRead)]
+    [RequireProjectResource(ProjectMembershipRole.Viewer,ProjectResourceKind.QaRun,"runId")]
     [HttpGet("runs/{runId:guid}")]
     [ProducesResponseType(typeof(QaRunResultDto),StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

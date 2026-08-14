@@ -1,0 +1,14 @@
+{
+  "annotations":{"list":[]},"editable":false,"graphTooltip":0,
+  "panels":[
+    {"type":"stat","title":"Open QA findings","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"max(dip_qa_findings_open)","refId":"A"}],"gridPos":{"h":5,"w":4,"x":0,"y":0}},
+    {"type":"stat","title":"Flaky tests","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"max(dip_qa_flaky_tests)","refId":"A"}],"gridPos":{"h":5,"w":4,"x":4,"y":0}},
+    {"type":"stat","title":"Active waivers","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"max(dip_qa_waivers_active)","refId":"A"}],"gridPos":{"h":5,"w":4,"x":8,"y":0}},
+    {"type":"stat","title":"QA self-health","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"max by (status) (dip_qa_self_health)","legendFormat":"{{status}}","refId":"A"}],"gridPos":{"h":5,"w":6,"x":12,"y":0}},
+    {"type":"stat","title":"Sandbox denials / 1h","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"sum(increase(dip_qa_sandbox_denied_total[1h]))","refId":"A"}],"gridPos":{"h":5,"w":6,"x":18,"y":0}},
+    {"type":"timeseries","title":"QA runs by gate verdict","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"sum by (gate,status) (increase(dip_qa_runs_total[15m]))","legendFormat":"{{gate}} / {{status}}","refId":"A"}],"gridPos":{"h":8,"w":12,"x":0,"y":5}},
+    {"type":"timeseries","title":"Governance mutations","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"sum by (action,status) (increase(dip_qa_governance_mutations_total[15m]))","legendFormat":"{{action}} / {{status}}","refId":"A"}],"gridPos":{"h":8,"w":12,"x":12,"y":5}},
+    {"type":"timeseries","title":"Sandbox denial reasons","datasource":{"type":"prometheus","uid":"dip-prometheus"},"targets":[{"expr":"sum by (reason) (increase(dip_qa_sandbox_denied_total[15m]))","legendFormat":"{{reason}}","refId":"A"}],"gridPos":{"h":8,"w":24,"x":0,"y":13}}
+  ],
+  "schemaVersion":41,"tags":["dip","qa","governance"],"templating":{"list":[]},"time":{"from":"now-6h","to":"now"},"timezone":"browser","title":"DIP QA Governance","uid":"dip-qa-governance","version":1
+}

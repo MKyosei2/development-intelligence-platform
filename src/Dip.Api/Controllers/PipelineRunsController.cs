@@ -1,3 +1,7 @@
+using Dip.Api.Authorization;
+using Dip.Application.Features.Authorization;
+using Dip.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,6 +30,8 @@ public sealed class PipelineRunsController : ControllerBase
     private readonly IPipelineRunRepository _repository;
     public PipelineRunsController(IPipelineRunRepository repository) => _repository = repository;
 
+    [Authorize(Policy=Policies.ProjectRead)]
+    [RequireProjectResource(ProjectMembershipRole.Viewer,ProjectResourceKind.PipelineRun,"id")]
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PipelineRunResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

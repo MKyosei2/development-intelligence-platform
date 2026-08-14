@@ -30,6 +30,9 @@ public static class DependencyInjection
         services.AddDbContext<DipDbContext>(options => options.UseNpgsql(postgresConnection));
         services.AddScoped<LegacyMigrationAdopter>();
         services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IProjectMembershipRepository, ProjectMembershipRepository>();
+        services.AddScoped<Dip.Application.Features.Authorization.IProjectResourceProjectResolver,Dip.Infrastructure.Persistence.ProjectResourceProjectResolver>();
+        services.AddScoped<Dip.Application.Features.Authorization.IProjectMutationCoordinator,Dip.Infrastructure.Persistence.ProjectMutationCoordinator>();
         services.AddScoped<IPipelineRunRepository, PipelineRunRepository>();
         services.AddScoped<IMetricRepository, MetricRepository>();
         services.AddScoped<IQualityIssueRepository, QualityIssueRepository>();
@@ -41,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IQaRunRepository, QaRunRepository>();
         services.AddScoped<IQaFindingRepository, QaFindingRepository>();
         services.AddScoped<IQaGovernanceRepository, QaGovernanceRepository>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.IQaGovernanceExecutionCoordinator,Dip.Infrastructure.Persistence.QaGovernanceExecutionCoordinator>();
         services.AddScoped<Dip.Application.Features.QualityGovernance.IRepositoryOwnershipResolver,CodeOwnersOwnershipResolver>();
         services.AddScoped<IReproductionAttemptRepository, ReproductionAttemptRepository>();
         services.AddScoped<IHardwareProfileRepository, HardwareProfileRepository>();

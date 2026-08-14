@@ -12,6 +12,8 @@ using Dip.Application.Features.Management;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Application.Features.QualityGovernance;
+using Dip.Application.Features.Authorization;
+using Dip.Domain.Enums;
 
 namespace Dip.Web.Services;
 
@@ -145,5 +147,24 @@ public sealed class ApiClient
         =>await _httpClient.GetFromJsonAsync<QaGovernanceOverviewDto>($"api/v1/qa-governance/projects/{projectId}/overview",cancellationToken)
           ??throw new InvalidDataException("QA Governance API returned an empty response.");
 
+
+    public async Task<PageResult<QaFindingStateDto>> GetQaGovernanceFindingsAsync(Guid projectId,string? cursor=null,int pageSize=100,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<PageResult<QaFindingStateDto>>($"api/v1/qa-governance/projects/{projectId}/findings?pageSize={Math.Clamp(pageSize,1,500)}{(string.IsNullOrWhiteSpace(cursor)?string.Empty:$"&cursor={Uri.EscapeDataString(cursor)}")}",cancellationToken)??new(Array.Empty<QaFindingStateDto>(),null,pageSize);
+    public async Task<IReadOnlyList<QaWaiverDto>> GetQaWaiversAsync(Guid projectId,CancellationToken cancellationToken=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<QaWaiverDto>>($"api/v1/qa-governance/projects/{projectId}/waivers",cancellationToken)??Array.Empty<QaWaiverDto>();
+    public async Task RequestWaiverAsync(Guid projectId,string name,string reason,string? fingerprint,DateTimeOffset expires,CancellationToken cancellationToken=default){using var r=await _httpClient.PostAsJsonAsync("api/v1/qa-governance/waivers",new{projectId,name,reason,fingerprint,ruleId=(string?)null,pathPattern=(string?)null,expiresAtUtc=expires},cancellationToken);r.EnsureSuccessStatusCode();}
+    public Task ApproveWaiverAsync(Guid projectId,Guid id,long version,string reason,CancellationToken ct=default)=>PostNoContentAsync($"api/v1/qa-governance/projects/{projectId}/waivers/{id}/approve",new{reason,expectedVersion=version},ct);
+    public Task RejectWaiverAsync(Guid projectId,Guid id,long version,string reason,CancellationToken ct=default)=>PostNoContentAsync($"api/v1/qa-governance/projects/{projectId}/waivers/{id}/reject",new{reason,expectedVersion=version},ct);
+    public async Task<IReadOnlyList<QaPolicyDto>> GetQaPoliciesAsync(Guid projectId,CancellationToken cancellationToken=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<QaPolicyDto>>($"api/v1/qa-governance/projects/{projectId}/policies",cancellationToken)??Array.Empty<QaPolicyDto>();
+    public async Task CreateQaPolicyAsync(Guid projectId,string name,string version,QaPolicyRules rules,CancellationToken ct=default){using var r=await _httpClient.PostAsJsonAsync("api/v1/qa-governance/policies",new{projectId,name,version,rules},ct);r.EnsureSuccessStatusCode();}
+    public Task ApproveQaPolicyAsync(Guid projectId,Guid id,long version,string reason,CancellationToken ct=default)=>PostNoContentAsync($"api/v1/qa-governance/projects/{projectId}/policies/{id}/approve",new{reason,expectedVersion=version},ct);
+    public Task ActivateQaPolicyAsync(Guid projectId,Guid id,long version,string reason,CancellationToken ct=default)=>PostNoContentAsync($"api/v1/qa-governance/projects/{projectId}/policies/{id}/activate",new{reason,expectedVersion=version},ct);
+    public async Task<IReadOnlyList<QaReleaseGateOverrideDto>> GetQaReleaseOverridesAsync(Guid projectId,CancellationToken ct=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<QaReleaseGateOverrideDto>>($"api/v1/qa-governance/projects/{projectId}/release-overrides",ct)??Array.Empty<QaReleaseGateOverrideDto>();
+    public async Task RequestQaReleaseOverrideAsync(Guid projectId,string reason,DateTimeOffset expires,CancellationToken ct=default){using var r=await _httpClient.PostAsJsonAsync("api/v1/qa-governance/release-overrides",new{projectId,policyEvaluationId=(Guid?)null,qaRunId=(Guid?)null,commitSha=(string?)null,reason,expiresAtUtc=expires},ct);r.EnsureSuccessStatusCode();}
+    public Task ApproveQaReleaseOverrideAsync(Guid projectId,Guid id,long version,string reason,CancellationToken ct=default)=>PostNoContentAsync($"api/v1/qa-governance/projects/{projectId}/release-overrides/{id}/approve",new{reason,expectedVersion=version},ct);
+    public async Task<IReadOnlyList<GovernanceAuditLogDto>> GetQaAuditAsync(Guid projectId,CancellationToken ct=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<GovernanceAuditLogDto>>($"api/v1/qa-governance/projects/{projectId}/audit?take=200",ct)??Array.Empty<GovernanceAuditLogDto>();
+    public async Task<IReadOnlyList<QaBackupVerificationDto>> GetQaBackupVerificationsAsync(Guid projectId,CancellationToken ct=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<QaBackupVerificationDto>>($"api/v1/qa-governance/projects/{projectId}/backup-verifications?take=100",ct)??Array.Empty<QaBackupVerificationDto>();
+    public async Task<IReadOnlyList<ProjectMembershipDto>> GetProjectMembershipsAsync(Guid projectId,CancellationToken ct=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<ProjectMembershipDto>>($"api/v1/projects/{projectId}/memberships",ct)??Array.Empty<ProjectMembershipDto>();
+    public async Task UpsertProjectMembershipAsync(Guid projectId,string subjectId,string login,ProjectMembershipRole role,string reason,CancellationToken ct=default){using var r=await _httpClient.PutAsJsonAsync($"api/v1/projects/{projectId}/memberships/{Uri.EscapeDataString(subjectId)}",new{subjectId,login,role,reason},ct);r.EnsureSuccessStatusCode();}
+    private async Task PostNoContentAsync(string uri,object payload,CancellationToken ct){using var r=await _httpClient.PostAsJsonAsync(uri,payload,ct);r.EnsureSuccessStatusCode();}
 
 }

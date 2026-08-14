@@ -1,4 +1,6 @@
 using Dip.Api.Authorization;
+using Dip.Application.Features.Authorization;
+using Dip.Domain.Enums;
 using Dip.Application.Abstractions.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +10,7 @@ namespace Dip.Api.Controllers;
 [ApiController]
 [Route("api/v1/qa/runs/{runId:guid}/artifacts")]
 [Authorize(Policy=Policies.ProjectRead)]
+[RequireProjectResource(ProjectMembershipRole.Viewer,ProjectResourceKind.QaRun,"runId")]
 public sealed class QaArtifactsController(IQaRunRepository runs):ControllerBase
 {
     [HttpGet]

@@ -8,6 +8,7 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
 {
     public DipDbContext(DbContextOptions<DipDbContext> options) : base(options) { }
     public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectMembership> ProjectMemberships => Set<ProjectMembership>();
     public DbSet<PipelineRun> PipelineRuns => Set<PipelineRun>();
     public DbSet<Metric> Metrics => Set<Metric>();
     public DbSet<QualityIssue> QualityIssues => Set<QualityIssue>();
@@ -35,6 +36,9 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<QaArtifactRetentionRule> QaArtifactRetentionRules => Set<QaArtifactRetentionRule>();
     public DbSet<QaRunCostRecord> QaRunCosts => Set<QaRunCostRecord>();
     public DbSet<QaBugMinimizationRecord> QaBugMinimizations => Set<QaBugMinimizationRecord>();
+    public DbSet<QaGovernanceProcessedRun> QaGovernanceProcessedRuns => Set<QaGovernanceProcessedRun>();
+    public DbSet<QaReleaseGateOverride> QaReleaseGateOverrides => Set<QaReleaseGateOverride>();
+    public DbSet<QaBackupVerificationRecord> QaBackupVerifications => Set<QaBackupVerificationRecord>();
     public DbSet<ReproductionAttempt> ReproductionAttempts => Set<ReproductionAttempt>();
     public DbSet<HardwareProfile> HardwareProfiles => Set<HardwareProfile>();
     public DbSet<HardwareCalibration> HardwareCalibrations => Set<HardwareCalibration>();

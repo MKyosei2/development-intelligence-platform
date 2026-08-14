@@ -17,6 +17,9 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(x => x.Actor).HasColumnName("actor").HasMaxLength(200).IsRequired();
         builder.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);
         builder.Property(x => x.DetailJson).HasColumnName("detail_json").HasMaxLength(16000);
+        builder.Property(x => x.RequestId).HasColumnName("request_id").HasMaxLength(200);
+        builder.Property(x => x.CorrelationId).HasColumnName("correlation_id").HasMaxLength(200);
+        builder.Property(x => x.Reason).HasColumnName("reason").HasMaxLength(2000);
         builder.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc").IsRequired();
 
         builder.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);

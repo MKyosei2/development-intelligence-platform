@@ -1,6 +1,6 @@
-using System.Text;using System.Text.Json;using Dip.Application.Abstractions.GitHub;using Dip.Application.Features.GitHub;using Microsoft.AspNetCore.Mvc;using Microsoft.AspNetCore.RateLimiting;
+using System.Text;using System.Text.Json;using Dip.Application.Abstractions.GitHub;using Dip.Application.Features.GitHub;using Microsoft.AspNetCore.Mvc;using Microsoft.AspNetCore.Authorization;using Microsoft.AspNetCore.RateLimiting;
 namespace Dip.Api.Controllers;
-[ApiController][Route("api/v1/webhooks/github")][EnableRateLimiting("github-webhook")][Consumes("application/json")]
+[ApiController][Route("api/v1/webhooks/github")][AllowAnonymous][EnableRateLimiting("github-webhook")][Consumes("application/json")]
 public sealed class WebhooksController(IGitHubWebhookVerifier verifier,GitHubWebhookProcessor processor):ControllerBase
 {
  const int Max=5*1024*1024;static readonly HashSet<string> Supported=new(StringComparer.OrdinalIgnoreCase){"ping","push","pull_request","check_run","workflow_run"};

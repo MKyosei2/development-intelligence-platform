@@ -1,4 +1,6 @@
 using Dip.Api.Authorization;
+using Dip.Application.Features.Authorization;
+using Dip.Domain.Enums;
 using Dip.Application.Features.Benchmarks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +17,6 @@ public sealed class BenchmarksController(BenchmarkOrchestrationService benchmark
     public Task<IReadOnlyList<BenchmarkDefinitionDto>> Definitions(CancellationToken ct)=>benchmarks.ListDefinitionsAsync(ct);
     [Authorize(Policy=Policies.ProjectWrite)][HttpPost("runs")]
     public async Task<IActionResult> Run([FromBody]BenchmarkJobRequest request,CancellationToken ct){var job=await benchmarks.EnqueueAsync(request,ct);return Accepted($"/api/v1/jobs/{job.JobId}",job);}
-    [Authorize(Policy=Policies.ProjectRead)][HttpGet("runs/{runId:guid}")]
+    [Authorize(Policy=Policies.ProjectRead)][RequireProjectResource(ProjectMembershipRole.Viewer,ProjectResourceKind.BenchmarkRun,"runId")][HttpGet("runs/{runId:guid}")]
     public async Task<ActionResult<BenchmarkRunResultDto>> GetRun(Guid runId,CancellationToken ct){var result=await benchmarks.GetRunAsync(runId,ct);return result is null?NotFound():Ok(result);}
 }

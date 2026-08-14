@@ -23,10 +23,13 @@ builder.Services.AddGitHubApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddGitHubIntegration(builder.Configuration);
 
+builder.Services.AddScoped<ProjectScopeAuthorizationFilter>();
+
 builder.Services
     .AddControllers(options =>
     {
         options.SuppressAsyncSuffixInActionNames = false;
+        options.Filters.AddService<ProjectScopeAuthorizationFilter>();
     })
     .AddJsonOptions(options =>
     {
@@ -51,6 +54,8 @@ var authenticationSection =
     builder.Configuration.GetSection(AuthOptions.SectionName);
 var authenticationOptions =
     authenticationSection.Get<AuthOptions>() ?? new AuthOptions();
+
+ProductionSecurityGuard.Validate(builder.Environment,builder.Configuration,authenticationOptions);
 
 var signingKeyText = authenticationOptions.Jwt.SigningKey;
 if (string.IsNullOrWhiteSpace(signingKeyText))

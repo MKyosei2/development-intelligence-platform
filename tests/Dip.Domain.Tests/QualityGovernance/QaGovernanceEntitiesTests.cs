@@ -30,7 +30,8 @@ public sealed class QaGovernanceEntitiesTests
     [Fact]
     public void Waiver_ExpiresAndCannotRemainActivePastDeadline()
     {
-        var t0=DateTimeOffset.UtcNow;var waiver=new QaWaiver(Guid.NewGuid(),Guid.NewGuid(),"Known vendor issue","Waiting for upstream fix","qa-lead",null,"RULE-1",null,t0,t0.AddDays(7));
+        var t0=DateTimeOffset.UtcNow;var waiver=new QaWaiver(Guid.NewGuid(),Guid.NewGuid(),"Known vendor issue","Waiting for upstream fix","requester",null,"RULE-1",null,t0,t0.AddDays(7));
+        waiver.Approve("qa-lead","reviewed",t0.AddMinutes(1));
         waiver.IsActive(t0.AddDays(6)).Should().BeTrue();
         waiver.Expire(t0.AddDays(8));
         waiver.Status.Should().Be(WaiverStatus.Expired);
@@ -71,5 +72,35 @@ public sealed class QaGovernanceEntitiesTests
         baseline.Observe("bad2",2m,false,t0.AddMinutes(4));
         baseline.LastKnownGoodCommit.Should().Be("good2");
         baseline.FirstBadCommit.Should().Be("bad2");
+    }
+
+    [Fact]
+    public void RequestedWaiver_RequiresDifferentApprover()
+    {
+        var now=DateTimeOffset.UtcNow;var waiver=new QaWaiver(Guid.NewGuid(),Guid.NewGuid(),"Temporary exception","Known issue","requester",null,"RULE-1",null,now,now.AddDays(1));
+        var self=()=>waiver.Approve("requester","self approval",now.AddMinutes(1));self.Should().Throw<InvalidOperationException>();
+        waiver.Approve("owner","reviewed",now.AddMinutes(2));waiver.Status.Should().Be(WaiverStatus.Active);waiver.ApprovedBy.Should().Be("owner");
+    }
+
+    [Fact]
+    public void Policy_FollowsDraftApproveActivateLifecycle()
+    {
+        var now=DateTimeOffset.UtcNow;var policy=new QaPolicy(Guid.NewGuid(),Guid.NewGuid(),"Default","2.0","{}",false,now);
+        policy.LifecycleStatus.Should().Be(QaPolicyLifecycleStatus.Draft);policy.Approve("maintainer",now.AddMinutes(1));policy.LifecycleStatus.Should().Be(QaPolicyLifecycleStatus.Approved);
+        policy.Activate("owner",null,2,now.AddMinutes(2));policy.LifecycleStatus.Should().Be(QaPolicyLifecycleStatus.Active);policy.Revision.Should().Be(2);policy.Enabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReleaseOverride_IsCommitBoundExpiringAndTwoPerson()
+    {
+        var now=DateTimeOffset.UtcNow;var item=new QaReleaseGateOverride(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),new string('a',40),"Accepted release risk","requester",now,now.AddHours(2));
+        var self=()=>item.Approve("requester","bad",now.AddMinutes(1));self.Should().Throw<InvalidOperationException>();
+        item.Approve("owner","approved",now.AddMinutes(2));item.IsEffective(now.AddHours(1)).Should().BeTrue();item.Expire(now.AddHours(3));item.IsEffective(now.AddHours(3)).Should().BeFalse();item.Status.Should().Be(QaReleaseOverrideStatus.Expired);
+    }
+
+    [Fact]
+    public void ProcessedRun_RecordsExactInputAndResultHashes()
+    {
+        var now=DateTimeOffset.UtcNow;var item=new QaGovernanceProcessedRun(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"2.0.0",new string('b',64),now);item.Status.Should().Be(QaProcessedRunStatus.Processing);item.Complete(new string('c',64),now.AddSeconds(1));item.Status.Should().Be(QaProcessedRunStatus.Completed);item.ResultHash.Should().Be(new string('c',64));
     }
 }

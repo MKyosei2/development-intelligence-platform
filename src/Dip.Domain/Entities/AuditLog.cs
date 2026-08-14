@@ -16,7 +16,10 @@ public sealed class AuditLog
         string actor,
         string? subjectKey,
         string? detailJson,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        string? requestId = null,
+        string? correlationId = null,
+        string? reason = null)
     {
         if (projectId == Guid.Empty)
             throw new ArgumentException("ProjectId is required.", nameof(projectId));
@@ -28,6 +31,9 @@ public sealed class AuditLog
         Actor = Required(actor, 200, nameof(actor));
         SubjectKey = Optional(subjectKey, 200, nameof(subjectKey));
         DetailJson = Optional(detailJson, 16000, nameof(detailJson));
+        RequestId = Optional(requestId, 200, nameof(requestId));
+        CorrelationId = Optional(correlationId, 200, nameof(correlationId));
+        Reason = Optional(reason, 2000, nameof(reason));
         CreatedAtUtc = createdAtUtc;
     }
 
@@ -38,6 +44,9 @@ public sealed class AuditLog
     public string Actor { get; private set; } = string.Empty;
     public string? SubjectKey { get; private set; }
     public string? DetailJson { get; private set; }
+    public string? RequestId { get; private set; }
+    public string? CorrelationId { get; private set; }
+    public string? Reason { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
     private static string Required(string? value, int maxLength, string parameterName)

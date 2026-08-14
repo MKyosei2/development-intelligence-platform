@@ -22,6 +22,7 @@ public sealed class MigrationMetadataTests
         Assert.Contains("202608120004_AddProjectControlGraph",migrations);
         Assert.Contains("202608130005_AddProjectForecasts",migrations);
         Assert.Contains("202608140006_AddQaGovernance",migrations);
+        Assert.Contains("202608140007_QaGovernanceHardening",migrations);
         Assert.Contains("DurableJob",entities);
         Assert.Contains("ArtifactRecord",entities);
         Assert.Contains("Incident",entities);
@@ -52,5 +53,9 @@ public sealed class MigrationMetadataTests
         Assert.Contains("QaArtifactRetentionRule",entities);
         Assert.Contains("QaRunCostRecord",entities);
         Assert.Contains("QaBugMinimizationRecord",entities);
+        Assert.Contains("ProjectMembership",entities);
+        Assert.Contains("QaGovernanceProcessedRun",entities);
+        Assert.Contains("QaReleaseGateOverride",entities);
+        Assert.Contains("QaBackupVerificationRecord",entities);
     }
 }

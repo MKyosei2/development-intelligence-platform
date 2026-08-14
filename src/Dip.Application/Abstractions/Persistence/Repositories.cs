@@ -7,6 +7,15 @@ public interface IProjectRepository
     Task<IReadOnlyList<Project>> ListAsync(CancellationToken ct);
     Task AddAsync(Project project,CancellationToken ct);
 }
+
+public interface IProjectMembershipRepository
+{
+    Task<ProjectMembership?> FindAsync(Guid projectId,string subjectId,CancellationToken ct);
+    Task<IReadOnlyList<ProjectMembership>> ListByProjectAsync(Guid projectId,CancellationToken ct);
+    Task<IReadOnlyList<ProjectMembership>> ListBySubjectAsync(string subjectId,CancellationToken ct);
+    Task AddAsync(ProjectMembership membership,CancellationToken ct);
+    void Remove(ProjectMembership membership);
+}
 public interface IPipelineRunRepository
 {
     Task<PipelineRun?> GetByIdAsync(Guid id,CancellationToken ct);
@@ -44,6 +53,7 @@ public interface IProjectTruthRepository
 public interface IAuditLogRepository
 {
     Task AddAsync(AuditLog entry,CancellationToken ct);
+    Task<IReadOnlyList<AuditLog>> ListByProjectAsync(Guid projectId,int take,CancellationToken ct);
 }
 public interface IQaRunRepository
 {
@@ -243,6 +253,7 @@ public interface IQaGovernanceRepository
     Task<QaFindingState?> FindFindingStateAsync(Guid projectId,string fingerprint,CancellationToken ct);
     Task AddFindingStateAsync(QaFindingState state,CancellationToken ct);
     Task<IReadOnlyList<QaFindingState>> ListFindingStatesAsync(Guid projectId,int take,CancellationToken ct);
+    Task<IReadOnlyList<QaFindingState>> ListFindingStatesPageAsync(Guid projectId,DateTimeOffset? before,string? beforeFingerprint,int take,CancellationToken ct);
     Task<QaWaiver?> GetWaiverAsync(Guid id,CancellationToken ct);
     Task AddWaiverAsync(QaWaiver waiver,CancellationToken ct);
     Task<IReadOnlyList<QaWaiver>> ListWaiversAsync(Guid projectId,CancellationToken ct);
@@ -272,4 +283,13 @@ public interface IQaGovernanceRepository
     Task<IReadOnlyList<QaRunCostRecord>> ListCostsAsync(Guid projectId,int take,CancellationToken ct);
     Task AddMinimizationAsync(QaBugMinimizationRecord record,CancellationToken ct);
     Task<IReadOnlyList<QaBugMinimizationRecord>> ListMinimizationsAsync(Guid projectId,int take,CancellationToken ct);
+    Task<QaGovernanceProcessedRun?> GetProcessedRunAsync(Guid qaRunId,CancellationToken ct);
+    Task AddProcessedRunAsync(QaGovernanceProcessedRun record,CancellationToken ct);
+    Task<QaPolicy?> GetPolicyAsync(Guid id,CancellationToken ct);
+    Task<IReadOnlyList<QaPolicy>> ListPoliciesAsync(Guid projectId,CancellationToken ct);
+    Task<QaReleaseGateOverride?> GetReleaseOverrideAsync(Guid id,CancellationToken ct);
+    Task AddReleaseOverrideAsync(QaReleaseGateOverride record,CancellationToken ct);
+    Task<IReadOnlyList<QaReleaseGateOverride>> ListReleaseOverridesAsync(Guid projectId,int take,CancellationToken ct);
+    Task AddBackupVerificationAsync(QaBackupVerificationRecord record,CancellationToken ct);
+    Task<IReadOnlyList<QaBackupVerificationRecord>> ListBackupVerificationsAsync(Guid projectId,int take,CancellationToken ct);
 }

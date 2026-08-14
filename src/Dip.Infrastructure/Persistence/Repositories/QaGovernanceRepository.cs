@@ -8,7 +8,8 @@ public sealed class QaGovernanceRepository(DipDbContext db):IQaGovernanceReposit
 {
     public Task<QaFindingState?> FindFindingStateAsync(Guid p,string f,CancellationToken ct)=>db.QaFindingStates.SingleOrDefaultAsync(x=>x.ProjectId==p&&x.Fingerprint==f,ct);
     public Task AddFindingStateAsync(QaFindingState x,CancellationToken ct)=>db.QaFindingStates.AddAsync(x,ct).AsTask();
-    public async Task<IReadOnlyList<QaFindingState>> ListFindingStatesAsync(Guid p,int take,CancellationToken ct)=>await db.QaFindingStates.Where(x=>x.ProjectId==p).OrderByDescending(x=>x.LastSeenAtUtc).Take(Math.Clamp(take,1,10000)).ToListAsync(ct);
+    public async Task<IReadOnlyList<QaFindingState>> ListFindingStatesAsync(Guid p,int take,CancellationToken ct)=>await db.QaFindingStates.Where(x=>x.ProjectId==p).OrderByDescending(x=>x.LastSeenAtUtc).ThenByDescending(x=>x.Id).Take(Math.Clamp(take,1,10000)).ToListAsync(ct);
+    public async Task<IReadOnlyList<QaFindingState>> ListFindingStatesPageAsync(Guid p,DateTimeOffset? before,string? beforeFingerprint,int take,CancellationToken ct){var q=db.QaFindingStates.AsNoTracking().Where(x=>x.ProjectId==p);if(before.HasValue&&!string.IsNullOrWhiteSpace(beforeFingerprint))q=q.Where(x=>x.LastSeenAtUtc<before.Value||(x.LastSeenAtUtc==before.Value&&string.Compare(x.Fingerprint,beforeFingerprint)<0));return await q.OrderByDescending(x=>x.LastSeenAtUtc).ThenByDescending(x=>x.Fingerprint).Take(Math.Clamp(take,1,501)).ToListAsync(ct);}
     public Task<QaWaiver?> GetWaiverAsync(Guid id,CancellationToken ct)=>db.QaWaivers.SingleOrDefaultAsync(x=>x.Id==id,ct);
     public Task AddWaiverAsync(QaWaiver x,CancellationToken ct)=>db.QaWaivers.AddAsync(x,ct).AsTask();
     public async Task<IReadOnlyList<QaWaiver>> ListWaiversAsync(Guid p,CancellationToken ct)=>await db.QaWaivers.Where(x=>x.ProjectId==p).OrderByDescending(x=>x.CreatedAtUtc).ToListAsync(ct);
@@ -21,7 +22,7 @@ public sealed class QaGovernanceRepository(DipDbContext db):IQaGovernanceReposit
     public Task AddOwnershipRuleAsync(QaOwnershipRule x,CancellationToken ct)=>db.QaOwnershipRules.AddAsync(x,ct).AsTask();
     public async Task<IReadOnlyList<QaOwnershipRule>> ListOwnershipRulesAsync(Guid p,CancellationToken ct)=>await db.QaOwnershipRules.AsNoTracking().Where(x=>x.ProjectId==p&&x.Enabled).OrderByDescending(x=>x.Priority).ToListAsync(ct);
     public Task AddPolicyAsync(QaPolicy x,CancellationToken ct)=>db.QaPolicies.AddAsync(x,ct).AsTask();
-    public Task<QaPolicy?> GetActivePolicyAsync(Guid p,CancellationToken ct)=>db.QaPolicies.AsNoTracking().Where(x=>x.ProjectId==p&&x.Enabled).OrderByDescending(x=>x.CreatedAtUtc).FirstOrDefaultAsync(ct);
+    public Task<QaPolicy?> GetActivePolicyAsync(Guid p,CancellationToken ct)=>db.QaPolicies.Where(x=>x.ProjectId==p&&x.LifecycleStatus==Dip.Domain.Enums.QaPolicyLifecycleStatus.Active&&x.Enabled).OrderByDescending(x=>x.Revision).ThenByDescending(x=>x.CreatedAtUtc).FirstOrDefaultAsync(ct);
     public Task AddPolicyEvaluationAsync(QaPolicyEvaluation x,CancellationToken ct)=>db.QaPolicyEvaluations.AddAsync(x,ct).AsTask();
     public Task<QaPolicyEvaluation?> GetLatestPolicyEvaluationAsync(Guid p,CancellationToken ct)=>db.QaPolicyEvaluations.AsNoTracking().Where(x=>x.ProjectId==p).OrderByDescending(x=>x.EvaluatedAtUtc).FirstOrDefaultAsync(ct);
     public Task AddProvenanceAsync(QaEvidenceProvenance x,CancellationToken ct)=>db.QaEvidenceProvenance.AddAsync(x,ct).AsTask();
@@ -38,4 +39,14 @@ public sealed class QaGovernanceRepository(DipDbContext db):IQaGovernanceReposit
     public async Task<IReadOnlyList<QaRunCostRecord>> ListCostsAsync(Guid p,int take,CancellationToken ct)=>await db.QaRunCosts.AsNoTracking().Where(x=>x.ProjectId==p).OrderByDescending(x=>x.CapturedAtUtc).Take(Math.Clamp(take,1,5000)).ToListAsync(ct);
     public Task AddMinimizationAsync(QaBugMinimizationRecord x,CancellationToken ct)=>db.QaBugMinimizations.AddAsync(x,ct).AsTask();
     public async Task<IReadOnlyList<QaBugMinimizationRecord>> ListMinimizationsAsync(Guid p,int take,CancellationToken ct)=>await db.QaBugMinimizations.AsNoTracking().Where(x=>x.ProjectId==p).OrderByDescending(x=>x.CreatedAtUtc).Take(Math.Clamp(take,1,1000)).ToListAsync(ct);
+    public Task<QaGovernanceProcessedRun?> GetProcessedRunAsync(Guid qaRunId,CancellationToken ct)=>db.QaGovernanceProcessedRuns.SingleOrDefaultAsync(x=>x.QaRunId==qaRunId,ct);
+    public Task AddProcessedRunAsync(QaGovernanceProcessedRun x,CancellationToken ct)=>db.QaGovernanceProcessedRuns.AddAsync(x,ct).AsTask();
+    public Task<QaPolicy?> GetPolicyAsync(Guid id,CancellationToken ct)=>db.QaPolicies.SingleOrDefaultAsync(x=>x.Id==id,ct);
+    public async Task<IReadOnlyList<QaPolicy>> ListPoliciesAsync(Guid p,CancellationToken ct)=>await db.QaPolicies.AsNoTracking().Where(x=>x.ProjectId==p).OrderByDescending(x=>x.Revision).ThenByDescending(x=>x.CreatedAtUtc).ToListAsync(ct);
+    public Task<QaReleaseGateOverride?> GetReleaseOverrideAsync(Guid id,CancellationToken ct)=>db.QaReleaseGateOverrides.SingleOrDefaultAsync(x=>x.Id==id,ct);
+    public Task AddReleaseOverrideAsync(QaReleaseGateOverride x,CancellationToken ct)=>db.QaReleaseGateOverrides.AddAsync(x,ct).AsTask();
+    public async Task<IReadOnlyList<QaReleaseGateOverride>> ListReleaseOverridesAsync(Guid p,int take,CancellationToken ct)=>await db.QaReleaseGateOverrides.Where(x=>x.ProjectId==p).OrderByDescending(x=>x.CreatedAtUtc).Take(Math.Clamp(take,1,1000)).ToListAsync(ct);
+    public Task AddBackupVerificationAsync(QaBackupVerificationRecord x,CancellationToken ct)=>db.QaBackupVerifications.AddAsync(x,ct).AsTask();
+    public async Task<IReadOnlyList<QaBackupVerificationRecord>> ListBackupVerificationsAsync(Guid p,int take,CancellationToken ct)=>await db.QaBackupVerifications.AsNoTracking().Where(x=>x.ProjectId==p).OrderByDescending(x=>x.VerifiedAtUtc).Take(Math.Clamp(take,1,1000)).ToListAsync(ct);
 }
+

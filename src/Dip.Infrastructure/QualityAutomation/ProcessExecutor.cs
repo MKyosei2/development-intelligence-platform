@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using Dip.Application.Abstractions.Observability;
 using Microsoft.Extensions.Options;
 
 namespace Dip.Infrastructure.QualityAutomation;
@@ -12,7 +13,8 @@ public sealed class ProcessExecutor
 {
     private static readonly HashSet<string> ExternalQaTools=new(new[]{"dotnet","python","python3","py","pytest","ruff","mypy","cmake","ctest","ninja","msbuild","clang","clang++","clang-tidy","cppcheck","gcc","g++","node","npm","npx","pnpm","yarn","tsc","go","cargo","rustc","javac","java","kotlinc","ruby","php","bash","pwsh","powershell","luac","lua","swiftc","sqlfluff","glslangvalidator","dxc","fxc"},StringComparer.OrdinalIgnoreCase);
     private readonly QaExecutionOptions _options;
-    public ProcessExecutor(IOptions<QaExecutionOptions>? options=null){_options=options?.Value??new QaExecutionOptions();}
+    private readonly IDipOperationalMetrics? _metrics;
+    public ProcessExecutor(IOptions<QaExecutionOptions>? options=null,IDipOperationalMetrics? metrics=null){_options=options?.Value??new QaExecutionOptions();_metrics=metrics;}
 
     public Task<ProcessExecutionResult> RunAsync(string executable,IEnumerable<string> arguments,string workingDirectory,IReadOnlyDictionary<string,string>? environment,TimeSpan timeout,string stdoutPath,string stderrPath,CancellationToken cancellationToken,Func<Process,CancellationToken,Task>? beforeTimeoutKill=null)
         =>RunCoreAsync(executable,arguments,workingDirectory,environment,timeout,stdoutPath,stderrPath,cancellationToken,beforeTimeoutKill,false);
@@ -22,7 +24,9 @@ public sealed class ProcessExecutor
 
     private async Task<ProcessExecutionResult> RunCoreAsync(string executable,IEnumerable<string> arguments,string workingDirectory,IReadOnlyDictionary<string,string>? environment,TimeSpan timeout,string stdoutPath,string stderrPath,CancellationToken cancellationToken,Func<Process,CancellationToken,Task>? beforeTimeoutKill,bool sandbox)
     {
-        var args=arguments.ToArray();var workspace=Path.GetFullPath(workingDirectory);if(!Directory.Exists(workspace))throw new DirectoryNotFoundException(workspace);if(sandbox){ValidateExecutable(executable,workspace);ValidatePathArguments(args,workspace);}if(sandbox&&_options.RequireExternalNetworkIsolation&&!NetworkIsolationVerified())throw new InvalidOperationException("QA requires network isolation, but DIP_QA_NETWORK_ISOLATED=1 was not provided by the external sandbox/container runtime.");
+        var args=arguments.ToArray();var workspace=Path.GetFullPath(workingDirectory);if(!Directory.Exists(workspace))throw new DirectoryNotFoundException(workspace);
+        try{if(sandbox){ValidateExecutable(executable,workspace);ValidatePathArguments(args,workspace);}if(sandbox&&_options.RequireExternalNetworkIsolation&&!NetworkIsolationVerified())throw new InvalidOperationException("QA requires network isolation, but DIP_QA_NETWORK_ISOLATED=1 was not provided by the external sandbox/container runtime.");}
+        catch(InvalidOperationException ex) when(sandbox){_metrics?.GovernanceSandboxDenied(ClassifySandboxDenial(ex.Message));throw;}
         Directory.CreateDirectory(Path.GetDirectoryName(stdoutPath)!);Directory.CreateDirectory(Path.GetDirectoryName(stderrPath)!);var psi=new ProcessStartInfo{FileName=executable,WorkingDirectory=workspace,RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false,CreateNoWindow=true};foreach(var arg in args)psi.ArgumentList.Add(arg);
         if(sandbox&&_options.SanitizeEnvironment)SanitizeEnvironment(psi.Environment,environment);else if(environment is not null)foreach(var pair in environment)psi.Environment[pair.Key]=pair.Value;
         using var process=new Process{StartInfo=psi,EnableRaisingEvents=true};var sw=Stopwatch.StartNew();IntPtr job=IntPtr.Zero;var cpuApplied=false;var memoryApplied=false;long peakMb=0;var truncated=false;
@@ -62,6 +66,7 @@ public sealed class ProcessExecutor
     private static void SanitizeEnvironment(IDictionary<string,string?> target,IReadOnlyDictionary<string,string>? supplied){var source=target.ToDictionary(x=>x.Key,x=>x.Value,StringComparer.OrdinalIgnoreCase);target.Clear();foreach(var key in new[]{"PATH","SystemRoot","WINDIR","HOME","USERPROFILE","TEMP","TMP","TMPDIR","DOTNET_ROOT","DOTNET_ROOT_X64","JAVA_HOME","GOPATH","GOROOT","NUGET_PACKAGES"})if(source.TryGetValue(key,out var value)&&!string.IsNullOrWhiteSpace(value))target[key]=value;if(supplied is not null)foreach(var pair in supplied)if(!IsSecretName(pair.Key))target[pair.Key]=pair.Value;target["DIP_QA_SANDBOX"]="1";}
     private static bool IsSecretName(string key)=>key.Contains("TOKEN",StringComparison.OrdinalIgnoreCase)||key.Contains("SECRET",StringComparison.OrdinalIgnoreCase)||key.Contains("PASSWORD",StringComparison.OrdinalIgnoreCase)||key.Contains("API_KEY",StringComparison.OrdinalIgnoreCase)||key.Contains("CONNECTIONSTRING",StringComparison.OrdinalIgnoreCase);
     private static bool NetworkIsolationVerified()=>string.Equals(Environment.GetEnvironmentVariable("DIP_QA_NETWORK_ISOLATED"),"1",StringComparison.Ordinal);
+    private static string ClassifySandboxDenial(string message)=>message.Contains("network isolation",StringComparison.OrdinalIgnoreCase)?"network-isolation":message.Contains("workspace",StringComparison.OrdinalIgnoreCase)?"workspace-boundary":message.Contains("allowlist",StringComparison.OrdinalIgnoreCase)||message.Contains("trusted PATH",StringComparison.OrdinalIgnoreCase)?"executable-policy":"sandbox-policy";
     private static async Task<(string Text,bool Truncated)> ReadCappedAsync(StreamReader reader,int max,CancellationToken ct){var sb=new StringBuilder(Math.Min(max,65536));var buffer=new char[8192];var truncated=false;while(true){var n=await reader.ReadAsync(buffer.AsMemory(0,buffer.Length),ct);if(n<=0)break;var remaining=max-sb.Length;if(remaining>0)sb.Append(buffer,0,Math.Min(remaining,n));if(n>remaining)truncated=true;}if(truncated)sb.Append("\n[DIP: output truncated by QA sandbox]\n");return(sb.ToString(),truncated);}
 
     public static string? FindExecutable(string name){if(Path.IsPathRooted(name)&&File.Exists(name))return name;var candidates=new List<string>{name};if(OperatingSystem.IsWindows()&&Path.GetExtension(name).Length==0)candidates.AddRange([name+".exe",name+".cmd",name+".bat"]);foreach(var directory in(Environment.GetEnvironmentVariable("PATH")??"").Split(Path.PathSeparator,StringSplitOptions.RemoveEmptyEntries))foreach(var candidate in candidates){var path=Path.Combine(directory.Trim('"'),candidate);if(File.Exists(path))return path;}return null;}

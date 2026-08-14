@@ -39,7 +39,7 @@ else
         <div class="card mb-4 border-info">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>QA Governance / Release Gate</strong>
-                <span class="badge @GateBadge(_qaGovernance.GateVerdict)">@_qaGovernance.GateVerdict</span>
+                <div><a class="btn btn-sm btn-outline-primary me-2" href="@($"/dashboard/{ProjectId}/qa-governance")">Manage governance</a><span class="badge @GateBadge(_qaGovernance.GateVerdict)">@_qaGovernance.GateVerdict</span></div>
             </div>
             <div class="card-body">
                 <div class="row g-3 mb-3">
