@@ -11,4 +11,9 @@ public sealed class QaExecutionOptions
     public string HardwareStressAgentPath { get; set; } = "collectors/hardware-stress-agent/build/Release/dip-hardware-stress-agent.exe";
     public int DefaultTimeoutSeconds { get; set; } = 120;
     public int MaximumOutputCharacters { get; set; } = 2_000_000;
+    public bool SandboxEnabled { get; set; } = true;
+    public int SandboxMemoryLimitMb { get; set; } = 4096;
+    public int SandboxCpuPercent { get; set; } = 90;
+    public bool SanitizeEnvironment { get; set; } = true;
+    public bool RequireExternalNetworkIsolation { get; set; } = false;
 }

@@ -20,6 +20,8 @@ public sealed class MigrationMetadataTests
         Assert.Contains("202608120002_AddDurablePlatformIntelligence",migrations);
         Assert.Contains("202608120003_AddDevelopmentIntelligenceExpansion",migrations);
         Assert.Contains("202608120004_AddProjectControlGraph",migrations);
+        Assert.Contains("202608130005_AddProjectForecasts",migrations);
+        Assert.Contains("202608140006_AddQaGovernance",migrations);
         Assert.Contains("DurableJob",entities);
         Assert.Contains("ArtifactRecord",entities);
         Assert.Contains("Incident",entities);
@@ -35,5 +37,20 @@ public sealed class MigrationMetadataTests
         Assert.Contains("RepositoryDependency",entities);
         Assert.Contains("DevelopmentGraphNode",entities);
         Assert.Contains("DevelopmentGraphEdge",entities);
+        Assert.Contains("ProjectForecast",entities);
+        Assert.Contains("QaFindingState",entities);
+        Assert.Contains("QaWaiver",entities);
+        Assert.Contains("QaTestReliability",entities);
+        Assert.Contains("QaRegressionBaseline",entities);
+        Assert.Contains("QaOwnershipRule",entities);
+        Assert.Contains("QaPolicy",entities);
+        Assert.Contains("QaPolicyEvaluation",entities);
+        Assert.Contains("QaEvidenceProvenance",entities);
+        Assert.Contains("QaSystemHealthSnapshot",entities);
+        Assert.Contains("QaQualityTrendSnapshot",entities);
+        Assert.Contains("QaTestImpactRule",entities);
+        Assert.Contains("QaArtifactRetentionRule",entities);
+        Assert.Contains("QaRunCostRecord",entities);
+        Assert.Contains("QaBugMinimizationRecord",entities);
     }
 }

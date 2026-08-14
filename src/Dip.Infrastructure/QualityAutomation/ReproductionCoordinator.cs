@@ -40,7 +40,7 @@ public sealed class ReproductionCoordinator(
         try
         {
             var (exe,args,useWatchdog)=BuildExecution(scenario,dump,stdout,stderr);
-            execution=await executor.RunAsync(exe,args,scenario.WorkspacePath,scenario.EnvironmentVariables,TimeSpan.FromSeconds(Math.Clamp(scenario.TimeoutSeconds,5,1800)),stdout,stderr,ct,
+            execution=await executor.RunQaAsync(exe,args,scenario.WorkspacePath,scenario.EnvironmentVariables,TimeSpan.FromSeconds(Math.Clamp(scenario.TimeoutSeconds,5,1800)),stdout,stderr,ct,
                 async(process,_)=>await TryCollectManagedEvidenceAsync(scenario.Language,process.Id,dump,scenario.WorkspacePath));
             if(useWatchdog)
             {

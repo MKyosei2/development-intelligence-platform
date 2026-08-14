@@ -40,6 +40,8 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IQaRunRepository, QaRunRepository>();
         services.AddScoped<IQaFindingRepository, QaFindingRepository>();
+        services.AddScoped<IQaGovernanceRepository, QaGovernanceRepository>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.IRepositoryOwnershipResolver,CodeOwnersOwnershipResolver>();
         services.AddScoped<IReproductionAttemptRepository, ReproductionAttemptRepository>();
         services.AddScoped<IHardwareProfileRepository, HardwareProfileRepository>();
         services.AddScoped<IHardwareCalibrationRepository, HardwareCalibrationRepository>();
@@ -63,6 +65,7 @@ public static class DependencyInjection
         services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<GenericCommandQaAdapter>());
         services.AddSingleton<IQaAdapterRegistry,QaAdapterRegistry>();
         services.AddSingleton<IRepositoryTechnologyDetector,RepositoryTechnologyDetector>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.IQaBugMinimizer,QaBugMinimizer>();
         services.AddSingleton<ReproductionCoordinator>();
         services.AddSingleton<EnvironmentSnapshotService>();
         services.AddSingleton<HardwareCalibrationService>();

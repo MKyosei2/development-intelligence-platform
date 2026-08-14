@@ -146,3 +146,29 @@ This phase intentionally keeps hardcoded QA language scope to Python/C++/C#. It 
 The former closed `QaLanguage` enum has been removed. Existing persisted values (`Python`, `CSharp`, `Cpp`) remain readable through `LanguageId` aliases, so the QA language column does not require a destructive schema migration. Python/C#/C++ remain deep specialized adapters; additional languages use the built-in generic adapter or `.dip/qa.json`. Structured diagnostics are normalized before textual fallbacks.
 
 This generated source tree **does not claim Windows/.NET/Unity runtime PASS or benchmark numbers until those runners are executed on the target machine for the exact revision**. This prevents previous-revision evidence from being mislabeled.
+
+## 2026-08-14 QA Governance / Reliability expansion
+
+| Area | Source state | Exact-revision evidence |
+|---|---|---|
+| Flaky/Test Reliability | Implemented | Governance domain tests + repeated-run evidence |
+| Finding lifecycle / Waiver | Implemented | Governance domain/API verification |
+| Regression baseline | Implemented | baseline records + regression/bisect evidence |
+| Ownership / CODEOWNERS fallback | Implemented | repository-rule verification |
+| QA Policy / Release Gate | Implemented | `qa_policy_evaluations` + release-readiness integration |
+| Execution sandbox boundary | Implemented | tool sandbox metadata + target OS verification |
+| Provenance / reproducibility | Implemented | exact-commit `qa_evidence_provenance` |
+| QA self-health | Implemented | health snapshots separated from product findings |
+| Root-cause/change correlation | Implemented | finding/baseline correlation; existing evidence-root-cause remains authoritative evidence-ranking path |
+| Quality trend / technical debt | Implemented | trend snapshots + Project Intelligence UI |
+| Smart test selection | Implemented | path/test impact rules and API |
+| Diagnostic schema versioning | Implemented | `dip.finding.v2` persisted on findings |
+| Artifact retention | Implemented | retention rules applied by ArtifactService / retention worker |
+| Freshness / confidence | Implemented | provenance age + QA self-health confidence |
+| QA cost/runtime budget | Implemented | wall/tool/CPU/artifact cost records + policy checks |
+| Test recommendation | Implemented | changed-path/flaky/coverage-gap recommendations |
+| Automatic bug minimization | Implemented (safe argument reduction) | sandboxed reproduction evidence required |
+| Cross-project benchmark comparison | Implemented | same-definition successful run comparison; environment comparability remains caller responsibility |
+
+Formal completion requires `scripts/Verify-QaGovernance.ps1` and the existing exact-revision portfolio runner. The generation environment is not a substitute for Windows/.NET/Unity runtime evidence.
+

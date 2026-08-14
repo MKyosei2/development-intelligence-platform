@@ -9,11 +9,13 @@ namespace Dip.Infrastructure.QualityAutomation;
 
 public sealed partial class UniversalDiagnosticNormalizer
 {
+    public const string NormalizerVersion="2.0.0";
+    public const string CurrentSchemaVersion="dip.finding.v2";
     public IReadOnlyList<QaFindingCandidate> NormalizeText(LanguageId language,string tool,string stdout,string stderr,bool timedOut=false)
     {
-        if(language==LanguageId.Python)return QaParsing.ParsePython(tool,stdout+"\n"+stderr,timedOut);
-        if(language==LanguageId.CSharp)return QaParsing.ParseCSharp(tool,stdout+"\n"+stderr,timedOut);
-        if(language==LanguageId.Cpp||language==LanguageId.C)return QaParsing.ParseCpp(tool,stdout+"\n"+stderr,timedOut);
+        if(language==LanguageId.Python)return Annotate(QaParsing.ParsePython(tool,stdout+"\n"+stderr,timedOut),"text","legacy-python");
+        if(language==LanguageId.CSharp)return Annotate(QaParsing.ParseCSharp(tool,stdout+"\n"+stderr,timedOut),"text","legacy-csharp");
+        if(language==LanguageId.Cpp||language==LanguageId.C)return Annotate(QaParsing.ParseCpp(tool,stdout+"\n"+stderr,timedOut),"text","legacy-cpp");
         var text=stdout+"\n"+stderr;var list=new List<QaFindingCandidate>();
         if(timedOut)list.Add(new("hang",Severity.Critical,tool,$"{language} process timed out","The command exceeded its QA timeout.",ExceptionType:"Timeout"));
         foreach(Match m in CommonCompilerRegex().Matches(text))
@@ -23,7 +25,7 @@ public sealed partial class UniversalDiagnosticNormalizer
         foreach(Match m in OnLineRegex().Matches(text))list.Add(new("syntax",Severity.Critical,tool,$"{language} syntax error",m.Groups[1].Value.Trim(),m.Groups[2].Value,Int(m.Groups[3].Value),RuleId:tool));
         if(list.Count==0&&text.Contains("SyntaxError",StringComparison.OrdinalIgnoreCase))list.Add(new("syntax",Severity.Critical,tool,$"{language} syntax error",Last(text),ExceptionType:"SyntaxError",StackTrace:Trim(text),RuleId:tool));
         if(list.Count==0&&text.Contains("syntax error",StringComparison.OrdinalIgnoreCase))list.Add(new("syntax",Severity.Critical,tool,$"{language} syntax error",LastContaining(text,"syntax error"),StackTrace:Trim(text),RuleId:tool));
-        return Dedup(list);
+        return Annotate(Dedup(list),"text","unstructured-v1");
     }
 
     public IReadOnlyList<QaFindingCandidate> NormalizeReportFile(string path,LanguageId language,string tool)
@@ -31,9 +33,10 @@ public sealed partial class UniversalDiagnosticNormalizer
         var ext=Path.GetExtension(path).ToLowerInvariant();var name=Path.GetFileName(path).ToLowerInvariant();
         try
         {
-            if(ext==".sarif")return ParseSarif(path,language,tool);
-            if(ext==".xml"||name.EndsWith(".trx",StringComparison.Ordinal))return ParseJUnitLike(path,language,tool);
-            if(ext==".json")return ParseJson(path,language,tool);
+            if(ext==".sarif")return Annotate(ParseSarif(path,language,tool),"sarif",ReadJsonVersion(path)??"2.1.0");
+            if(name.EndsWith(".trx",StringComparison.Ordinal))return Annotate(ParseJUnitLike(path,language,tool),"trx","vstestrx-v1");
+            if(ext==".xml")return Annotate(ParseJUnitLike(path,language,tool),"junit","junit-compatible-v1");
+            if(ext==".json")return Annotate(ParseJson(path,language,tool),"json",ReadJsonVersion(path)??"generic-v1");
         }catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or JsonException or System.Xml.XmlException){return new[]{new QaFindingCandidate("diagnostic-parser",Severity.Warning,tool,"Diagnostic report could not be normalized",ex.Message,path,RuleId:"dip-normalizer")};}
         return Array.Empty<QaFindingCandidate>();
     }
@@ -77,6 +80,8 @@ public sealed partial class UniversalDiagnosticNormalizer
         if(!string.IsNullOrWhiteSpace(message)&&(severityText is not null||file is not null||rule is not null)){var critical=severityText?.Contains("error",StringComparison.OrdinalIgnoreCase)==true||severityText?.Contains("critical",StringComparison.OrdinalIgnoreCase)==true;list.Add(new("diagnostic",critical?Severity.Critical:Severity.Warning,tool,rule is null?"JSON diagnostic":$"{rule} diagnostic",message!,file,line,col,RuleId:rule));}
         foreach(var p in e.EnumerateObject())if(p.Value.ValueKind is JsonValueKind.Array or JsonValueKind.Object)Walk(p.Value,list,tool);
     }
+    private static IReadOnlyList<QaFindingCandidate> Annotate(IEnumerable<QaFindingCandidate> findings,string format,string version)=>findings.Select(x=>x with{DiagnosticSchemaVersion=CurrentSchemaVersion,SourceFormat=format,SourceFormatVersion=version}).ToArray();
+    private static string? ReadJsonVersion(string path){try{using var d=JsonDocument.Parse(File.ReadAllText(path));if(d.RootElement.ValueKind==JsonValueKind.Object&&d.RootElement.TryGetProperty("version",out var v))return v.ValueKind==JsonValueKind.String?v.GetString():v.ToString();}catch{}return null;}
     private static string? Str(JsonElement e,string n)=>e.ValueKind==JsonValueKind.Object&&e.TryGetProperty(n,out var v)&&v.ValueKind==JsonValueKind.String?v.GetString():null;
     private static int? Num(JsonElement e,string n)=>e.ValueKind==JsonValueKind.Object&&e.TryGetProperty(n,out var v)&&v.TryGetInt32(out var x)?x:null;
     private static int? Int(string s)=>int.TryParse(s,out var n)?n:null;

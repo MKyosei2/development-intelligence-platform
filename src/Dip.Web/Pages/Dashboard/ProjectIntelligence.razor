@@ -8,6 +8,7 @@
 @using Dip.Application.Features.Performance
 @using Dip.Application.Features.Release
 @using Dip.Application.Features.Replay
+@using Dip.Application.Features.QualityGovernance
 @inject Dip.Web.Services.ApiClient Api
 
 <PageTitle>Development Intelligence</PageTitle>
@@ -31,6 +32,31 @@ else
         <div class="col-md-3"><div class="card"><div class="card-body"><strong>@(_overview?.RepositoryNodes ?? 0)</strong> repos / <strong>@(_overview?.RepositoryDependencies ?? 0)</strong> dependencies</div></div></div>
     </div>
 
+
+
+    @if (_qaGovernance is not null)
+    {
+        <div class="card mb-4 border-info">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>QA Governance / Release Gate</strong>
+                <span class="badge @GateBadge(_qaGovernance.GateVerdict)">@_qaGovernance.GateVerdict</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-2"><div class="small text-muted">QA self-health</div><div class="h5">@_qaGovernance.SystemHealth</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Open findings</div><div class="h3">@_qaGovernance.OpenFindings</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Flaky tests</div><div class="h3">@_qaGovernance.FlakyTests</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Regressions</div><div class="h3">@_qaGovernance.RegressedBaselines</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Active waivers</div><div class="h3">@_qaGovernance.ActiveWaivers</div></div>
+                    <div class="col-md-2"><div class="small text-muted">Evidence freshness</div><div class="h5">@_qaGovernance.Freshness</div><div class="small text-muted">@_qaGovernance.EvidenceConfidence @(_qaGovernance.EvidenceConfidencePercent.ToString("0"))%</div></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-lg-9"><div class="alert alert-light border mb-0"><strong>Gate explanation</strong><div>@_qaGovernance.GateSummary</div></div></div>
+                    <div class="col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Technical debt score</div><div class="h3">@_qaGovernance.TechnicalDebtScore.ToString("0.#")</div><div class="small text-muted">@_qaGovernance.TrendDirection (@_qaGovernance.TechnicalDebtDelta.ToString("+0.##;-0.##;0")) since prior run</div></div></div></div>
+                </div>
+            </div>
+        </div>
+    }
 
     @if (_management is not null)
     {
@@ -124,8 +150,9 @@ else
 <div class="mt-4"><a href="@($"/dashboard/{ProjectId}")">← Project Truth</a></div>
 
 @code {
-    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();private ProjectControlDashboardDto? _projectControl;private ManagementDashboardDto? _management;
-    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);_projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);_management=await Api.GetManagementDashboardAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();private ProjectControlDashboardDto? _projectControl;private ManagementDashboardDto? _management;private QaGovernanceOverviewDto? _qaGovernance;
+    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);_projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);_management=await Api.GetManagementDashboardAsync(ProjectId);_qaGovernance=await Api.GetQaGovernanceOverviewAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
     private string Window()=>_forecast?.EarliestCompletionUtc is null||_forecast.LatestCompletionUtc is null?"Not enough evidence":$"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
     private static bool Done(string status)=>status.Equals("Done",StringComparison.OrdinalIgnoreCase)||status.Equals("Completed",StringComparison.OrdinalIgnoreCase)||status.Equals("Closed",StringComparison.OrdinalIgnoreCase)||status.Equals("Resolved",StringComparison.OrdinalIgnoreCase);
+    private static string GateBadge(string verdict)=>verdict.Equals("Go",StringComparison.OrdinalIgnoreCase)?"bg-success":verdict.Equals("NoGo",StringComparison.OrdinalIgnoreCase)?"bg-danger":verdict.Equals("ReviewRequired",StringComparison.OrdinalIgnoreCase)?"bg-warning text-dark":"bg-secondary";
 }

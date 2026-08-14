@@ -21,6 +21,7 @@ public sealed class P2TechnicalIntelligenceService
     private readonly ISystemClock _clock;
     private readonly ProjectTruthService _truth;
     private readonly IncidentAggregationService _incidents;
+    private readonly IQaGovernanceRepository _qaGovernance;
 
     public P2TechnicalIntelligenceService(
         IP2ExperimentRunner experiments,
@@ -33,10 +34,11 @@ public sealed class P2TechnicalIntelligenceService
         IUnitOfWork uow,
         ISystemClock clock,
         ProjectTruthService truth,
-        IncidentAggregationService incidents)
+        IncidentAggregationService incidents,
+        IQaGovernanceRepository qaGovernance)
     {
         _experiments=experiments;_media=media;_testImpact=testImpact;_symbolicator=symbolicator;_gameRegression=gameRegression;
-        _records=records;_evidence=evidence;_uow=uow;_clock=clock;_truth=truth;_incidents=incidents;
+        _records=records;_evidence=evidence;_uow=uow;_clock=clock;_truth=truth;_incidents=incidents;_qaGovernance=qaGovernance;
     }
 
     public async Task<FlakyResult> RunFlakyAsync(RepeatedRunCommand command,bool runtime,CancellationToken ct)
@@ -50,6 +52,7 @@ public sealed class P2TechnicalIntelligenceService
             result.FailureRatePercent,result.ConfidencePercent,summary,JsonSerializer.Serialize(result),result.ArtifactReference,
             runtime?EvidenceSourceType.Runtime:EvidenceSourceType.Test,
             runtime?"runtime.reliability":"test.flakiness",ct);
+        var reliabilityKey=(runtime?"runtime:":"test:")+command.Target.SubjectKey;var reliability=await _qaGovernance.FindReliabilityAsync(command.Target.ProjectId,reliabilityKey,ct);if(reliability is null){reliability=new QaTestReliability(Guid.NewGuid(),command.Target.ProjectId,reliabilityKey,_clock.UtcNow);await _qaGovernance.AddReliabilityAsync(reliability,ct);}foreach(var attempt in result.Runs)reliability.Observe(attempt.Passed,false,null,_clock.UtcNow);await _uow.SaveChangesAsync(ct);
         return result;
     }
 
@@ -98,7 +101,10 @@ public sealed class P2TechnicalIntelligenceService
         }
         await _uow.SaveChangesAsync(ct);await _truth.RecalculateAsync(command.Target.ProjectId,ct);
         if(result.FirstBadCommit is not null)
+        {
             await _incidents.AttachRegressionAsync(command.Target.ProjectId,command.Target.SubjectKey,result.FirstBadCommit,result.ArtifactReference,ct);
+            var baseline=await _qaGovernance.FindBaselineAsync(command.Target.ProjectId,command.Target.SubjectKey,"git-bisect",ct);if(baseline is null){baseline=new QaRegressionBaseline(Guid.NewGuid(),command.Target.ProjectId,command.Target.SubjectKey,"git-bisect",result.LastGoodCommit??result.FirstBadCommit,0m,_clock.UtcNow);await _qaGovernance.AddBaselineAsync(baseline,ct);}baseline.Observe(result.FirstBadCommit,1m,false,_clock.UtcNow);await _uow.SaveChangesAsync(ct);
+        }
         return result;
     }
 

@@ -11,6 +11,7 @@ using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.Management;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
+using Dip.Application.Features.QualityGovernance;
 
 namespace Dip.Web.Services;
 
@@ -139,5 +140,10 @@ public sealed class ApiClient
     public async Task<ProjectControlDashboardDto> GetProjectControlDashboardAsync(Guid projectId,CancellationToken cancellationToken=default)
         =>await _httpClient.GetFromJsonAsync<ProjectControlDashboardDto>($"api/v1/project-control/projects/{projectId}/dashboard",cancellationToken)
           ??throw new InvalidDataException("Project Control dashboard API returned an empty response.");
+
+    public async Task<QaGovernanceOverviewDto> GetQaGovernanceOverviewAsync(Guid projectId,CancellationToken cancellationToken=default)
+        =>await _httpClient.GetFromJsonAsync<QaGovernanceOverviewDto>($"api/v1/qa-governance/projects/{projectId}/overview",cancellationToken)
+          ??throw new InvalidDataException("QA Governance API returned an empty response.");
+
 
 }

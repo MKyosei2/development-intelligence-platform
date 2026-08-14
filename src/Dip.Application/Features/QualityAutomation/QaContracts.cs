@@ -4,8 +4,8 @@ using Dip.Domain.ValueObjects;
 namespace Dip.Application.Features.QualityAutomation;
 
 public sealed record QaExecutionCommand(Guid ProjectId,string SubjectKey,LanguageId Language,string WorkspaceRelativePath,string? CommitSha,string? RuntimeExecutable,IReadOnlyList<string>? RuntimeArguments,int TimeoutSeconds=120,bool AutomaticallyReproduce=true,bool RecordScreen=true,bool RecordSystemAudio=true);
-public sealed record QaFindingCandidate(string Category,Severity Severity,string Tool,string Title,string Message,string? FilePath=null,int? Line=null,int? Column=null,string? Function=null,string? ExceptionType=null,string? StackTrace=null,string? RuleId=null);
-public sealed record QaToolExecution(string Tool,bool WasAvailable,bool Succeeded,int? ExitCode,long DurationMs,string StandardOutputPath,string StandardErrorPath,string Summary);
+public sealed record QaFindingCandidate(string Category,Severity Severity,string Tool,string Title,string Message,string? FilePath=null,int? Line=null,int? Column=null,string? Function=null,string? ExceptionType=null,string? StackTrace=null,string? RuleId=null,string DiagnosticSchemaVersion="dip.finding.v2",string? SourceFormat=null,string? SourceFormatVersion=null);
+public sealed record QaToolExecution(string Tool,bool WasAvailable,bool Succeeded,int? ExitCode,long DurationMs,string StandardOutputPath,string StandardErrorPath,string Summary,string? Executable=null,string? Version=null,string? SandboxJson=null,long CpuTimeMs=0);
 public sealed record QaAdapterResult(LanguageId Language,IReadOnlyList<QaToolExecution> Tools,IReadOnlyList<QaFindingCandidate> Findings,string SummaryJson);
 public sealed record QaTechnologyProfile(string Workspace,IReadOnlyList<LanguageId> Languages,IReadOnlyList<string> BuildSystems,IReadOnlyList<string> Frameworks,IReadOnlyList<string> GameEngines,IReadOnlyList<string> Evidence);
 public sealed record QaAdapterSelection(LanguageId Language,IQaAdapter Adapter);

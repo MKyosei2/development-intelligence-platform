@@ -22,6 +22,7 @@ public sealed class QaFindingConfiguration : IEntityTypeConfiguration<QaFinding>
         b.Property(x=>x.FilePath).HasColumnName("file_path").HasMaxLength(1000); b.Property(x=>x.Line).HasColumnName("line"); b.Property(x=>x.Column).HasColumnName("column");
         b.Property(x=>x.Function).HasColumnName("function").HasMaxLength(500); b.Property(x=>x.ExceptionType).HasColumnName("exception_type").HasMaxLength(300);
         b.Property(x=>x.StackTrace).HasColumnName("stack_trace").HasMaxLength(32000); b.Property(x=>x.RuleId).HasColumnName("rule_id").HasMaxLength(300);
+        b.Property(x=>x.DiagnosticSchemaVersion).HasColumnName("diagnostic_schema_version").HasMaxLength(80).IsRequired(); b.Property(x=>x.SourceFormat).HasColumnName("source_format").HasMaxLength(80); b.Property(x=>x.SourceFormatVersion).HasColumnName("source_format_version").HasMaxLength(80);
         b.Property(x=>x.ReproductionStatus).HasColumnName("reproduction_status").HasConversion<string>().HasMaxLength(40).IsRequired();
         b.Property(x=>x.ReproducedAttempts).HasColumnName("reproduced_attempts"); b.Property(x=>x.TotalAttempts).HasColumnName("total_attempts"); b.Property(x=>x.ObservedAtUtc).HasColumnName("observed_at_utc");
         b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);
