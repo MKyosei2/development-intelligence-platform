@@ -1,0 +1,4 @@
+[package]
+name = "dip_bug_zoo_rust_clean"
+version = "0.1.0"
+edition = "2021"
