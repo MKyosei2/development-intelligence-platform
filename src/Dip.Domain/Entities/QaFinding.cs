@@ -1,4 +1,5 @@
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 
 namespace Dip.Domain.Entities;
 
@@ -11,7 +12,7 @@ public sealed class QaFinding
         Guid projectId,
         Guid qaRunId,
         string subjectKey,
-        QaLanguage language,
+        LanguageId language,
         string category,
         Severity severity,
         string tool,
@@ -29,6 +30,7 @@ public sealed class QaFinding
     {
         if (projectId == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(projectId));
         if (qaRunId == Guid.Empty) throw new ArgumentException("QaRunId is required.", nameof(qaRunId));
+        if (string.IsNullOrWhiteSpace(language.Value)) throw new ArgumentException("Language is required.", nameof(language));
         Id = id == Guid.Empty ? Guid.NewGuid() : id;
         ProjectId = projectId;
         QaRunId = qaRunId;
@@ -55,7 +57,7 @@ public sealed class QaFinding
     public Guid ProjectId { get; private set; }
     public Guid QaRunId { get; private set; }
     public string SubjectKey { get; private set; } = string.Empty;
-    public QaLanguage Language { get; private set; }
+    public LanguageId Language { get; private set; }
     public string Category { get; private set; } = string.Empty;
     public Severity Severity { get; private set; }
     public string Tool { get; private set; } = string.Empty;
