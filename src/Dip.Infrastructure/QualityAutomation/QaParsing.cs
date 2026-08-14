@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
+using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
 
@@ -21,6 +22,7 @@ internal static partial class QaParsing
         foreach(Match m in PytestFailureRegex().Matches(text))list.Add(new("test",Severity.Warning,tool,"pytest failure",m.Groups[1].Value.Trim(),RuleId:"pytest"));
         return Deduplicate(list);
     }
+
     public static IReadOnlyList<QaFindingCandidate> ParseCSharp(string tool,string text,bool timedOut)
     {
         var list=new List<QaFindingCandidate>();
@@ -43,14 +45,15 @@ internal static partial class QaParsing
         if(text.Contains("Failed!",StringComparison.OrdinalIgnoreCase)||text.Contains("Failed:",StringComparison.OrdinalIgnoreCase))list.Add(new("test",Severity.Warning,tool,".NET tests failed",LastLineContaining(text,"Failed"),RuleId:"dotnet-test"));
         return Deduplicate(list);
     }
+
     public static IReadOnlyList<QaFindingCandidate> ParseCpp(string tool,string text,bool timedOut)
     {
         var list=new List<QaFindingCandidate>();
         if(timedOut)list.Add(new("hang",Severity.Critical,tool,"Native process timed out","The native command exceeded its QA timeout.",ExceptionType:"Timeout"));
         foreach(Match m in CppCompilerRegex().Matches(text))
-            list.Add(new("compile",Severity.Critical,tool,$"C++ compiler {m.Groups[4].Value}",m.Groups[5].Value.Trim(),m.Groups[1].Value,ParseInt(m.Groups[2].Value),ParseInt(m.Groups[3].Value),RuleId:m.Groups[4].Value));
+            list.Add(new("compile",Severity.Critical,tool,$"C/C++ compiler {m.Groups[4].Value}",m.Groups[5].Value.Trim(),m.Groups[1].Value,ParseInt(m.Groups[2].Value),ParseInt(m.Groups[3].Value),RuleId:m.Groups[4].Value));
         foreach(Match m in GccCompilerRegex().Matches(text))
-            list.Add(new("compile",Severity.Critical,tool,"C++ compiler error",m.Groups[4].Value.Trim(),m.Groups[1].Value,ParseInt(m.Groups[2].Value),ParseInt(m.Groups[3].Value),RuleId:"compiler"));
+            list.Add(new("compile",Severity.Critical,tool,"C/C++ compiler error",m.Groups[4].Value.Trim(),m.Groups[1].Value,ParseInt(m.Groups[2].Value),ParseInt(m.Groups[3].Value),RuleId:"compiler"));
         var sanitizer=SanitizerKind(text);
         if(sanitizer is not null)
         {
@@ -64,17 +67,73 @@ internal static partial class QaParsing
         if(text.Contains("runtime error:",StringComparison.OrdinalIgnoreCase))
             list.Add(new("undefined-behavior",Severity.Critical,tool,"UndefinedBehaviorSanitizer reported invalid native behavior",LastLineContaining(text,"runtime error:"),ExceptionType:"UndefinedBehavior",StackTrace:Trim(text),RuleId:"ubsan"));
         if(text.Contains("Access violation",StringComparison.OrdinalIgnoreCase)||text.Contains("0xC0000005",StringComparison.OrdinalIgnoreCase))list.Add(new("native-crash",Severity.Critical,tool,"Native access violation",LastLine(text),ExceptionType:"AccessViolation",StackTrace:Trim(text)));
-        if(text.Contains("tests failed",StringComparison.OrdinalIgnoreCase)||text.Contains("FAILED",StringComparison.Ordinal)&&tool.Contains("ctest",StringComparison.OrdinalIgnoreCase))list.Add(new("test",Severity.Warning,tool,"C++ tests failed",LastLineContaining(text,"fail"),RuleId:"ctest"));
+        if(text.Contains("tests failed",StringComparison.OrdinalIgnoreCase)||text.Contains("FAILED",StringComparison.Ordinal)&&tool.Contains("ctest",StringComparison.OrdinalIgnoreCase))list.Add(new("test",Severity.Warning,tool,"C/C++ tests failed",LastLineContaining(text,"fail"),RuleId:"ctest"));
         return Deduplicate(list);
     }
-    public static IReadOnlyList<QaFindingCandidate> ParseForLanguage(QaLanguage language,string tool,string stdout,string stderr,bool timedOut=false)
+
+    public static IReadOnlyList<QaFindingCandidate> ParseGeneric(LanguageId language,string tool,string text,bool timedOut)
+    {
+        var list=new List<QaFindingCandidate>();
+        if(timedOut) list.Add(new("hang",Severity.Critical,tool,$"{language.Value} process timed out","The command exceeded its QA timeout.",ExceptionType:"Timeout"));
+
+        foreach(Match m in GenericFileDiagnosticRegex().Matches(text))
+        {
+            var level=m.Groups[4].Value;
+            var severity=level.Equals("warning",StringComparison.OrdinalIgnoreCase)?Severity.Warning:Severity.Critical;
+            list.Add(new(level.Equals("warning",StringComparison.OrdinalIgnoreCase)?"static-analysis":"compile",severity,tool,$"{language.Value} {level}",m.Groups[5].Value.Trim(),m.Groups[1].Value,ParseInt(m.Groups[2].Value),ParseInt(m.Groups[3].Value),RuleId:tool));
+        }
+
+        foreach(Match m in TypeScriptDiagnosticRegex().Matches(text))
+            list.Add(new("compile",Severity.Critical,tool,$"TypeScript {m.Groups[4].Value}",m.Groups[5].Value.Trim(),m.Groups[1].Value,ParseInt(m.Groups[2].Value),ParseInt(m.Groups[3].Value),RuleId:m.Groups[4].Value));
+
+        if(language==LanguageId.Rust)
+        {
+            var code=RustErrorRegex().Match(text);
+            var location=RustLocationRegex().Match(text);
+            if(code.Success)
+                list.Add(new("compile",Severity.Critical,tool,$"Rust {code.Groups[1].Value}",code.Groups[2].Value.Trim(),location.Success?location.Groups[1].Value:null,location.Success?ParseInt(location.Groups[2].Value):null,location.Success?ParseInt(location.Groups[3].Value):null,RuleId:code.Groups[1].Value));
+            if(text.Contains("panicked at",StringComparison.OrdinalIgnoreCase)||text.Contains("thread 'main' panicked",StringComparison.OrdinalIgnoreCase))
+                list.Add(new("runtime",Severity.Critical,tool,"Rust panic",LastLineContaining(text,"panicked"),ExceptionType:"panic",StackTrace:Trim(text)));
+        }
+        else if(language==LanguageId.Go)
+        {
+            if(text.Contains("panic:",StringComparison.OrdinalIgnoreCase)) list.Add(new("runtime",Severity.Critical,tool,"Go panic",LastLineContaining(text,"panic:"),ExceptionType:"panic",StackTrace:Trim(text)));
+            if(text.Contains("DATA RACE",StringComparison.OrdinalIgnoreCase)) list.Add(new("data-race",Severity.Critical,tool,"Go race detector reported a data race",LastLineContaining(text,"DATA RACE"),ExceptionType:"DataRace",StackTrace:Trim(text),RuleId:"go-race"));
+        }
+        else if(language==LanguageId.Java||language==LanguageId.Kotlin)
+        {
+            var ex=JavaExceptionRegex().Match(text);
+            if(ex.Success) list.Add(new("runtime",Severity.Critical,tool,$"Unhandled {ex.Groups[1].Value}",ex.Groups[2].Value.Trim(),ExceptionType:ex.Groups[1].Value,StackTrace:Trim(text)));
+        }
+        else if(language==LanguageId.JavaScript||language==LanguageId.TypeScript)
+        {
+            var ex=NodeExceptionRegex().Match(text);
+            if(ex.Success) list.Add(new("runtime",Severity.Critical,tool,$"Unhandled {ex.Groups[1].Value}",ex.Groups[2].Value.Trim(),ExceptionType:ex.Groups[1].Value,StackTrace:Trim(text)));
+        }
+        else if(language==LanguageId.Lua)
+        {
+            var lua=LuaErrorRegex().Match(text);
+            if(lua.Success) list.Add(new("runtime",Severity.Critical,tool,"Lua runtime error",lua.Groups[3].Value.Trim(),lua.Groups[1].Value,ParseInt(lua.Groups[2].Value),ExceptionType:"LuaError",StackTrace:Trim(text)));
+        }
+
+        if(text.Contains("test failed",StringComparison.OrdinalIgnoreCase)||text.Contains("tests failed",StringComparison.OrdinalIgnoreCase)||text.Contains("FAIL ",StringComparison.Ordinal))
+            list.Add(new("test",Severity.Warning,tool,$"{language.Value} tests failed",LastLineContaining(text,"fail"),RuleId:tool));
+        return Deduplicate(list);
+    }
+
+    public static IReadOnlyList<QaFindingCandidate> ParseForLanguage(LanguageId language,string tool,string stdout,string stderr,bool timedOut=false)
     {
         var text=stdout+"\n"+stderr;
-        return language switch{QaLanguage.Python=>ParsePython(tool,text,timedOut),QaLanguage.CSharp=>ParseCSharp(tool,text,timedOut),QaLanguage.Cpp=>ParseCpp(tool,text,timedOut),_=>Array.Empty<QaFindingCandidate>()};
+        if(language==LanguageId.Python)return ParsePython(tool,text,timedOut);
+        if(language==LanguageId.CSharp)return ParseCSharp(tool,text,timedOut);
+        if(language==LanguageId.Cpp||language.Is("c"))return ParseCpp(tool,text,timedOut);
+        return ParseGeneric(language,tool,text,timedOut);
     }
-    public static bool MatchesFingerprint(Dip.Domain.Enums.QaLanguage language,string expected,string stdout,string stderr,bool timedOut=false)
+
+    public static bool MatchesFingerprint(LanguageId language,string expected,string stdout,string stderr,bool timedOut=false)
         =>ParseForLanguage(language,"reproduction",stdout,stderr,timedOut).Any(x=>QaFingerprint.Create(language,x)==expected);
-    private static IReadOnlyList<QaFindingCandidate> Deduplicate(IEnumerable<QaFindingCandidate> list)=>list.GroupBy(x=>string.Join('|',x.Category,x.FilePath,x.Line,x.ExceptionType,x.Message),StringComparer.Ordinal).Select(x=>x.First()).Take(200).ToArray();
+
+    private static IReadOnlyList<QaFindingCandidate> Deduplicate(IEnumerable<QaFindingCandidate> list)=>list.GroupBy(x=>string.Join('|',x.Category,x.FilePath,x.Line,x.ExceptionType,x.Message),StringComparer.Ordinal).Select(x=>x.First()).Take(500).ToArray();
     private static string Trim(string text)=>text.Length<=30000?text:text[..30000];
     private static string LastLine(string text)=>text.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim()??"Process failed.";
     private static string LastLineContaining(string text,string token)=>text.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries).LastOrDefault(x=>x.Contains(token,StringComparison.OrdinalIgnoreCase))?.Trim()??LastLine(text);
@@ -92,4 +151,11 @@ internal static partial class QaParsing
     [GeneratedRegex("^(.+?)[(:](\\d+)[,:](\\d+)[)]?:?\\s*(?:fatal\\s+)?error\\s+([^: ]+):?\\s*(.+)$",RegexOptions.Multiline|RegexOptions.IgnoreCase)] private static partial Regex CppCompilerRegex();
     [GeneratedRegex("^(.+?):(\\d+):(\\d+):\\s+(?:fatal\\s+)?error:\\s+(.+)$",RegexOptions.Multiline|RegexOptions.IgnoreCase)] private static partial Regex GccCompilerRegex();
     [GeneratedRegex("#\\d+\\s+.*?in\\s+([^\\r\\n]+?)\\s+([^\\s:]+\\.(?:c|cc|cpp|cxx|h|hpp)):(\\d+)(?::\\d+)?",RegexOptions.Multiline|RegexOptions.IgnoreCase)] private static partial Regex AsanSourceFrameRegex();
+    [GeneratedRegex("^(.+?):(\\d+):(\\d+):\\s*(error|warning):\\s*(.+)$",RegexOptions.Multiline|RegexOptions.IgnoreCase)] private static partial Regex GenericFileDiagnosticRegex();
+    [GeneratedRegex("^(.+?\\.(?:ts|tsx))\\((\\d+),(\\d+)\\):\\s*error\\s+(TS\\d+):\\s*(.+)$",RegexOptions.Multiline|RegexOptions.IgnoreCase)] private static partial Regex TypeScriptDiagnosticRegex();
+    [GeneratedRegex("error(?:\\[([^\\]]+)\\])?:\\s*([^\\r\\n]+)",RegexOptions.IgnoreCase)] private static partial Regex RustErrorRegex();
+    [GeneratedRegex("-->\\s+(.+?):(\\d+):(\\d+)")] private static partial Regex RustLocationRegex();
+    [GeneratedRegex("(?:Exception in thread \\\"[^\\\"]+\\\"\\s+)?([A-Za-z0-9_.$]+(?:Exception|Error))(?::\\s*)?([^\\r\\n]*)")] private static partial Regex JavaExceptionRegex();
+    [GeneratedRegex("(?:Uncaught\\s+)?([A-Za-z0-9_.$]+(?:Error|Exception)):\\s*([^\\r\\n]+)")] private static partial Regex NodeExceptionRegex();
+    [GeneratedRegex("([^\\r\\n:]+\\.lua):(\\d+):\\s*([^\\r\\n]+)",RegexOptions.IgnoreCase)] private static partial Regex LuaErrorRegex();
 }
