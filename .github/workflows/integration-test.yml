@@ -117,6 +117,7 @@ jobs:
             TestResults
             api.log
             worker.log
+            artifacts/qa
           if-no-files-found: warn
           retention-days: 14
 
