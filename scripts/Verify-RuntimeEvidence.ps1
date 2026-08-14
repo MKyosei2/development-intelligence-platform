@@ -14,7 +14,8 @@ $fullPass = Join-Path $OutputDirectory 'RUNTIME_VERIFICATION_PASS.json'
 $partial = Join-Path $OutputDirectory 'WINDOWS_DOTNET_RUNTIME_PASS.json'
 Remove-Item -LiteralPath $fullPass,$partial -Force -ErrorAction SilentlyContinue
 
-if (-not $IsWindows) { throw 'Formal runtime verification must run on Windows.' }
+$isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
+if (-not $isWindowsHost) { throw 'Formal runtime verification must run on Windows.' }
 $dotnet = Get-Command dotnet -ErrorAction Stop
 $git = Get-Command git -ErrorAction Stop
 $commit = (& $git.Source -C $root rev-parse HEAD).Trim()
