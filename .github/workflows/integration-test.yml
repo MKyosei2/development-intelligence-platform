@@ -54,8 +54,8 @@ jobs:
       Qa__WorkspaceRoot: ${{ github.workspace }}
       Qa__ArtifactRoot: ${{ github.workspace }}/artifacts/qa
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
           cache: true
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload results and service logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-e2e-results
           path: |

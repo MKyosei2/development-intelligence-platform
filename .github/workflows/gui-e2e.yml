@@ -15,8 +15,8 @@ jobs:
       API_PORT: "5080"
       WEB_PORT: "5081"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Start DIP stack
@@ -43,7 +43,7 @@ jobs:
         run: npx playwright test --grep-invert "@live-github"
       - name: Upload Playwright artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dip-gui-e2e
           path: |
