@@ -91,5 +91,4 @@ public sealed record ManagementSummaryDto(string OverallStatus,decimal HealthSco
 public sealed record SpreadsheetSheetDto(string Name,IReadOnlyList<string> Headers,IReadOnlyList<IReadOnlyList<string>> Rows,bool Editable=false);
 public sealed record ManagementWorkbookDto(Guid ProjectId,IReadOnlyList<SpreadsheetSheetDto> Sheets,DateTimeOffset GeneratedAtUtc);
 public sealed record SpreadsheetImportResult(int Teams,int Workstreams,int Tasks,int Milestones,int Blockers,int Requirements,int Risks,int Decisions,int Actions,int ChangeRequests,int ResourceAllocations,IReadOnlyList<string> Warnings);
-public sealed record GoogleSheetsSyncCommand(Guid ProjectId,string SpreadsheetId,string AccessToken,bool PullEditableSheets=true,bool PushCalculatedSheets=true);
-public sealed record GoogleSheetsSyncResult(int PulledSheets,int PushedSheets,SpreadsheetImportResult? Imported,IReadOnlyList<string> Warnings,DateTimeOffset SyncedAtUtc);
+

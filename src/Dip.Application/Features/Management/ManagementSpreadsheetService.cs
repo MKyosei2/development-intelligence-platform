@@ -1,6 +1,5 @@
 using System.Globalization;
 using Dip.Application.Abstractions.Persistence;
-using Dip.Application.Abstractions.Spreadsheets;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Milestones;
 using Dip.Domain.Enums;
@@ -10,8 +9,8 @@ namespace Dip.Application.Features.Management;
 public sealed class ManagementSpreadsheetService
 {
     public static readonly string[] EditableSheets=["Teams","Workstreams","Tasks","Milestones","Blockers","Requirements","Dependencies","ScopeBaselines","Risks","Decisions","Actions","ChangeRequests","ResourceAllocations"];
-    private readonly IDevelopmentGraphRepository _repo;private readonly WorkManagementService _work;private readonly ManagementAnalyticsService _analytics;private readonly MilestoneIntelligenceService _milestones;private readonly IGoogleSheetsConnector _google;private readonly ISystemClock _clock;
-    public ManagementSpreadsheetService(IDevelopmentGraphRepository repo,WorkManagementService work,ManagementAnalyticsService analytics,MilestoneIntelligenceService milestones,IGoogleSheetsConnector google,ISystemClock clock){_repo=repo;_work=work;_analytics=analytics;_milestones=milestones;_google=google;_clock=clock;}
+    private readonly IDevelopmentGraphRepository _repo;private readonly WorkManagementService _work;private readonly ManagementAnalyticsService _analytics;private readonly MilestoneIntelligenceService _milestones;private readonly ISystemClock _clock;
+    public ManagementSpreadsheetService(IDevelopmentGraphRepository repo,WorkManagementService work,ManagementAnalyticsService analytics,MilestoneIntelligenceService milestones,ISystemClock clock){_repo=repo;_work=work;_analytics=analytics;_milestones=milestones;_clock=clock;}
 
     public async Task<ManagementWorkbookDto> BuildWorkbookAsync(Guid projectId,CancellationToken ct)
     {
@@ -67,15 +66,6 @@ public sealed class ManagementSpreadsheetService
 
     public async Task<byte[]> ExportXlsxAsync(Guid projectId,CancellationToken ct)=>ManagementXlsxCodec.Write(await BuildWorkbookAsync(projectId,ct));
     public async Task<SpreadsheetImportResult> ImportXlsxAsync(Guid projectId,Stream stream,CancellationToken ct)=>await ApplyRowsAsync(projectId,ManagementXlsxCodec.Read(stream),ct);
-
-    public async Task<GoogleSheetsSyncResult> SyncGoogleAsync(GoogleSheetsSyncCommand c,CancellationToken ct)
-    {
-        if(c.ProjectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(c));var warnings=new List<string>();SpreadsheetImportResult? imported=null;var pulled=0;var pushed=0;
-        await _google.EnsureSheetsAsync(c.SpreadsheetId,c.AccessToken,(await BuildWorkbookAsync(c.ProjectId,ct)).Sheets.Select(x=>x.Name).ToArray(),ct);
-        if(c.PullEditableSheets){var rows=await _google.PullAsync(c.SpreadsheetId,c.AccessToken,EditableSheets,ct);pulled=rows.Count;imported=await ApplyRowsAsync(c.ProjectId,rows,ct);warnings.AddRange(imported.Warnings);}
-        if(c.PushCalculatedSheets){var workbook=await BuildWorkbookAsync(c.ProjectId,ct);var targets=c.PullEditableSheets?workbook.Sheets:workbook.Sheets.Where(x=>!x.Editable).ToArray();var grids=targets.Select(x=>new GoogleSheetGrid(x.Name,new List<IReadOnlyList<string>>{x.Headers}.Concat(x.Rows).ToArray())).ToArray();await _google.PushAsync(c.SpreadsheetId,c.AccessToken,grids,ct);pushed=grids.Length;}
-        return new(pulled,pushed,imported,warnings.Distinct().ToArray(),_clock.UtcNow);
-    }
 
     public async Task<SpreadsheetImportResult> ApplyRowsAsync(Guid projectId,IReadOnlyDictionary<string,IReadOnlyList<IReadOnlyList<string>>> tables,CancellationToken ct)
     {

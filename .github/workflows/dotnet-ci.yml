@@ -1,64 +1,26 @@
 name: .NET CI
 
+# DIP uses local CI to avoid GitHub-hosted runner usage.
+#
+# Automatic push / pull_request execution is intentionally disabled.
+# Run:
+#
+#   Verify-Local-CI.cmd
+#
+# or:
+#
+#   Verify-Local-CI-Full.cmd
+#
+# on a development machine instead.
+
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "*.sln"
-      - "Directory.Build.*"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/dotnet-ci.yml"
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "*.sln"
-      - "Directory.Build.*"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/dotnet-ci.yml"
   workflow_dispatch:
 
-permissions:
-  contents: read
-
-concurrency:
-  group: dotnet-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build-test:
-    name: Build solution and run unit tests
+  local-ci-only:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: "8.0.x"
-          cache: true
-          cache-dependency-path: |
-            **/*.csproj
-            Directory.Packages.props
-      - name: Restore
-        run: dotnet restore DevelopmentIntelligencePlatform.sln
-      - name: Build
-        run: dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
-      - name: Domain tests
-        run: dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=domain-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
-      - name: Application tests
-        run: dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=application-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
-      - name: Infrastructure tests
-        run: dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=infrastructure-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: dotnet-unit-test-results
-          path: TestResults
-          if-no-files-found: warn
-          retention-days: 14
+      - name: Local CI notice
+        run: echo "DIP uses local CI validation."

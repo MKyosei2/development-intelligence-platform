@@ -44,7 +44,7 @@ else
 
     <div class="section-heading">
         <div><h2>Projects</h2><p>Open a project to inspect the evidence-backed overview.</p></div>
-        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="Projects.RefreshAsync">Refresh</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="RefreshProjectsAsync">Refresh</button>
     </div>
     <div class="row g-3">
         @foreach (var project in Projects.Projects)

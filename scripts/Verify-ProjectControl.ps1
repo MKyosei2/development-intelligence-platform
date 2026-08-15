@@ -27,8 +27,6 @@ try {
         'src\Dip.Application\Features\Assets\AssetIntelligenceService.cs',
         'src\Dip.Application\Features\Decisions\DecisionLogService.cs',
         'src\Dip.Application\Features\Scenarios\WhatIfSimulationService.cs',
-        'src\Dip.Infrastructure\Integrations\PerforceVersionControlConnector.cs',
-        'src\Dip.Infrastructure\Integrations\JenkinsCiConnector.cs',
         'src\Dip.Infrastructure\Persistence\Migrations\202608120004_AddProjectControlGraph.cs',
         'src\Dip.Api\Controllers\ProjectControlController.cs',
         'src\Dip.Api\Controllers\NotificationsController.cs',
@@ -38,8 +36,6 @@ try {
         'src\Dip.Application\Features\Management\ManagementSpreadsheetService.cs',
         'src\Dip.Application\Features\Management\ManagementXlsxCodec.cs',
         'src\Dip.Application\Features\Dashboard\ManagementDashboardService.cs',
-        'src\Dip.Application\Abstractions\Spreadsheets\IGoogleSheetsConnector.cs',
-        'src\Dip.Infrastructure\Spreadsheets\GoogleSheetsRestConnector.cs',
         'docs\MANAGEMENT_INTELLIGENCE.md'
     )
     foreach($relative in $required){if(-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)){throw "Missing Project Control source file: $relative"}}
@@ -75,9 +71,7 @@ try {
         'ASSET_INTELLIGENCE=PASS',
         'CROSS_REPOSITORY_GRAPH_BRIDGE=PASS',
         'DECISION_LOG_BRIEF=PASS',
-        'PERFORCE_CONNECTOR_SOURCE=PASS',
         'WHAT_IF_SIMULATION=PASS',
-        'JENKINS_EXTERNAL_CI_SOURCE=PASS',
         'MANAGEMENT_INTELLIGENCE=PASS',
         'TEAM_WORKLOAD_CAPACITY=PASS',
         'TASK_WORKSTREAM_MANAGEMENT=PASS',
@@ -88,7 +82,6 @@ try {
         'MILESTONE_MANAGEMENT=PASS',
         'REQUIREMENT_SCOPE_MANAGEMENT=PASS',
         'EXCEL_XLSX_BIDIRECTIONAL=PASS',
-        'GOOGLE_SHEETS_BIDIRECTIONAL_SOURCE=PASS',
         'RISK_REGISTER_MANAGEMENT=PASS',
         'DECISION_ACTION_MANAGEMENT=PASS',
         'RESOURCE_ALLOCATION_MANAGEMENT=PASS',
@@ -107,3 +100,4 @@ catch {
     @('PROJECT_CONTROL_SOURCE_VERIFICATION=FAIL',"ERROR=$($_.Exception.Message)","UTC=$([DateTimeOffset]::UtcNow.ToString('O'))") | Set-Content -LiteralPath $fail -Encoding UTF8
     throw
 }
+

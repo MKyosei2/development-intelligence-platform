@@ -28,22 +28,3 @@ services:
     logging: *dip-logging
     stop_grace_period: 30s
 
-  minio:
-    profiles: ["storage"]
-    logging: *dip-logging
-    stop_grace_period: 30s
-
-  otel-collector:
-    profiles: ["monitoring"]
-    logging: *dip-logging
-    stop_grace_period: 30s
-
-  prometheus:
-    profiles: ["monitoring"]
-    logging: *dip-logging
-    stop_grace_period: 30s
-
-  grafana:
-    profiles: ["monitoring"]
-    logging: *dip-logging
-    stop_grace_period: 30s

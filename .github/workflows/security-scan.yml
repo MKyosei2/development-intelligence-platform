@@ -1,166 +1,26 @@
 name: Security Scan
 
+# DIP uses local CI to avoid GitHub-hosted runner usage.
+#
+# Automatic push / pull_request execution is intentionally disabled.
+# Run:
+#
+#   Verify-Local-CI.cmd
+#
+# or:
+#
+#   Verify-Local-CI-Full.cmd
+#
+# on a development machine instead.
+
 on:
-  pull_request:
-    branches: [main, develop]
-  push:
-    branches: [main, develop]
-  schedule:
-    - cron: "0 3 * * 1"
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  dependency-review:
-    name: Dependency review
+  local-ci-only:
+    if: ${{ false }}
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v7
-
-      - name: GitHub dependency review
-        if: github.event_name == 'pull_request' && vars.DEPENDENCY_REVIEW_ENABLED == 'true'
-        uses: actions/dependency-review-action@v4
-
-      - name: Set up .NET fallback audit
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      - name: Review NuGet dependencies (fallback)
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
-        shell: pwsh
-        run: |
-          dotnet restore DevelopmentIntelligencePlatform.sln
-          if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed." }
-          $output = dotnet list DevelopmentIntelligencePlatform.sln package --vulnerable --include-transitive 2>&1 | Out-String
-          $output | Write-Host
-          if ($LASTEXITCODE -ne 0) { throw "NuGet dependency review failed." }
-          if ($output -match "has the following vulnerable packages") { throw "Vulnerable NuGet package(s) detected." }
-
-      - name: Set up Python fallback audit
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: services/python-analysis/requirements.txt
-
-      - name: Review Python dependencies (fallback)
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
-        working-directory: services/python-analysis
-        run: |
-          python -m pip install --upgrade pip pip-audit
-          python -m pip_audit -r requirements.txt
-
-  dotnet-audit:
-    name: .NET dependency audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-      - name: Restore
-        run: dotnet restore DevelopmentIntelligencePlatform.sln
-      - name: Fail on vulnerable NuGet packages
-        shell: pwsh
-        run: |
-          $output = dotnet list DevelopmentIntelligencePlatform.sln package --vulnerable --include-transitive 2>&1 | Out-String
-          $output | Write-Host
-          if ($LASTEXITCODE -ne 0) { throw "dotnet package vulnerability audit failed." }
-          if ($output -match "has the following vulnerable packages") { throw "Vulnerable NuGet package(s) detected." }
-
-  python-audit:
-    name: Python dependency audit
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/python-analysis
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: services/python-analysis/requirements.txt
-      - name: Audit requirements
-        run: |
-          python -m pip install --upgrade pip pip-audit
-          python -m pip_audit -r requirements.txt
-
-  secret-scan:
-    name: Secret scan
-    permissions:
-      contents: read
-      pull-requests: read
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  codeql:
-    name: CodeQL or static analysis (${{ matrix.language }})
-    permissions:
-      contents: read
-      actions: read
-      packages: read
-      security-events: write
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [csharp, python, cpp]
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Initialize CodeQL
-        if: vars.CODEQL_ENABLED == 'true'
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-
-      - name: CodeQL autobuild
-        if: vars.CODEQL_ENABLED == 'true'
-        uses: github/codeql-action/autobuild@v4
-
-      - name: Analyze with CodeQL
-        if: vars.CODEQL_ENABLED == 'true'
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:${{ matrix.language }}"
-
-      - name: Set up .NET fallback
-        if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'csharp'
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      - name: C# static-analysis fallback
-        if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'csharp'
-        run: |
-          dotnet restore DevelopmentIntelligencePlatform.sln
-          dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
-
-      - name: Set up Python fallback
-        if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'python'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Python static-analysis fallback
-        if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'python'
-        run: |
-          python -m compileall -q services/python-analysis/app collectors/unreal-collector
-
-      - name: C++ static-analysis fallback
-        if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'cpp'
-        run: |
-          cmake -S collectors/native-collector -B build/native-security -DBUILD_TESTING=OFF
-          cmake --build build/native-security --config Release --parallel
+      - name: Local CI notice
+        run: echo "DIP uses local CI validation."

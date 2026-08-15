@@ -1,72 +1,26 @@
 name: GUI E2E
 
+# DIP uses local CI to avoid GitHub-hosted runner usage.
+#
+# Automatic push / pull_request execution is intentionally disabled.
+# Run:
+#
+#   Verify-Local-CI.cmd
+#
+# or:
+#
+#   Verify-Local-CI-Full.cmd
+#
+# on a development machine instead.
+
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - "src/**"
-      - "tests/Dip.UiE2E/**"
-      - "infrastructure/docker/**"
-      - "docker-compose*.yml"
-      - ".github/workflows/gui-e2e.yml"
   workflow_dispatch:
 
 jobs:
-  playwright:
+  local-ci-only:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      DIP_REQUIRE_AUTHENTICATION: "false"
-      API_PORT: "5080"
-      WEB_PORT: "5081"
+
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-
-      - name: Start DIP stack
-        run: docker compose up -d --build postgres redis python-analysis api worker web
-
-      - name: Wait for Web
-        shell: bash
-        run: |
-          for i in {1..60}; do
-            if curl --fail --silent http://127.0.0.1:5081/ >/dev/null; then exit 0; fi
-            sleep 2
-          done
-          docker compose ps
-          docker compose logs api web
-          exit 1
-
-      - name: Install Playwright
-        working-directory: tests/Dip.UiE2E
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
-
-      - name: Run GUI E2E
-        working-directory: tests/Dip.UiE2E
-        env:
-          DIP_WEB_BASE_URL: http://127.0.0.1:5081
-        run: npx playwright test --grep-invert "@live-github"
-
-      - name: Upload Playwright artifacts
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: dip-gui-e2e
-          path: |
-            tests/Dip.UiE2E/artifacts/playwright-report
-            tests/Dip.UiE2E/artifacts/test-results
-          if-no-files-found: ignore
-
-      - name: Stack diagnostics
-        if: failure()
-        run: docker compose logs --no-color api worker web
-
-      - name: Stop stack
-        if: always()
-        run: docker compose down --remove-orphans
+      - name: Local CI notice
+        run: echo "DIP uses local CI validation."

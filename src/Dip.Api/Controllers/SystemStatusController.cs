@@ -141,32 +141,31 @@ public sealed class SystemStatusController(
         DateTimeOffset checkedAt,
         CancellationToken cancellationToken)
     {
-        var provider = configuration["Artifacts:Provider"] ?? "Local";
-        if (provider.Equals("Minio", StringComparison.OrdinalIgnoreCase))
-        {
-            var endpoint = configuration["Artifacts:Minio:Endpoint"]
-                ?? "http://127.0.0.1:9000";
-            return await ProbeHttpAsync(
-                "artifact-store",
-                "Artifact Storage",
-                new Uri(new Uri(EnsureTrailingSlash(endpoint)), "minio/health/live"),
-                checkedAt,
-                cancellationToken);
-        }
+        var root = configuration["Artifacts:LocalRoot"]
+            ?? "artifacts/durable";
 
-        var root = configuration["Artifacts:LocalRoot"] ?? "artifacts/durable";
         return await ProbeAsync(
             "artifact-store",
             "Artifact Storage",
             token =>
             {
                 token.ThrowIfCancellationRequested();
+
                 Directory.CreateDirectory(root);
-                var probe = Path.Combine(root, $".dip-health-{Guid.NewGuid():N}.tmp");
+
+                var probe = Path.Combine(
+                    root,
+                    $".dip-health-{Guid.NewGuid():N}.tmp");
+
                 try
                 {
                     System.IO.File.WriteAllText(probe, "ok");
-                    return Task.FromResult((true, $"Local storage is writable: {Path.GetFullPath(root)}"));
+
+                    return Task.FromResult(
+                        (
+                            true,
+                            $"Local storage is writable: {Path.GetFullPath(root)}"
+                        ));
                 }
                 finally
                 {
@@ -177,7 +176,6 @@ public sealed class SystemStatusController(
             checkedAt,
             cancellationToken);
     }
-
     private static async Task<SystemComponentStatusDto> ProbeAsync(
         string key,
         string name,

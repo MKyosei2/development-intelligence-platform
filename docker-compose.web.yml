@@ -82,7 +82,6 @@ services:
       Authentication__Jwt__SigningKey: ${DIP_JWT_SIGNING_KEY:?Set a 64+ character DIP_JWT_SIGNING_KEY in deploy/web.env}
       Authentication__Jwt__LifetimeMinutes: ${DIP_JWT_LIFETIME_MINUTES:-60}
       SystemStatus__WorkerMetricsUrl: http://worker:9091/metrics
-      OpenTelemetry__OtlpEndpoint: ${DIP_OTLP_ENDPOINT:-http://127.0.0.1:4317}
     volumes:
       - dip-web-artifacts:/data/dip-artifacts
       - dip-web-workspaces:/data/dip-workspaces
@@ -128,7 +127,6 @@ services:
       GameReplay__WorkspaceRoot: /app
       GameReplay__AllowPathLookup: ${DIP_REPLAY_ALLOW_PATH_LOOKUP:-false}
       ReleaseProvenance__AllowedRoot: /app
-      OpenTelemetry__OtlpEndpoint: ${DIP_OTLP_ENDPOINT:-http://127.0.0.1:4317}
     volumes:
       - dip-web-artifacts:/data/dip-artifacts
       - dip-web-workspaces:/data/dip-workspaces
@@ -190,3 +188,4 @@ volumes:
 networks:
   backend:
     driver: bridge
+

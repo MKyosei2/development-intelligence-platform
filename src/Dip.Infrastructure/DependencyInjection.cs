@@ -102,29 +102,19 @@ public static class DependencyInjection
         services.AddScoped<IReleaseEvidenceRepository, ReleaseEvidenceRepository>();
         services.AddScoped<IRepositoryGraphRepository, RepositoryGraphRepository>();
         services.AddScoped<IDevelopmentGraphRepository, DevelopmentGraphRepository>();
-        services.AddSingleton<Dip.Application.Abstractions.Spreadsheets.IGoogleSheetsConnector,Dip.Infrastructure.Spreadsheets.GoogleSheetsRestConnector>();
-        services.Configure<Dip.Infrastructure.Integrations.PerforceOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.PerforceOptions.SectionName));
-        services.Configure<Dip.Infrastructure.Integrations.JenkinsOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.JenkinsOptions.SectionName));
-        services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,Dip.Infrastructure.Integrations.PerforceVersionControlConnector>();
-        services.AddSingleton<Dip.Application.Abstractions.Integrations.IExternalCiConnector,Dip.Infrastructure.Integrations.JenkinsCiConnector>();
-        services.Configure<Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions>(configuration.GetSection(Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions.SectionName));
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IP2ExperimentRunner, Dip.Infrastructure.P2Intelligence.P2ExperimentRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.ITestImpactAnalyzer, Dip.Infrastructure.P2Intelligence.TestImpactAnalyzer>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.INativeSymbolicator, Dip.Infrastructure.P2Intelligence.NativeSymbolicator>();
-        services.AddSingleton<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>();
-        services.AddSingleton<Dip.Application.Features.P2Intelligence.IAiRootCauseClient>(sp => sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>());
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());
         services.AddSingleton<ISystemClock, SystemClock>();
 
         services.Configure<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>(configuration.GetSection(Dip.Infrastructure.Artifacts.ArtifactStoreOptions.SectionName));
-        services.AddSingleton<Dip.Application.Abstractions.Artifacts.IArtifactStore>(sp =>
-        {
-            var options=sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>().Value;
-            return options.Provider.Equals("Minio",StringComparison.OrdinalIgnoreCase)
-                ?new Dip.Infrastructure.Artifacts.MinioArtifactStore(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>())
-                :new Dip.Infrastructure.Artifacts.LocalArtifactStore(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>());
-        });
+        services.AddSingleton<Dip.Application.Abstractions.Artifacts.IArtifactStore>(
+            sp => new Dip.Infrastructure.Artifacts.LocalArtifactStore(
+                sp.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<
+                        Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>()));
         services.AddSingleton<Dip.Application.Features.Benchmarks.IBenchmarkExecutor,Dip.Infrastructure.Benchmarks.BenchmarkExecutor>();
         services.Configure<Dip.Infrastructure.Replay.GameReplayOptions>(configuration.GetSection(Dip.Infrastructure.Replay.GameReplayOptions.SectionName));
         services.Configure<Dip.Infrastructure.Provenance.ReleaseProvenanceOptions>(configuration.GetSection(Dip.Infrastructure.Provenance.ReleaseProvenanceOptions.SectionName));

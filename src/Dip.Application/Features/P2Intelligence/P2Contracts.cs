@@ -353,10 +353,3 @@ public interface IMediaRegressionRunner
     Task<MediaRegressionResult> AnalyzeAsync(MediaRegressionCommand command,CancellationToken cancellationToken);
 }
 
-public sealed record AiRootCauseRequest(string Question,string EvidenceJson);
-public sealed record AiRootCauseResponse(string Model,string Json);
-
-public interface IAiRootCauseClient
-{
-    Task<AiRootCauseResponse?> AnalyzeAsync(AiRootCauseRequest request,CancellationToken cancellationToken);
-}

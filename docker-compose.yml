@@ -80,13 +80,8 @@ services:
       GitHub__AppSlug: ${DIP_GITHUB_APP_SLUG:-}
       GitHub__AppPrivateKeyBase64: ${DIP_GITHUB_APP_PRIVATE_KEY_BASE64:-}
       Qa__WorkspaceRoot: /data/dip-workspaces
-      Artifacts__Provider: ${DIP_ARTIFACT_PROVIDER:-Local}
+      Artifacts__Provider: Local
       Artifacts__LocalRoot: /data/dip-artifacts
-      Artifacts__Minio__Endpoint: http://minio:9000
-      Artifacts__Minio__Bucket: ${DIP_ARTIFACT_BUCKET:-dip-artifacts}
-      Artifacts__Minio__AccessKey: ${MINIO_ROOT_USER:-dipadmin}
-      Artifacts__Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-dip-local-password}
-      Artifacts__Minio__Region: ${DIP_ARTIFACT_REGION:-us-east-1}
       Authentication__RequireAuthenticatedUser: ${DIP_REQUIRE_AUTHENTICATION:-false}
       Authentication__GitHub__ClientId: ${DIP_GITHUB_OAUTH_CLIENT_ID:-}
       Authentication__GitHub__ClientSecret: ${DIP_GITHUB_OAUTH_CLIENT_SECRET:-}
@@ -97,7 +92,6 @@ services:
       Authentication__Jwt__Audience: development-intelligence-platform
       Authentication__Jwt__SigningKey: ${DIP_JWT_SIGNING_KEY:-}
       Authentication__Jwt__LifetimeMinutes: ${DIP_JWT_LIFETIME_MINUTES:-60}
-      OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
     volumes:
       - dip-artifact-data:/data/dip-artifacts
       - dip-workspace-data:/data/dip-workspaces
@@ -136,14 +130,8 @@ services:
       GitHub__AppSlug: ${DIP_GITHUB_APP_SLUG:-}
       GitHub__AppPrivateKeyBase64: ${DIP_GITHUB_APP_PRIVATE_KEY_BASE64:-}
       Qa__WorkspaceRoot: /data/dip-workspaces
-      Artifacts__Provider: ${DIP_ARTIFACT_PROVIDER:-Local}
+      Artifacts__Provider: Local
       Artifacts__LocalRoot: /data/dip-artifacts
-      Artifacts__Minio__Endpoint: http://minio:9000
-      Artifacts__Minio__Bucket: ${DIP_ARTIFACT_BUCKET:-dip-artifacts}
-      Artifacts__Minio__AccessKey: ${MINIO_ROOT_USER:-dipadmin}
-      Artifacts__Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-dip-local-password}
-      Artifacts__Minio__Region: ${DIP_ARTIFACT_REGION:-us-east-1}
-      OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
       OperationalMetrics__Port: 9091
       AutomaticTriage__IntervalSeconds: ${DIP_AUTOMATIC_TRIAGE_INTERVAL_SECONDS:-30}
       GameReplay__WorkspaceRoot: /app
@@ -183,83 +171,13 @@ services:
         condition: service_healthy
     networks: [dip-network]
 
-  minio:
-    profiles: ["storage"]
-    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-dipadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-dip-local-password}
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    volumes:
-      - dip-minio-data:/data
-    networks: [dip-network]
-
-  otel-collector:
-    profiles: ["monitoring"]
-    image: otel/opentelemetry-collector-contrib:0.135.0
-    restart: unless-stopped
-    command: ["--config=/etc/otelcol-contrib/config.yml"]
-    volumes:
-      - ./infrastructure/monitoring/otel/otel-collector-config.yml:/etc/otelcol-contrib/config.yml:ro
-    ports:
-      - "${OTEL_PROMETHEUS_EXPORTER_PORT:-8889}:8889"
-      - "${OTEL_GRPC_PORT:-4317}:4317"
-      - "${OTEL_HTTP_PORT:-4318}:4318"
-    depends_on:
-      api:
-        condition: service_healthy
-      python-analysis:
-        condition: service_healthy
-    networks: [dip-network]
-
-  prometheus:
-    profiles: ["monitoring"]
-    image: prom/prometheus:v3.5.0
-    restart: unless-stopped
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-    volumes:
-      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./infrastructure/monitoring/prometheus/qa-governance-rules.yml:/etc/prometheus/qa-governance-rules.yml:ro
-      - dip-prometheus-data:/prometheus
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    depends_on:
-      - otel-collector
-    networks: [dip-network]
-
-  grafana:
-    profiles: ["monitoring"]
-    image: grafana/grafana:12.1.1
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-dip-local-grafana}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    volumes:
-      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - dip-grafana-data:/var/lib/grafana
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
-    depends_on:
-      - prometheus
-    networks: [dip-network]
-
 volumes:
   dip-postgres-data:
   dip-redis-data:
-  dip-minio-data:
   dip-artifact-data:
   dip-workspace-data:
-  dip-prometheus-data:
-  dip-grafana-data:
 
 networks:
   dip-network:
     driver: bridge
+

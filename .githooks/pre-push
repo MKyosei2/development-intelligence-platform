@@ -1,0 +1,35 @@
+#!/bin/sh
+
+echo ""
+echo "============================================================"
+echo " DIP QUICK LOCAL CI"
+echo "============================================================"
+echo ""
+
+if command -v pwsh >/dev/null 2>&1; then
+    PS_COMMAND="pwsh"
+else
+    PS_COMMAND="powershell.exe"
+fi
+
+"$PS_COMMAND" \
+    -NoProfile \
+    -ExecutionPolicy Bypass \
+    -File "./scripts/Verify-All-Local.ps1" \
+    -Mode Quick
+
+RESULT=$?
+
+if [ "$RESULT" -ne 0 ]; then
+
+    echo ""
+    echo "Push blocked: Quick Local CI failed."
+
+    exit 1
+fi
+
+echo ""
+echo "Quick Local CI passed."
+echo "Push allowed."
+
+exit 0

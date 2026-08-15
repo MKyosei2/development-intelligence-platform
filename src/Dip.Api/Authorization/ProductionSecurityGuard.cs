@@ -19,9 +19,6 @@ public static class ProductionSecurityGuard
         if(string.IsNullOrWhiteSpace(connection))failures.Add("ConnectionStrings:PostgreSql must be configured in Production.");
         foreach(var fragment in UnsafeFragments)
             if(connection.Contains(fragment,StringComparison.OrdinalIgnoreCase))failures.Add("Production PostgreSQL connection string contains a known development/default credential.");
-        var storageSecret=configuration["Artifacts:Minio:SecretKey"]??configuration["Storage:SecretKey"]??string.Empty;
-        foreach(var fragment in UnsafeFragments)
-            if(storageSecret.Contains(fragment,StringComparison.OrdinalIgnoreCase))failures.Add("Production artifact storage secret contains a known development/default credential.");
         if(failures.Count>0)throw new InvalidOperationException("Unsafe production configuration:\n - "+string.Join("\n - ",failures.Distinct(StringComparer.Ordinal)));
     }
 }

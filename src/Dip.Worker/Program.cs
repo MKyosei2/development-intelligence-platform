@@ -1,6 +1,3 @@
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
-using OpenTelemetry.Metrics;
 using Dip.Application;
 using Dip.Application.Features.Jobs;
 using Dip.Infrastructure;
@@ -12,11 +9,6 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection(WorkerOptions.SectionName));
 builder.Services.Configure<DurableJobQueueOptions>(builder.Configuration.GetSection(DurableJobQueueOptions.SectionName));
-var otlpEndpoint=builder.Configuration["OpenTelemetry:OtlpEndpoint"]??"http://localhost:4317";
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(r=>r.AddService("dip-worker"))
-    .WithTracing(t=>t.AddHttpClientInstrumentation().AddSource("DIP.DevelopmentIntelligence").AddOtlpExporter(o=>o.Endpoint=new Uri(otlpEndpoint)))
-    .WithMetrics(m=>m.AddHttpClientInstrumentation().AddRuntimeInstrumentation().AddMeter("DIP.DevelopmentIntelligence").AddOtlpExporter(o=>o.Endpoint=new Uri(otlpEndpoint)));
 builder.Services.AddScoped<IDurableJobHandler,FuzzJobHandler>();
 builder.Services.AddScoped<IDurableJobHandler,MutationJobHandler>();
 builder.Services.AddScoped<IDurableJobHandler,SoakJobHandler>();

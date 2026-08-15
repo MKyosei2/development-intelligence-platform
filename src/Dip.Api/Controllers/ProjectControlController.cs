@@ -134,10 +134,6 @@ public sealed class ProjectControlController(
     public Task<NormalizedVersionControlChange> SyncVersionControl([FromBody]VersionControlSyncRequest request,CancellationToken ct)
         =>versionControl.SyncAsync(request,ct);
 
-    [Authorize(Policy=Policies.ProjectWrite)]
-    [HttpPost("ci/sync")]
-    public Task<NormalizedCiRun> SyncCi([FromBody]ExternalCiSyncRequest request,CancellationToken ct)
-        =>ci.SyncAsync(request,ct);
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("ci/ingest")]
@@ -287,10 +283,6 @@ public sealed class ProjectControlController(
     public async Task<SpreadsheetImportResult> ImportManagementWorkbook(Guid projectId,IFormFile file,CancellationToken ct)
     { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheets.ImportXlsxAsync(projectId,stream,ct); }
 
-    [Authorize(Policy=Policies.ProjectWrite)]
-    [HttpPost("google-sheets/sync")]
-    public Task<GoogleSheetsSyncResult> SyncGoogleSheets([FromBody]GoogleSheetsSyncCommand command,CancellationToken ct)
-        =>spreadsheets.SyncGoogleAsync(command,ct);
 
     [Authorize(Policy=Policies.ProjectRead)]
     [HttpGet("projects/{projectId:guid}/dashboard")]

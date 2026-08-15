@@ -12,7 +12,6 @@ public sealed class EvidenceGroundedRootCauseService
 {
     private readonly IEvidenceRepository _evidence;
     private readonly IP2IntelligenceRepository _intelligence;
-    private readonly IAiRootCauseClient _ai;
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
     private readonly IncidentAggregationService _incidents;
@@ -20,12 +19,11 @@ public sealed class EvidenceGroundedRootCauseService
     public EvidenceGroundedRootCauseService(
         IEvidenceRepository evidence,
         IP2IntelligenceRepository intelligence,
-        IAiRootCauseClient ai,
         IUnitOfWork uow,
         ISystemClock clock,
         IncidentAggregationService incidents)
     {
-        _evidence=evidence;_intelligence=intelligence;_ai=ai;_uow=uow;_clock=clock;_incidents=incidents;
+        _evidence=evidence;_intelligence=intelligence;_uow=uow;_clock=clock;_incidents=incidents;
     }
 
     public async Task<RootCauseResult> AnalyzeAsync(RootCauseCommand command,CancellationToken ct)
@@ -53,19 +51,7 @@ public sealed class EvidenceGroundedRootCauseService
             payload=x.PayloadJson
         }));
 
-        RootCauseResult result;
-        var aiResponse=await _ai.AnalyzeAsync(new(
-            command.Question??$"Identify evidence-grounded root cause candidates for {command.SubjectKey}.",bundle),ct);
-
-        if(aiResponse is not null&&TryParseAi(aiResponse,selected,out var parsed))
-        {
-            result=parsed with{Mode=$"ExternalAI:{aiResponse.Model}"};
-        }
-        else
-        {
-            result=Deterministic(selected);
-        }
-
+        var result=Deterministic(selected);
         await StoreAsync(command,result,ct);
         if(result.Candidates.Count>0)
             await _incidents.AttachRootCauseAsync(command.ProjectId,command.SubjectKey,result.Summary,result,ct);
@@ -154,41 +140,6 @@ public sealed class EvidenceGroundedRootCauseService
             :$"{candidates.Length} evidence-grounded root-cause candidate(s) were ranked. No code change was applied automatically.";
         return new("DeterministicEvidenceRanking",candidates.Length==0?"InsufficientEvidence":"CandidatesAvailable",candidates,actions,
             candidates.SelectMany(x=>x.EvidenceIds).Distinct().ToArray(),summary);
-    }
-
-    private static bool TryParseAi(AiRootCauseResponse response,IReadOnlyCollection<EvidenceRecord> supplied,out RootCauseResult result)
-    {
-        result=new("ExternalAI","InvalidResponse",[],[],[],"");
-        try
-        {
-            using var doc=JsonDocument.Parse(response.Json);
-            var allowed=supplied.Select(x=>x.Id).ToHashSet();
-            var candidates=new List<RootCauseCandidate>();
-            if(doc.RootElement.TryGetProperty("candidates",out var array)&&array.ValueKind==JsonValueKind.Array)
-            {
-                foreach(var item in array.EnumerateArray().Take(5))
-                {
-                    var title=item.TryGetProperty("title",out var t)?t.GetString()??"Candidate":"Candidate";
-                    var confidence=item.TryGetProperty("confidencePercent",out var c)&&c.TryGetDecimal(out var cv)?Math.Clamp(cv,0m,95m):40m;
-                    var rationale=item.TryGetProperty("rationale",out var r)?r.GetString()??"":"";
-                    var ids=new List<Guid>();
-                    if(item.TryGetProperty("evidenceIds",out var eids)&&eids.ValueKind==JsonValueKind.Array)
-                        foreach(var e in eids.EnumerateArray())
-                            if(Guid.TryParse(e.GetString(),out var id)&&allowed.Contains(id))ids.Add(id);
-                    if(ids.Count==0)continue; // Ungrounded AI output is discarded.
-                    candidates.Add(new(title,confidence,rationale,ids));
-                }
-            }
-            var actions=new List<string>();
-            if(doc.RootElement.TryGetProperty("suggestedActions",out var aa)&&aa.ValueKind==JsonValueKind.Array)
-                actions.AddRange(aa.EnumerateArray().Select(x=>x.GetString()).Where(x=>!string.IsNullOrWhiteSpace(x)).Select(x=>x!).Take(5));
-            var summary=doc.RootElement.TryGetProperty("summary",out var s)?s.GetString()??"Evidence-grounded AI analysis completed.":"Evidence-grounded AI analysis completed.";
-            if(candidates.Count==0)return false;
-            result=new($"ExternalAI:{response.Model}","CandidatesAvailable",candidates,actions,
-                candidates.SelectMany(x=>x.EvidenceIds).Distinct().ToArray(),summary);
-            return true;
-        }
-        catch(JsonException){return false;}
     }
 
     private static HashSet<string> Tokens(string text)=>text

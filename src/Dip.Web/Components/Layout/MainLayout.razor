@@ -20,9 +20,9 @@
                     @onchange="ProjectChanged"
                     disabled="@Projects.IsLoading">
                 <option value="">Portfolio / all projects</option>
-                @foreach (var project in Projects.Projects)
+                @foreach (var projectOption in Projects.Projects)
                 {
-                    <option value="@project.ProjectId">@project.Name</option>
+                    <option value="@projectOption.ProjectId">@projectOption.Name</option>
                 }
             </select>
             <div class="picker-meta">
