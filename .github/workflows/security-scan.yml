@@ -1,8 +1,6 @@
 name: Security Scan
 
 on:
-  pull_request:
-    branches: [main, develop]
   push:
     branches: [main, develop]
   schedule:
@@ -19,18 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: GitHub dependency review
-        if: github.event_name == 'pull_request' && vars.DEPENDENCY_REVIEW_ENABLED == 'true'
-        uses: actions/dependency-review-action@v4
-
       - name: Set up .NET fallback audit
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
-      - name: Review NuGet dependencies (fallback)
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
+      - name: Review NuGet dependencies
         shell: pwsh
         run: |
           dotnet restore DevelopmentIntelligencePlatform.sln
@@ -41,15 +33,13 @@ jobs:
           if ($output -match "has the following vulnerable packages") { throw "Vulnerable NuGet package(s) detected." }
 
       - name: Set up Python fallback audit
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: services/python-analysis/requirements.txt
 
-      - name: Review Python dependencies (fallback)
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
+      - name: Review Python dependencies
         working-directory: services/python-analysis
         run: |
           python -m pip install --upgrade pip pip-audit

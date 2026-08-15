@@ -11,8 +11,6 @@ on:
       - "Directory.Packages.props"
       - "global.json"
       - ".github/workflows/dotnet-ci.yml"
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
