@@ -1,0 +1,15 @@
+<div class="empty-state card state-panel state-error" role="alert">
+    <div class="empty-icon">!</div>
+    <h2>@Title</h2>
+    <p>@Message</p>
+    @if (Retry.HasDelegate)
+    {
+        <button class="btn btn-primary" type="button" @onclick="Retry">Try again</button>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Unable to load this view";
+    [Parameter, EditorRequired] public string Message { get; set; } = string.Empty;
+    [Parameter] public EventCallback Retry { get; set; }
+}

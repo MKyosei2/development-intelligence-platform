@@ -1,0 +1,203 @@
+@page "/dashboard/{ProjectId:guid}/qa"
+@implements IDisposable
+@inject ApiClient Api
+@inject ProjectState Projects
+@inject RealtimeUpdateService Realtime
+
+<PageTitle>QA | DIP</PageTitle>
+
+<section class="page-heading" data-testid="qa-page">
+    <div><div class="eyebrow">Development</div><h1>QA</h1><p>Run the existing QA engine against the synchronized GitHub workspace and inspect findings from the GUI.</p></div>
+    <div class="heading-actions">
+        <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button>
+        <button class="btn btn-primary" type="button" @onclick="RunQaAsync" disabled="@(_running || _repository?.Workspace is null)">@(_running ? "QA running…" : "Run QA")</button>
+    </div>
+</section>
+
+@if (_loading)
+{
+    <LoadingState Message="Loading QA workspace…" />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error" Retry="LoadAsync" />
+}
+else
+{
+    @if (_repository?.Workspace is null)
+    {
+        <EmptyState Icon="⌘" Title="Synchronize the repository first" Description="QA runs only inside the protected Qa:WorkspaceRoot. Synchronize this GitHub project to create the workspace." ActionText="Open repository" ActionHref="@($"/dashboard/{ProjectId}/repository")" />
+    }
+    else
+    {
+        @if (_runError is not null)
+        {
+            <div class="alert alert-danger">@_runError</div>
+        }
+        @if (_running)
+        {
+            <div class="qa-progress card mb-4">
+                <div class="card-body">
+                    <div class="qa-progress-head"><div><div class="spinner small-spinner"></div><div><strong>QA is running</strong><small>Detecting repository technology, running available adapters and normalizing findings.</small></div></div><span>Auto language detection</span></div>
+                    <div class="progress mt-3"><div class="progress-bar indeterminate"></div></div>
+                </div>
+            </div>
+        }
+
+        <div class="metric-grid mb-4">
+            <div class="metric-card"><span>Workspace</span><strong class="metric-text">Ready</strong><small>@_repository.Workspace.WorkspaceRelativePath</small></div>
+            <div class="metric-card"><span>Commit</span><strong class="metric-text"><code>@ShortSha(_repository.Workspace.CommitSha)</code></strong><small>@_repository.Workspace.Branch</small></div>
+            <div class="metric-card"><span>Latest QA</span><strong class="metric-text">@LatestQaStatus</strong><small>@LatestQaDate</small></div>
+            <div class="metric-card"><span>Latest findings</span><strong>@LatestFindingCount</strong><small>dashboard evidence</small></div>
+        </div>
+
+        @if (_lastRun is not null)
+        {
+            <section class="card mb-4 qa-result-card">
+                <div class="card-header"><div><div class="eyebrow">Latest manual run</div><strong>QA result</strong></div><StatusBadge Value="_lastRun.Status" /></div>
+                <div class="card-body">
+                    <div class="qa-result-summary">
+                        <div><span>Findings</span><strong>@_lastRun.FindingCount</strong></div>
+                        <div><span>Critical</span><strong class="text-danger">@_lastRun.CriticalFindingCount</strong></div>
+                        <div><span>Warnings</span><strong class="text-warning">@_lastRun.WarningFindingCount</strong></div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (_lastRun.Findings.Count == 0)
+                    {
+                        <div class="compact-empty"><span class="status-dot healthy"></span><div><strong>No findings</strong><small>The available QA adapters did not report a problem for this run.</small></div></div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead><tr><th>Severity</th><th>Finding</th><th>Tool</th><th>Location</th><th>Reproduction</th></tr></thead>
+                                <tbody>
+                                @foreach (var finding in _lastRun.Findings.Take(100))
+                                {
+                                    <tr>
+                                        <td><StatusBadge Value="finding.Severity" /></td>
+                                        <td><strong>@finding.Title</strong><div class="small text-muted finding-message">@finding.Message</div></td>
+                                        <td>@finding.Tool</td>
+                                        <td>@FormatLocation(finding.FilePath, finding.Line)</td>
+                                        <td>@finding.ReproductionStatus</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="card-footer"><a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa-governance")">Open QA Governance</a></div>
+            </section>
+        }
+
+        <section class="card">
+            <div class="card-header"><strong>Recent QA evidence</strong><span>@(_dashboard?.RecentQaRuns.Count ?? 0) run(s)</span></div>
+            <div class="card-body p-0">
+                @if (_dashboard?.RecentQaRuns.Count > 0)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead><tr><th>Run</th><th>Language</th><th>Status</th><th>Findings</th><th>Reproduced</th><th>Created</th></tr></thead>
+                            <tbody>
+                            @foreach (var run in _dashboard.RecentQaRuns)
+                            {
+                                <tr>
+                                    <td><a href="@($"/dashboard/{ProjectId}/qa/runs/{run.Id}")"><code>@run.Id.ToString("N")[..8]</code></a></td>
+                                    <td>@run.Language</td>
+                                    <td><StatusBadge Value="run.Status" /></td>
+                                    <td>@run.FindingCount <span class="text-danger">(@run.CriticalFindingCount critical)</span></td>
+                                    <td>@run.ReproducedFindingCount</td>
+                                    <td>@FormatDate(run.CreatedAtUtc)</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No QA runs yet</strong><small>Run QA to create the first quality evidence for this project.</small></div></div>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private GitHubProjectRepositoryDto? _repository;
+    private Dip.Application.Features.Dashboard.ProjectDashboardDetails? _dashboard;
+    private QaRunResultDto? _lastRun;
+    private bool _loading = true;
+    private bool _running;
+    private string? _error;
+    private string? _runError;
+
+    private string LatestQaStatus => _dashboard?.RecentQaRuns.FirstOrDefault()?.Status ?? "No run";
+    private string LatestQaDate => _dashboard?.RecentQaRuns.FirstOrDefault() is { } run ? FormatDate(run.CreatedAtUtc) : "No QA evidence";
+    private int LatestFindingCount => _dashboard?.RecentQaRuns.FirstOrDefault()?.FindingCount ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Realtime.ProjectEvent += OnRealtimeEvent;
+        Projects.Select(ProjectId);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var repositoryTask = Api.GetProjectRepositoryAsync(ProjectId);
+            var dashboardTask = Api.GetProjectAsync(ProjectId);
+            _repository = await repositoryTask;
+            _dashboard = await dashboardTask;
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task RunQaAsync()
+    {
+        if (_repository?.Workspace is not { } workspace)
+            return;
+        _running = true;
+        _runError = null;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        try
+        {
+            var command = new QaExecutionCommand(
+                ProjectId,
+                $"gui:{workspace.Branch}:{ShortSha(workspace.CommitSha)}",
+                LanguageId.Auto,
+                workspace.WorkspaceRelativePath,
+                workspace.CommitSha,
+                null,
+                null,
+                TimeoutSeconds: 180,
+                AutomaticallyReproduce: true,
+                RecordScreen: false,
+                RecordSystemAudio: false);
+            _lastRun = await Api.RunQaAsync(command);
+            _dashboard = await Api.GetProjectAsync(ProjectId);
+        }
+        catch (Exception exception) { _runError = exception.Message; }
+        finally { _running = false; }
+    }
+
+    private void OnRealtimeEvent(ProjectRealtimeEventDto evt)
+    {
+        if (evt.ProjectId == ProjectId && evt.EventType is "qa.completed" or "repository.synced")
+            _ = InvokeAsync(LoadAsync);
+    }
+
+    private static string ShortSha(string value) => value.Length <= 8 ? value : value[..8];
+    private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    private static string FormatLocation(string? path, int? line) => string.IsNullOrWhiteSpace(path) ? "—" : line is null ? path : $"{path}:{line}";
+    public void Dispose() => Realtime.ProjectEvent -= OnRealtimeEvent;
+}

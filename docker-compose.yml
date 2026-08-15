@@ -75,6 +75,11 @@ services:
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
       GitHub__WebhookSecret: ${DIP_GITHUB_WEBHOOK_SECRET:-local-development-webhook-secret}
       GitHub__Token: ${DIP_GITHUB_TOKEN:-}
+      GitHub__AppId: ${DIP_GITHUB_APP_ID:-0}
+      GitHub__InstallationId: ${DIP_GITHUB_APP_INSTALLATION_ID:-0}
+      GitHub__AppSlug: ${DIP_GITHUB_APP_SLUG:-}
+      GitHub__AppPrivateKeyBase64: ${DIP_GITHUB_APP_PRIVATE_KEY_BASE64:-}
+      Qa__WorkspaceRoot: /data/dip-workspaces
       Artifacts__Provider: ${DIP_ARTIFACT_PROVIDER:-Local}
       Artifacts__LocalRoot: /data/dip-artifacts
       Artifacts__Minio__Endpoint: http://minio:9000
@@ -95,6 +100,7 @@ services:
       OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
     volumes:
       - dip-artifact-data:/data/dip-artifacts
+      - dip-workspace-data:/data/dip-workspaces
     ports:
       - "${API_PORT:-5080}:8080"
     depends_on:
@@ -125,6 +131,11 @@ services:
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
       GitHub__Token: ${DIP_GITHUB_TOKEN:-}
+      GitHub__AppId: ${DIP_GITHUB_APP_ID:-0}
+      GitHub__InstallationId: ${DIP_GITHUB_APP_INSTALLATION_ID:-0}
+      GitHub__AppSlug: ${DIP_GITHUB_APP_SLUG:-}
+      GitHub__AppPrivateKeyBase64: ${DIP_GITHUB_APP_PRIVATE_KEY_BASE64:-}
+      Qa__WorkspaceRoot: /data/dip-workspaces
       Artifacts__Provider: ${DIP_ARTIFACT_PROVIDER:-Local}
       Artifacts__LocalRoot: /data/dip-artifacts
       Artifacts__Minio__Endpoint: http://minio:9000
@@ -140,6 +151,7 @@ services:
       ReleaseProvenance__AllowedRoot: /app
     volumes:
       - dip-artifact-data:/data/dip-artifacts
+      - dip-workspace-data:/data/dip-workspaces
     ports:
       - "${WORKER_METRICS_PORT:-9091}:9091"
     depends_on:
@@ -244,6 +256,7 @@ volumes:
   dip-redis-data:
   dip-minio-data:
   dip-artifact-data:
+  dip-workspace-data:
   dip-prometheus-data:
   dip-grafana-data:
 

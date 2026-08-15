@@ -1,0 +1,22 @@
+<div class="empty-state card state-panel">
+    <div class="empty-icon">@Icon</div>
+    <h2>@Title</h2>
+    <p>@Description</p>
+    @if (!string.IsNullOrWhiteSpace(ActionText) && !string.IsNullOrWhiteSpace(ActionHref))
+    {
+        <a class="btn btn-primary" href="@ActionHref">@ActionText</a>
+    }
+    @if (ChildContent is not null)
+    {
+        <div class="mt-2">@ChildContent</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "＋";
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Description { get; set; } = string.Empty;
+    [Parameter] public string? ActionText { get; set; }
+    [Parameter] public string? ActionHref { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

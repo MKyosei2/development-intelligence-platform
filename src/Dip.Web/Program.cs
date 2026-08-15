@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Dip.Web.Services;
+using Dip.Web.State;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -42,10 +43,13 @@ builder.Services.AddScoped<HttpClient>(services =>
     };
     return new HttpClient(handler)
     {
-        BaseAddress = new Uri(configuration["Api:BaseUrl"] ?? "http://127.0.0.1:5080/")
+        BaseAddress = new Uri(configuration["Api:BaseUrl"] ?? "http://127.0.0.1:5080/"),
+        Timeout = TimeSpan.FromMinutes(10)
     };
 });
 builder.Services.AddScoped<ApiClient>();
+builder.Services.AddScoped<ProjectState>();
+builder.Services.AddScoped<RealtimeUpdateService>();
 builder.Services.AddHttpClient("dip-api-proxy", client =>
 {
     client.BaseAddress = new Uri(EnsureTrailingSlash(

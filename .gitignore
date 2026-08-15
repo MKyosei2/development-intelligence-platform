@@ -60,3 +60,4 @@ minio-data/
 *.orig
 *.rej
 *~
+tests/Dip.UiE2E/artifacts/

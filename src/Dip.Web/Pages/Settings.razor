@@ -1,13 +1,60 @@
 @page "/settings"
 @inject IConfiguration Configuration
+@inject ApiClient Api
 
 <PageTitle>Settings | DIP</PageTitle>
 
 <section class="page-heading">
-    <div><div class="eyebrow">Platform</div><h1>Settings</h1><p>Runtime configuration visible to the GUI. Secrets are never rendered here.</p></div>
+    <div><div class="eyebrow">Platform</div><h1>Settings</h1><p>Runtime configuration and integration status visible to the GUI. Secrets are never rendered here.</p></div>
 </section>
 
 <div class="settings-grid">
+    <div class="card">
+        <div class="card-header"><strong>GitHub repository connection</strong><StatusBadge Value="@(_github?.Connected == true ? "Healthy" : "Not configured")" /></div>
+        <div class="card-body">
+            @if (_githubLoading)
+            {
+                <div class="compact-empty"><div class="spinner small-spinner"></div><div><strong>Checking GitHub…</strong></div></div>
+            }
+            else if (_githubError is not null)
+            {
+                <div class="alert alert-warning">@_githubError</div>
+            }
+            else if (_github is not null)
+            {
+                <div class="settings-list">
+                    <div><span>Mode</span><strong>@_github.Mode</strong></div>
+                    <div><span>Account</span><strong>@(_github.Account ?? "—")</strong></div>
+                    <div><span>Installation ID</span><strong>@(_github.InstallationId?.ToString() ?? "—")</strong></div>
+                    <div><span>App</span><strong>@(_github.AppSlug ?? "—")</strong></div>
+                </div>
+                <p class="small text-muted mt-2">@_github.Message</p>
+                <div class="d-flex gap-2 mt-3">
+                    <a class="btn btn-primary btn-sm" href="/projects/import/github">Repository picker</a>
+                    @if (!string.IsNullOrWhiteSpace(_github.InstallUrl))
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" href="@_github.InstallUrl" target="_blank" rel="noopener noreferrer">Manage GitHub App</a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><strong>GitHub App setup</strong></div>
+        <div class="card-body">
+            <p>Recommended repository permissions:</p>
+            <div class="permission-list">
+                <span><strong>Metadata</strong><small>Read</small></span>
+                <span><strong>Contents</strong><small>Read</small></span>
+                <span><strong>Actions</strong><small>Read</small></span>
+                <span><strong>Pull requests</strong><small>Read</small></span>
+                <span><strong>Issues</strong><small>Read (Write only if work-item creation is enabled)</small></span>
+            </div>
+            <p class="small text-muted mt-3">Configure <code>DIP_GITHUB_APP_ID</code>, <code>DIP_GITHUB_APP_INSTALLATION_ID</code>, <code>DIP_GITHUB_APP_SLUG</code> and <code>DIP_GITHUB_APP_PRIVATE_KEY_BASE64</code> in the local <code>.env</code>. The private key remains API-side.</p>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header"><strong>Runtime</strong></div>
         <div class="card-body settings-list">
@@ -16,29 +63,28 @@
             <div><span>Authentication</span><strong>@(RequireAuthentication ? "GitHub OAuth required" : "Local development mode")</strong></div>
         </div>
     </div>
+
     <div class="card">
-        <div class="card-header"><strong>Startup</strong></div>
+        <div class="card-header"><strong>Startup & verification</strong></div>
         <div class="card-body">
-            <p>Use the root launcher for the complete GUI stack.</p>
             <code class="command-block">Start-DIP.cmd</code>
-            <p class="small text-muted mt-2">Add <code>-WithMonitoring</code> to start OpenTelemetry, Prometheus and Grafana. Add <code>-RequireAuthentication</code> after GitHub OAuth variables are configured.</p>
-        </div>
-    </div>
-    <div class="card">
-        <div class="card-header"><strong>Formal verification</strong></div>
-        <div class="card-body">
-            <p>First verify the complete GUI stack in an isolated environment.</p>
+            <p class="small text-muted mt-2">Run formal GUI verification after startup changes.</p>
             <code class="command-block">.\scripts\Verify-GuiRuntime.ps1</code>
-            <p class="small text-muted mt-2">Formal portfolio verification also includes this GUI runtime check.</p>
-            <code class="command-block">.\scripts\Verify-PortfolioFormal.ps1 -UnityPath "&lt;Unity.exe&gt;"</code>
+            <code class="command-block mt-2">.\scripts\Verify-GuiPhase1.ps1</code>
         </div>
-    </div>
-    <div class="card">
-        <div class="card-header"><strong>Data safety</strong></div>
-        <div class="card-body"><p>Stop-DIP preserves PostgreSQL, Redis and artifact volumes. Use <code>Stop-DIP.cmd -PurgeData</code> only when a full local reset is intended.</p></div>
     </div>
 </div>
 
 @code {
+    private GitHubConnectionStatusDto? _github;
+    private bool _githubLoading = true;
+    private string? _githubError;
     private bool RequireAuthentication => Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _github = await Api.GetGitHubConnectionStatusAsync(); }
+        catch (Exception exception) { _githubError = exception.Message; }
+        finally { _githubLoading = false; }
+    }
 }

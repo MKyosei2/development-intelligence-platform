@@ -1,0 +1,49 @@
+@using Dip.Application.Features.GitHubIntegration
+
+<article class="repo-card @(Selected ? "selected" : string.Empty) @(Repository.DipProjectId is not null ? "registered" : string.Empty)" data-repository="@Repository.FullName">
+    <div class="repo-card-head">
+        <div class="repo-avatar">@Initial</div>
+        <div class="repo-card-title">
+            <strong>@Repository.Name</strong>
+            <span>@Repository.Owner</span>
+        </div>
+        @if (Repository.DipProjectId is not null)
+        {
+            <span class="badge text-bg-success">DIP project</span>
+        }
+        else
+        {
+            <span class="badge text-bg-secondary">@(Repository.Private ? "Private" : "Public")</span>
+        }
+    </div>
+    <p>@(string.IsNullOrWhiteSpace(Repository.Description) ? "No repository description." : Repository.Description)</p>
+    <div class="repo-meta">
+        <span><strong>@(Repository.PrimaryLanguage ?? "Unknown")</strong><small>Language</small></span>
+        <span><strong>@Repository.DefaultBranch</strong><small>Default branch</small></span>
+        <span><strong>@Repository.OpenIssuesCount</strong><small>Open issues</small></span>
+    </div>
+    <div class="repo-card-footer">
+        <small>Updated @FormatDate(Repository.UpdatedAtUtc)</small>
+        <button class="btn @(Selected ? "btn-outline-secondary" : "btn-primary") btn-sm"
+                type="button"
+                disabled="@Disabled"
+                @onclick="() => SelectedChanged.InvokeAsync(Repository)">
+            @(Repository.DipProjectId is not null ? "Open project" : Selected ? "Selected" : "Select")
+        </button>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public GitHubRepositorySummaryDto Repository { get; set; } = default!;
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<GitHubRepositorySummaryDto> SelectedChanged { get; set; }
+
+    private string Initial => string.IsNullOrWhiteSpace(Repository.Name)
+        ? "R"
+        : Repository.Name[0].ToString().ToUpperInvariant();
+
+    private static string FormatDate(DateTimeOffset? value) => value is null
+        ? "unknown"
+        : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}

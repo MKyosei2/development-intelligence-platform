@@ -1,0 +1,104 @@
+@page "/dashboard/{ProjectId:guid}/ci"
+@implements IDisposable
+@inject ApiClient Api
+@inject ProjectState Projects
+@inject RealtimeUpdateService Realtime
+
+<PageTitle>CI / Builds | DIP</PageTitle>
+
+<section class="page-heading" data-testid="ci-page">
+    <div><div class="eyebrow">Development</div><h1>CI / Builds</h1><p>GitHub Actions and DIP pipeline evidence for the active project.</p></div>
+    <div class="heading-actions"><button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button></div>
+</section>
+
+@if (_loading)
+{
+    <LoadingState Message="Loading CI status…" />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error" Retry="LoadAsync" />
+}
+else if (_dashboard is not null)
+{
+    <div class="metric-grid mb-4">
+        <div class="metric-card"><span>DIP pipeline</span><strong>@(_dashboard.LatestPipelineStatus ?? "No run")</strong><small>@FormatDate(_dashboard.LatestPipelineFinishedAtUtc)</small></div>
+        <div class="metric-card"><span>GitHub Actions</span><strong>@WorkflowCount</strong><small>recent runs</small></div>
+        <div class="metric-card"><span>Failed</span><strong class="text-danger">@FailedCount</strong><small>recent GitHub runs</small></div>
+        <div class="metric-card"><span>Quality gate</span><strong>@(_dashboard.QualityGateStatus ?? "Not evaluated")</strong><small>@_dashboard.CriticalIssueCount critical</small></div>
+    </div>
+
+    <section class="card">
+        <div class="card-header"><strong>GitHub Actions</strong><span>@(_repository?.Repository?.Repository.FullName ?? "Repository unavailable")</span></div>
+        <div class="card-body p-0">
+            @if (_repository?.Repository?.WorkflowRuns.Count > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Workflow</th><th>Trigger</th><th>Branch</th><th>Status</th><th>Commit</th><th>Created</th></tr></thead>
+                        <tbody>
+                        @foreach (var run in _repository.Repository.WorkflowRuns)
+                        {
+                            <tr>
+                                <td><a href="@run.HtmlUrl" target="_blank" rel="noopener noreferrer"><strong>@run.Name</strong> ↗</a></td>
+                                <td>@run.Event</td>
+                                <td>@run.HeadBranch</td>
+                                <td><StatusBadge Value="@(run.Conclusion ?? run.Status)" /></td>
+                                <td><code>@ShortSha(run.HeadSha)</code></td>
+                                <td>@FormatDate(run.CreatedAtUtc)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No GitHub Actions results available</strong><small>Connect the GitHub App with Actions read permission, or run a workflow in the selected repository.</small></div></div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private Dip.Application.Features.Dashboard.ProjectDashboardDetails? _dashboard;
+    private GitHubProjectRepositoryDto? _repository;
+    private bool _loading = true;
+    private string? _error;
+
+    private int WorkflowCount => _repository?.Repository?.WorkflowRuns.Count ?? 0;
+    private int FailedCount => _repository?.Repository?.WorkflowRuns.Count(run => string.Equals(run.Conclusion, "failure", StringComparison.OrdinalIgnoreCase)) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Realtime.ProjectEvent += OnRealtimeEvent;
+        Projects.Select(ProjectId);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var dashboardTask = Api.GetProjectAsync(ProjectId);
+            var repositoryTask = Api.GetProjectRepositoryAsync(ProjectId);
+            _dashboard = await dashboardTask;
+            try { _repository = await repositoryTask; } catch { _repository = null; }
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _loading = false; }
+    }
+
+    private void OnRealtimeEvent(ProjectRealtimeEventDto evt)
+    {
+        if (evt.ProjectId == ProjectId)
+            _ = InvokeAsync(LoadAsync);
+    }
+
+    private static string ShortSha(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= 8 ? value : value[..8];
+    private static string FormatDate(DateTimeOffset? value) => value is null ? "Not available" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    public void Dispose() => Realtime.ProjectEvent -= OnRealtimeEvent;
+}

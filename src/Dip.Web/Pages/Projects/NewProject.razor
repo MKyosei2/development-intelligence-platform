@@ -3,15 +3,17 @@
 @using Dip.Application.Features.Projects
 @inject ApiClient Api
 @inject NavigationManager Navigation
+@inject ProjectState Projects
 
 <PageTitle>New Project | DIP</PageTitle>
 
-<section class="page-heading narrow-heading">
+<section class="page-heading narrow-heading" data-testid="manual-project-page">
     <div>
-        <div class="eyebrow">Project setup</div>
-        <h1>Create project</h1>
-        <p>Register a repository and create the management workspace from the GUI.</p>
+        <div class="eyebrow">Manual project setup</div>
+        <h1>Create project manually</h1>
+        <p>Use this only when the repository is not available through the GitHub App. GitHub repositories should normally be imported from the repository picker.</p>
     </div>
+    <div class="heading-actions"><a class="btn btn-primary" href="/projects/import/github">Import from GitHub</a></div>
 </section>
 
 <div class="form-shell">
@@ -19,7 +21,7 @@
         <div class="card-header"><strong>Project identity</strong><span>Required</span></div>
         <div class="card-body">
             @if (_error is not null) { <div class="alert alert-danger">@_error</div> }
-            <EditForm Model="_model" OnValidSubmit="CreateAsync">
+            <EditForm Model="_model" OnValidSubmit="CreateAsync" data-testid="manual-project-form">
                 <DataAnnotationsValidator />
                 <ValidationSummary class="validation-summary" />
 
@@ -48,7 +50,7 @@
 
                 <div class="form-actions">
                     <a class="btn btn-outline-secondary" href="/">Cancel</a>
-                    <button class="btn btn-primary" type="submit" disabled="@_saving">@(_saving ? "Creating…" : "Create project")</button>
+                    <button class="btn btn-primary" data-testid="create-project-submit" type="submit" disabled="@_saving">@(_saving ? "Creating…" : "Create project")</button>
                 </div>
             </EditForm>
         </div>
@@ -85,6 +87,8 @@
                 _model.RepositoryUrl.Trim(),
                 _model.DefaultBranch.Trim(),
                 release));
+            await Projects.RefreshAsync();
+            Projects.Select(created.Id);
             Navigation.NavigateTo($"/dashboard/{created.Id}");
         }
         catch (Exception exception) { _error = exception.Message; }

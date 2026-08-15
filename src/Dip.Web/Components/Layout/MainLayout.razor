@@ -1,8 +1,9 @@
-@using Dip.Application.Features.Dashboard
+@using Dip.Application.Features.Realtime
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject NavigationManager Navigation
-@inject ApiClient Api
+@inject ProjectState Projects
+@inject RealtimeUpdateService Realtime
 @inject IConfiguration Configuration
 
 <div class="app-shell">
@@ -14,29 +15,44 @@
 
         <div class="project-picker">
             <label for="project-select">Active project</label>
-            <select id="project-select" value="@(_currentProjectId?.ToString() ?? string.Empty)" @onchange="ProjectChanged">
+            <select id="project-select" data-testid="active-project-select"
+                    value="@(Projects.CurrentProjectId?.ToString() ?? string.Empty)"
+                    @onchange="ProjectChanged"
+                    disabled="@Projects.IsLoading">
                 <option value="">Portfolio / all projects</option>
-                @foreach (var project in _projects)
+                @foreach (var project in Projects.Projects)
                 {
                     <option value="@project.ProjectId">@project.Name</option>
                 }
             </select>
+            <div class="picker-meta">
+                <span class="status-dot @RealtimeDot"></span>
+                <span>@RealtimeLabel</span>
+            </div>
         </div>
 
         <nav class="side-nav" aria-label="Primary navigation">
             <a class="@NavClass("/", exact: true)" href="/"><span>◫</span> Portfolio</a>
-            <a class="@NavClass("/system")" href="/system"><span>●</span> System Status</a>
-            <a class="@NavClass("/projects/new")" href="/projects/new"><span>＋</span> New Project</a>
+            <a class="@NavClass("/projects/import/github")" href="/projects/import/github"><span>⌘</span> Import GitHub</a>
+            <a class="@NavClass("/projects/new")" href="/projects/new"><span>＋</span> Manual Project</a>
 
-            @if (_currentProjectId is { } projectId)
+            @if (Projects.CurrentProjectId is { } projectId)
             {
-                <div class="nav-section">Project</div>
-                <a class="@NavClass($"/dashboard/{projectId}", exact: true)" href="@($"/dashboard/{projectId}")"><span>▦</span> Project Truth</a>
+                <div class="nav-section">Overview</div>
+                <a class="@NavClass($"/dashboard/{projectId}", exact: true)" href="@($"/dashboard/{projectId}")"><span>▦</span> Dashboard</a>
+
+                <div class="nav-section">Development</div>
+                <a class="@NavClass($"/dashboard/{projectId}/repository")" href="@($"/dashboard/{projectId}/repository")"><span>⌘</span> Repository</a>
+                <a class="@NavClass($"/dashboard/{projectId}/ci")" href="@($"/dashboard/{projectId}/ci")"><span>▶</span> CI / Builds</a>
+                <a class="@NavClass($"/dashboard/{projectId}/qa", exact: true)" href="@($"/dashboard/{projectId}/qa")"><span>✓</span> QA</a>
+
+                <div class="nav-section">Intelligence</div>
                 <a class="@NavClass($"/dashboard/{projectId}/intelligence")" href="@($"/dashboard/{projectId}/intelligence")"><span>◆</span> Intelligence</a>
-                <a class="@NavClass($"/dashboard/{projectId}/qa-governance")" href="@($"/dashboard/{projectId}/qa-governance")"><span>✓</span> QA Governance</a>
+                <a class="@NavClass($"/dashboard/{projectId}/qa-governance")" href="@($"/dashboard/{projectId}/qa-governance")"><span>◇</span> QA Governance</a>
             }
 
             <div class="nav-section">Platform</div>
+            <a class="@NavClass("/system")" href="/system"><span>●</span> System Status</a>
             <a class="@NavClass("/settings")" href="/settings"><span>⚙</span> Settings</a>
         </nav>
 
@@ -64,74 +80,101 @@
     </aside>
 
     <div class="main-column">
-        <header class="app-header">
-            <div>
-                <div class="eyebrow">@(_currentProjectId is null ? "Portfolio" : "Active project")</div>
+        <header class="app-header" data-testid="app-header">
+            <div class="header-project-context">
+                <div class="eyebrow">@(Projects.CurrentProjectId is null ? "Portfolio" : "Active project")</div>
                 <div class="header-title">@CurrentProjectName</div>
+                @if (Projects.CurrentProject is { } project)
+                {
+                    <div class="header-subtitle">@project.DefaultBranch · @ShortRepository(project.Repository)</div>
+                }
             </div>
             <div class="header-actions">
-                <a class="status-link" href="/system"><span class="status-dot neutral"></span> System status</a>
-                <a class="btn btn-primary btn-sm" href="/projects/new">New project</a>
+                @if (Projects.LastRefreshedAtUtc is { } refreshed)
+                {
+                    <span class="header-sync">Updated @refreshed.ToLocalTime().ToString("HH:mm:ss")</span>
+                }
+                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="RefreshProjects" disabled="@Projects.IsLoading">↻ Refresh</button>
+                <a class="btn btn-primary btn-sm" href="/projects/import/github">Import repository</a>
             </div>
         </header>
 
         <main class="content">
+            @if (Projects.Error is not null)
+            {
+                <div class="alert alert-warning project-state-warning">Project list refresh failed: @Projects.Error</div>
+            }
             @Body
         </main>
     </div>
 </div>
 
 @code {
-    private IReadOnlyList<ProjectDashboardSummary> _projects = Array.Empty<ProjectDashboardSummary>();
-    private Guid? _currentProjectId;
     private bool _requireAuthentication;
+    private string _realtimeState = "Disconnected";
 
     protected override async Task OnInitializedAsync()
     {
         _requireAuthentication = Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
         Navigation.LocationChanged += OnLocationChanged;
-        ResolveProjectFromLocation();
-        try
-        {
-            _projects = await Api.GetProjectsAsync();
-        }
-        catch
-        {
-            _projects = Array.Empty<ProjectDashboardSummary>();
-        }
+        Projects.Changed += OnProjectsChanged;
+        Realtime.ProjectEvent += OnRealtimeEvent;
+        Realtime.ConnectionStateChanged += OnRealtimeStateChanged;
+        Projects.SelectFromPath(Navigation.ToBaseRelativePath(Navigation.Uri));
+        await Projects.InitializeAsync();
+        await Realtime.StartAsync();
+        _realtimeState = Realtime.State.ToString();
+        await Realtime.SetProjectAsync(Projects.CurrentProjectId);
     }
 
-    private string CurrentProjectName => _currentProjectId is { } id
-        ? _projects.FirstOrDefault(x => x.ProjectId == id)?.Name ?? "Project"
-        : "All projects";
+    private string CurrentProjectName => Projects.CurrentProject?.Name ?? "All projects";
+    private string RealtimeLabel => _realtimeState.Equals("Connected", StringComparison.OrdinalIgnoreCase) ? "Live updates" : "Manual refresh";
+    private string RealtimeDot => _realtimeState.Equals("Connected", StringComparison.OrdinalIgnoreCase) ? "healthy" : "neutral";
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        ResolveProjectFromLocation();
+        _ = InvokeAsync(async () =>
+        {
+            Projects.SelectFromPath(Navigation.ToBaseRelativePath(args.Location));
+            await Realtime.SetProjectAsync(Projects.CurrentProjectId);
+            StateHasChanged();
+        });
+    }
+
+    private void OnProjectsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnRealtimeStateChanged(string state)
+    {
+        _realtimeState = state;
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private void ResolveProjectFromLocation()
+    private void OnRealtimeEvent(ProjectRealtimeEventDto evt)
     {
-        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
-        var segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length >= 2
-            && segments[0].Equals("dashboard", StringComparison.OrdinalIgnoreCase)
-            && Guid.TryParse(segments[1], out var projectId))
-        {
-            _currentProjectId = projectId;
+        if (Projects.CurrentProjectId != evt.ProjectId)
             return;
-        }
-        _currentProjectId = null;
+        _ = InvokeAsync(async () =>
+        {
+            await Projects.RefreshAsync();
+            StateHasChanged();
+        });
     }
+
+    private async Task RefreshProjects() => await Projects.RefreshAsync();
 
     private void ProjectChanged(ChangeEventArgs args)
     {
         var value = args.Value?.ToString();
         if (Guid.TryParse(value, out var projectId))
+        {
+            Projects.Select(projectId);
             Navigation.NavigateTo($"/dashboard/{projectId}");
+        }
         else
+        {
+            Projects.Select(null);
             Navigation.NavigateTo("/");
+        }
     }
 
     private string NavClass(string target, bool exact = false)
@@ -144,11 +187,25 @@
         return active ? "active" : string.Empty;
     }
 
-    private static string Initial(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "U" : value.Trim()[0].ToString().ToUpperInvariant();
+    private static string Initial(string? value) => string.IsNullOrWhiteSpace(value)
+        ? "U"
+        : value.Trim()[0].ToString().ToUpperInvariant();
 
     private static string Role(System.Security.Claims.ClaimsPrincipal user) =>
         user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Member";
 
-    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+    private static string ShortRepository(string repository)
+    {
+        if (Uri.TryCreate(repository, UriKind.Absolute, out var uri))
+            return uri.AbsolutePath.Trim('/');
+        return repository;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        Projects.Changed -= OnProjectsChanged;
+        Realtime.ProjectEvent -= OnRealtimeEvent;
+        Realtime.ConnectionStateChanged -= OnRealtimeStateChanged;
+    }
 }

@@ -1,0 +1,38 @@
+DIP P0-P2 Completion / Hardening - static validation
+Base repository: MKyosei2/development-intelligence-platform
+Base commit: f335606cbd4fbd489efeaf801667113e5cd01e03 (main / Upgrade3)
+
+Artifact shape
+- Path-preserving full-file overlay for an existing checkout.
+- Every included source/config/test file is the complete post-change file.
+- Unchanged private-repository files are not duplicated in this archive.
+
+Static checks performed in artifact runtime
+- UTF-8 decode / NUL-byte scan: PASS
+- C# lexical string/comment/delimiter scan: PASS
+- JSON parse scan: PASS
+- Home.razor dashboard DTO import: PASS
+- PerformanceSimulation nullable FPS/P95 compile-blocker patterns: FIXED
+- Minimum Hardware uses IPerformanceSimulationRunner and fails closed when constraints are not applied: PRESENT
+- Reliability uses target-process PrivateMemorySize64/WorkingSet and soak observation-window semantics: PRESENT
+- Regression uses detached disposable Git worktree: PRESENT
+- Mutation uses detached disposable Git worktree: PRESENT
+- P2 command execution safety policy: PRESENT
+- Forecast uses Project Truth verified-progress history instead of raw evidence-count velocity: PRESENT
+- Low-precision media fallback confidence downgrade: PRESENT
+- Default API authentication required + Development/Testing explicit local overrides: PRESENT
+- P2 Intelligence live E2E scenario: PRESENT
+- Community Hardware optional pseudonymous retry deduplication: PRESENT
+
+Runtime validation availability in artifact environment
+- .NET SDK: NOT AVAILABLE
+- PowerShell / pwsh: NOT AVAILABLE
+- Windows native P1 tools: NOT RUN (artifact runtime is not the target Windows development machine)
+- dotnet build / unit / integration / live E2E: NOT RUN in artifact runtime
+
+Therefore this artifact does NOT claim that GitHub Actions are green yet.
+Formal completion requires applying the overlay to the base repository and running:
+  .\scripts\Verify-P2.ps1
+without skip switches, plus confirming the resulting GitHub revision's required workflows are green.
+
+Static issues found by the checks above: NONE

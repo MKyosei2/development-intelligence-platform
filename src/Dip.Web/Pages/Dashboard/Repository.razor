@@ -1,0 +1,201 @@
+@page "/dashboard/{ProjectId:guid}/repository"
+@implements IDisposable
+@inject ApiClient Api
+@inject ProjectState Projects
+@inject RealtimeUpdateService Realtime
+
+<PageTitle>Repository | DIP</PageTitle>
+
+<section class="page-heading" data-testid="repository-page">
+    <div><div class="eyebrow">Development</div><h1>Repository</h1><p>GitHub metadata and the server-side workspace used by QA.</p></div>
+    <div class="heading-actions">
+        <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button>
+        <button class="btn btn-primary" type="button" @onclick="SyncAsync" disabled="@(_syncing || !CanSync)">@(_syncing ? "Synchronizing…" : "Sync workspace")</button>
+    </div>
+</section>
+
+@if (_loading)
+{
+    <LoadingState Message="Loading repository…" />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error" Retry="LoadAsync" />
+}
+else if (_data is not null)
+{
+    @if (!_data.Connection.Connected)
+    {
+        <div class="integration-banner warning mb-3">
+            <div><div class="eyebrow">GitHub connection</div><strong>Repository connection unavailable</strong><p class="mb-0">@_data.Connection.Message</p></div>
+            @if (!string.IsNullOrWhiteSpace(_data.Connection.InstallUrl))
+            {
+                <a class="btn btn-primary" href="@_data.Connection.InstallUrl" target="_blank" rel="noopener noreferrer">Manage GitHub App</a>
+            }
+        </div>
+    }
+    @if (_data.Warning is not null)
+    {
+        <div class="alert alert-warning">@_data.Warning</div>
+    }
+    @if (_syncError is not null)
+    {
+        <div class="alert alert-danger">@_syncError</div>
+    }
+
+    <div class="repository-hero card mb-4">
+        <div class="card-body">
+            <div class="repository-title-row">
+                <div class="repo-avatar large">@Initial(_data.ProjectName)</div>
+                <div><div class="eyebrow">GitHub repository</div><h2>@RepositoryName</h2><a href="@_data.RepositoryUrl" target="_blank" rel="noopener noreferrer">@_data.RepositoryUrl ↗</a></div>
+                @if (_data.Repository is { } details)
+                {
+                    <span class="badge text-bg-secondary">@(details.Repository.Private ? "Private" : "Public")</span>
+                }
+            </div>
+            <div class="repository-facts">
+                <div><span>Default branch</span><strong>@_data.DefaultBranch</strong></div>
+                <div><span>Latest commit</span><strong>@ShortSha(_data.Repository?.LatestCommitSha)</strong></div>
+                <div><span>Open issues</span><strong>@(_data.Repository?.Repository.OpenIssuesCount.ToString() ?? "—")</strong></div>
+                <div><span>Stars</span><strong>@(_data.Repository?.Repository.StarsCount.ToString() ?? "—")</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-8">
+            <section class="card mb-4">
+                <div class="card-header"><strong>Latest commit</strong><span>@FormatDate(_data.Repository?.LatestCommitAtUtc)</span></div>
+                <div class="card-body">
+                    @if (_data.Repository?.LatestCommitSha is { } sha)
+                    {
+                        <code class="commit-sha">@sha</code>
+                        <p class="mt-2 mb-0">@(_data.Repository.LatestCommitMessage ?? "No commit message")</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">Commit metadata is unavailable.</p>
+                    }
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-header"><strong>Recent GitHub Actions</strong><a href="@($"/dashboard/{ProjectId}/ci")">Open CI →</a></div>
+                <div class="card-body p-0">
+                    @if (_data.Repository?.WorkflowRuns.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead><tr><th>Workflow</th><th>Branch</th><th>Status</th><th>Commit</th><th>Updated</th></tr></thead>
+                                <tbody>
+                                @foreach (var run in _data.Repository.WorkflowRuns.Take(6))
+                                {
+                                    <tr>
+                                        <td><a href="@run.HtmlUrl" target="_blank" rel="noopener noreferrer"><strong>@run.Name</strong></a><div class="small text-muted">@run.Event</div></td>
+                                        <td>@run.HeadBranch</td>
+                                        <td><StatusBadge Value="@(run.Conclusion ?? run.Status)" /></td>
+                                        <td><code>@ShortSha(run.HeadSha)</code></td>
+                                        <td>@FormatDate(run.UpdatedAtUtc ?? run.CreatedAtUtc)</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No workflow runs</strong><small>GitHub Actions may be disabled or the App may not have Actions read permission.</small></div></div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <section class="card">
+                <div class="card-header"><strong>QA workspace</strong><StatusBadge Value="@(_data.Workspace is null ? "Not synced" : "Healthy")" /></div>
+                <div class="card-body workspace-card">
+                    @if (_data.Workspace is { } workspace)
+                    {
+                        <div><span>Path</span><code>@workspace.WorkspaceRelativePath</code></div>
+                        <div><span>Branch</span><strong>@workspace.Branch</strong></div>
+                        <div><span>Commit</span><code>@ShortSha(workspace.CommitSha)</code></div>
+                        <div><span>Files</span><strong>@workspace.FileCount.ToString("N0")</strong></div>
+                        <div><span>Extracted</span><strong>@FormatBytes(workspace.ExtractedBytes)</strong></div>
+                        <div><span>Synced</span><strong>@FormatDate(workspace.SyncedAtUtc)</strong></div>
+                        <a class="btn btn-primary w-100 mt-3" href="@($"/dashboard/{ProjectId}/qa")">Open QA</a>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Synchronize the repository to create a protected workspace for QA.</p>
+                        <button class="btn btn-primary w-100" type="button" @onclick="SyncAsync" disabled="@(_syncing || !CanSync)">Sync now</button>
+                    }
+                </div>
+            </section>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private GitHubProjectRepositoryDto? _data;
+    private bool _loading = true;
+    private bool _syncing;
+    private string? _error;
+    private string? _syncError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Realtime.ProjectEvent += OnRealtimeEvent;
+        Projects.Select(ProjectId);
+        await LoadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_loading && _data?.ProjectId != ProjectId)
+        {
+            Projects.Select(ProjectId);
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _data = await Api.GetProjectRepositoryAsync(ProjectId); }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task SyncAsync()
+    {
+        _syncing = true;
+        _syncError = null;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        try
+        {
+            await Api.SyncProjectRepositoryAsync(ProjectId);
+            await LoadAsync();
+        }
+        catch (Exception exception) { _syncError = exception.Message; }
+        finally { _syncing = false; }
+    }
+
+    private void OnRealtimeEvent(ProjectRealtimeEventDto evt)
+    {
+        if (evt.ProjectId == ProjectId && evt.EventType.StartsWith("repository.", StringComparison.OrdinalIgnoreCase))
+            _ = InvokeAsync(LoadAsync);
+    }
+
+    private bool CanSync => _data?.Connection.Connected == true && _data.Repository is not null && string.IsNullOrWhiteSpace(_data.Warning);
+    private string RepositoryName => _data?.Repository?.Repository.FullName ?? ShortRepository(_data?.RepositoryUrl ?? string.Empty);
+    private static string Initial(string value) => string.IsNullOrWhiteSpace(value) ? "R" : value[0].ToString().ToUpperInvariant();
+    private static string ShortRepository(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri.AbsolutePath.Trim('/') : value;
+    private static string ShortSha(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : (value.Length <= 8 ? value : value[..8]);
+    private static string FormatDate(DateTimeOffset? value) => value is null ? "Not available" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    private static string FormatBytes(long bytes) => bytes >= 1024L * 1024L ? $"{bytes / 1024d / 1024d:0.0} MB" : bytes >= 1024 ? $"{bytes / 1024d:0.0} KB" : $"{bytes} B";
+
+    public void Dispose() => Realtime.ProjectEvent -= OnRealtimeEvent;
+}

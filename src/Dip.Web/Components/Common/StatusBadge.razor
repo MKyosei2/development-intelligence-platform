@@ -1,0 +1,13 @@
+<span class="badge @CssClass">@Value</span>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+
+    private string CssClass => (Value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "healthy" or "success" or "completed" or "passed" or "pass" => "text-bg-success",
+        "attention" or "warning" or "queued" or "in_progress" or "in progress" or "neutral" => "text-bg-warning",
+        "atrisk" or "at risk" or "blocked" or "failure" or "failed" or "critical" or "cancelled" => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+}

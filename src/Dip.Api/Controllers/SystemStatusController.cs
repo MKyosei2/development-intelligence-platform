@@ -78,9 +78,21 @@ public sealed class SystemStatusController(
                 : "Sandbox boundary is disabled; QA execution is not isolated.",
             checkedAt));
 
-        var githubConfigured =
-            !string.IsNullOrWhiteSpace(configuration["Authentication:GitHub:ClientId"])
-            || !string.IsNullOrWhiteSpace(configuration["GitHub:Token"]);
+        var githubAppConfigured =
+            configuration.GetValue<long>("GitHub:AppId") > 0
+            && configuration.GetValue<long>("GitHub:InstallationId") > 0
+            && (!string.IsNullOrWhiteSpace(configuration["GitHub:AppPrivateKeyBase64"])
+                || !string.IsNullOrWhiteSpace(configuration["GitHub:AppPrivateKeyPath"]));
+        var githubTokenConfigured = !string.IsNullOrWhiteSpace(configuration["GitHub:Token"]);
+        var githubOAuthConfigured = !string.IsNullOrWhiteSpace(configuration["Authentication:GitHub:ClientId"]);
+        var githubConfigured = githubAppConfigured || githubTokenConfigured || githubOAuthConfigured;
+        var githubMode = githubAppConfigured
+            ? "GitHub App repository connection"
+            : githubTokenConfigured
+                ? "GitHub token repository connection"
+                : githubOAuthConfigured
+                    ? "GitHub OAuth sign-in"
+                    : "none";
         components.Add(new SystemComponentStatusDto(
             "github",
             "GitHub",
@@ -88,8 +100,8 @@ public sealed class SystemStatusController(
                 ? SystemComponentStates.Healthy
                 : SystemComponentStates.NotConfigured,
             githubConfigured
-                ? "GitHub credentials are configured."
-                : "GitHub OAuth/token is not configured. Local development can still run.",
+                ? $"Configured mode: {githubMode}. Use the Repository Picker for a live connectivity check."
+                : "GitHub is not configured. Local development and manual projects can still run.",
             checkedAt));
 
         var core = components.Where(x => x.Key is

@@ -1,0 +1,42 @@
+P2 STATIC / PACKAGING VALIDATION
+Base commit: 29d9b15dd02ad65f173f40230f995c9a7fcf3185
+
+[PASS] Required P2 files — 21 present
+[PASS] C# delimiter/UTF-8 scan — 126 files
+[PASS] Razor UTF-8 scan — 3 files
+[PASS] JSON parse — 13 discovered
+[PASS] csproj XML parse — 4 files
+[PASS] P2IntelligenceKind references — 28 referenced member(s), all resolved
+[PASS] P2IntelligenceStatus references — 5 referenced member(s), all resolved
+[PASS] EvidenceSourceType references — 14 referenced member(s), all resolved
+[PASS] HardwareProfileSource references — 3 referenced member(s), all resolved
+[PASS] DbContext P2 DbSets — all present
+[PASS] No-migration P2 schema bootstrap — 4 P2 tables present
+[PASS] P2 DI registration — 12 key registrations
+[PASS] P2 API endpoints — 27 endpoints
+[PASS] Community opt-in — markers present
+[PASS] Simulation not real device — markers present
+[PASS] AI grounding — markers present
+[PASS] InfrastructureFailure separation — markers present
+[PASS] Isolated git worktree — markers present
+[PASS] Decision trace — markers present
+[PASS] P2 no unimplemented stubs — 31 P2-related files scanned
+[PASS] P2 Python fixture compile — 2 file(s)
+[PASS] Packaging junk absent — no bin/obj/.dipqa/node_modules/__pycache__/.pyc
+[INFO] Tool dotnet — not available
+[INFO] Tool pwsh — not available
+[INFO] Tool powershell — not available
+[INFO] Tool cmake — /usr/bin/cmake
+[INFO] Tool ffmpeg — /usr/bin/ffmpeg
+[INFO] Tool ffprobe — /usr/bin/ffprobe
+[INFO] Tool git — /usr/bin/git
+
+Static checks: 22 PASS / 0 FAIL
+Executable smoke already performed in this environment:
+[PASS] Python soak fixture emitted DIP_METRIC fps/frame_time telemetry.
+[PASS] Python fuzz fixture passed normal input and failed the seeded magic input.
+[PASS] ffmpeg/ffprobe generated and parsed P2 image/audio media fixtures.
+[PASS] CMake configure succeeded for capture-agent, crash-watchdog, hardware-probe, hardware-stress-agent; non-Windows targets skipped safely.
+[SKIP] dotnet build/test: .NET SDK is not available in this environment.
+[SKIP] scripts/Verify-P2.ps1: PowerShell is not available in this environment.
+Result: PASS static/packaging validation; full P2 verification remains pending .NET/Windows verification.

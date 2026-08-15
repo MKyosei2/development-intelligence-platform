@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Dip.Api.Authorization;
 using Dip.Api.Controllers;
+using Dip.Api.Hubs;
 using Dip.Api.Middleware;
 using Dip.Application;
 using Dip.Infrastructure;
@@ -41,6 +42,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ProjectRealtimePublisher>();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<ApiMetricsRegistry>();
 builder.Services.AddHttpClient<GitHubOAuthClient>();
@@ -98,6 +101,19 @@ builder.Services
             NameClaimType = "name",
             RoleClaimType = "role",
             ClockSkew = TimeSpan.FromSeconds(30)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Query["access_token"].FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(token)
+                    && context.HttpContext.Request.Path.StartsWithSegments("/hubs/projects"))
+                {
+                    context.Token = token;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -216,6 +232,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+app.MapHub<ProjectEventsHub>("/hubs/projects");
 app.MapHealthChecks("/health");
 
 app.Run();

@@ -1,0 +1,261 @@
+@page "/projects/import/github"
+@inject ApiClient Api
+@inject ProjectState Projects
+@inject NavigationManager Navigation
+
+<PageTitle>Import from GitHub | DIP</PageTitle>
+
+<section class="page-heading" data-testid="github-import-page">
+    <div>
+        <div class="eyebrow">Project onboarding</div>
+        <h1>Import GitHub repository</h1>
+        <p>Select a repository that the configured GitHub App installation can access. Repository metadata and the default branch are filled automatically.</p>
+    </div>
+    <div class="heading-actions">
+        <a class="btn btn-outline-secondary" href="/projects/new">Manual setup</a>
+    </div>
+</section>
+
+@if (_loading)
+{
+    <LoadingState Message="Loading GitHub repositories…" Detail="Checking the server-side GitHub App installation." />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error" Retry="LoadAsync" />
+}
+else if (_connection is not null && !_connection.Connected)
+{
+    <div class="integration-banner warning" data-testid="github-disconnected">
+        <div>
+            <div class="eyebrow">GitHub repository connection</div>
+            <h2>Connect a GitHub App installation</h2>
+            <p>@_connection.Message</p>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_connection.InstallUrl))
+        {
+            <a class="btn btn-primary" href="@_connection.InstallUrl" target="_blank" rel="noopener noreferrer">Install / manage GitHub App</a>
+        }
+    </div>
+    <div class="card mt-3">
+        <div class="card-body">
+            <strong>Required server configuration</strong>
+            <p class="small text-muted mt-2">Set the GitHub App ID, installation ID, slug and private key in <code>.env</code>, then restart the API. The private key never enters the browser.</p>
+            <a href="/settings" class="btn btn-outline-secondary btn-sm">Open settings</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="integration-banner healthy mb-3" data-testid="github-connected">
+        <div>
+            <div class="eyebrow">GitHub connected</div>
+            <strong>@(_connection?.Account ?? "GitHub App installation")</strong>
+            <p class="mb-0">Mode: @_connection?.Mode · @_repositories.Count repositories loaded</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="LoadAsync">Refresh</button>
+    </div>
+
+    <div class="repo-picker-toolbar card mb-3">
+        <div class="card-body">
+            <div class="repo-search-row">
+                <div class="form-group mb-0">
+                    <label class="form-label" for="repo-search">Search repositories</label>
+                    <InputText id="repo-search" class="form-control" @bind-Value="_search" placeholder="Name, owner, language…" />
+                </div>
+                <div class="form-group mb-0">
+                    <label class="form-label" for="repo-visibility">Visibility</label>
+                    <select id="repo-visibility" class="form-select" @bind="_visibility">
+                        <option value="all">All</option>
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary repo-search-button" type="button" @onclick="ApplyFiltersAsync" disabled="@_filtering">
+                    @(_filtering ? "Searching…" : "Search")
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (_repositories.Count == 0)
+    {
+        <EmptyState Icon="⌕" Title="No repositories found" Description="Change the search/filter or grant the GitHub App access to another repository." />
+    }
+    else
+    {
+        <div class="repo-picker-layout">
+            <div>
+                <div class="section-heading">
+                    <div><h2>Repositories</h2><p>Select exactly one repository to register as a DIP project.</p></div>
+                    <span class="badge text-bg-secondary">@_repositories.Count</span>
+                </div>
+                <div class="repo-grid" data-testid="repository-grid">
+                    @foreach (var repository in _repositories)
+                    {
+                        <RepositoryCard Repository="repository"
+                                        Selected="@(_selected?.Id == repository.Id)"
+                                        Disabled="@_importing"
+                                        SelectedChanged="SelectRepository" />
+                    }
+                </div>
+            </div>
+
+            <aside class="import-panel card">
+                <div class="card-header"><strong>Import project</strong></div>
+                <div class="card-body">
+                    @if (_selected is null)
+                    {
+                        <div class="import-placeholder">
+                            <div class="empty-icon">↙</div>
+                            <strong>Select a repository</strong>
+                            <p>The repository URL and branch will be copied from GitHub.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        @if (_importError is not null)
+                        {
+                            <div class="alert alert-danger">@_importError</div>
+                        }
+                        <div class="selected-repository">
+                            <strong>@_selected.FullName</strong>
+                            <small>@_selected.HtmlUrl</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="import-name">Project name</label>
+                            <InputText id="import-name" class="form-control" @bind-Value="_projectName" />
+                        </div>
+                        <div class="form-row compact-row">
+                            <div class="form-group">
+                                <label class="form-label">Default branch</label>
+                                <input class="form-control" value="@_selected.DefaultBranch" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="import-release">Target release</label>
+                                <InputDate id="import-release" class="form-control" @bind-Value="_releaseDate" />
+                            </div>
+                        </div>
+                        <label class="check-row">
+                            <InputCheckbox @bind-Value="_syncWorkspace" />
+                            <span><strong>Synchronize workspace now</strong><small>Downloads the selected branch into the protected QA workspace so QA can run from the GUI.</small></span>
+                        </label>
+                        <button class="btn btn-primary w-100" data-testid="import-repository-submit" type="button" @onclick="ImportAsync" disabled="@_importing">
+                            @(_importing ? "Importing…" : "Import repository")
+                        </button>
+                    }
+                </div>
+            </aside>
+        </div>
+    }
+}
+
+@code {
+    private GitHubConnectionStatusDto? _connection;
+    private IReadOnlyList<GitHubRepositorySummaryDto> _repositories = Array.Empty<GitHubRepositorySummaryDto>();
+    private GitHubRepositorySummaryDto? _selected;
+    private string _search = string.Empty;
+    private string _visibility = "all";
+    private string _projectName = string.Empty;
+    private DateTime? _releaseDate;
+    private bool _syncWorkspace = true;
+    private bool _loading = true;
+    private bool _filtering;
+    private bool _importing;
+    private string? _error;
+    private string? _importError;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _connection = await Api.GetGitHubConnectionStatusAsync();
+            if (_connection.Connected)
+                _repositories = await Api.GetGitHubRepositoriesAsync(_search, _visibility);
+            else
+                _repositories = Array.Empty<GitHubRepositorySummaryDto>();
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _filtering = true;
+        _error = null;
+        try
+        {
+            _repositories = await Api.GetGitHubRepositoriesAsync(_search, _visibility);
+            if (_selected is not null && !_repositories.Any(item => item.Id == _selected.Id))
+                _selected = null;
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _filtering = false;
+        }
+    }
+
+    private async Task SelectRepository(GitHubRepositorySummaryDto repository)
+    {
+        if (repository.DipProjectId is { } projectId)
+        {
+            await Projects.RefreshAsync();
+            Projects.Select(projectId);
+            Navigation.NavigateTo($"/dashboard/{projectId}");
+            return;
+        }
+
+        _selected = repository;
+        _projectName = repository.Name;
+        _importError = null;
+    }
+
+    private async Task ImportAsync()
+    {
+        if (_selected is null || string.IsNullOrWhiteSpace(_projectName))
+            return;
+        _importing = true;
+        _importError = null;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        try
+        {
+            DateTimeOffset? release = _releaseDate is { } date
+                ? new DateTimeOffset(DateTime.SpecifyKind(date.Date, DateTimeKind.Utc))
+                : null;
+            var imported = await Api.ImportGitHubProjectAsync(new ImportGitHubProjectRequest(
+                _selected.FullName,
+                _projectName.Trim(),
+                release,
+                _syncWorkspace));
+            await Projects.RefreshAsync();
+            Projects.Select(imported.ProjectId);
+            var suffix = string.IsNullOrWhiteSpace(imported.Warning)
+                ? string.Empty
+                : "?importWarning=" + Uri.EscapeDataString(imported.Warning);
+            Navigation.NavigateTo($"/dashboard/{imported.ProjectId}{suffix}");
+        }
+        catch (Exception exception)
+        {
+            _importError = exception.Message;
+        }
+        finally
+        {
+            _importing = false;
+        }
+    }
+}

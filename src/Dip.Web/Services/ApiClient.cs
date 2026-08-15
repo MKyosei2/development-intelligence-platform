@@ -15,6 +15,7 @@ using Dip.Application.Features.QualityGovernance;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Projects;
 using Dip.Application.Features.SystemStatus;
+using Dip.Application.Features.GitHubIntegration;
 using Dip.Domain.Enums;
 
 namespace Dip.Web.Services;
@@ -188,6 +189,82 @@ public sealed class ApiClient
     public async Task<IReadOnlyList<QaBackupVerificationDto>> GetQaBackupVerificationsAsync(Guid projectId,CancellationToken ct=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<QaBackupVerificationDto>>($"api/v1/qa-governance/projects/{projectId}/backup-verifications?take=100",ct)??Array.Empty<QaBackupVerificationDto>();
     public async Task<IReadOnlyList<ProjectMembershipDto>> GetProjectMembershipsAsync(Guid projectId,CancellationToken ct=default)=>await _httpClient.GetFromJsonAsync<IReadOnlyList<ProjectMembershipDto>>($"api/v1/projects/{projectId}/memberships",ct)??Array.Empty<ProjectMembershipDto>();
     public async Task UpsertProjectMembershipAsync(Guid projectId,string subjectId,string login,ProjectMembershipRole role,string reason,CancellationToken ct=default){using var r=await _httpClient.PutAsJsonAsync($"api/v1/projects/{projectId}/memberships/{Uri.EscapeDataString(subjectId)}",new{subjectId,login,role,reason},ct);r.EnsureSuccessStatusCode();}
+
+    public async Task<GitHubConnectionStatusDto> GetGitHubConnectionStatusAsync(
+        CancellationToken cancellationToken = default)
+        => await _httpClient.GetFromJsonAsync<GitHubConnectionStatusDto>(
+               "api/v1/integrations/github/status",
+               cancellationToken)
+           ?? throw new InvalidDataException("GitHub connection API returned an empty response.");
+
+    public async Task<IReadOnlyList<GitHubRepositorySummaryDto>> GetGitHubRepositoriesAsync(
+        string? search = null,
+        string? visibility = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(search))
+            query.Add("search=" + Uri.EscapeDataString(search));
+        if (!string.IsNullOrWhiteSpace(visibility))
+            query.Add("visibility=" + Uri.EscapeDataString(visibility));
+        var suffix = query.Count == 0 ? string.Empty : "?" + string.Join("&", query);
+        return await _httpClient.GetFromJsonAsync<IReadOnlyList<GitHubRepositorySummaryDto>>(
+                   "api/v1/integrations/github/repositories" + suffix,
+                   cancellationToken)
+               ?? Array.Empty<GitHubRepositorySummaryDto>();
+    }
+
+    public async Task<ImportGitHubProjectResult> ImportGitHubProjectAsync(
+        ImportGitHubProjectRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            "api/v1/integrations/github/import",
+            request,
+            cancellationToken);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+            throw new InvalidOperationException("This repository is already registered as a DIP project.");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ImportGitHubProjectResult>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidDataException("GitHub import API returned an empty response.");
+    }
+
+    public async Task<GitHubProjectRepositoryDto> GetProjectRepositoryAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+        => await _httpClient.GetFromJsonAsync<GitHubProjectRepositoryDto>(
+               $"api/v1/integrations/github/projects/{projectId}/repository",
+               cancellationToken)
+           ?? throw new InvalidDataException("Project repository API returned an empty response.");
+
+    public async Task<GitHubWorkspaceSyncDto> SyncProjectRepositoryAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsync(
+            $"api/v1/integrations/github/projects/{projectId}/sync",
+            content: null,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<GitHubWorkspaceSyncDto>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidDataException("Repository sync API returned an empty response.");
+    }
+
+    public async Task<QaRunResultDto> RunQaAsync(
+        QaExecutionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            "api/v1/qa/runs",
+            command,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<QaRunResultDto>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidDataException("QA run API returned an empty response.");
+    }
     private async Task PostNoContentAsync(string uri,object payload,CancellationToken ct){using var r=await _httpClient.PostAsJsonAsync(uri,payload,ct);r.EnsureSuccessStatusCode();}
 
 }
