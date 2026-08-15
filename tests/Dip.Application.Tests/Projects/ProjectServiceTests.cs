@@ -12,10 +12,12 @@ public sealed class ProjectServiceTests
     public async Task CreateAsync_PersistsProject()
     {
         var repository = new InMemoryProjectRepository();
+        var memberships = new InMemoryProjectMembershipRepository();
+        var audit = new InMemoryAuditLogRepository();
         var unitOfWork = new StubUnitOfWork();
         var clock = new FixedClock(
             new DateTimeOffset(2026, 7, 16, 0, 0, 0, TimeSpan.Zero));
-        var service = new ProjectService(repository, unitOfWork, clock);
+        var service = new ProjectService(repository, memberships, audit, unitOfWork, clock);
 
         var result = await service.CreateAsync(
             new CreateProjectCommand(
@@ -23,10 +25,15 @@ public sealed class ProjectServiceTests
                 "https://github.com/example/aurora",
                 "develop",
                 null),
-            CancellationToken.None);
+            ownerSubject: "subject-1",
+            ownerLogin: "owner",
+            actor: "test",
+            ct: CancellationToken.None);
 
         result.Name.Should().Be("Aurora");
         repository.Items.Should().ContainSingle();
+        memberships.Items.Should().ContainSingle(x => x.ProjectId == result.Id);
+        audit.Items.Should().ContainSingle(x => x.ProjectId == result.Id);
         unitOfWork.SaveCount.Should().Be(1);
     }
 
@@ -45,6 +52,43 @@ public sealed class ProjectServiceTests
             Items.Add(project);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class InMemoryProjectMembershipRepository : IProjectMembershipRepository
+    {
+        public List<ProjectMembership> Items { get; } = [];
+
+        public Task<ProjectMembership?> FindAsync(Guid projectId, string subjectId, CancellationToken ct) =>
+            Task.FromResult(Items.SingleOrDefault(x => x.ProjectId == projectId && x.SubjectId == subjectId));
+
+        public Task<IReadOnlyList<ProjectMembership>> ListByProjectAsync(Guid projectId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<ProjectMembership>>(Items.Where(x => x.ProjectId == projectId).ToArray());
+
+        public Task<IReadOnlyList<ProjectMembership>> ListBySubjectAsync(string subjectId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<ProjectMembership>>(Items.Where(x => x.SubjectId == subjectId).ToArray());
+
+        public Task AddAsync(ProjectMembership membership, CancellationToken ct)
+        {
+            Items.Add(membership);
+            return Task.CompletedTask;
+        }
+
+        public void Remove(ProjectMembership membership) => Items.Remove(membership);
+    }
+
+    private sealed class InMemoryAuditLogRepository : IAuditLogRepository
+    {
+        public List<AuditLog> Items { get; } = [];
+
+        public Task AddAsync(AuditLog entry, CancellationToken ct)
+        {
+            Items.Add(entry);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<AuditLog>> ListByProjectAsync(Guid projectId, int take, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<AuditLog>>(
+                Items.Where(x => x.ProjectId == projectId).Take(take).ToArray());
     }
 
     private sealed class StubUnitOfWork : IUnitOfWork

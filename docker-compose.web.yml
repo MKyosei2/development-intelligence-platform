@@ -1,0 +1,191 @@
+name: development-intelligence-platform-web
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dip}
+      POSTGRES_USER: ${POSTGRES_USER:-dip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
+    volumes:
+      - dip-web-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dip} -d ${POSTGRES_DB:-dip}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - dip-web-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  python-analysis:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/analysis.Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${ANALYSIS_LOG_LEVEL:-INFO}
+      API_KEY: ${DIP_ANALYSIS_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [backend]
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
+      Redis__ConnectionString: redis:6379
+      Redis__InstanceName: "dip:"
+      AnalysisService__BaseUrl: http://python-analysis:8100
+      AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
+      GitHub__WebhookSecret: ${DIP_GITHUB_WEBHOOK_SECRET:?Set DIP_GITHUB_WEBHOOK_SECRET in deploy/web.env}
+      GitHub__Token: ${DIP_GITHUB_TOKEN:-}
+      GitHub__AppId: ${DIP_GITHUB_APP_ID:-0}
+      GitHub__InstallationId: ${DIP_GITHUB_APP_INSTALLATION_ID:-0}
+      GitHub__AppSlug: ${DIP_GITHUB_APP_SLUG:-}
+      GitHub__AppPrivateKeyBase64: ${DIP_GITHUB_APP_PRIVATE_KEY_BASE64:-}
+      Qa__WorkspaceRoot: /data/dip-workspaces
+      Qa__SandboxEnabled: "true"
+      Artifacts__Provider: Local
+      Artifacts__LocalRoot: /data/dip-artifacts
+      Authentication__RequireAuthenticatedUser: "true"
+      Authentication__GitHub__ClientId: ${DIP_GITHUB_OAUTH_CLIENT_ID:?Set DIP_GITHUB_OAUTH_CLIENT_ID in deploy/web.env}
+      Authentication__GitHub__ClientSecret: ${DIP_GITHUB_OAUTH_CLIENT_SECRET:?Set DIP_GITHUB_OAUTH_CLIENT_SECRET in deploy/web.env}
+      Authentication__GitHub__AdminLogins__0: ${DIP_GITHUB_ADMIN_LOGIN:?Set DIP_GITHUB_ADMIN_LOGIN in deploy/web.env}
+      Authentication__WebCallbackUrl: https://${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}/auth/callback
+      Authentication__Jwt__Issuer: development-intelligence-platform
+      Authentication__Jwt__Audience: development-intelligence-platform
+      Authentication__Jwt__SigningKey: ${DIP_JWT_SIGNING_KEY:?Set a 64+ character DIP_JWT_SIGNING_KEY in deploy/web.env}
+      Authentication__Jwt__LifetimeMinutes: ${DIP_JWT_LIFETIME_MINUTES:-60}
+      SystemStatus__WorkerMetricsUrl: http://worker:9091/metrics
+      OpenTelemetry__OtlpEndpoint: ${DIP_OTLP_ENDPOINT:-http://127.0.0.1:4317}
+    volumes:
+      - dip-web-artifacts:/data/dip-artifacts
+      - dip-web-workspaces:/data/dip-workspaces
+      - dip-api-dataprotection:/root/.aspnet/DataProtection-Keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      python-analysis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks: [backend]
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/worker.Dockerfile
+    restart: unless-stopped
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
+      Redis__ConnectionString: redis:6379
+      Redis__InstanceName: "dip:"
+      AnalysisService__BaseUrl: http://python-analysis:8100
+      AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
+      GitHub__Token: ${DIP_GITHUB_TOKEN:-}
+      GitHub__AppId: ${DIP_GITHUB_APP_ID:-0}
+      GitHub__InstallationId: ${DIP_GITHUB_APP_INSTALLATION_ID:-0}
+      GitHub__AppSlug: ${DIP_GITHUB_APP_SLUG:-}
+      GitHub__AppPrivateKeyBase64: ${DIP_GITHUB_APP_PRIVATE_KEY_BASE64:-}
+      Qa__WorkspaceRoot: /data/dip-workspaces
+      Qa__SandboxEnabled: "true"
+      Artifacts__Provider: Local
+      Artifacts__LocalRoot: /data/dip-artifacts
+      OperationalMetrics__Port: 9091
+      AutomaticTriage__IntervalSeconds: ${DIP_AUTOMATIC_TRIAGE_INTERVAL_SECONDS:-30}
+      GameReplay__WorkspaceRoot: /app
+      GameReplay__AllowPathLookup: ${DIP_REPLAY_ALLOW_PATH_LOOKUP:-false}
+      ReleaseProvenance__AllowedRoot: /app
+      OpenTelemetry__OtlpEndpoint: ${DIP_OTLP_ENDPOINT:-http://127.0.0.1:4317}
+    volumes:
+      - dip-web-artifacts:/data/dip-artifacts
+      - dip-web-workspaces:/data/dip-workspaces
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [backend]
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      Api__BaseUrl: http://api:8080/
+      Api__PublicBaseUrl: https://${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}/
+      Ui__PublicWebUrl: https://${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}
+      Ui__PublicApiUrl: https://${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}
+      Authentication__RequireAuthenticatedUser: "true"
+    volumes:
+      - dip-web-dataprotection:/root/.aspnet/DataProtection-Keys
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [backend]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DIP_PUBLIC_HOST: ${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - dip-caddy-data:/data
+      - dip-caddy-config:/config
+    depends_on:
+      - web
+      - api
+    networks: [backend]
+
+volumes:
+  dip-web-postgres:
+  dip-web-redis:
+  dip-web-artifacts:
+  dip-web-workspaces:
+  dip-api-dataprotection:
+  dip-web-dataprotection:
+  dip-caddy-data:
+  dip-caddy-config:
+
+networks:
+  backend:
+    driver: bridge

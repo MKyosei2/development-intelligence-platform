@@ -158,7 +158,12 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
         ForwardedHeaders.XForwardedFor
-        | ForwardedHeaders.XForwardedProto;
+        | ForwardedHeaders.XForwardedProto
+        | ForwardedHeaders.XForwardedHost;
+    // docker-compose.web.yml does not expose the API container directly.
+    // Caddy is the only public ingress, so accept its forwarded headers on the private network.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 builder.Services.AddRateLimiter(options =>
