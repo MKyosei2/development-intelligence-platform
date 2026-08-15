@@ -1,6 +1,0 @@
-MKyosei2/development-intelligence-platform
-branch: main
-observed base revision for development intelligence expansion package: 3e43dcce11dc5bf67a7918acd2d55d912e41c97a
-commit message: Upgrade8
-observed commit time: 2026-08-11T21:56:03Z
-note: this package builds on Upgrade8 and integrates the remaining concrete development-intelligence features (dashboard, deterministic replay, platform budgets, Unreal collection, hardware backtesting, change risk, regression triage, release readiness, GitHub work items, release provenance/SBOM, OpenTelemetry observability, and multi-repository dependency impact) while keeping universal/unknown-language QA abstraction deferred to the final architectural phase.

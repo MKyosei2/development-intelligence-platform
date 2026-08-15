@@ -1,6 +1,0 @@
-Repository: MKyosei2/development-intelligence-platform
-Branch: main
-Observed GitHub revision before this GUI Phase 1 implementation: 89f91fbc37d49c2416c892663a2205607b29ac00
-Observed commit message: GUI化初期修正
-Packaging baseline: development-intelligence-platform_gui-runtime-full_20260815.zip
-Note: this package integrates S1-S11 into the full existing source tree; it is not a patch-only overlay.
