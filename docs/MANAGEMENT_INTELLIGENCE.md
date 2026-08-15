@@ -115,7 +115,6 @@ Management views and spreadsheet sync:
 - `GET /api/v1/project-control/projects/{projectId}/scope`
 - `GET /api/v1/project-control/projects/{projectId}/management.xlsx`
 - `POST /api/v1/project-control/projects/{projectId}/management.xlsx/import`
-- `POST /api/v1/project-control/google-sheets/sync`
 
 ## Project-health policy
 

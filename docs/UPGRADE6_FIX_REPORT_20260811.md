@@ -27,7 +27,6 @@ service startup and live E2E did not run on that revision.
   including the legacy intelligence API/page/services needed by the current source tree.
 - Added missing legacy intelligence DI registrations so the restored controller
   cannot compile successfully and then fail immediately on service activation.
-- Made `OpenAiCompatibleRootCauseClient` dispose its owned `HttpClient`.
 - Added checked Windows job-object memory-size conversion.
 - Removed the no-await async portability method warning by returning `Task.FromResult`.
 - Made QA fingerprint line formatting and `HealthScore` formatting culture-invariant.

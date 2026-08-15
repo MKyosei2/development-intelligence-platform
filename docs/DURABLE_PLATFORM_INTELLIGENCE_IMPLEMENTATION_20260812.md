@@ -25,7 +25,6 @@ Domain/persistence:
 
 Storage implementations:
 - `LocalArtifactStore` for development/test.
-- `MinioArtifactStore` using S3 Signature V4 for MinIO/S3-compatible storage.
 - Content-addressed keys: `sha256/<prefix>/<digest>`.
 - Local storage performs root-bound path validation.
 - API and Worker share `dip-artifact-data` when Local storage is used under Docker.
