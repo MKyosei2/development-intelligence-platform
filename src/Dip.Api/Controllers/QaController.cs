@@ -1,5 +1,6 @@
 using Dip.Api.Authorization;
 using Dip.Api.Hubs;
+using Dip.Application.Features.Authorization;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
