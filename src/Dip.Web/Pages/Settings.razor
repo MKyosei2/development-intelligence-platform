@@ -5,7 +5,7 @@
 <PageTitle>Settings | DIP</PageTitle>
 
 <section class="page-heading">
-    <div><div class="eyebrow">Platform</div><h1>Settings</h1><p>Runtime configuration and integration status visible to the GUI. Secrets are never rendered here.</p></div>
+    <div><div class="eyebrow">Platform</div><h1>Settings</h1><p>Hosted Web configuration and integration status. Secrets are never rendered here.</p></div>
 </section>
 
 <div class="settings-grid">
@@ -51,26 +51,24 @@
                 <span><strong>Pull requests</strong><small>Read</small></span>
                 <span><strong>Issues</strong><small>Read (Write only if work-item creation is enabled)</small></span>
             </div>
-            <p class="small text-muted mt-3">Configure <code>DIP_GITHUB_APP_ID</code>, <code>DIP_GITHUB_APP_INSTALLATION_ID</code>, <code>DIP_GITHUB_APP_SLUG</code> and <code>DIP_GITHUB_APP_PRIVATE_KEY_BASE64</code> in the local <code>.env</code>. The private key remains API-side.</p>
+            <p class="small text-muted mt-3">GitHub App credentials are configured only on the hosted DIP server. The private key is never required on a user's PC and is never rendered in the browser.</p>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><strong>Runtime</strong></div>
+        <div class="card-header"><strong>Web runtime</strong></div>
         <div class="card-body settings-list">
-            <div><span>Internal API</span><code>@(Configuration["Api:BaseUrl"] ?? "not configured")</code></div>
-            <div><span>Browser API</span><code>@(Configuration["Api:PublicBaseUrl"] ?? "not configured")</code></div>
-            <div><span>Authentication</span><strong>@(RequireAuthentication ? "GitHub OAuth required" : "Local development mode")</strong></div>
+            <div><span>Public site</span><code>@(Configuration["Ui:PublicWebUrl"] ?? "current hosted URL")</code></div>
+            <div><span>Public API gateway</span><code>@(Configuration["Api:PublicBaseUrl"] ?? "same-origin")</code></div>
+            <div><span>Authentication</span><strong>@(RequireAuthentication ? "GitHub OAuth required" : "Development mode")</strong></div>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><strong>Startup & verification</strong></div>
+        <div class="card-header"><strong>Browser-only access</strong></div>
         <div class="card-body">
-            <code class="command-block">Start-DIP.cmd</code>
-            <p class="small text-muted mt-2">Run formal GUI verification after startup changes.</p>
-            <code class="command-block">.\scripts\Verify-GuiRuntime.ps1</code>
-            <code class="command-block mt-2">.\scripts\Verify-GuiPhase1.ps1</code>
+            <p>DIP is used from this website. End users do not install or launch a Windows application, PowerShell script, Docker Desktop, .NET runtime, or Python environment.</p>
+            <p class="small text-muted mb-0">Deployment and service operations are performed on the hosted server by an administrator.</p>
         </div>
     </div>
 </div>
