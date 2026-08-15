@@ -48,7 +48,7 @@ public sealed class QaGovernanceController(QaGovernanceQueryService query,QaGove
     [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/ownership-rules")]
     public Task<IReadOnlyList<QaOwnershipRuleDto>> OwnershipRules(Guid projectId,CancellationToken ct)=>query.ListOwnershipAsync(projectId,ct);
     [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/policies")]
-    public Task<IReadOnlyList<QaPolicyDto>> Policies(Guid projectId,CancellationToken ct)=>query.ListPoliciesAsync(projectId,ct);
+    public Task<IReadOnlyList<QaPolicyDto>> ListPolicies(Guid projectId,CancellationToken ct)=>query.ListPoliciesAsync(projectId,ct);
     [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/active-policy")]
     public Task<QaPolicyDto?> ActivePolicy(Guid projectId,CancellationToken ct)=>query.GetActivePolicyAsync(projectId,ct);
     [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/test-impact-rules")]
