@@ -28,7 +28,7 @@ public sealed class ProjectServiceTests
             ownerSubject: "subject-1",
             ownerLogin: "owner",
             actor: "test",
-            CancellationToken.None);
+            ct: CancellationToken.None);
 
         result.Name.Should().Be("Aurora");
         repository.Items.Should().ContainSingle();
