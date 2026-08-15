@@ -8,7 +8,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /out .
 RUN useradd --create-home --uid 10001 dipuser \
-    && chown -R dipuser:dipuser /app
+    && mkdir -p /home/dipuser/.aspnet/DataProtection-Keys \
+    && chown -R dipuser:dipuser /home/dipuser /app
+ENV HOME=/home/dipuser
 USER dipuser
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080

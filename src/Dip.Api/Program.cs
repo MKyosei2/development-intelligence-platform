@@ -48,18 +48,34 @@ builder.Services.AddDataProtection();
 builder.Services.AddSingleton<ApiMetricsRegistry>();
 builder.Services.AddHttpClient<GitHubOAuthClient>();
 builder.Services.AddHttpClient("system-status", client => client.Timeout = TimeSpan.FromSeconds(5));
-var otlpEndpoint=builder.Configuration["OpenTelemetry:OtlpEndpoint"]??"http://localhost:4317";
+
+var otlpEndpoint =
+    builder.Configuration["OpenTelemetry:OtlpEndpoint"]
+    ?? "http://localhost:4317";
+
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(r=>r.AddService("dip-api"))
-    .WithTracing(t=>t.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation().AddSource("DIP.DevelopmentIntelligence").AddOtlpExporter(o=>o.Endpoint=new Uri(otlpEndpoint)))
-    .WithMetrics(m=>m.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation().AddRuntimeInstrumentation().AddMeter("DIP.DevelopmentIntelligence").AddOtlpExporter(o=>o.Endpoint=new Uri(otlpEndpoint)));
+    .ConfigureResource(r => r.AddService("dip-api"))
+    .WithTracing(t => t
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddSource("DIP.DevelopmentIntelligence")
+        .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint)))
+    .WithMetrics(m => m
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddMeter("DIP.DevelopmentIntelligence")
+        .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint)));
 
 var authenticationSection =
     builder.Configuration.GetSection(AuthOptions.SectionName);
 var authenticationOptions =
     authenticationSection.Get<AuthOptions>() ?? new AuthOptions();
 
-ProductionSecurityGuard.Validate(builder.Environment,builder.Configuration,authenticationOptions);
+ProductionSecurityGuard.Validate(
+    builder.Environment,
+    builder.Configuration,
+    authenticationOptions);
 
 var signingKeyText = authenticationOptions.Jwt.SigningKey;
 if (string.IsNullOrWhiteSpace(signingKeyText))
@@ -108,10 +124,12 @@ builder.Services
             {
                 var token = context.Request.Query["access_token"].FirstOrDefault();
                 if (!string.IsNullOrWhiteSpace(token)
-                    && context.HttpContext.Request.Path.StartsWithSegments("/hubs/projects"))
+                    && context.HttpContext.Request.Path
+                        .StartsWithSegments("/hubs/projects"))
                 {
                     context.Token = token;
                 }
+
                 return Task.CompletedTask;
             }
         };
@@ -160,8 +178,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedFor
         | ForwardedHeaders.XForwardedProto
         | ForwardedHeaders.XForwardedHost;
-    // docker-compose.web.yml does not expose the API container directly.
-    // Caddy is the only public ingress, so accept its forwarded headers on the private network.
+
+    // docker-compose.web.yml exposes only Caddy publicly.
+    // Accept forwarded headers from the private container network.
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -176,8 +195,7 @@ builder.Services.AddRateLimiter(options =>
         httpContext =>
             RateLimitPartition.GetFixedWindowLimiter(
                 partitionKey:
-                    httpContext.Connection.RemoteIpAddress
-                        ?.ToString()
+                    httpContext.Connection.RemoteIpAddress?.ToString()
                     ?? "unknown",
                 factory: _ =>
                     new FixedWindowRateLimiterOptions
@@ -228,10 +246,21 @@ app.Use(async (context, next) =>
     }
 });
 
-if (!app.Environment.IsDevelopment())
+// In the hosted browser-only deployment, TLS is terminated by Caddy.
+// Internal Web -> API traffic intentionally stays HTTP on the private Docker
+// network. Redirecting that traffic to HTTPS would target an API container
+// that does not expose TLS. Keep redirection configurable for other hosting
+// models and disable it in docker-compose.web.yml.
+var useHttpsRedirection =
+    builder.Configuration.GetValue(
+        "Hosting:UseHttpsRedirection",
+        !app.Environment.IsDevelopment());
+
+if (useHttpsRedirection)
 {
     app.UseHttpsRedirection();
 }
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();

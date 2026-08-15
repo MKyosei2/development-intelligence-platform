@@ -3,6 +3,14 @@ name: GUI E2E
 on:
   push:
     branches: [main, master]
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "src/**"
+      - "tests/Dip.UiE2E/**"
+      - "infrastructure/docker/**"
+      - "docker-compose*.yml"
+      - ".github/workflows/gui-e2e.yml"
   workflow_dispatch:
 
 jobs:
@@ -18,8 +26,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
+
       - name: Start DIP stack
         run: docker compose up -d --build postgres redis python-analysis api worker web
+
       - name: Wait for Web
         shell: bash
         run: |
@@ -30,16 +40,19 @@ jobs:
           docker compose ps
           docker compose logs api web
           exit 1
+
       - name: Install Playwright
         working-directory: tests/Dip.UiE2E
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
+
       - name: Run GUI E2E
         working-directory: tests/Dip.UiE2E
         env:
           DIP_WEB_BASE_URL: http://127.0.0.1:5081
         run: npx playwright test --grep-invert "@live-github"
+
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -49,9 +62,11 @@ jobs:
             tests/Dip.UiE2E/artifacts/playwright-report
             tests/Dip.UiE2E/artifacts/test-results
           if-no-files-found: ignore
+
       - name: Stack diagnostics
         if: failure()
         run: docker compose logs --no-color api worker web
+
       - name: Stop stack
         if: always()
         run: docker compose down --remove-orphans

@@ -56,6 +56,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
+      Hosting__UseHttpsRedirection: "false"
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
       Redis__ConnectionString: redis:6379
       Redis__InstanceName: "dip:"
@@ -85,7 +86,7 @@ services:
     volumes:
       - dip-web-artifacts:/data/dip-artifacts
       - dip-web-workspaces:/data/dip-workspaces
-      - dip-api-dataprotection:/root/.aspnet/DataProtection-Keys
+      - dip-api-dataprotection:/home/dipuser/.aspnet/DataProtection-Keys
     depends_on:
       postgres:
         condition: service_healthy
@@ -152,7 +153,7 @@ services:
       Ui__PublicApiUrl: https://${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}
       Authentication__RequireAuthenticatedUser: "true"
     volumes:
-      - dip-web-dataprotection:/root/.aspnet/DataProtection-Keys
+      - dip-web-dataprotection:/home/dipuser/.aspnet/DataProtection-Keys
     depends_on:
       api:
         condition: service_healthy

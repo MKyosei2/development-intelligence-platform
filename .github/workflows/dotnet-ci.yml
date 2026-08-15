@@ -11,13 +11,23 @@ on:
       - "Directory.Packages.props"
       - "global.json"
       - ".github/workflows/dotnet-ci.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "*.sln"
+      - "Directory.Build.*"
+      - "Directory.Packages.props"
+      - "global.json"
+      - ".github/workflows/dotnet-ci.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: dotnet-ci-${{ github.ref }}
+  group: dotnet-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

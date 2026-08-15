@@ -1,6 +1,8 @@
 name: Integration and E2E Tests
 
 on:
+  pull_request:
+    branches: [main, develop]
   push:
     branches: [main, develop]
   workflow_dispatch:
@@ -9,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ github.ref }}
+  group: integration-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
