@@ -4,12 +4,14 @@ on:
   push:
     branches: [main, develop]
     paths:
+      - ".portfolio-ci-trigger"
       - "services/python-analysis/**"
       - "collectors/maya-collector/**"
       - ".github/workflows/python-ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
+      - ".portfolio-ci-trigger"
       - "services/python-analysis/**"
       - "collectors/maya-collector/**"
       - ".github/workflows/python-ci.yml"

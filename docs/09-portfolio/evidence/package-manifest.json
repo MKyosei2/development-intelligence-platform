@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "1.0",
+  "package": "development-intelligence-platform-v1.0.0-portfolio",
+  "baseCommit": "bc3bd304fd9389f1ccd10a35d133924a3e7ceefb",
+  "baseSnapshot": "development-intelligence-platform_project-intelligence-splus-full_20260816.zip",
+  "newFiles": [
+    {
+      "path": ".github/workflows/commit-message.yml",
+      "sha256": "6a337de18ef1b2d4d81aca8c505591cca1918f12841dc3044ca1aaf3f462e356",
+      "bytes": 796
+    },
+    {
+      "path": ".github/workflows/publication-readiness.yml",
+      "sha256": "8744ef434906d3e8ab9afed4d36cbb2c2ea8884404018afa7b030bf8245fc755",
+      "bytes": 1297
+    },
+    {
+      "path": ".gitmessage",
+      "sha256": "2b988b0b96ed5de57481cf61ca84574694f679d9356ad8bbbdc7502ab69c3c8c",
+      "bytes": 170
+    },
+    {
+      "path": ".portfolio-ci-trigger",
+      "sha256": "cc0d36a98fcc51961ab0366662649999bfc59aea5575a668aaf7810dbed0beb2",
+      "bytes": 35
+    },
+    {
+      "path": "docs/09-portfolio/APPLY_PACKAGE.md",
+      "sha256": "4ff68a49be4f23878bf1a40797d2d52624026cb315bc60b4d9c1e352f38e59a7",
+      "bytes": 1010
+    },
+    {
+      "path": "docs/09-portfolio/ARCHITECTURE_OVERVIEW.md",
+      "sha256": "2246de8abf4605e180d4b5d10c454ac518522db25ffad34668902024f38bb1c7",
+      "bytes": 1823
+    },
+    {
+      "path": "docs/09-portfolio/PACKAGE_CHANGELOG.md",
+      "sha256": "23403352d9fd90eedc74dcda2ad3475fb92159b3d4973e8d20f7a047df7afd26",
+      "bytes": 2270
+    },
+    {
+      "path": "docs/09-portfolio/PUBLICATION_CHECKLIST.md",
+      "sha256": "1d5d8fd81bebf9281b53e79d47b5778fa6a9cbcb29ce6e89c0f1cecdec3c6327",
+      "bytes": 2261
+    },
+    {
+      "path": "docs/09-portfolio/architecture.svg",
+      "sha256": "1dab4c622d396630a30ea2e3eabb592e042e52fc33ddc9e1d8b66f0404f16b98",
+      "bytes": 4025
+    },
+    {
+      "path": "docs/09-portfolio/demo/README.md",
+      "sha256": "8fc42d593a7b55275de948ea58f5ed19848b3376478e6f43d9ee031c79f9b814",
+      "bytes": 698
+    },
+    {
+      "path": "docs/09-portfolio/demo/dip-portfolio-demo.gif",
+      "sha256": "00c8574d0bad00d5cd7dcc5c94e177dc02122367f08bd871b6e66c2f3967269d",
+      "bytes": 143774
+    },
+    {
+      "path": "docs/09-portfolio/demo/portfolio-preview.html",
+      "sha256": "d8f5b266ef69c7b91a8c9907b345f21d386f4e769b71d4f6202506953b3410fa",
+      "bytes": 5964
+    },
+    {
+      "path": "docs/09-portfolio/evidence/latest-revision.md",
+      "sha256": "4be9cf3ec85d50033fd527f428cc88089983ced683ca8c4a3d5854033800727c",
+      "bytes": 1898
+    },
+    {
+      "path": "docs/09-portfolio/evidence/package-static-validation.json",
+      "sha256": "2391e579f3b516df2cd483d84d5bbbf7fcb2b742e0680776e3ff576668b39496",
+      "bytes": 2332
+    },
+    {
+      "path": "docs/09-portfolio/evidence/verified-baseline/README.md",
+      "sha256": "03e88a83f387e815d0344b23a8f29d66dc47767821d9f05a040a0a95be6c1350",
+      "bytes": 1966
+    },
+    {
+      "path": "docs/09-portfolio/evidence/verified-baseline/WINDOWS_DOTNET_RUNTIME_PASS.json",
+      "sha256": "5dbe2b3ace798bd5d727cd1368d67e05275e081d6ebd6a1275ace82fc26bff17",
+      "bytes": 1404
+    },
+    {
+      "path": "docs/09-portfolio/evidence/verified-baseline/benchmark-results.json",
+      "sha256": "8d5dea02a24f77ebafb6bad4fbb8e124181e8dfb0e82fd7f62e53f2a84807372",
+      "bytes": 1309
+    },
+    {
+      "path": "docs/09-portfolio/evidence/verified-baseline/benchmark-results.md",
+      "sha256": "fdb942ae2ad330cdf85c16daa394e6318ab2f1c3f1e604a08a1f2d71c6efe11e",
+      "bytes": 702
+    },
+    {
+      "path": "docs/09-portfolio/evidence/verified-baseline/qa-bug-zoo-results.json",
+      "sha256": "f33c1d11695d96ca1bb1c7c66b28a2edd2e2c70402fea4811aa7b6377c259d01",
+      "bytes": 32339
+    },
+    {
+      "path": "docs/09-portfolio/evidence/verified-baseline/qa-bug-zoo-results.md",
+      "sha256": "ff79091424133e7b877e987ca164cf362fcc9d53840549b4c6307a15c98ca89d",
+      "bytes": 1932
+    },
+    {
+      "path": "docs/09-portfolio/releases/v1.0.0-portfolio.md",
+      "sha256": "cd9936432ffdc3e6e87de5044b8128cc608896c939ae089b31cd0098a7181290",
+      "bytes": 1114
+    },
+    {
+      "path": "docs/09-portfolio/screenshots/management-operations.png",
+      "sha256": "74128c19fa5a139442f6ee49a527a93822a757fc4838e6a32778b8c4daf04c81",
+      "bytes": 67638
+    },
+    {
+      "path": "docs/09-portfolio/screenshots/project-intelligence.png",
+      "sha256": "ebef1dcdfe16fd6f47e4e9ff4f0a043315d74e6f1de1f6566d59cc0d3a6635a9",
+      "bytes": 74223
+    },
+    {
+      "path": "docs/09-portfolio/screenshots/qa-defect.png",
+      "sha256": "e3758811a17a4f033e4847aadfaf2cf5d8ff2d48dc56989e31e3b124a34a8673",
+      "bytes": 69565
+    },
+    {
+      "path": "scripts/Apply-PortfolioCleanup.ps1",
+      "sha256": "a2dc382001b995d1cc534aaec92fa702573ae9eb097d9ded1bf6dbff8475da42",
+      "bytes": 838
+    },
+    {
+      "path": "scripts/Publish-Portfolio.ps1",
+      "sha256": "941083c99f719a1d505222ada275f626dadf5649c84d25262a00f4c86d1b9311",
+      "bytes": 2017
+    },
+    {
+      "path": "scripts/Publish-PortfolioRelease.ps1",
+      "sha256": "6257fa7a7cca0f2d20328b33104b4357a795c8194622829ec09615716ef55251",
+      "bytes": 1014
+    },
+    {
+      "path": "src/Dip.Web/Components/Management/ManagementCockpitOverview.razor",
+      "sha256": "5df675523640352c7d92a71c5e075346066fbb216b7716f7b46685b7d5b673d7",
+      "bytes": 3338
+    },
+    {
+      "path": "src/Dip.Web/Components/Management/ManagementSectionTabs.razor",
+      "sha256": "0fb6392801fd9f6f8df66f81ee325680d95d345b350a9504b09b42547729ddd2",
+      "bytes": 787
+    },
+    {
+      "path": "src/Dip.Web/Pages/Dashboard/ManagementOperations.razor.cs",
+      "sha256": "41cb18599b42991060c39e70771f317331b04671a0c4ee572558d06aca50782a",
+      "bytes": 14858
+    },
+    {
+      "path": "tools/validate_commit_message.py",
+      "sha256": "710d1f2d5bed4724497ffd710b86074d9df301cfc70a28d83aa54eba0af2de0c",
+      "bytes": 617
+    },
+    {
+      "path": "tools/validate_portfolio_readiness.py",
+      "sha256": "14acf037e79fc1fe35653e1656107bd2a207e21261529acb9afd84886c7b47b7",
+      "bytes": 3322
+    },
+    {
+      "path": "tools/verify_publication_safety.py",
+      "sha256": "e83e4e5679858c00bcc1df4f663f304c75e3034c6a75815e728a7b751a8410e7",
+      "bytes": 3627
+    }
+  ],
+  "modifiedFiles": [
+    {
+      "path": ".github/workflows/docker-build.yml",
+      "sha256": "adeb454b7c452bbecc90ee5668e7bc839923f5c004a928560a7086050f4cba2e",
+      "bytes": 2046
+    },
+    {
+      "path": ".github/workflows/dotnet-ci.yml",
+      "sha256": "1017702be16c586d7a5525fd48efe7d9cf00b8e22efdbd3509455b0415c32b7e",
+      "bytes": 2290
+    },
+    {
+      "path": ".github/workflows/gui-e2e.yml",
+      "sha256": "f9a8dbccb3783a5776641be4643845598619f03c69bbf0d01d8da682ab7da3c4",
+      "bytes": 1931
+    },
+    {
+      "path": ".github/workflows/native-collector-ci.yml",
+      "sha256": "0da68e01c7732afa6778cef1211b0dd71ec7695ae72def3f24f2127fd704edcf",
+      "bytes": 2518
+    },
+    {
+      "path": ".github/workflows/python-ci.yml",
+      "sha256": "f3b5908f84674bff27c0e6aad229400a9be32ce3ebb9b32cc090037fd50e4a2d",
+      "bytes": 1814
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "sha256": "fedc35985805a2e9a374531db62131e3552bed6da8918ea85b8679cab22e5b70",
+      "bytes": 3444
+    },
+    {
+      "path": ".github/workflows/unreal-collector-ci.yml",
+      "sha256": "bcf8230f5e141bc05c1283eafaeced42d9c16622bf1d8ca8a2c7aab5eccfd989",
+      "bytes": 640
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "1b1189d5045ea4e9111364c0a97fedd90cfc9142ce162f9078da2a2fc035baa1",
+      "bytes": 3074
+    },
+    {
+      "path": "README.md",
+      "sha256": "f44f4650e5eff76029dce6b0e41288ded1c5bce8a2662f92166fbde6d2e236d8",
+      "bytes": 7781
+    },
+    {
+      "path": "docs/IMPLEMENTATION_STATUS.md",
+      "sha256": "893ed42eefbb9d1266b6ed730d6c3a696e7a69bd8a3ac6046a6a249748bdd7ff",
+      "bytes": 18369
+    },
+    {
+      "path": "src/Dip.Web/Pages/Dashboard/ManagementOperations.razor",
+      "sha256": "d4591d0fb6ebc5695c4ea6340a23051434a8717fe8366dcbfe90ff86262df47c",
+      "bytes": 26497
+    },
+    {
+      "path": "src/Dip.Web/_Imports.razor",
+      "sha256": "2e7d4857419ff3ec1c48c468dc0cf92cc6329238465bb96540c0975cfd7af080",
+      "bytes": 847
+    }
+  ],
+  "deletedFiles": [],
+  "overlayCleanupPolicy": "scripts/Apply-PortfolioCleanup.ps1 removes any stale zero-byte Razor pages left by an overlay extraction.",
+  "note": "This manifest intentionally excludes itself. The distributed ZIP has a separate SHA-256 sidecar covering the entire archive."
+}

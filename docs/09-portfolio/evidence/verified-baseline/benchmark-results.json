@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAtUtc": "2026-08-14T04:52:56.418071Z",
+  "targets": {
+    "projectListP95Ms": 500,
+    "collectorP95Ms": 1000,
+    "hundredRpsErrorRatePercent": 1.0,
+    "millionMetricQueryP95Ms": 2000
+  },
+  "provenance": {
+    "commit": "621e900d08c048924646ffa672608b1ec7e8af21",
+    "runner": "GitHub Actions 1000001826",
+    "os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "python": "3.12.13",
+    "machine": "x86_64"
+  },
+  "measurements": {
+    "projectList": {
+      "samples": 150,
+      "p50Ms": 3.423,
+      "p95Ms": 4.174,
+      "p99Ms": 4.983,
+      "meanMs": 3.559
+    },
+    "collector": {
+      "samples": 40,
+      "p50Ms": 18.864,
+      "p95Ms": 34.507,
+      "p99Ms": 407.542,
+      "meanMs": 30.258
+    },
+    "hundredRps": {
+      "samples": 1500,
+      "p50Ms": 3.362,
+      "p95Ms": 6.311,
+      "p99Ms": 8.613,
+      "meanMs": 3.765,
+      "targetRps": 100,
+      "requests": 1500,
+      "wallSeconds": 14.996,
+      "achievedRps": 100.03,
+      "failures": 0,
+      "errorRatePercent": 0.0
+    },
+    "millionMetricQuery": {
+      "samples": 10,
+      "p50Ms": 306.226,
+      "p95Ms": 363.796,
+      "p99Ms": 363.796,
+      "meanMs": 312.429,
+      "rowsInDataset": 1000000,
+      "query": "group AVG/MAX by metric name for one pipeline"
+    }
+  }
+}

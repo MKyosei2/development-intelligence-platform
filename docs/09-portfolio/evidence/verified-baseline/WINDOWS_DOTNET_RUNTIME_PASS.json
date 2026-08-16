@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.1",
+  "status": "WINDOWS_DOTNET_PASS",
+  "commit": "621e900d08c048924646ffa672608b1ec7e8af21",
+  "startedAtUtc": "2026-08-14T04:51:12.6289397+00:00",
+  "finishedAtUtc": "2026-08-14T04:52:41.2672728+00:00",
+  "machine": {
+    "os": "Microsoft Windows NT 10.0.26100.0",
+    "architecture": "X64",
+    "framework": ".NET 10.0.10",
+    "dotnetSdk": "8.0.424",
+    "computerName": "runnervm7vqe0",
+    "githubRunner": "GitHub Actions 1000001811"
+  },
+  "windowsDotNet": {
+    "status": "PASS",
+    "configuration": "Release",
+    "scope": "full solution build + Domain/Application/Infrastructure tests",
+    "note": "Service-backed API/E2E verification is provided separately by Integration and E2E Tests."
+  },
+  "unity": {
+    "required": false,
+    "status": "NOT_REQUESTED",
+    "version": null,
+    "executable": null
+  },
+  "steps": [
+    {
+      "name": "dotnet-restore",
+      "status": "PASS",
+      "durationMs": 29752
+    },
+    {
+      "name": "dotnet-build-release",
+      "status": "PASS",
+      "durationMs": 46902
+    },
+    {
+      "name": "domain-tests",
+      "status": "PASS",
+      "durationMs": 3121
+    },
+    {
+      "name": "application-tests",
+      "status": "PASS",
+      "durationMs": 3366
+    },
+    {
+      "name": "infrastructure-tests",
+      "status": "PASS",
+      "durationMs": 5466
+    }
+  ]
+}

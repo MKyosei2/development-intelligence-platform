@@ -5,51 +5,70 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version without the leading v
+        description: Version without the leading v (for example 1.0.0-portfolio)
         required: true
         type: string
 permissions:
   contents: write
 jobs:
   release:
-    name: Build release artifacts
+    name: Verify, build and publish release artifacts
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
-      - name: Resolve version
+        with:
+          fetch-depth: 0
+      - name: Resolve and validate version
         id: version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then VERSION="${{ inputs.version }}"; else VERSION="${GITHUB_REF_NAME#v}"; fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then echo "Invalid version: $VERSION" >&2; exit 2; fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pre-publication safety gate
+        run: |
+          python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
+          python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
       - name: Restore
         run: dotnet restore DevelopmentIntelligencePlatform.sln
-      - name: Test
-        run: dotnet test DevelopmentIntelligencePlatform.sln --configuration Release
+      - name: Build
+        run: dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
+      - name: Unit tests
+        run: |
+          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj --configuration Release --no-build
+          dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj --configuration Release --no-build
+          dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build
       - name: Publish services
         run: |
-          dotnet publish src/Dip.Api/Dip.Api.csproj -c Release -o artifacts/api -p:Version=${{ steps.version.outputs.value }}
-          dotnet publish src/Dip.Web/Dip.Web.csproj -c Release -o artifacts/web -p:Version=${{ steps.version.outputs.value }}
-          dotnet publish src/Dip.Worker/Dip.Worker.csproj -c Release -o artifacts/worker -p:Version=${{ steps.version.outputs.value }}
-      - name: Package artifacts
+          dotnet publish src/Dip.Api/Dip.Api.csproj -c Release -o artifacts/api -p:Version=${{ steps.version.outputs.value }} --no-restore
+          dotnet publish src/Dip.Web/Dip.Web.csproj -c Release -o artifacts/web -p:Version=${{ steps.version.outputs.value }} --no-restore
+          dotnet publish src/Dip.Worker/Dip.Worker.csproj -c Release -o artifacts/worker -p:Version=${{ steps.version.outputs.value }} --no-restore
+      - name: Package and hash artifacts
+        shell: bash
         run: |
           cd artifacts
-          zip -r dip-api-${{ steps.version.outputs.value }}.zip api
-          zip -r dip-web-${{ steps.version.outputs.value }}.zip web
-          zip -r dip-worker-${{ steps.version.outputs.value }}.zip worker
+          zip -qr dip-api-${{ steps.version.outputs.value }}.zip api
+          zip -qr dip-web-${{ steps.version.outputs.value }}.zip web
+          zip -qr dip-worker-${{ steps.version.outputs.value }}.zip worker
+          sha256sum dip-*.zip > SHA256SUMS.txt
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.value }}
+          body_path: docs/09-portfolio/releases/v1.0.0-portfolio.md
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             artifacts/dip-api-${{ steps.version.outputs.value }}.zip
             artifacts/dip-web-${{ steps.version.outputs.value }}.zip
             artifacts/dip-worker-${{ steps.version.outputs.value }}.zip
+            artifacts/SHA256SUMS.txt
+            artifacts/publication-safety/publication-safety.json
+            artifacts/portfolio-readiness/static.json

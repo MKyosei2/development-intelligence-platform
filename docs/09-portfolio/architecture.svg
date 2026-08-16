@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="820" viewBox="0 0 1440 820" role="img" aria-labelledby="title desc">
+<title id="title">Development Intelligence Platform architecture</title>
+<desc id="desc">Browser and Caddy route to Web and API. API coordinates PostgreSQL, Redis, Worker and Python Analysis. External engineering and management sources provide evidence.</desc>
+<defs><style>
+text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#14213d}.title{font-size:36px;font-weight:700}.sub{font-size:18px;fill:#4b5563}.h{font-size:22px;font-weight:700}.b{font-size:17px}.box{fill:#ffffff;stroke:#64748b;stroke-width:2}.core{fill:#eef2ff;stroke:#4f46e5}.data{fill:#ecfdf5;stroke:#059669}.src{fill:#fff7ed;stroke:#ea580c}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:8 8}.note{font-size:15px;fill:#475569}
+</style><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker></defs>
+<rect width="1440" height="820" fill="#f8fafc"/>
+<text x="70" y="70" class="title">Development Intelligence Platform</text><text x="70" y="104" class="sub">Evidence-first architecture for game, media and software production</text>
+<rect x="565" y="135" rx="16" ry="16" width="310" height="74" class="box"/><text x="720" y="165" text-anchor="middle" class="h">Browser</text><text x="720" y="190" text-anchor="middle" class="note">PM / Producer / Director / Tech Lead</text>
+<rect x="615" y="250" rx="16" width="210" height="65" class="box"/><text x="720" y="290" text-anchor="middle" class="h">Caddy / HTTPS</text>
+<path d="M720 209 L720 250" class="line"/>
+<rect x="390" y="355" rx="18" width="250" height="92" class="core"/><text x="515" y="390" text-anchor="middle" class="h">Dip.Web</text><text x="515" y="419" text-anchor="middle" class="b">Blazor · browser UI</text>
+<rect x="800" y="355" rx="18" width="250" height="92" class="core"/><text x="925" y="390" text-anchor="middle" class="h">Dip.Api</text><text x="925" y="419" text-anchor="middle" class="b">Application boundary</text>
+<path d="M690 315 L555 355" class="line"/><path d="M750 315 L885 355" class="line"/><path d="M640 401 L800 401" class="line dash"/>
+<rect x="260" y="520" rx="18" width="240" height="92" class="data"/><text x="380" y="555" text-anchor="middle" class="h">PostgreSQL</text><text x="380" y="584" text-anchor="middle" class="b">durable source of truth</text>
+<rect x="535" y="520" rx="18" width="210" height="92" class="data"/><text x="640" y="555" text-anchor="middle" class="h">Redis</text><text x="640" y="584" text-anchor="middle" class="b">delivery / coordination</text>
+<rect x="780" y="520" rx="18" width="210" height="92" class="core"/><text x="885" y="555" text-anchor="middle" class="h">Dip.Worker</text><text x="885" y="584" text-anchor="middle" class="b">durable async jobs</text>
+<rect x="1025" y="520" rx="18" width="250" height="92" class="core"/><text x="1150" y="555" text-anchor="middle" class="h">Python Analysis</text><text x="1150" y="584" text-anchor="middle" class="b">analysis / normalization</text>
+<path d="M900 447 L420 520" class="line"/><path d="M915 447 L655 520" class="line"/><path d="M940 447 L875 520" class="line"/><path d="M970 447 L1120 520" class="line"/>
+<rect x="85" y="680" rx="18" width="1270" height="96" class="src"/><text x="720" y="714" text-anchor="middle" class="h">Evidence Providers &amp; Project Integrations</text><text x="720" y="744" text-anchor="middle" class="b">GitHub · CI/CD · Unity · Unreal · Maya · Native/Runtime · Sentry/OTel · Jira/Linear · Slack/Teams · WBS/Sheets/Calendar/Redmine</text><text x="720" y="766" text-anchor="middle" class="note">provider-neutral ingestion → provenance → Evidence → Project Truth / Release / Defect / Management decisions</text>
+<path d="M420 680 L380 612" class="line"/><path d="M650 680 L640 612" class="line"/><path d="M880 680 L885 612" class="line"/><path d="M1120 680 L1150 612" class="line"/>
+</svg>

@@ -1,0 +1,10 @@
+feat(scope): short imperative summary
+
+Why:
+- explain the user/developer problem
+
+Evidence:
+- tests/benchmark/issue or N/A
+
+Risk/Rollback:
+- state risk and rollback path

@@ -1,0 +1,66 @@
+@using Dip.Application.Features.Management
+
+<div class="metric-grid mb-4">
+    <div class="metric-card"><span>Health</span><strong>@Cockpit.HealthScore.ToString("0.#")</strong><small>@Cockpit.OverallStatus</small></div>
+    <div class="metric-card"><span>Now</span><strong>@Cockpit.Now.Count</strong><small>decision / action items</small></div>
+    <div class="metric-card"><span>Approvals</span><strong>@Cockpit.PendingApprovals.Count</strong><small>pending</small></div>
+    <div class="metric-card"><span>Sync conflicts</span><strong>@(Sync?.OpenConflicts ?? 0)</strong><small>manual resolution</small></div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-xl-7">
+        <div class="card h-100">
+            <div class="card-header"><strong>Do now</strong></div>
+            <div class="card-body p-0">
+                @if (Cockpit.Now.Count == 0)
+                {
+                    <div class="compact-empty"><span>✓</span><div><strong>No immediate management action</strong><small>There are no current escalations or pending decisions.</small></div></div>
+                }
+                else
+                {
+                    @foreach (var item in Cockpit.Now)
+                    {
+                        <div class="attention-item @(item.Severity == "Critical" ? "danger" : "warning")">
+                            <span>!</span>
+                            <div>
+                                <strong>@item.Title</strong>
+                                <small>@item.Type · @(item.OwnerRole ?? "Unassigned") · @(item.DueAtUtc?.ToLocalTime().ToString("g") ?? "no due date")</small>
+                                <div class="small mt-1">@item.Action</div>
+                            </div>
+                            <span class="badge bg-secondary">@item.Severity</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-5">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <strong>Meeting mode</strong>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" @onclick='() => RequestCadence("daily")'>Daily</button>
+                    <button class="btn btn-outline-secondary" @onclick='() => RequestCadence("weekly")'>Weekly</button>
+                    <button class="btn btn-outline-secondary" @onclick='() => RequestCadence("release")'>Release</button>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Cadence is not null)
+                {
+                    <h5>@Cadence.Title</h5>
+                    <p>@Cadence.Summary</p>
+                    <ul class="small mb-0">@foreach (var point in Cadence.TalkingPoints.Take(8)) { <li>@point</li> }</ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DailyCockpitDto Cockpit { get; set; } = default!;
+    [Parameter] public SyncStateOverviewDto? Sync { get; set; }
+    [Parameter] public OperatingCadenceDto? Cadence { get; set; }
+    [Parameter] public EventCallback<string> OnCadenceRequested { get; set; }
+
+    private Task RequestCadence(string mode) => OnCadenceRequested.InvokeAsync(mode);
+}

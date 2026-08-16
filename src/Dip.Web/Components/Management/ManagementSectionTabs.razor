@@ -1,0 +1,20 @@
+<ul class="nav nav-tabs mb-3" role="tablist" aria-label="Management sections">
+    @foreach (var tab in Tabs)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(Active == tab ? "active" : "")"
+                    type="button"
+                    role="tab"
+                    aria-selected="@(Active == tab)"
+                    @onclick="() => Select(tab)">@tab</button>
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Tabs { get; set; } = Array.Empty<string>();
+    [Parameter, EditorRequired] public string Active { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ActiveChanged { get; set; }
+
+    private Task Select(string tab) => ActiveChanged.InvokeAsync(tab);
+}

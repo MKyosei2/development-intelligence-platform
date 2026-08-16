@@ -1,0 +1,27 @@
+name: Commit Message
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+permissions:
+  contents: read
+jobs:
+  conventional-subjects:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate commit subjects
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git log "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" --format=%s | python tools/validate_commit_message.py
+          else
+            git log -1 --format=%s | python tools/validate_commit_message.py
+          fi

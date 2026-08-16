@@ -2,10 +2,12 @@ name: Unreal Collector CI
 on:
   push:
     paths:
+      - ".portfolio-ci-trigger"
       - 'collectors/unreal-collector/**'
       - '.github/workflows/unreal-collector-ci.yml'
   pull_request:
     paths:
+      - ".portfolio-ci-trigger"
       - 'collectors/unreal-collector/**'
       - '.github/workflows/unreal-collector-ci.yml'
 jobs:

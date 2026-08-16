@@ -104,3 +104,17 @@ Never edit an already-applied production migration.
 
 Follow `SECURITY.md`. Never place vulnerabilities, tokens, secrets, or private
 payloads in a public issue or pull request.
+
+
+## Commit subjects
+
+Use Conventional Commit-style subjects so a reviewer can understand change intent from history:
+
+```text
+feat(qa): add runtime defect evidence
+fix(ci): restore integration test startup
+refactor(web): split management cockpit components
+docs(portfolio): add verified evidence index
+```
+
+Keep the subject imperative and at most 72 characters. Install the optional local template with `git config commit.template .gitmessage`. Pull requests validate commit subjects automatically.

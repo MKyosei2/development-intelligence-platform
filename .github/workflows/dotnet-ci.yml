@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, develop]
     paths:
+      - ".portfolio-ci-trigger"
       - "src/**"
       - "tests/**"
       - "*.sln"
@@ -14,6 +15,7 @@ on:
   pull_request:
     branches: [main, develop]
     paths:
+      - ".portfolio-ci-trigger"
       - "src/**"
       - "tests/**"
       - "*.sln"

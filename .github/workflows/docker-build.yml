@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main, develop]
     paths:
+      - ".portfolio-ci-trigger"
       - "src/**"
       - "services/**"
       - "collectors/native-collector/**"

@@ -1,0 +1,1298 @@
+{
+  "schemaVersion": "2.0",
+  "generatedAt": "2026-08-14T04:55:17.0445291+00:00",
+  "repositoryRoot": "/home/runner/work/development-intelligence-platform/development-intelligence-platform",
+  "languages": [
+    "cpp",
+    "csharp",
+    "go",
+    "javascript",
+    "python",
+    "rust",
+    "typescript"
+  ],
+  "cases": 26,
+  "injectedBugCases": 19,
+  "detectedBugCases": 19,
+  "detectionRecallPercent": 100,
+  "cleanControlCases": 7,
+  "falsePositiveCases": 0,
+  "falsePositiveRatePercent": 0,
+  "reproductionEligibleCases": 9,
+  "reproducedCases": 9,
+  "reproductionRatePercent": 100,
+  "infrastructureFailures": 0,
+  "platformSkippedCases": [],
+  "medianCaseDurationMs": 1867,
+  "results": [
+    {
+      "Language": "cpp",
+      "Name": "buffer_overflow",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 10299,
+      "FindingCount": 4,
+      "MatchedCategory": "memory-safety",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "heap-buffer-overflow",
+      "MatchedRuleId": "asan",
+      "Tools": [
+        {
+          "Tool": "cmake-configure",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 2931
+        },
+        {
+          "Tool": "cmake-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 251
+        },
+        {
+          "Tool": "ctest",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 8,
+          "DurationMs": 1308
+        },
+        {
+          "Tool": "clang-tidy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 5393
+        },
+        {
+          "Tool": "cppcheck",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 45
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "cpp",
+      "Name": "clean",
+      "ExpectNoFindings": true,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 1873,
+      "FindingCount": 0,
+      "MatchedCategory": null,
+      "MatchedSeverity": null,
+      "MatchedExceptionType": null,
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "cmake-configure",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 195
+        },
+        {
+          "Tool": "cmake-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 644
+        },
+        {
+          "Tool": "ctest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 15
+        },
+        {
+          "Tool": "clang-tidy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 992
+        },
+        {
+          "Tool": "cppcheck",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 22
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "cpp",
+      "Name": "compile_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 301,
+      "FindingCount": 2,
+      "MatchedCategory": "compile",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": null,
+      "MatchedRuleId": "compiler",
+      "Tools": [
+        {
+          "Tool": "cmake-configure",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 193
+        },
+        {
+          "Tool": "cmake-build",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 2,
+          "DurationMs": 22
+        },
+        {
+          "Tool": "ctest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 2
+        },
+        {
+          "Tool": "clang-tidy",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 59
+        },
+        {
+          "Tool": "cppcheck",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 22
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "cpp",
+      "Name": "double_free",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 683,
+      "FindingCount": 3,
+      "MatchedCategory": "memory-safety",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "double-free",
+      "MatchedRuleId": "asan",
+      "Tools": [
+        {
+          "Tool": "cmake-configure",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 209
+        },
+        {
+          "Tool": "cmake-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 84
+        },
+        {
+          "Tool": "ctest",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 8,
+          "DurationMs": 35
+        },
+        {
+          "Tool": "clang-tidy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 44
+        },
+        {
+          "Tool": "cppcheck",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 22
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "cpp",
+      "Name": "memory_leak",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 377,
+      "FindingCount": 3,
+      "MatchedCategory": "memory-leak",
+      "MatchedSeverity": "Warning",
+      "MatchedExceptionType": "MemoryLeak",
+      "MatchedRuleId": "lsan",
+      "Tools": [
+        {
+          "Tool": "cmake-configure",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 205
+        },
+        {
+          "Tool": "cmake-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 80
+        },
+        {
+          "Tool": "ctest",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 8,
+          "DurationMs": 37
+        },
+        {
+          "Tool": "clang-tidy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 28
+        },
+        {
+          "Tool": "cppcheck",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 22
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "cpp",
+      "Name": "use_after_free",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 1627,
+      "FindingCount": 3,
+      "MatchedCategory": "memory-safety",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "heap-use-after-free",
+      "MatchedRuleId": "asan",
+      "Tools": [
+        {
+          "Tool": "cmake-configure",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 187
+        },
+        {
+          "Tool": "cmake-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 309
+        },
+        {
+          "Tool": "ctest",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 8,
+          "DurationMs": 34
+        },
+        {
+          "Tool": "clang-tidy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 291
+        },
+        {
+          "Tool": "cppcheck",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 22
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "csharp",
+      "Name": "async_warning",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 8128,
+      "FindingCount": 2,
+      "MatchedCategory": "async",
+      "MatchedSeverity": "Warning",
+      "MatchedExceptionType": null,
+      "MatchedRuleId": "CS4014",
+      "Tools": [
+        {
+          "Tool": "dotnet-restore",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 895
+        },
+        {
+          "Tool": "dotnet-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 1151
+        },
+        {
+          "Tool": "dotnet-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 721
+        },
+        {
+          "Tool": "dotnet-format-analyzers",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 5346
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "csharp",
+      "Name": "clean",
+      "ExpectNoFindings": true,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 8274,
+      "FindingCount": 0,
+      "MatchedCategory": null,
+      "MatchedSeverity": null,
+      "MatchedExceptionType": null,
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "dotnet-restore",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 934
+        },
+        {
+          "Tool": "dotnet-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 1181
+        },
+        {
+          "Tool": "dotnet-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 638
+        },
+        {
+          "Tool": "dotnet-format-analyzers",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 5519
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "csharp",
+      "Name": "compile_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 7835,
+      "FindingCount": 2,
+      "MatchedCategory": "compile",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": null,
+      "MatchedRuleId": "CS0103",
+      "Tools": [
+        {
+          "Tool": "dotnet-restore",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 920
+        },
+        {
+          "Tool": "dotnet-build",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 945
+        },
+        {
+          "Tool": "dotnet-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 655
+        },
+        {
+          "Tool": "dotnet-format-analyzers",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 5311
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "csharp",
+      "Name": "divide_by_zero",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 24658,
+      "FindingCount": 3,
+      "MatchedCategory": "runtime",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "System.DivideByZeroException",
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "dotnet-restore",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 896
+        },
+        {
+          "Tool": "dotnet-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 1035
+        },
+        {
+          "Tool": "dotnet-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 801
+        },
+        {
+          "Tool": "dotnet-format-analyzers",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 5312
+        },
+        {
+          "Tool": "dotnet-runtime",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 134,
+          "DurationMs": 272
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "csharp",
+      "Name": "hang",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 37627,
+      "FindingCount": 2,
+      "MatchedCategory": "hang",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "Timeout",
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "dotnet-restore",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 1008
+        },
+        {
+          "Tool": "dotnet-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 987
+        },
+        {
+          "Tool": "dotnet-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 665
+        },
+        {
+          "Tool": "dotnet-format-analyzers",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": null,
+          "DurationMs": 5063
+        },
+        {
+          "Tool": "dotnet-runtime",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": null,
+          "DurationMs": 5021
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "csharp",
+      "Name": "null_reference",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 24775,
+      "FindingCount": 2,
+      "MatchedCategory": "runtime",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "System.NullReferenceException",
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "dotnet-restore",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 903
+        },
+        {
+          "Tool": "dotnet-build",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 1028
+        },
+        {
+          "Tool": "dotnet-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 699
+        },
+        {
+          "Tool": "dotnet-format-analyzers",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 5427
+        },
+        {
+          "Tool": "dotnet-runtime",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 134,
+          "DurationMs": 271
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "go",
+      "Name": "clean",
+      "ExpectNoFindings": true,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 24154,
+      "FindingCount": 0,
+      "MatchedCategory": null,
+      "MatchedSeverity": null,
+      "MatchedExceptionType": null,
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "go-vet",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 8273
+        },
+        {
+          "Tool": "go-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 3636
+        },
+        {
+          "Tool": "go-race",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 12229
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "go",
+      "Name": "compile_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 128,
+      "FindingCount": 3,
+      "MatchedCategory": "static-analysis",
+      "MatchedSeverity": "Warning",
+      "MatchedExceptionType": null,
+      "MatchedRuleId": "go-vet",
+      "Tools": [
+        {
+          "Tool": "go-vet",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 51
+        },
+        {
+          "Tool": "go-test",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 37
+        },
+        {
+          "Tool": "go-race",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 38
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "javascript",
+      "Name": "clean",
+      "ExpectNoFindings": true,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 132,
+      "FindingCount": 0,
+      "MatchedCategory": null,
+      "MatchedSeverity": null,
+      "MatchedExceptionType": null,
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "eslint",
+          "WasAvailable": false,
+          "Succeeded": false,
+          "ExitCode": null,
+          "DurationMs": 0
+        },
+        {
+          "Tool": "npm-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 130
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "javascript",
+      "Name": "runtime_type_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 82,
+      "FindingCount": 1,
+      "MatchedCategory": "runtime",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "TypeError",
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "javascript-runtime",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 25
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "python",
+      "Name": "async_unawaited",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 2803,
+      "FindingCount": 4,
+      "MatchedCategory": "async",
+      "MatchedSeverity": "Warning",
+      "MatchedExceptionType": "AsyncLifecycleWarning",
+      "MatchedRuleId": "python-asyncio-debug",
+      "Tools": [
+        {
+          "Tool": "python-compileall",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 35
+        },
+        {
+          "Tool": "ruff",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 26
+        },
+        {
+          "Tool": "mypy",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 1366
+        },
+        {
+          "Tool": "pytest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 5,
+          "DurationMs": 255
+        },
+        {
+          "Tool": "python-runtime",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 198
+        },
+        {
+          "Tool": "python-tracemalloc",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 909
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "python",
+      "Name": "clean",
+      "ExpectNoFindings": true,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 1538,
+      "FindingCount": 0,
+      "MatchedCategory": null,
+      "MatchedSeverity": null,
+      "MatchedExceptionType": null,
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "python-compileall",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 35
+        },
+        {
+          "Tool": "ruff",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 25
+        },
+        {
+          "Tool": "mypy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 890
+        },
+        {
+          "Tool": "pytest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 5,
+          "DurationMs": 179
+        },
+        {
+          "Tool": "python-runtime",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 11
+        },
+        {
+          "Tool": "python-tracemalloc",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 395
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "python",
+      "Name": "hang",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 16929,
+      "FindingCount": 2,
+      "MatchedCategory": "hang",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "Timeout",
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "python-compileall",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 35
+        },
+        {
+          "Tool": "ruff",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 25
+        },
+        {
+          "Tool": "mypy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 903
+        },
+        {
+          "Tool": "pytest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 5,
+          "DurationMs": 179
+        },
+        {
+          "Tool": "python-runtime",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": null,
+          "DurationMs": 5016
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "python",
+      "Name": "memory_growth",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 1612,
+      "FindingCount": 1,
+      "MatchedCategory": "memory-growth",
+      "MatchedSeverity": "Warning",
+      "MatchedExceptionType": null,
+      "MatchedRuleId": "python-tracemalloc-growth",
+      "Tools": [
+        {
+          "Tool": "python-compileall",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 36
+        },
+        {
+          "Tool": "ruff",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 26
+        },
+        {
+          "Tool": "mypy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 894
+        },
+        {
+          "Tool": "pytest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 5,
+          "DurationMs": 177
+        },
+        {
+          "Tool": "python-runtime",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 45
+        },
+        {
+          "Tool": "python-tracemalloc",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 429
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "python",
+      "Name": "runtime_type_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": true,
+      "Detected": true,
+      "Reproduced": true,
+      "ReproducedAttempts": 2,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 1862,
+      "FindingCount": 1,
+      "MatchedCategory": "runtime",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "TypeError",
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "python-compileall",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 34
+        },
+        {
+          "Tool": "ruff",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 24
+        },
+        {
+          "Tool": "mypy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 880
+        },
+        {
+          "Tool": "pytest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 5,
+          "DurationMs": 176
+        },
+        {
+          "Tool": "python-runtime",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 11
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "python",
+      "Name": "syntax_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 366,
+      "FindingCount": 4,
+      "MatchedCategory": "syntax",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": "SyntaxError",
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "python-compileall",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 35
+        },
+        {
+          "Tool": "ruff",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 25
+        },
+        {
+          "Tool": "mypy",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 2,
+          "DurationMs": 116
+        },
+        {
+          "Tool": "pytest",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 5,
+          "DurationMs": 177
+        },
+        {
+          "Tool": "python-runtime",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 10
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "rust",
+      "Name": "clean",
+      "ExpectNoFindings": true,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 9229,
+      "FindingCount": 0,
+      "MatchedCategory": null,
+      "MatchedSeverity": null,
+      "MatchedExceptionType": null,
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "cargo-check",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 4509
+        },
+        {
+          "Tool": "cargo-test",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 3240
+        },
+        {
+          "Tool": "cargo-clippy",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 1476
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "rust",
+      "Name": "compile_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 2066,
+      "FindingCount": 3,
+      "MatchedCategory": "compile",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": null,
+      "MatchedRuleId": "E0308",
+      "Tools": [
+        {
+          "Tool": "cargo-check",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 101,
+          "DurationMs": 1882
+        },
+        {
+          "Tool": "cargo-test",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 101,
+          "DurationMs": 63
+        },
+        {
+          "Tool": "cargo-clippy",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 101,
+          "DurationMs": 118
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "typescript",
+      "Name": "clean",
+      "ExpectNoFindings": true,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 377,
+      "FindingCount": 0,
+      "MatchedCategory": null,
+      "MatchedSeverity": null,
+      "MatchedExceptionType": null,
+      "MatchedRuleId": null,
+      "Tools": [
+        {
+          "Tool": "tsc",
+          "WasAvailable": true,
+          "Succeeded": true,
+          "ExitCode": 0,
+          "DurationMs": 376
+        }
+      ],
+      "Error": null
+    },
+    {
+      "Language": "typescript",
+      "Name": "compile_error",
+      "ExpectNoFindings": false,
+      "MustReproduce": false,
+      "Detected": true,
+      "Reproduced": false,
+      "ReproducedAttempts": 0,
+      "ReproductionAttempts": 2,
+      "InfrastructureFailure": false,
+      "DurationMs": 365,
+      "FindingCount": 1,
+      "MatchedCategory": "compile",
+      "MatchedSeverity": "Critical",
+      "MatchedExceptionType": null,
+      "MatchedRuleId": "TS2322",
+      "Tools": [
+        {
+          "Tool": "tsc",
+          "WasAvailable": true,
+          "Succeeded": false,
+          "ExitCode": 1,
+          "DurationMs": 365
+        }
+      ],
+      "Error": null
+    }
+  ]
+}
