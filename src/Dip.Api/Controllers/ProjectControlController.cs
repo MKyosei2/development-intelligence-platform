@@ -288,6 +288,7 @@ public sealed class ProjectControlController(
     { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheets.ImportXlsxAsync(projectId,stream,ct); }
 
     [Authorize(Policy=Policies.ProjectWrite)]
+    [RequireProjectRole(ProjectMembershipRole.Maintainer)]
     [HttpPost("google-sheets/sync")]
     public Task<GoogleSheetsSyncResult> SyncGoogleSheets([FromBody]GoogleSheetsSyncCommand command,CancellationToken ct)
         =>spreadsheets.SyncGoogleAsync(command,ct);

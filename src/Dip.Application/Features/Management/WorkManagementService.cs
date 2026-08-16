@@ -22,8 +22,9 @@ public sealed class WorkManagementService
 
     public Task<DevelopmentGraphNodeDto> UpsertTeamAsync(UpsertTeamCommand c,CancellationToken ct)
     {
-        ValidateKey(c.Key);if(c.CapacityHoursPerWeek<=0m)throw new ArgumentOutOfRangeException(nameof(c.CapacityHoursPerWeek));
-        var meta=JsonSerializer.Serialize(new{c.Key,CapacityHoursPerWeek=Math.Clamp(c.CapacityHoursPerWeek,1m,100000m),BufferPercent=Math.Clamp(c.BufferPercent,0m,80m)});
+        ValidateKey(c.Key);if(c.CapacityHoursPerWeek<=0m)throw new ArgumentOutOfRangeException(nameof(c.CapacityHoursPerWeek));if(c.SharedPoolCapacityHoursPerWeek.HasValue&&c.SharedPoolCapacityHoursPerWeek.Value<=0m)throw new ArgumentOutOfRangeException(nameof(c.SharedPoolCapacityHoursPerWeek));
+        var sharedKey=Trim(c.SharedResourceKey,200);if(!string.IsNullOrWhiteSpace(sharedKey)&&!c.SharedPoolCapacityHoursPerWeek.HasValue)throw new ArgumentException("SharedPoolCapacityHoursPerWeek is required when SharedResourceKey is configured.",nameof(c));var sharedCapacity=string.IsNullOrWhiteSpace(sharedKey)?null:c.SharedPoolCapacityHoursPerWeek;
+        var meta=JsonSerializer.Serialize(new{c.Key,CapacityHoursPerWeek=Math.Clamp(c.CapacityHoursPerWeek,1m,100000m),BufferPercent=Math.Clamp(c.BufferPercent,0m,80m),SharedResourceKey=sharedKey,SharedPoolCapacityHoursPerWeek=sharedCapacity.HasValue?Math.Clamp(sharedCapacity.Value,1m,1000000m):(decimal?)null});
         return _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.Team,$"team:{c.Key}",c.Name,c.Status,"DIP",c.ExternalReference,meta),ct);
     }
 

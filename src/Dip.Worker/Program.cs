@@ -33,4 +33,5 @@ builder.Services.AddHostedService<ArtifactRetentionWorker>();
 builder.Services.AddHostedService<WorkerMetricsEndpoint>();
 builder.Services.AddHostedService<AutomaticRegressionTriageWorker>();
 builder.Services.AddHostedService<GitHubChangeRiskWorker>();
+builder.Services.AddHostedService<ManagementNotificationWorker>();
 var host=builder.Build();await host.RunAsync();

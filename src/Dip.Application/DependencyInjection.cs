@@ -72,6 +72,10 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.Management.WorkManagementService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementAnalyticsService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementSpreadsheetService>();
+        services.AddScoped<Dip.Application.Features.Management.ManagementOperationsService>();
+        services.AddScoped<Dip.Application.Features.Management.ManagementSyncService>();
+        services.AddScoped<Dip.Application.Features.Management.PortfolioManagementService>();
+        services.AddScoped<Dip.Application.Features.Management.WorkCalendarIntegrationService>();
         services.AddScoped<Dip.Application.Features.Dashboard.ManagementDashboardService>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();

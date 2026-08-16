@@ -110,6 +110,7 @@ public static class DependencyInjection
         services.AddScoped<IRepositoryGraphRepository, RepositoryGraphRepository>();
         services.AddScoped<IDevelopmentGraphRepository, DevelopmentGraphRepository>();
         services.AddSingleton<Dip.Application.Abstractions.Spreadsheets.IGoogleSheetsConnector,Dip.Infrastructure.Spreadsheets.GoogleSheetsRestConnector>();
+        services.AddSingleton<Dip.Application.Abstractions.Calendars.IGoogleCalendarConnector,Dip.Infrastructure.Calendars.GoogleCalendarRestConnector>();
         services.Configure<Dip.Infrastructure.Integrations.PerforceOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.PerforceOptions.SectionName));
         services.Configure<Dip.Infrastructure.Integrations.JenkinsOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.JenkinsOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,Dip.Infrastructure.Integrations.PerforceVersionControlConnector>();
@@ -143,6 +144,13 @@ public static class DependencyInjection
         services.Configure<Dip.Infrastructure.Provenance.ReleaseProvenanceOptions>(configuration.GetSection(Dip.Infrastructure.Provenance.ReleaseProvenanceOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.Replay.IGameReplayExecutor,Dip.Infrastructure.Replay.GameReplayExecutor>();
         services.Configure<Dip.Infrastructure.WorkItems.WorkItemIntegrationOptions>(configuration.GetSection(Dip.Infrastructure.WorkItems.WorkItemIntegrationOptions.SectionName));
+        services.Configure<Dip.Infrastructure.Management.ManagementNotificationOptions>(configuration.GetSection(Dip.Infrastructure.Management.ManagementNotificationOptions.SectionName));
+        services.AddSingleton<Dip.Application.Features.Management.IManagementNotificationChannel,Dip.Infrastructure.Management.SlackManagementNotificationChannel>();
+        services.AddSingleton<Dip.Application.Features.Management.IManagementNotificationChannel,Dip.Infrastructure.Management.TeamsManagementNotificationChannel>();
+        services.AddSingleton<Dip.Application.Features.Management.IManagementNotificationChannel,Dip.Infrastructure.Management.EmailManagementNotificationChannel>();
+        services.AddScoped<Dip.Application.Features.Management.IManagementSyncAdapter,Dip.Infrastructure.Management.GitHubManagementSyncAdapter>();
+        services.AddScoped<Dip.Application.Features.Management.IManagementSyncAdapter,Dip.Infrastructure.Management.JiraManagementSyncAdapter>();
+        services.AddScoped<Dip.Application.Features.Management.IManagementSyncAdapter,Dip.Infrastructure.Management.LinearManagementSyncAdapter>();
         services.AddSingleton<Dip.Application.Abstractions.WorkItems.IExternalWorkItemConnector,Dip.Infrastructure.WorkItems.GitHubWorkItemConnector>();
         services.AddSingleton<Dip.Application.Abstractions.WorkItems.IExternalWorkItemConnector,Dip.Infrastructure.WorkItems.JiraWorkItemConnector>();
         services.AddSingleton<Dip.Application.Abstractions.WorkItems.IExternalWorkItemConnector,Dip.Infrastructure.WorkItems.LinearWorkItemConnector>();

@@ -2,7 +2,7 @@ using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.Management;
 
-public sealed record UpsertTeamCommand(Guid ProjectId,string Key,string Name,decimal CapacityHoursPerWeek,decimal BufferPercent=10m,string Status="Active",string? ExternalReference=null);
+public sealed record UpsertTeamCommand(Guid ProjectId,string Key,string Name,decimal CapacityHoursPerWeek,decimal BufferPercent=10m,string Status="Active",string? ExternalReference=null,string? SharedResourceKey=null,decimal? SharedPoolCapacityHoursPerWeek=null);
 public sealed record UpsertWorkstreamCommand(Guid ProjectId,string Key,string Name,string TeamKey,decimal PlannedCapacityHoursPerWeek,DateTimeOffset PlannedStartUtc,DateTimeOffset DueAtUtc,decimal CompletionPercent=0m,string Status="Active",string? ExternalReference=null);
 public sealed record UpsertTaskCommand(Guid ProjectId,string Key,string Name,string WorkstreamKey,decimal EstimateHours,decimal RemainingHours,DateTimeOffset PlannedStartUtc,DateTimeOffset DueAtUtc,decimal CompletionPercent=0m,string Status="Planned",string Priority="Medium",string? OwnerLabel=null,string? ExternalReference=null);
 public sealed record LinkManagementDependencyCommand(Guid ProjectId,string PredecessorType,string PredecessorKey,string SuccessorType,string SuccessorKey,bool Critical=true);
@@ -14,7 +14,7 @@ public sealed record LinkTaskToMilestoneCommand(Guid ProjectId,string TaskKey,st
 
 public sealed record WorkloadBucket(DateTimeOffset WeekStartUtc,decimal CapacityHours,decimal PlannedHours,decimal UtilizationPercent,int ActiveTasks,int BlockedTasks,string Status);
 public sealed record WorkstreamCapacityDto(string Key,string Name,string TeamKey,string TeamName,decimal CapacityHours,decimal PlannedHours,decimal RemainingHours,decimal UtilizationPercent,int ActiveTasks,int BlockedTasks,string Status,IReadOnlyList<WorkloadBucket> Weekly);
-public sealed record TeamCapacityDto(string Key,string Name,decimal CapacityHours,decimal PlannedHours,decimal RemainingHours,decimal UtilizationPercent,int Workstreams,int ActiveTasks,int BlockedTasks,string Status,IReadOnlyList<WorkloadBucket> Weekly);
+public sealed record TeamCapacityDto(string Key,string Name,decimal CapacityHours,decimal PlannedHours,decimal RemainingHours,decimal UtilizationPercent,int Workstreams,int ActiveTasks,int BlockedTasks,string Status,IReadOnlyList<WorkloadBucket> Weekly,string? SharedResourceKey=null,decimal? SharedPoolCapacityHoursPerWeek=null);
 public sealed record CapacityOverviewDto(Guid ProjectId,int HorizonWeeks,IReadOnlyList<TeamCapacityDto> Teams,IReadOnlyList<WorkstreamCapacityDto> Workstreams,IReadOnlyList<string> Bottlenecks,DateTimeOffset GeneratedAtUtc);
 
 public sealed record ManagementScheduleItem(Guid NodeId,string Type,string Key,string Name,string WorkstreamKey,DateTimeOffset PlannedStartUtc,DateTimeOffset DueAtUtc,DateTimeOffset ForecastFinishUtc,int DurationDays,decimal CompletionPercent,string Status,int SlackDays,bool IsCritical,int BlockedByCount);
@@ -73,7 +73,7 @@ public sealed record RiskRegisterItemDto(
 public sealed record RiskRegisterDto(Guid ProjectId,int Open,int Critical,int ReviewOverdue,decimal TotalExposure,IReadOnlyList<RiskRegisterItemDto> Items,DateTimeOffset GeneratedAtUtc);
 
 public sealed record ManagementDecisionDto(string Key,string Title,string Decision,string Rationale,string Status,string? DecisionOwnerRole,DateTimeOffset? DecisionDueUtc,DateTimeOffset? DecidedAtUtc,int OpenActions,IReadOnlyList<string> RelatedItems);
-public sealed record ManagementActionDto(string Key,string Title,string Status,string Priority,string? OwnerRole,DateTimeOffset? DueAtUtc,bool Overdue,decimal CompletionPercent,string? DecisionKey,string? Target);
+public sealed record ManagementActionDto(string Key,string Title,string Status,string Priority,string? OwnerRole,DateTimeOffset? DueAtUtc,bool Overdue,decimal CompletionPercent,string? DecisionKey,string? Target,string? TargetType=null,string? TargetKey=null);
 public sealed record DecisionActionOverviewDto(Guid ProjectId,int DecisionsPending,int OpenActions,int OverdueActions,IReadOnlyList<ManagementDecisionDto> Decisions,IReadOnlyList<ManagementActionDto> Actions,DateTimeOffset GeneratedAtUtc);
 
 public sealed record ResourceAllocationDto(string Key,string Status,string? FromWorkstreamKey,string ToWorkstreamKey,decimal CapacityHoursPerWeek,DateTimeOffset StartUtc,DateTimeOffset EndUtc,string? Rationale,string? DecisionKey);
@@ -91,5 +91,5 @@ public sealed record ManagementSummaryDto(string OverallStatus,decimal HealthSco
 public sealed record SpreadsheetSheetDto(string Name,IReadOnlyList<string> Headers,IReadOnlyList<IReadOnlyList<string>> Rows,bool Editable=false);
 public sealed record ManagementWorkbookDto(Guid ProjectId,IReadOnlyList<SpreadsheetSheetDto> Sheets,DateTimeOffset GeneratedAtUtc);
 public sealed record SpreadsheetImportResult(int Teams,int Workstreams,int Tasks,int Milestones,int Blockers,int Requirements,int Risks,int Decisions,int Actions,int ChangeRequests,int ResourceAllocations,IReadOnlyList<string> Warnings);
-public sealed record GoogleSheetsSyncCommand(Guid ProjectId,string SpreadsheetId,string AccessToken,bool PullEditableSheets=true,bool PushCalculatedSheets=true);
-public sealed record GoogleSheetsSyncResult(int PulledSheets,int PushedSheets,SpreadsheetImportResult? Imported,IReadOnlyList<string> Warnings,DateTimeOffset SyncedAtUtc);
+public sealed record GoogleSheetsSyncCommand(Guid ProjectId,string SpreadsheetId,string AccessToken,bool PullEditableSheets=true,bool PushCalculatedSheets=true,bool DryRun=false);
+public sealed record GoogleSheetsSyncResult(int PulledSheets,int PushedSheets,SpreadsheetImportResult? Imported,IReadOnlyList<string> Warnings,DateTimeOffset SyncedAtUtc,int Conflicts=0,bool DryRun=false);

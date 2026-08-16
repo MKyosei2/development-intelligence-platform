@@ -13,6 +13,23 @@ Browser -> HTTPS -> Caddy -> Dip.Web / Dip.Api
 
 Hosted deployment: [`docs/WEB_DEPLOYMENT.md`](docs/WEB_DEPLOYMENT.md)
 
+## 2026-08-16 Management Operations S+/S expansion
+
+PM・プロデューサー・各種リードがブラウザだけで `Detect → Decide → Assign → Approve → Act → Verify → Close → Review` を回せるManagement Operations層を既存Development Graphへ統合しました。
+
+- **Daily Cockpit / My work**: roleでAlerts / Actions / Decisions / Approvalsをまとめて絞り込み。
+- **Management GUI CRUD**: Risk / Decision / Action / Scope Change / Resource Allocationを作成・更新・非破壊Archive。
+- **Notification operations**: Slack / Teams / Email実配信、Ack / Snooze / Resolve、FirstSeen基準のL1-L3 Escalation。
+- **Formal Approvals**: authenticated identity→management role binding、required roles、既定のSeparation of Duties。
+- **Conflict-safe sync**: GitHub / Jira / Linear Action syncとGoogle Sheets管理表sync。100件超のpagination、Project ID scope、Source Authority、two-sided snapshot、Resolved→Applied。
+- **Portfolio / Program**: 横断Health / Schedule / Approval / Conflictと明示Shared Resource Poolのcapacity planning。
+- **RACI / Meeting mode**: responsibilityを通知routingへ利用し、Daily / Weekly / Release review agendaを生成。
+- **Calendar capacity**: PTO / holiday / recurring meeting / support/on-callを実Capacityから控除。Google Calendarの終日イベントはworking day単位へ分解し、週末の過剰控除を防止。
+
+Architecture: [`docs/02-architecture/management-operations-splus-20260816.md`](docs/02-architecture/management-operations-splus-20260816.md)
+
+静的integration contractは `python tools/validate_management_operations.py` で確認できます。これは.NET buildやlive connector verificationの代替ではありません。
+
 ## GitHub Repository Onboarding
 
 `GitHub sign-in -> Repository Picker -> DIP Project import -> Project Overview -> Repository / CI / QA / Intelligence` をGUIの標準導線にしています。GitHub OAuth（ユーザー認証）とGitHub App（Repository権限）は分離し、秘密鍵・OAuth secret・JWT signing keyはサーバー側だけに保持します。

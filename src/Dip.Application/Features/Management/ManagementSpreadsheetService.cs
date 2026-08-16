@@ -1,4 +1,8 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Spreadsheets;
 using Dip.Application.Abstractions.Time;
@@ -10,8 +14,8 @@ namespace Dip.Application.Features.Management;
 public sealed class ManagementSpreadsheetService
 {
     public static readonly string[] EditableSheets=["Teams","Workstreams","Tasks","Milestones","Blockers","Requirements","Dependencies","ScopeBaselines","Risks","Decisions","Actions","ChangeRequests","ResourceAllocations"];
-    private readonly IDevelopmentGraphRepository _repo;private readonly WorkManagementService _work;private readonly ManagementAnalyticsService _analytics;private readonly MilestoneIntelligenceService _milestones;private readonly IGoogleSheetsConnector _google;private readonly ISystemClock _clock;
-    public ManagementSpreadsheetService(IDevelopmentGraphRepository repo,WorkManagementService work,ManagementAnalyticsService analytics,MilestoneIntelligenceService milestones,IGoogleSheetsConnector google,ISystemClock clock){_repo=repo;_work=work;_analytics=analytics;_milestones=milestones;_google=google;_clock=clock;}
+    private readonly IDevelopmentGraphRepository _repo;private readonly WorkManagementService _work;private readonly ManagementAnalyticsService _analytics;private readonly MilestoneIntelligenceService _milestones;private readonly IGoogleSheetsConnector _google;private readonly ISystemClock _clock;private readonly DevelopmentGraphService _graph;private readonly ManagementOperationsService _operations;
+    public ManagementSpreadsheetService(IDevelopmentGraphRepository repo,WorkManagementService work,ManagementAnalyticsService analytics,MilestoneIntelligenceService milestones,IGoogleSheetsConnector google,ISystemClock clock,DevelopmentGraphService graph,ManagementOperationsService operations){_repo=repo;_work=work;_analytics=analytics;_milestones=milestones;_google=google;_clock=clock;_graph=graph;_operations=operations;}
 
     public async Task<ManagementWorkbookDto> BuildWorkbookAsync(Guid projectId,CancellationToken ct)
     {
@@ -35,7 +39,7 @@ public sealed class ManagementSpreadsheetService
             ["Pending scope change days",scopeChanges.PendingScheduleDays.ToString(CultureInfo.InvariantCulture),"Potential schedule impact from unresolved change requests."],
             ["Active escalations",alerts.Total.ToString(CultureInfo.InvariantCulture),"Management alerts requiring review or action."]
         ]));
-        sheets.Add(Sheet("Teams",["Key","Name","CapacityHoursPerWeek","BufferPercent","Status"],nodes.Where(x=>x.Type==DevelopmentGraphNodeType.Team).OrderBy(x=>x.Name).Select(x=>(IReadOnlyList<string>)[WorkManagementService.Strip(x.Key),x.Name,F(WorkManagementService.MetaDecimal(x,"CapacityHoursPerWeek")),F(WorkManagementService.MetaDecimal(x,"BufferPercent",10m)),x.Status]).ToArray(),true));
+        sheets.Add(Sheet("Teams",["Key","Name","CapacityHoursPerWeek","BufferPercent","Status","SharedResourceKey","SharedPoolCapacityHoursPerWeek"],nodes.Where(x=>x.Type==DevelopmentGraphNodeType.Team).OrderBy(x=>x.Name).Select(x=>(IReadOnlyList<string>)[WorkManagementService.Strip(x.Key),x.Name,F(WorkManagementService.MetaDecimal(x,"CapacityHoursPerWeek")),F(WorkManagementService.MetaDecimal(x,"BufferPercent",10m)),x.Status,WorkManagementService.MetaString(x,"SharedResourceKey"),WorkManagementService.MetaDecimal(x,"SharedPoolCapacityHoursPerWeek")>0m?F(WorkManagementService.MetaDecimal(x,"SharedPoolCapacityHoursPerWeek")):""]).ToArray(),true));
         sheets.Add(Sheet("Workstreams",["Key","Name","TeamKey","PlannedCapacityHoursPerWeek","PlannedStart","Due","CompletionPercent","Status"],nodes.Where(x=>x.Type==DevelopmentGraphNodeType.Workstream).OrderBy(x=>x.Name).Select(x=>(IReadOnlyList<string>)[WorkManagementService.Strip(x.Key),x.Name,WorkManagementService.MetaString(x,"TeamKey"),F(WorkManagementService.MetaDecimal(x,"PlannedCapacityHoursPerWeek")),D(WorkManagementService.MetaDate(x,"PlannedStartUtc",x.FirstObservedAtUtc)),D(WorkManagementService.MetaDate(x,"DueAtUtc",x.LastObservedAtUtc)),F(WorkManagementService.MetaDecimal(x,"CompletionPercent")),x.Status]).ToArray(),true));
         sheets.Add(Sheet("Tasks",["Key","Name","WorkstreamKey","EstimateHours","RemainingHours","PlannedStart","Due","CompletionPercent","Status","Priority","OwnerLabel","ExternalReference"],nodes.Where(x=>x.Type==DevelopmentGraphNodeType.Task).OrderBy(x=>x.Name).Select(x=>(IReadOnlyList<string>)[WorkManagementService.Strip(x.Key),x.Name,WorkManagementService.MetaString(x,"WorkstreamKey"),F(WorkManagementService.MetaDecimal(x,"EstimateHours")),F(WorkManagementService.MetaDecimal(x,"RemainingHours")),D(WorkManagementService.MetaDate(x,"PlannedStartUtc",x.FirstObservedAtUtc)),D(WorkManagementService.MetaDate(x,"DueAtUtc",x.LastObservedAtUtc)),F(WorkManagementService.MetaDecimal(x,"CompletionPercent")),x.Status,WorkManagementService.MetaString(x,"Priority","Medium"),WorkManagementService.MetaString(x,"OwnerLabel"),x.ExternalReference??""]).ToArray(),true));
         sheets.Add(Sheet("Schedule",["Type","Key","Name","Workstream","PlannedStart","Due","ForecastFinish","DurationDays","CompletionPercent","Status","SlackDays","Critical","BlockedBy"],schedule.Items.Select(x=>(IReadOnlyList<string>)[x.Type,x.Key,x.Name,x.WorkstreamKey,D(x.PlannedStartUtc),D(x.DueAtUtc),D(x.ForecastFinishUtc),x.DurationDays.ToString(CultureInfo.InvariantCulture),F(x.CompletionPercent),x.Status,x.SlackDays.ToString(CultureInfo.InvariantCulture),x.IsCritical?"Yes":"No",x.BlockedByCount.ToString(CultureInfo.InvariantCulture)]).ToArray()));
@@ -70,17 +74,100 @@ public sealed class ManagementSpreadsheetService
 
     public async Task<GoogleSheetsSyncResult> SyncGoogleAsync(GoogleSheetsSyncCommand c,CancellationToken ct)
     {
-        if(c.ProjectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(c));var warnings=new List<string>();SpreadsheetImportResult? imported=null;var pulled=0;var pushed=0;
-        await _google.EnsureSheetsAsync(c.SpreadsheetId,c.AccessToken,(await BuildWorkbookAsync(c.ProjectId,ct)).Sheets.Select(x=>x.Name).ToArray(),ct);
-        if(c.PullEditableSheets){var rows=await _google.PullAsync(c.SpreadsheetId,c.AccessToken,EditableSheets,ct);pulled=rows.Count;imported=await ApplyRowsAsync(c.ProjectId,rows,ct);warnings.AddRange(imported.Warnings);}
-        if(c.PushCalculatedSheets){var workbook=await BuildWorkbookAsync(c.ProjectId,ct);var targets=c.PullEditableSheets?workbook.Sheets:workbook.Sheets.Where(x=>!x.Editable).ToArray();var grids=targets.Select(x=>new GoogleSheetGrid(x.Name,new List<IReadOnlyList<string>>{x.Headers}.Concat(x.Rows).ToArray())).ToArray();await _google.PushAsync(c.SpreadsheetId,c.AccessToken,grids,ct);pushed=grids.Length;}
-        return new(pulled,pushed,imported,warnings.Distinct().ToArray(),_clock.UtcNow);
+        if(c.ProjectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(c));
+        if(string.IsNullOrWhiteSpace(c.SpreadsheetId))throw new ArgumentException("SpreadsheetId is required.",nameof(c));
+        if(string.IsNullOrWhiteSpace(c.AccessToken))throw new ArgumentException("AccessToken is required.",nameof(c));
+        var warnings=new List<string>();var pulled=0;var pushed=0;var conflicts=0;SpreadsheetImportResult? imported=null;
+        var workbook=await BuildWorkbookAsync(c.ProjectId,ct);
+        if(!c.DryRun)await _google.EnsureSheetsAsync(c.SpreadsheetId,c.AccessToken,workbook.Sheets.Select(x=>x.Name).ToArray(),ct);
+        var editable=workbook.Sheets.Where(x=>x.Editable).ToArray();
+        var external=c.PullEditableSheets||c.DryRun
+            ?await _google.PullAsync(c.SpreadsheetId,c.AccessToken,editable.Select(x=>x.Name).ToArray(),ct)
+            :new Dictionary<string,IReadOnlyList<IReadOnlyList<string>>>(StringComparer.OrdinalIgnoreCase);
+        var pullTables=new Dictionary<string,IReadOnlyList<IReadOnlyList<string>>>(StringComparer.OrdinalIgnoreCase);
+        var pushGrids=new List<GoogleSheetGrid>();
+        var snapshots=new List<(string Sheet,string LocalHash,string ExternalHash)>();
+        var resolvedApplications=new List<(string ConflictKey,string Operation,string Sheet)>();
+        var syncState=await _operations.GetSyncStateAsync(c.ProjectId,ct);
+        foreach(var sheet in editable)
+        {
+            ct.ThrowIfCancellationRequested();
+            var localRows=new List<IReadOnlyList<string>>{sheet.Headers}.Concat(sheet.Rows).ToArray();
+            var extRows=external.TryGetValue(sheet.Name,out var rows)?rows:Array.Empty<IReadOnlyList<string>>();
+            var localHash=GridHash(localRows);var externalHash=GridHash(extRows);var snapshot=await ReadSheetSnapshotAsync(c.ProjectId,c.SpreadsheetId,sheet.Name,ct);
+            var rule=await _operations.AuthorityForAsync(c.ProjectId,$"GoogleSheets:{sheet.Name}",ct)??await _operations.AuthorityForAsync(c.ProjectId,sheet.Name,ct);
+            var authority=rule?.Authority??"Manual";var preferAuthority=rule?.ConflictPolicy.Equals("PreferAuthority",StringComparison.OrdinalIgnoreCase)==true;var itemKey=$"{c.SpreadsheetId}:{sheet.Name}";
+            var resolved=syncState.Conflicts.Where(x=>x.Provider.Equals("GoogleSheets",StringComparison.OrdinalIgnoreCase)&&x.DataType.Equals(sheet.Name,StringComparison.OrdinalIgnoreCase)&&x.ItemKey.Equals(itemKey,StringComparison.OrdinalIgnoreCase)&&x.Status.Equals("Resolved",StringComparison.OrdinalIgnoreCase)&&x.ResolvedAtUtc.HasValue&&(snapshot is null||x.ResolvedAtUtc.Value>snapshot.Value.SyncedAtUtc)&&(x.Resolution is "DIP" or "External")).OrderByDescending(x=>x.ResolvedAtUtc).FirstOrDefault();
+            var effectiveAuthority=resolved?.Resolution=="DIP"?"DIP":resolved?.Resolution=="External"?"GoogleSheets":preferAuthority?authority:"Manual";
+            var localChanged=snapshot is null||!localHash.Equals(snapshot.Value.LocalHash,StringComparison.Ordinal);var externalChanged=snapshot is null||!externalHash.Equals(snapshot.Value.ExternalHash,StringComparison.Ordinal);
+            if(localHash.Equals(externalHash,StringComparison.Ordinal))
+            { snapshots.Add((sheet.Name,localHash,externalHash));continue; }
+            string operation;
+            if(snapshot is null&&extRows.Count==0)
+                operation=effectiveAuthority.Equals("GoogleSheets",StringComparison.OrdinalIgnoreCase)||effectiveAuthority.Equals("External",StringComparison.OrdinalIgnoreCase)?"Pull":"Push";
+            else if(snapshot is null&&localRows.Count<=1&&extRows.Count>1)
+                operation=effectiveAuthority.Equals("DIP",StringComparison.OrdinalIgnoreCase)?"Push":"Pull";
+            else if(localChanged&&externalChanged)
+            {
+                if(effectiveAuthority.Equals("DIP",StringComparison.OrdinalIgnoreCase))operation="Push";
+                else if(effectiveAuthority.Equals("GoogleSheets",StringComparison.OrdinalIgnoreCase)||effectiveAuthority.Equals("External",StringComparison.OrdinalIgnoreCase))operation="Pull";
+                else operation="Conflict";
+            }
+            else if(externalChanged)
+                operation=effectiveAuthority.Equals("DIP",StringComparison.OrdinalIgnoreCase)?"Push":"Pull";
+            else if(localChanged)
+                operation=effectiveAuthority.Equals("GoogleSheets",StringComparison.OrdinalIgnoreCase)||effectiveAuthority.Equals("External",StringComparison.OrdinalIgnoreCase)?"Pull":"Push";
+            else operation="None";
+            if(operation=="Pull"&&!c.PullEditableSheets){warnings.Add($"{sheet.Name}: external change detected but PullEditableSheets is disabled.");continue;}
+            if(operation=="Push"&&!c.PushCalculatedSheets){warnings.Add($"{sheet.Name}: DIP change detected but push is disabled for this run.");continue;}
+            if(operation=="Conflict")
+            {
+                conflicts++;warnings.Add($"{sheet.Name}: both DIP and Google Sheets changed since the last sync. Resolve the conflict or set a Source Authority before retrying.");
+                if(!c.DryRun)await _operations.RecordSyncConflictAsync(c.ProjectId,"GoogleSheets",sheet.Name,itemKey,$"sha256:{localHash}",$"sha256:{externalHash}",ct);
+                continue;
+            }
+            if(operation=="Pull")
+            { pullTables[sheet.Name]=extRows;pulled++;snapshots.Add((sheet.Name,externalHash,externalHash));if(resolved is not null)resolvedApplications.Add((resolved.Key,"Pull",sheet.Name)); }
+            else if(operation=="Push")
+            { pushGrids.Add(new(sheet.Name,localRows));pushed++;snapshots.Add((sheet.Name,localHash,localHash));if(resolved is not null)resolvedApplications.Add((resolved.Key,"Push",sheet.Name)); }
+            else snapshots.Add((sheet.Name,localHash,externalHash));
+        }
+        var pullVerified=true;
+        if(!c.DryRun&&pullTables.Count>0){imported=await ApplyRowsAsync(c.ProjectId,pullTables,ct);warnings.AddRange(imported.Warnings);pullVerified=imported.Warnings.Count==0;if(!pullVerified){snapshots.RemoveAll(x=>pullTables.ContainsKey(x.Sheet));warnings.Add("Google Sheets pull completed with import warnings; affected sheet snapshots and resolved-conflict states were not advanced so the operation can be reviewed and retried.");}}
+        if(!c.DryRun&&pushGrids.Count>0)await _google.PushAsync(c.SpreadsheetId,c.AccessToken,pushGrids,ct);
+        if(!c.DryRun)foreach(var resolved in resolvedApplications.Where(x=>x.Operation=="Push"||(x.Operation=="Pull"&&pullVerified)))await _operations.MarkConflictAppliedAsync(c.ProjectId,resolved.ConflictKey,ct);
+        if(c.PushCalculatedSheets)
+        {
+            var calculated=workbook.Sheets.Where(x=>!x.Editable).Select(x=>new GoogleSheetGrid(x.Name,new List<IReadOnlyList<string>>{x.Headers}.Concat(x.Rows).ToArray())).ToArray();
+            if(!c.DryRun&&calculated.Length>0)await _google.PushAsync(c.SpreadsheetId,c.AccessToken,calculated,ct);pushed+=calculated.Length;
+        }
+        if(!c.DryRun)foreach(var snapshot in snapshots)await WriteSheetSnapshotAsync(c.ProjectId,c.SpreadsheetId,snapshot.Sheet,snapshot.LocalHash,snapshot.ExternalHash,ct);
+        return new(pulled,pushed,imported,warnings.Distinct().Take(100).ToArray(),_clock.UtcNow,conflicts,c.DryRun);
+    }
+
+    private async Task<(string LocalHash,string ExternalHash,DateTimeOffset SyncedAtUtc)?> ReadSheetSnapshotAsync(Guid projectId,string spreadsheetId,string sheet,CancellationToken ct)
+    {
+        var node=await _repo.FindNodeAsync(projectId,DevelopmentGraphNodeType.ExternalSyncState,SheetSnapshotKey(spreadsheetId,sheet),ct);if(node is null)return null;
+        try{using var doc=JsonDocument.Parse(node.MetadataJson);var root=doc.RootElement;var local=root.TryGetProperty("LocalHash",out var l)?l.GetString():null;var external=root.TryGetProperty("ExternalHash",out var e)?e.GetString():null;var synced=root.TryGetProperty("SyncedAtUtc",out var at)&&at.TryGetDateTimeOffset(out var parsed)?parsed:node.LastObservedAtUtc;return string.IsNullOrWhiteSpace(local)||string.IsNullOrWhiteSpace(external)?null:(local,external,synced);}catch{return null;}
+    }
+    private async Task WriteSheetSnapshotAsync(Guid projectId,string spreadsheetId,string sheet,string localHash,string externalHash,CancellationToken ct)
+    {
+        var metadata=JsonSerializer.Serialize(new{Kind="GoogleSheetsSnapshot",SpreadsheetId=spreadsheetId,Sheet=sheet,LocalHash=localHash,ExternalHash=externalHash,SyncedAtUtc=_clock.UtcNow});
+        await _graph.UpsertNodeAsync(new(projectId,DevelopmentGraphNodeType.ExternalSyncState,SheetSnapshotKey(spreadsheetId,sheet),$"Google Sheets snapshot {sheet}","Active","GoogleSheets",spreadsheetId,metadata),ct);
+    }
+    private static string SheetSnapshotKey(string spreadsheetId,string sheet)
+    {
+        var raw=$"{spreadsheetId}:{sheet}";var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw))).ToLowerInvariant()[..24];return $"sheet-sync:{hash}";
+    }
+    private static string GridHash(IReadOnlyList<IReadOnlyList<string>> rows)
+    {
+        var normalized=string.Join("\n",rows.Select(r=>string.Join("\u001f",r.Select(x=>(x??string.Empty).TrimEnd()))));return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized))).ToLowerInvariant();
     }
 
     public async Task<SpreadsheetImportResult> ApplyRowsAsync(Guid projectId,IReadOnlyDictionary<string,IReadOnlyList<IReadOnlyList<string>>> tables,CancellationToken ct)
     {
         var warnings=new List<string>();var teamCount=0;var wsCount=0;var taskCount=0;var milestoneCount=0;var blockerCount=0;var reqCount=0;var riskCount=0;var decisionCount=0;var actionCount=0;var changeCount=0;var allocationCount=0;
-        foreach(var row in Data(tables,"Teams")){try{await _work.UpsertTeamAsync(new(projectId,V(row,"Key"),V(row,"Name"),Dec(row,"CapacityHoursPerWeek"),Dec(row,"BufferPercent",10m),V(row,"Status","Active")),ct);teamCount++;}catch(Exception ex){warnings.Add("Teams: "+ex.Message);}}
+        foreach(var row in Data(tables,"Teams")){try{var poolCap=Dec(row,"SharedPoolCapacityHoursPerWeek",0m);await _work.UpsertTeamAsync(new(projectId,V(row,"Key"),V(row,"Name"),Dec(row,"CapacityHoursPerWeek"),Dec(row,"BufferPercent",10m),V(row,"Status","Active"),null,Null(V(row,"SharedResourceKey")),poolCap>0m?poolCap:null),ct);teamCount++;}catch(Exception ex){warnings.Add("Teams: "+ex.Message);}}
         foreach(var row in Data(tables,"Workstreams")){try{await _work.UpsertWorkstreamAsync(new(projectId,V(row,"Key"),V(row,"Name"),V(row,"TeamKey"),Dec(row,"PlannedCapacityHoursPerWeek"),Date(row,"PlannedStart"),Date(row,"Due"),Dec(row,"CompletionPercent"),V(row,"Status","Active")),ct);wsCount++;}catch(Exception ex){warnings.Add("Workstreams: "+ex.Message);}}
         foreach(var row in Data(tables,"Tasks")){try{await _work.UpsertTaskAsync(new(projectId,V(row,"Key"),V(row,"Name"),V(row,"WorkstreamKey"),Dec(row,"EstimateHours"),Dec(row,"RemainingHours"),Date(row,"PlannedStart"),Date(row,"Due"),Dec(row,"CompletionPercent"),V(row,"Status","Planned"),V(row,"Priority","Medium"),Null(V(row,"OwnerLabel")),Null(V(row,"ExternalReference"))),ct);taskCount++;}catch(Exception ex){warnings.Add("Tasks: "+ex.Message);}}
         foreach(var row in Data(tables,"Milestones")){try{var state=Enum.TryParse<MilestoneState>(V(row,"State","Planned"),true,out var parsed)?parsed:MilestoneState.Planned;await _milestones.UpsertAsync(new(projectId,V(row,"Key"),V(row,"Name"),Date(row,"PlannedStart"),Date(row,"Due"),(int)Dec(row,"DurationDays",1m),Dec(row,"CompletionPercent"),state,Null(V(row,"ExternalReference"))),ct);milestoneCount++;}catch(Exception ex){warnings.Add("Milestones: "+ex.Message);}}

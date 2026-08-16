@@ -141,6 +141,17 @@ services:
       GameReplay__AllowPathLookup: ${DIP_REPLAY_ALLOW_PATH_LOOKUP:-false}
       ReleaseProvenance__AllowedRoot: /app
       OpenTelemetry__OtlpEndpoint: ${DIP_OTLP_ENDPOINT:-http://127.0.0.1:4317}
+      ManagementNotifications__Enabled: ${DIP_MANAGEMENT_NOTIFICATIONS_ENABLED:-true}
+      ManagementNotifications__ScanIntervalSeconds: ${DIP_MANAGEMENT_NOTIFICATION_SCAN_SECONDS:-60}
+      ManagementNotifications__SlackWebhookUrl: ${DIP_SLACK_WEBHOOK_URL:-}
+      ManagementNotifications__TeamsWebhookUrl: ${DIP_TEAMS_WEBHOOK_URL:-}
+      ManagementNotifications__Email__Host: ${DIP_SMTP_HOST:-}
+      ManagementNotifications__Email__Port: ${DIP_SMTP_PORT:-587}
+      ManagementNotifications__Email__EnableSsl: ${DIP_SMTP_ENABLE_SSL:-true}
+      ManagementNotifications__Email__Username: ${DIP_SMTP_USERNAME:-}
+      ManagementNotifications__Email__Password: ${DIP_SMTP_PASSWORD:-}
+      ManagementNotifications__Email__From: ${DIP_SMTP_FROM:-}
+      ManagementNotifications__Email__To: ${DIP_MANAGEMENT_EMAIL_TO:-}
     volumes:
       - dip-web-artifacts:/data/dip-artifacts
       - dip-web-workspaces:/data/dip-workspaces
