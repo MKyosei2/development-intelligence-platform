@@ -29,6 +29,16 @@ public sealed class CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNorm
             var executable=Path.IsPathRooted(command.RuntimeExecutable!)?command.RuntimeExecutable!:Path.GetFullPath(Path.Combine(workspace,command.RuntimeExecutable!));
             await Run("cpp-runtime-asan",executable,command.RuntimeArguments??Array.Empty<string>(),Severity.Critical,"runtime",sanitizerEnvironment);
         }
+        // ThreadSanitizer is a separate build because ASan and TSan cannot be linked together.
+        // It is opt-in on non-Windows runners to avoid doubling every default C++ QA run.
+        if(!OperatingSystem.IsWindows()&&string.Equals(Environment.GetEnvironmentVariable("DIP_QA_ENABLE_TSAN"),"1",StringComparison.Ordinal))
+        {
+            var tsanBuild=Path.Combine(workspace,".dipqa","tsan-build");Directory.CreateDirectory(tsanBuild);
+            var tsanEnv=new Dictionary<string,string>{{"TSAN_OPTIONS","halt_on_error=1:history_size=7"}};
+            await Run("cmake-configure-tsan",cmake,["-S",workspace,"-B",tsanBuild,"-DCMAKE_BUILD_TYPE=RelWithDebInfo","-DCMAKE_CXX_FLAGS=-Wall -Wextra -Wpedantic -fsanitize=thread -fno-omit-frame-pointer -g"],Severity.Critical,"configure");
+            await Run("cmake-build-tsan",cmake,["--build",tsanBuild,"--config","RelWithDebInfo","--parallel"],Severity.Critical,"compile");
+            if(ctest is not null)await Run("ctest-tsan",ctest,["--test-dir",tsanBuild,"-C","RelWithDebInfo","--output-on-failure"],Severity.Critical,"race",tsanEnv);
+        }
         return new(LanguageId.Cpp,tools,findings,QaToolSupport.JsonSummary(LanguageId.Cpp,tools,findings));
 
         async Task Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category,IReadOnlyDictionary<string,string>? environment=null)

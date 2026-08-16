@@ -21,7 +21,8 @@ Hosted deployment is documented in [`../docs/WEB_DEPLOYMENT.md`](../docs/WEB_DEP
 - `Verify-GuiPhase1.ps1`: repository-onboarding GUI E2E verification
 - `Verify-QaGovernance.ps1`: QA governance verification
 - `Verify-P1.ps1` / `Verify-P2.ps1`: platform evidence verification
+- `Run-UniversalQaBenchmark.ps1`: measured native-toolchain QA bootstrap benchmark
 
 Run developer scripts from the repository root. Generated evidence belongs under `artifacts/` or `reports/`.
 
-Windows-specific verification remains only where Windows itself is the subject of the evidence (for example native capture, Unity/Windows integration or platform-specific QA). It is not required to use the hosted DIP website.
+Windows-specific verification remains only where Windows itself is the subject of the evidence. It is not required to use the hosted DIP website.

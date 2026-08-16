@@ -8,4 +8,5 @@ public sealed class P2IntelligenceOptions
     public string AiModel{get;set;}="evidence-grounded-model";
     public int AiTimeoutSeconds{get;set;}=45;
     public bool AllowExternalAi{get;set;}=false;
+    public bool AllowFixProposal{get;set;}=false;
 }

@@ -3,11 +3,15 @@ from __future__ import annotations
 import argparse,csv,datetime as dt,json,re,sys,uuid
 from pathlib import Path
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 ASSET_EXTS={".uasset",".umap",".ubulk",".uexp"}
 SOURCE_EXTS={".cpp",".h",".hpp",".cs"}
 ERROR_RE=re.compile(r"(?:error:|fatal error|ensure condition failed|assertion failed)",re.I)
 WARNING_RE=re.compile(r"(?:warning:|log[^:]*: warning)",re.I)
+BLUEPRINT_RE=re.compile(r"(?:LogBlueprint|BlueprintLog).*(?:Error|Compile failed)",re.I)
+PACKAGE_RE=re.compile(r"(?:PackagingResults|AutomationTool).*(?:Error|BUILD FAILED|Cook failed)",re.I)
+SHADER_RE=re.compile(r"(?:ShaderCompileWorker|LogShaderCompilers).*(?:Error|Failed)",re.I)
+NETWORK_RE=re.compile(r"(?:NetDriver|LogNet).*(?:timeout|connection lost|failure)",re.I)
 
 def utcnow(): return dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00','Z')
 def metric(name,value,unit,**extra): return {"name":name,"value":value,"unit":unit,**{k:v for k,v in extra.items() if v is not None}}
@@ -46,6 +50,14 @@ def collect(root:Path,insights:Path|None,automation:Path|None=None):
     plugins=[p for p in files if p.suffix.lower()=='.uplugin']
     total_asset_bytes=sum(p.stat().st_size for p in assets)
     metrics += [metric('unreal.asset_count',len(assets),'count'),metric('unreal.asset_bytes',total_asset_bytes,'bytes'),metric('unreal.map_count',len(maps),'count'),metric('unreal.source_file_count',len(sources),'count'),metric('unreal.config_file_count',len(configs),'count'),metric('unreal.plugin_descriptor_count',len(plugins),'count')]
+    rhi_configs=0
+    for cfg in configs:
+        try:
+            txt=cfg.read_text(encoding='utf-8',errors='replace')
+            if 'DefaultGraphicsRHI' in txt or 'TargetedRHIs' in txt: rhi_configs+=1
+        except OSError: pass
+    metrics.append(metric('unreal.default_rhi_config_count',rhi_configs,'count'))
+    if rhi_configs==0: issues.append(issue('PlatformConfiguration','Warning','No explicit target RHI configuration observed','Review DefaultGraphicsRHI/TargetedRHIs for the release platforms; this is a review signal, not proof of a misconfiguration.',str(root),'UNREAL_RHI_REVIEW'))
     if uproject:
         try:
             data=json.loads(uproject.read_text(encoding='utf-8-sig'))
@@ -64,7 +76,12 @@ def collect(root:Path,insights:Path|None,automation:Path|None=None):
             for idx,line in enumerate(log.read_text(encoding='utf-8',errors='replace').splitlines(),1):
                 if ERROR_RE.search(line):
                     errors+=1
-                    if len(issues)<200: issues.append(issue('UnrealLog','Critical','Unreal error',line.strip(),str(log),'UNREAL_LOG_ERROR',{'line':idx}))
+                    category,title,rule='UnrealLog','Unreal error','UNREAL_LOG_ERROR'
+                    if BLUEPRINT_RE.search(line): category,title,rule='Blueprint','Blueprint compile failure','UNREAL_BLUEPRINT_COMPILE'
+                    elif PACKAGE_RE.search(line): category,title,rule='Packaging','Unreal packaging/cook failure','UNREAL_PACKAGING_FAILED'
+                    elif SHADER_RE.search(line): category,title,rule='Shader','Unreal shader compile failure','UNREAL_SHADER_COMPILE'
+                    elif NETWORK_RE.search(line): category,title,rule='Network','Unreal network/runtime failure','UNREAL_NETWORK_FAILURE'
+                    if len(issues)<200: issues.append(issue(category,'Critical',title,line.strip(),str(log),rule,{'line':idx}))
                 elif WARNING_RE.search(line):
                     warnings+=1
                     if len(issues)<200: issues.append(issue('UnrealLog','Warning','Unreal warning',line.strip(),str(log),'UNREAL_LOG_WARNING',{'line':idx}))

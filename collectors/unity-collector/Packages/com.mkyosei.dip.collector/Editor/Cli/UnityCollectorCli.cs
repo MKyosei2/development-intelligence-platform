@@ -19,7 +19,7 @@ namespace Dip.UnityCollector.Editor.Cli
             var output = GetArg("-dipOutput");
             var report = new CollectorReport
             {
-                collectorVersion = "0.2.0",
+                collectorVersion = "0.3.0",
                 projectId = GetArg("-dipProjectId"),
                 commitSha = GetArg("-dipCommitSha"),
                 branch = GetArg("-dipBranch"),
@@ -70,6 +70,8 @@ namespace Dip.UnityCollector.Editor.Cli
             BuildSettingsAnalyzer.Analyze(report);
             AnimationAnalyzer.Analyze(report, settings.maxAnimationCurvesPerClip);
             SceneAnalyzer.Analyze(report, settings.maxSceneGameObjects, settings.analyzeAllEnabledBuildScenes);
+            AssetDependencyAnalyzer.Analyze(report, settings.maxDependencyFindings);
+            ShaderAndRuntimeAnalyzer.Analyze(report, settings.maxScriptHeuristicWarnings);
             IngestRuntimePerformance(report, settings, runtimeMetricsPath);
         }
 

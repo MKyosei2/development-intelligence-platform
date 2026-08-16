@@ -1,0 +1,39 @@
+name: Universal QA Benchmark
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  measured-toolchain-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.x'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install TypeScript
+        run: npm install --global typescript
+      - name: Run measured Universal QA toolchain benchmark
+        run: python tools/universal_qa_benchmark.py --output artifacts/universal-qa-benchmark
+      - name: Upload measured evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: universal-qa-benchmark
+          path: artifacts/universal-qa-benchmark
+          if-no-files-found: error

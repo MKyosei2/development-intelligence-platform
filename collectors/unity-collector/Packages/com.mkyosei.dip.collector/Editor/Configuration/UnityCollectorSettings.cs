@@ -15,6 +15,8 @@ namespace Dip.UnityCollector.Editor.Configuration
         public int maxSceneGameObjects = 50000;
         public int maxAnimationCurvesPerClip = 2000;
         public bool analyzeAllEnabledBuildScenes = true;
+        public int maxDependencyFindings = 100;
+        public int maxScriptHeuristicWarnings = 50;
 
         [Header("Runtime performance QA")]
         public double warningFrameTimeP95Ms = 16.6667;

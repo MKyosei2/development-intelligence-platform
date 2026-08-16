@@ -1,0 +1,40 @@
+{
+  "languages": [
+    {
+      "id": "customlang",
+      "extensions": [
+        ".custom"
+      ],
+      "commands": [
+        {
+          "name": "custom-property-tests",
+          "executable": "tools/custom-test-runner",
+          "arguments": [
+            "--property",
+            "{workspace}"
+          ],
+          "perFile": false,
+          "category": "property-test",
+          "severity": "warning",
+          "reports": [
+            "reports/*.sarif"
+          ]
+        },
+        {
+          "name": "custom-fuzz",
+          "executable": "tools/custom-fuzzer",
+          "arguments": [
+            "--corpus",
+            "{workspace}/fuzz-corpus"
+          ],
+          "perFile": false,
+          "category": "fuzz",
+          "severity": "critical",
+          "reports": [
+            "reports/*.sarif"
+          ]
+        }
+      ]
+    }
+  ]
+}

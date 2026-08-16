@@ -55,6 +55,12 @@ public static class DependencyInjection
         services.AddScoped<IProjectForecastStore, ProjectForecastStore>();
         services.AddSingleton<ProcessExecutor>();
         services.AddSingleton<UniversalDiagnosticNormalizer>();
+        services.AddSingleton<IUniversalSemanticAnalyzer,UniversalSemanticAnalyzer>();
+        services.AddSingleton<IQaCapabilityPlanner,QaCapabilityPlanner>();
+        services.AddSingleton<IIdeDiagnosticNormalizer,IdeDiagnosticNormalizer>();
+        services.AddSingleton<ICrossCuttingQaPack,SystemIntegrationQaPack>();
+        services.AddSingleton<ICrossCuttingQaPack,GameProjectQaPack>();
+        services.AddSingleton<DeepLanguagePackQaAdapter>();
         services.AddSingleton<PythonQaEngine>();
         services.AddSingleton<CSharpQaEngine>();
         services.AddSingleton<CppQaEngine>();
@@ -66,6 +72,7 @@ public static class DependencyInjection
         services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<PythonQaEngine>());
         services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<CSharpQaEngine>());
         services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<CppQaEngine>());
+        services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<DeepLanguagePackQaAdapter>());
         services.AddSingleton<IQaAdapter>(sp=>sp.GetRequiredService<GenericCommandQaAdapter>());
         services.AddSingleton<IQaAdapterRegistry,QaAdapterRegistry>();
         services.AddSingleton<IRepositoryTechnologyDetector,RepositoryTechnologyDetector>();
@@ -114,8 +121,14 @@ public static class DependencyInjection
         services.AddSingleton<Dip.Application.Features.P2Intelligence.INativeSymbolicator, Dip.Infrastructure.P2Intelligence.NativeSymbolicator>();
         services.AddSingleton<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IAiRootCauseClient>(sp => sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>());
+        services.AddSingleton<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleFixProposalAgent>();
+        services.AddSingleton<IFixProposalAgent>(sp=>sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleFixProposalAgent>());
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());
         services.AddSingleton<ISystemClock, SystemClock>();
+
+        services.Configure<Dip.Infrastructure.ExternalEvents.ExternalEventIngestionOptions>(configuration.GetSection(Dip.Infrastructure.ExternalEvents.ExternalEventIngestionOptions.SectionName));
+        services.AddSingleton<Dip.Application.Features.ExternalEvents.IExternalIncidentIngestionAdapter,Dip.Infrastructure.ExternalEvents.SentryIncidentIngestionAdapter>();
+        services.AddSingleton<Dip.Application.Features.ExternalEvents.IExternalIncidentIngestionAdapter,Dip.Infrastructure.ExternalEvents.OpenTelemetryIncidentIngestionAdapter>();
 
         services.Configure<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>(configuration.GetSection(Dip.Infrastructure.Artifacts.ArtifactStoreOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.Artifacts.IArtifactStore>(sp =>
@@ -129,7 +142,10 @@ public static class DependencyInjection
         services.Configure<Dip.Infrastructure.Replay.GameReplayOptions>(configuration.GetSection(Dip.Infrastructure.Replay.GameReplayOptions.SectionName));
         services.Configure<Dip.Infrastructure.Provenance.ReleaseProvenanceOptions>(configuration.GetSection(Dip.Infrastructure.Provenance.ReleaseProvenanceOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.Replay.IGameReplayExecutor,Dip.Infrastructure.Replay.GameReplayExecutor>();
+        services.Configure<Dip.Infrastructure.WorkItems.WorkItemIntegrationOptions>(configuration.GetSection(Dip.Infrastructure.WorkItems.WorkItemIntegrationOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.WorkItems.IExternalWorkItemConnector,Dip.Infrastructure.WorkItems.GitHubWorkItemConnector>();
+        services.AddSingleton<Dip.Application.Abstractions.WorkItems.IExternalWorkItemConnector,Dip.Infrastructure.WorkItems.JiraWorkItemConnector>();
+        services.AddSingleton<Dip.Application.Abstractions.WorkItems.IExternalWorkItemConnector,Dip.Infrastructure.WorkItems.LinearWorkItemConnector>();
         services.AddSingleton<Dip.Application.Abstractions.Provenance.IReleaseProvenanceCollector,Dip.Infrastructure.Provenance.ReleaseProvenanceCollector>();
         services.AddSingleton<Dip.Infrastructure.Observability.DipOperationalMetrics>();
         services.AddSingleton<Dip.Application.Abstractions.Observability.IDipOperationalMetrics>(sp=>sp.GetRequiredService<Dip.Infrastructure.Observability.DipOperationalMetrics>());
@@ -137,6 +153,7 @@ public static class DependencyInjection
 
         services.Configure<QaExecutionOptions>(configuration.GetSection(QaExecutionOptions.SectionName));
         services.AddSingleton<IQaWorkspaceResolver, QaWorkspaceResolver>();
+        services.AddSingleton<IVerifiedFixService,VerifiedFixService>();
         services.AddSingleton<IReproductionCoordinator>(sp => sp.GetRequiredService<ReproductionCoordinator>());
         services.AddSingleton<IHardwareCalibrationRunner>(sp => sp.GetRequiredService<HardwareCalibrationService>());
         services.AddSingleton<IPerformanceSimulationRunner>(sp => sp.GetRequiredService<PerformanceSimulationService>());

@@ -1,0 +1,32 @@
+{
+  "allowRemoteHosts": [
+    "staging.example.invalid"
+  ],
+  "http": [
+    {
+      "name": "health",
+      "url": "http://localhost:5080/health",
+      "method": "GET",
+      "expectedStatus": 200,
+      "timeoutMs": 3000
+    }
+  ],
+  "distributed": [
+    {
+      "name": "dependency-health",
+      "url": "http://localhost:5080/health",
+      "expectedStatus": 200,
+      "attempts": 5,
+      "timeoutMs": 3000
+    }
+  ],
+  "database": [
+    {
+      "name": "postgres-readiness",
+      "provider": "postgres",
+      "connectionStringEnvironment": "DIP_QA_POSTGRES",
+      "probeQuery": "SELECT 1",
+      "timeoutSeconds": 5
+    }
+  ]
+}

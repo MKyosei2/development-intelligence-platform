@@ -44,6 +44,8 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.Jobs.DurableJobService>();
         services.AddScoped<Dip.Application.Features.Jobs.P2JobEnqueueService>();
         services.AddScoped<Dip.Application.Features.Incidents.IncidentAggregationService>();
+        services.AddScoped<IRuntimeDefectIntelligence,RuntimeDefectIntelligenceService>();
+        services.AddScoped<Dip.Application.Features.ExternalEvents.ExternalIncidentIngestionService>();
         services.AddScoped<Dip.Application.Features.Benchmarks.BenchmarkOrchestrationService>();
         services.AddScoped<Dip.Application.Features.Replay.GameReplayService>();
         services.AddScoped<Dip.Application.Features.Performance.PerformanceBudgetService>();

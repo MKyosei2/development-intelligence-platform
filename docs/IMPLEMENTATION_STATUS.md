@@ -172,3 +172,23 @@ This generated source tree **does not claim Windows/.NET/Unity runtime PASS or b
 
 Formal completion requires `scripts/Verify-QaGovernance.ps1` and the existing exact-revision portfolio runner. The generation environment is not a substitute for Windows/.NET/Unity runtime evidence.
 
+
+
+## 2026-08-16 Defect Intelligence / Universal QA expansion
+
+| Area | Source state | Completion evidence |
+|---|---|---|
+| Deep Language Pack / capability planner | Implemented | exact-revision adapter tests + Bug Zoo |
+| Universal structural AST + bounded data-flow | Implemented | unit tests + formal .NET run |
+| Runtime Defect Intelligence | Implemented | runtime event -> Incident E2E |
+| Verified Fix + Regression Test isolation | Implemented | disposable worktree QA E2E |
+| Unity/Unreal Game QA expansion | Implemented | real Unity/Unreal runs |
+| Sentry / OpenTelemetry ingest | Implemented | authenticated sample event E2E |
+| Jira / Linear connectors | Implemented | configured sandbox integration test |
+| Fuzz/property/race extensibility | Implemented | native tool availability or `.dip/qa.json` evidence |
+| API/DB/distributed QA pack | Implemented, opt-in | `.dip/system-qa.json` E2E |
+| Evidence-grounded Fix Agent | Implemented, default OFF | evidence-ID contract + VerifiedFix E2E |
+| IDE/LSP diagnostics bridge | Implemented | API + bridge round trip |
+| Native-toolchain benchmark | Measured where tools are installed | `artifacts/universal-qa-benchmark` |
+
+The bootstrap benchmark is intentionally labeled `formalAdapterBenchmark=false`; it does not substitute for `Dip.QaBugZooVerifier`. This source package must not be described as fully CI-green until GitHub can actually start hosted runners and the exact packaged revision passes the .NET/integration/GUI/security workflows.

@@ -83,6 +83,18 @@ services:
       Authentication__Jwt__LifetimeMinutes: ${DIP_JWT_LIFETIME_MINUTES:-60}
       SystemStatus__WorkerMetricsUrl: http://worker:9091/metrics
       OpenTelemetry__OtlpEndpoint: ${DIP_OTLP_ENDPOINT:-http://127.0.0.1:4317}
+      ExternalEventIngestion__IngestKey: ${DIP_EXTERNAL_EVENT_INGEST_KEY:-}
+      WorkItems__Jira__BaseUrl: ${DIP_JIRA_BASE_URL:-}
+      WorkItems__Jira__Email: ${DIP_JIRA_EMAIL:-}
+      WorkItems__Jira__ApiToken: ${DIP_JIRA_API_TOKEN:-}
+      WorkItems__Jira__ProjectKey: ${DIP_JIRA_PROJECT_KEY:-}
+      WorkItems__Linear__ApiKey: ${DIP_LINEAR_API_KEY:-}
+      WorkItems__Linear__TeamId: ${DIP_LINEAR_TEAM_ID:-}
+      P2Intelligence__AiEndpoint: ${DIP_AI_ENDPOINT:-}
+      P2Intelligence__AiApiKey: ${DIP_AI_API_KEY:-}
+      P2Intelligence__AiModel: ${DIP_AI_MODEL:-evidence-grounded-model}
+      P2Intelligence__AllowExternalAi: ${DIP_ALLOW_EXTERNAL_AI:-false}
+      P2Intelligence__AllowFixProposal: ${DIP_ALLOW_FIX_PROPOSAL:-false}
     volumes:
       - dip-web-artifacts:/data/dip-artifacts
       - dip-web-workspaces:/data/dip-workspaces

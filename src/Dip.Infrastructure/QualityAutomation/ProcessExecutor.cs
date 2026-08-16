@@ -11,7 +11,7 @@ public sealed record ProcessExecutionResult(string Executable,IReadOnlyList<stri
 
 public sealed class ProcessExecutor
 {
-    private static readonly HashSet<string> ExternalQaTools=new(new[]{"dotnet","python","python3","py","pytest","ruff","mypy","cmake","ctest","ninja","msbuild","clang","clang++","clang-tidy","cppcheck","gcc","g++","node","npm","npx","pnpm","yarn","tsc","go","cargo","rustc","javac","java","kotlinc","ruby","php","bash","pwsh","powershell","luac","lua","swiftc","sqlfluff","glslangvalidator","dxc","fxc"},StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> ExternalQaTools=new(new[]{"dotnet","python","python3","py","pytest","ruff","mypy","cmake","ctest","ninja","msbuild","clang","clang++","clang-tidy","cppcheck","gcc","g++","node","npm","npx","pnpm","yarn","tsc","go","cargo","rustc","javac","java","kotlinc","ruby","php","bash","pwsh","powershell","luac","lua","swiftc","sqlfluff","glslangvalidator","dxc","fxc","semgrep","eslint","shellcheck","rubocop","rspec","phpstan","psalm","phpunit","bats","busted","swift","swiftc","godot","godot4","gradle","mvn","mvnw","gradlew","cargo-fuzz"},StringComparer.OrdinalIgnoreCase);
     private readonly QaExecutionOptions _options;
     private readonly IDipOperationalMetrics? _metrics;
     public ProcessExecutor(IOptions<QaExecutionOptions>? options=null,IDipOperationalMetrics? metrics=null){_options=options?.Value??new QaExecutionOptions();_metrics=metrics;}

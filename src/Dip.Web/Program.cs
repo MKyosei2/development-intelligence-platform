@@ -22,8 +22,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedFor
         | ForwardedHeaders.XForwardedProto
         | ForwardedHeaders.XForwardedHost;
-    // The hosted compose file never publishes the Web container directly.
-    // Trust proxy headers on that private network so HTTPS/original host survive Caddy.
+    // Caddy is the only public ingress in docker-compose.web.yml.
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
