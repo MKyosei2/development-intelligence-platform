@@ -21,9 +21,3 @@ Historical verified evidence under `verified-baseline/` remains useful as a meas
 3. push with a Conventional Commit message;
 4. require the current SHA's `.NET CI`, Python, Native Collector, Integration/E2E, Security, Docker and GUI E2E workflows to succeed;
 5. only then tag `v1.0.0-portfolio` and create the release.
-
-## Package-local verification
-
-- [`package-static-validation.json`](package-static-validation.json) records the checks executed while building this ZIP.
-- [`package-manifest.json`](package-manifest.json) records SHA-256 for files added/modified relative to the package base snapshot.
-- The distributed ZIP also has a separate `.sha256` sidecar.
