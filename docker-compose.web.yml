@@ -95,6 +95,13 @@ services:
       P2Intelligence__AiModel: ${DIP_AI_MODEL:-evidence-grounded-model}
       P2Intelligence__AllowExternalAi: ${DIP_ALLOW_EXTERNAL_AI:-false}
       P2Intelligence__AllowFixProposal: ${DIP_ALLOW_FIX_PROPOSAL:-false}
+      ProjectIntelligenceSources__Redmine__BaseUrl: ${DIP_REDMINE_BASE_URL:-}
+      ProjectIntelligenceSources__Redmine__ApiKey: ${DIP_REDMINE_API_KEY:-}
+      ProjectIntelligenceSources__Redmine__ProjectIdentifier: ${DIP_REDMINE_PROJECT_IDENTIFIER:-}
+      ProjectIntelligenceSources__Slack__BotToken: ${DIP_SLACK_SOURCE_BOT_TOKEN:-}
+      ProjectIntelligenceSources__Slack__SigningSecret: ${DIP_SLACK_SIGNING_SECRET:-}
+      ProjectIntelligenceSources__Slack__ChannelIds__0: ${DIP_SLACK_SOURCE_CHANNEL_0:-}
+      ProjectIntelligenceSources__Teams__IngestKey: ${DIP_TEAMS_EVIDENCE_INGEST_KEY:-}
     volumes:
       - dip-web-artifacts:/data/dip-artifacts
       - dip-web-workspaces:/data/dip-workspaces

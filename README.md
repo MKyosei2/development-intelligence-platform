@@ -13,6 +13,21 @@ Browser -> HTTPS -> Caddy -> Dip.Web / Dip.Api
 
 Hosted deployment: [`docs/WEB_DEPLOYMENT.md`](docs/WEB_DEPLOYMENT.md)
 
+## 2026-08-16 Project Intelligence Layer S+/S expansion
+
+既存のExcel / WBS / Gantt、Redmine、Slack / Teams、GitHub / CI / QAを置き換えず、その上で「計画・報告・実際の技術Evidence」を関連付けるProject Intelligence Layerを追加しました。
+
+- **Excel/WBS/Gantt understanding**: `.xlsx` / `.xlsm` / `.csv` の日本語・英語列を推定し、Mapping Preview後に独立Plan layerへ取り込み。既存Taskは上書きしません。
+- **Redmine read-only adapter**: Issue / Tracker / Status / Done Ratio / Owner / Dates / Version / Relations / Attachments / Custom Fieldsを取得。Project別mappingに対応。
+- **Slack / Teams evidence ingestion**: Slack履歴の関連メッセージと署名済みEvents API、TeamsのProject別signed bridgeをEvidenceへ正規化。
+- **Cross-source entity resolution**: WBS row = Redmine issue = Slack claim = GitHub PR等を高信頼時のみ自動関連付けし、曖昧な候補はMaintainer確認へ回します。
+- **Plan vs Actual**: Planned / Operational report / machine Evidence readinessを分離し、stale・期限超過・CI失敗・未証明完了・進捗食い違いを検出。
+- **Source provenance**: provider / external ID / revision / URL / timestamp / normalized SHA-256を保持し、再同期時のEvidence重複を抑制。
+- **Management digest + WBS/Gantt viewer**: PM/Leadが外部ツールを巡回する前に、注意項目・Evidence gap・矛盾と既存計画のガントをブラウザで確認可能。
+- **No employee skill scoring**: Evidence readinessは作業項目の証拠充足度であり、人の能力評価には使用しません。
+
+Architecture: [`docs/02-architecture/project-intelligence-layer-20260816.md`](docs/02-architecture/project-intelligence-layer-20260816.md)
+
 ## 2026-08-16 Management Operations S+/S expansion
 
 PM・プロデューサー・各種リードがブラウザだけで `Detect → Decide → Assign → Approve → Act → Verify → Close → Review` を回せるManagement Operations層を既存Development Graphへ統合しました。

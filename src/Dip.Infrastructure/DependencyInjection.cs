@@ -145,6 +145,10 @@ public static class DependencyInjection
         services.AddSingleton<Dip.Application.Abstractions.Replay.IGameReplayExecutor,Dip.Infrastructure.Replay.GameReplayExecutor>();
         services.Configure<Dip.Infrastructure.WorkItems.WorkItemIntegrationOptions>(configuration.GetSection(Dip.Infrastructure.WorkItems.WorkItemIntegrationOptions.SectionName));
         services.Configure<Dip.Infrastructure.Management.ManagementNotificationOptions>(configuration.GetSection(Dip.Infrastructure.Management.ManagementNotificationOptions.SectionName));
+        services.Configure<Dip.Infrastructure.ProjectIntelligence.ProjectIntelligenceSourceOptions>(configuration.GetSection(Dip.Infrastructure.ProjectIntelligence.ProjectIntelligenceSourceOptions.SectionName));
+        services.AddSingleton<Dip.Application.Features.ProjectIntelligence.IProjectSourceAdapter,Dip.Infrastructure.ProjectIntelligence.RedmineProjectSourceAdapter>();
+        services.AddSingleton<Dip.Application.Features.ProjectIntelligence.IProjectSourceAdapter,Dip.Infrastructure.ProjectIntelligence.SlackProjectSourceAdapter>();
+        services.AddSingleton<Dip.Infrastructure.ProjectIntelligence.CollaborationWebhookVerifier>();
         services.AddSingleton<Dip.Application.Features.Management.IManagementNotificationChannel,Dip.Infrastructure.Management.SlackManagementNotificationChannel>();
         services.AddSingleton<Dip.Application.Features.Management.IManagementNotificationChannel,Dip.Infrastructure.Management.TeamsManagementNotificationChannel>();
         services.AddSingleton<Dip.Application.Features.Management.IManagementNotificationChannel,Dip.Infrastructure.Management.EmailManagementNotificationChannel>();

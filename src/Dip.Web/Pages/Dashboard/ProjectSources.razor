@@ -1,0 +1,81 @@
+@page "/dashboard/{ProjectId:guid}/sources"
+@inject ApiClient Api
+
+<PageTitle>Plan & Sources | DIP</PageTitle>
+
+<section class="page-heading">
+    <div><div class="eyebrow">Project intelligence layer</div><h1>Plan & Source Intelligence</h1><p>Read the existing WBS/Gantt, Redmine, Slack and engineering evidence without replacing the tools your team already uses.</p></div>
+    <div class="heading-actions"><a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/management")">Management</a><button class="btn btn-outline-primary" @onclick="LoadAsync" disabled="@_loading">↻ Refresh</button></div>
+</section>
+
+@if(_loading){<LoadingState Message="Loading cross-source project intelligence…" />}
+else if(_error is not null){<ErrorState Message="@_error" Retry="LoadAsync" />}
+else
+{
+    @if(!string.IsNullOrWhiteSpace(_notice)){<div class="alert alert-success">@_notice</div>}
+    <div class="metric-grid mb-4">
+        <div class="metric-card"><span>Plan items</span><strong>@(_layer?.Progress.PlanItems ?? 0)</strong><small>latest imported WBS</small></div>
+        <div class="metric-card"><span>At risk</span><strong>@(_layer?.Progress.AtRisk ?? 0)</strong><small>plan vs actual</small></div>
+        <div class="metric-card"><span>Unverified claims</span><strong>@(_layer?.Progress.UnverifiedClaims ?? 0)</strong><small>completion without strong evidence</small></div>
+        <div class="metric-card"><span>Unresolved entities</span><strong>@(_layer?.EntityResolution.Unresolved ?? 0)</strong><small>source links needing review</small></div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-7"><div class="card h-100"><div class="card-header"><strong>Management digest</strong></div><div class="card-body">
+            @if(_layer is null){<div class="text-muted">No intelligence snapshot yet.</div>}
+            else {<div class="d-flex gap-2 align-items-center mb-2"><StatusBadge Status="@_layer.Digest.OverallStatus" /><strong>@_layer.Digest.ExecutiveSummary</strong></div>
+                @if(_layer.Digest.NeedsAttention.Count>0){<h6 class="mt-3">Needs attention</h6><ul class="small">@foreach(var x in _layer.Digest.NeedsAttention){<li>@x</li>}</ul>}
+                @if(_layer.Digest.EvidenceGaps.Count>0){<h6>Evidence gaps</h6><ul class="small mb-0">@foreach(var x in _layer.Digest.EvidenceGaps){<li>@x</li>}</ul>}
+            }
+        </div></div></div>
+        <div class="col-12 col-xl-5"><div class="card h-100"><div class="card-header"><strong>External sources</strong></div><div class="card-body">
+            @if(_providers.Count==0){<div class="text-muted small">No pull adapters are registered.</div>}
+            @foreach(var p in _providers){<div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2"><div><strong>@p.Provider</strong><div class="small text-muted">@(p.Configured?"configured":"configuration required")</div></div><div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" disabled="@(!p.Configured||_busy)" @onclick="()=>SyncSource(p.Provider,true)">Dry run</button><button class="btn btn-primary" disabled="@(!p.Configured||_busy)" @onclick="()=>SyncSource(p.Provider,false)">Sync</button></div></div>}
+            @if(_lastSync is not null){<div class="small mt-2"><b>@_lastSync.Provider</b>: @_lastSync.AddedOrChanged changed, @_lastSync.Unchanged unchanged, @_lastSync.EvidenceRecords evidence record(s), @_lastSync.AutoResolved entity resolution(s).</div>}
+            <div class="small text-muted mt-3">Slack Events API and signed Teams bridge ingestion are also available. Chat statements stay low/medium confidence until linked to independent evidence.</div>
+        </div></div></div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><strong>Excel / WBS / Gantt understanding</strong></div>
+        <div class="card-body">
+            <div class="row g-3 align-items-end"><div class="col-12 col-lg-6"><label class="form-label">Existing project plan (.xlsx / .xlsm / .csv)</label><InputFile class="form-control" OnChange="SelectFile" accept=".xlsx,.xlsm,.csv" /></div><div class="col-12 col-lg-6"><div class="btn-group"><button class="btn btn-outline-primary" disabled="@(_selectedFile is null||_busy)" @onclick="AnalyzePlan">Analyze mapping</button><button class="btn btn-primary" disabled="@(_selectedFile is null||_analysis is null||_busy)" @onclick="ImportPlan">Import as plan layer</button></div></div></div>
+            @if(_analysis is not null){<div class="mt-3"><div class="d-flex gap-3 small mb-2"><span><b>File:</b> @_analysis.FileName</span><span><b>Candidates:</b> @_analysis.CandidateItems</span><span><b>SHA:</b> @ShortHash(_analysis.SourceSha256)</span></div>
+                @foreach(var s in _analysis.Sheets){<div class="border rounded p-2 mb-2"><div class="d-flex justify-content-between"><strong>@s.SheetName</strong><span class="badge bg-secondary">mapping confidence @s.Mapping.Confidence.ToString("0.#")%</span></div><div class="small mt-1">Header row @(s.Mapping.HeaderRowIndex+1) · title @Col(s.Mapping.TitleColumn) · WBS @Col(s.Mapping.WbsColumn) · start @Col(s.Mapping.StartColumn) · due @Col(s.Mapping.DueColumn) · progress @Col(s.Mapping.ProgressColumn) · owner @Col(s.Mapping.OwnerColumn) · dependency @Col(s.Mapping.DependencyColumn)</div>@foreach(var note in s.Mapping.Notes){<div class="small text-muted">• @note</div>}@if(s.Preview.Count>0){<div class="table-responsive mt-2"><table class="table table-sm mb-0"><thead><tr><th>WBS</th><th>Item</th><th>Owner</th><th>Start</th><th>Due</th><th>Progress</th></tr></thead><tbody>@foreach(var i in s.Preview.Take(8)){<tr><td>@i.Key</td><td>@i.Name</td><td>@(i.Owner??"—")</td><td>@Date(i.PlannedStartUtc)</td><td>@Date(i.DueAtUtc)</td><td>@Pct(i.DeclaredProgressPercent)</td></tr>}</tbody></table></div>}</div>}
+                @if(_analysis.Warnings.Count>0){<div class="alert alert-warning mb-0"><b>Mapping warnings</b><ul class="mb-0">@foreach(var w in _analysis.Warnings){<li>@w</li>}</ul></div>}
+            </div>}
+            @if(_lastImport is not null){<div class="alert alert-info mt-3 mb-0">Imported @_lastImport.ImportedItems plan items from @_lastImport.FileName. @_lastImport.AutoResolvedEntities cross-source entities were automatically matched at high confidence.</div>}
+        </div>
+    </div>
+
+    @if(_layer is not null)
+    {
+        <div class="card mb-4"><div class="card-header"><strong>Plan vs actual — evidence-backed progress</strong></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>WBS item</th><th>Plan</th><th>Operational</th><th>Evidence readiness</th><th>Confidence</th><th>Status</th><th>Why</th></tr></thead><tbody>
+            @foreach(var item in _layer.Progress.Items){<tr><td><strong>@item.Name</strong><div class="small text-muted">@item.PlanKey · @(item.CanonicalTarget??"not linked") · @(item.Owner??"owner —")</div></td><td>@Pct(item.PlannedPercent)</td><td>@Pct(item.OperationalPercent)</td><td>@Pct(item.EvidenceReadinessPercent)</td><td>@item.ReadinessConfidence</td><td><StatusBadge Status="@item.Status" /></td><td class="small">@if(item.Contradictions.Count>0){<div class="text-danger">@item.Contradictions[0]</div>}else if(item.StaleSignals.Count>0){<div class="text-warning">@item.StaleSignals[0]</div>}else{<span class="text-muted">No material mismatch detected.</span>}@if(item.Evidence.Count>0){<details class="mt-1"><summary>@item.Evidence.Count evidence/source signal(s)</summary>@foreach(var e in item.Evidence.Take(10)){<div>• @e.Provider / @e.Kind — @e.Summary (@e.Confidence) @if(IsHttp(e.Url)){<a href="@e.Url" target="_blank" rel="noopener noreferrer">source ↗</a>}@foreach(var reference in (e.References??Array.Empty<string>()).Where(x=>!string.Equals(x,e.Url,StringComparison.OrdinalIgnoreCase)).Take(5)){@if(IsHttp(reference)){<a class="ms-1" href="@reference" target="_blank" rel="noopener noreferrer">evidence ↗</a>}else{<code class="ms-1">@reference</code>}}</div>}</details>}</td></tr>}
+        </tbody></table></div></div>
+
+        <div class="card mb-4"><div class="card-header"><strong>WBS / Gantt intelligence viewer</strong></div><div class="card-body">
+            @if(_layer.Gantt.Items.Count==0){<div class="compact-empty"><span>↔</span><div><strong>No imported plan</strong><small>Analyze and import an existing WBS/Gantt workbook above.</small></div></div>}
+            else {<div class="small text-muted mb-2">Bars show the schedule from the imported plan; color/status comes from cross-source actual/evidence analysis.</div><div class="dip-gantt">@foreach(var g in _layer.Gantt.Items.Take(500)){<div class="dip-gantt-row"><div class="dip-gantt-label"><strong>@g.Name</strong><small>@g.Key · @Date(g.StartUtc) → @Date(g.DueAtUtc)</small></div><div class="dip-gantt-track"><div class="@($"dip-gantt-bar {CssStatus(g.Status)}")" style="@BarStyle(g)"><span>@Pct(g.ActualReadinessPercent)</span></div></div></div>}</div>}
+        </div></div>
+
+        <div class="card mb-4"><div class="card-header"><strong>Cross-source entity resolution</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Source</th><th>Provider</th><th>Candidate target</th><th>Confidence</th><th>State</th><th></th></tr></thead><tbody>
+            @foreach(var x in _layer.EntityResolution.Items.Where(x=>x.Resolution!="Resolved").Take(100)){<tr><td>@x.SourceName<div class="small text-muted">@x.SourceNodeType:@x.SourceKey</div></td><td>@x.Provider</td><td>@(x.TargetName??"—")<div class="small text-muted">@(x.TargetNodeType is null?"":$"{x.TargetNodeType}:{x.TargetKey}")</div></td><td>@x.Confidence.ToString("0.#")%</td><td>@x.Resolution<div class="small text-muted">@x.Reason</div></td><td>@if(x.TargetNodeType is not null&&x.TargetKey is not null){<button class="btn btn-outline-primary btn-sm" disabled="@_busy" @onclick="()=>BindSuggestion(x)">Confirm link</button>}</td></tr>}
+        </tbody></table></div></div>
+    }
+}
+
+@code {
+    [Parameter] public Guid ProjectId{get;set;}
+    private bool _loading=true,_busy;private string? _error,_notice;private ProjectIntelligenceLayerDto? _layer;private IReadOnlyList<ProjectSourceProviderDto> _providers=[];private IBrowserFile? _selectedFile;private ProjectPlanAnalysisDto? _analysis;private ProjectPlanImportResult? _lastImport;private ProjectSourceSyncResult? _lastSync;
+    protected override Task OnParametersSetAsync()=>LoadAsync();
+    private async Task LoadAsync(){_loading=true;_error=null;try{_layer=await Api.GetProjectIntelligenceLayerAsync(ProjectId);_providers=await Api.GetProjectSourceProvidersAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+    private void SelectFile(InputFileChangeEventArgs e){_selectedFile=e.File;_analysis=null;_lastImport=null;_notice=null;}
+    private async Task AnalyzePlan(){if(_selectedFile is null)return;await Run(async()=>{await using var s=_selectedFile.OpenReadStream(12*1024*1024);_analysis=await Api.AnalyzeProjectPlanAsync(ProjectId,_selectedFile.Name,_selectedFile.ContentType,s);_notice=$"Detected {_analysis.CandidateItems} WBS/Gantt item(s). Review the mapping before import.";},false);}
+    private async Task ImportPlan(){if(_selectedFile is null||_analysis is null)return;await Run(async()=>{await using var s=_selectedFile.OpenReadStream(12*1024*1024);_lastImport=await Api.ImportProjectPlanAsync(ProjectId,_selectedFile.Name,_selectedFile.ContentType,s,_analysis.Sheets.Select(x=>x.Mapping).ToArray());_notice="Plan imported as a separate planning layer; operational task data was not overwritten.";},true);}
+    private Task SyncSource(string provider,bool dry)=>Run(async()=>{_lastSync=await Api.SyncProjectSourceAsync(ProjectId,provider,dry);_notice=dry?$"{provider} dry run completed.":$"{provider} synchronized into the evidence/source layer.";},!dry);
+    private Task BindSuggestion(EntityMatchDto x)=>Run(async()=>{if(x.TargetNodeType is null||x.TargetKey is null)return;await Api.BindProjectEntityAsync(ProjectId,new(ProjectId,x.SourceNodeType,x.SourceKey,x.TargetNodeType,x.TargetKey,"web","Confirmed from Plan & Sources UI"));_notice="Cross-source entity link confirmed.";},true);
+    private async Task Run(Func<Task> action,bool reload){_busy=true;_error=null;try{await action();if(reload){_layer=await Api.GetProjectIntelligenceLayerAsync(ProjectId);_providers=await Api.GetProjectSourceProvidersAsync(ProjectId);}}catch(Exception ex){_error=ex.Message;}finally{_busy=false;}}
+    private string BarStyle(GanttIntelligenceItemDto item){if(_layer?.Gantt.RangeStartUtc is null||_layer.Gantt.RangeEndUtc is null||item.StartUtc is null||item.DueAtUtc is null)return "left:0%;width:3%";var total=Math.Max(1d,(_layer.Gantt.RangeEndUtc.Value-_layer.Gantt.RangeStartUtc.Value).TotalDays);var left=Math.Clamp((item.StartUtc.Value-_layer.Gantt.RangeStartUtc.Value).TotalDays/total*100d,0d,99d);var width=Math.Clamp((item.DueAtUtc.Value-item.StartUtc.Value).TotalDays/total*100d,1d,100d-left);return $"left:{left:0.##}%;width:{width:0.##}%";}
+    private static string Date(DateTimeOffset? x)=>x?.ToLocalTime().ToString("yyyy-MM-dd")??"—";private static string Pct(decimal? x)=>x.HasValue?$"{x.Value:0.#}%":"—";private static bool IsHttp(string? value)=>Uri.TryCreate(value,UriKind.Absolute,out var uri)&&uri.Scheme is "http" or "https";private static string ShortHash(string value)=>string.IsNullOrEmpty(value)?"—":value[..Math.Min(12,value.Length)];private static string CssStatus(string? value)=>string.IsNullOrWhiteSpace(value)?"unknown":new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());private static string Col(int? i)=>i.HasValue?ExcelCol(i.Value+1):"—";private static string ExcelCol(int n){var s="";while(n>0){n--;s=(char)('A'+n%26)+s;n/=26;}return s;}
+}

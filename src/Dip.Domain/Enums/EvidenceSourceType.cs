@@ -15,5 +15,8 @@ public enum EvidenceSourceType
     HumanReport = 10,
     CommunityHardware = 11,
     Analysis = 12,
-    AiAssistant = 13
+    AiAssistant = 13,
+    Planning = 14,
+    IssueTracker = 15,
+    Collaboration = 16
 }

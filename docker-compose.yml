@@ -98,6 +98,13 @@ services:
       Authentication__Jwt__SigningKey: ${DIP_JWT_SIGNING_KEY:-}
       Authentication__Jwt__LifetimeMinutes: ${DIP_JWT_LIFETIME_MINUTES:-60}
       OpenTelemetry__OtlpEndpoint: http://otel-collector:4317
+      ProjectIntelligenceSources__Redmine__BaseUrl: ${DIP_REDMINE_BASE_URL:-}
+      ProjectIntelligenceSources__Redmine__ApiKey: ${DIP_REDMINE_API_KEY:-}
+      ProjectIntelligenceSources__Redmine__ProjectIdentifier: ${DIP_REDMINE_PROJECT_IDENTIFIER:-}
+      ProjectIntelligenceSources__Slack__BotToken: ${DIP_SLACK_SOURCE_BOT_TOKEN:-}
+      ProjectIntelligenceSources__Slack__SigningSecret: ${DIP_SLACK_SIGNING_SECRET:-}
+      ProjectIntelligenceSources__Slack__ChannelIds__0: ${DIP_SLACK_SOURCE_CHANNEL_0:-}
+      ProjectIntelligenceSources__Teams__IngestKey: ${DIP_TEAMS_EVIDENCE_INGEST_KEY:-}
     volumes:
       - dip-artifact-data:/data/dip-artifacts
       - dip-workspace-data:/data/dip-workspaces

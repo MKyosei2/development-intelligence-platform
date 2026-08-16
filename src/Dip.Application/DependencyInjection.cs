@@ -76,6 +76,11 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.Management.ManagementSyncService>();
         services.AddScoped<Dip.Application.Features.Management.PortfolioManagementService>();
         services.AddScoped<Dip.Application.Features.Management.WorkCalendarIntegrationService>();
+        services.AddScoped<Dip.Application.Features.ProjectIntelligence.ProjectPlanUnderstandingEngine>();
+        services.AddScoped<Dip.Application.Features.ProjectIntelligence.ProjectEntityResolutionService>();
+        services.AddScoped<Dip.Application.Features.ProjectIntelligence.ProjectPlanIngestionService>();
+        services.AddScoped<Dip.Application.Features.ProjectIntelligence.ProjectSourceIngestionService>();
+        services.AddScoped<Dip.Application.Features.ProjectIntelligence.ProjectProgressIntelligenceService>();
         services.AddScoped<Dip.Application.Features.Dashboard.ManagementDashboardService>();
         services.AddSingleton<CollectorReportValidator>();
         services.AddSingleton<QualityRuleEvaluator>();

@@ -9,6 +9,7 @@ using Dip.Application.Features.Incidents;
 using Dip.Application.Features.ChangeRisk;
 using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.Management;
+using Dip.Application.Features.ProjectIntelligence;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Application.Features.QualityGovernance;
@@ -294,6 +295,24 @@ public sealed class ApiClient
     public async Task<ManagementSyncResult> RunManagementSyncAsync(Guid projectId,ManagementSyncCommand command,CancellationToken ct=default){using var r=await _httpClient.PostAsJsonAsync($"api/v1/management/projects/{projectId}/sync",command,ct);r.EnsureSuccessStatusCode();return await r.Content.ReadFromJsonAsync<ManagementSyncResult>(cancellationToken:ct)??throw new InvalidDataException("Management sync API returned an empty response.");}
     public async Task<SyncConflictDto> ResolveManagementSyncConflictAsync(Guid projectId,string conflictKey,ResolveSyncConflictCommand command,CancellationToken ct=default){using var r=await _httpClient.PostAsJsonAsync($"api/v1/management/projects/{projectId}/sync-conflicts/{Uri.EscapeDataString(conflictKey)}/resolve",command,ct);r.EnsureSuccessStatusCode();return await r.Content.ReadFromJsonAsync<SyncConflictDto>(cancellationToken:ct)??throw new InvalidDataException("Sync conflict API returned an empty response.");}
     public Task ArchiveManagementItemAsync(Guid projectId,ArchiveManagementItemCommand command,CancellationToken ct=default)=>PostNoContentAsync($"api/v1/management/projects/{projectId}/archive",command,ct);
+
+    public async Task<ProjectIntelligenceLayerDto> GetProjectIntelligenceLayerAsync(Guid projectId,CancellationToken ct=default)
+        =>await _httpClient.GetFromJsonAsync<ProjectIntelligenceLayerDto>($"api/v1/project-intelligence/projects/{projectId}/overview",ct)??throw new InvalidDataException("Project intelligence API returned an empty response.");
+    public async Task<IReadOnlyList<ProjectSourceProviderDto>> GetProjectSourceProvidersAsync(Guid projectId,CancellationToken ct=default)
+        =>await _httpClient.GetFromJsonAsync<IReadOnlyList<ProjectSourceProviderDto>>($"api/v1/project-intelligence/projects/{projectId}/sources",ct)??Array.Empty<ProjectSourceProviderDto>();
+    public async Task<ProjectSourceSyncResult> SyncProjectSourceAsync(Guid projectId,string provider,bool dryRun=false,CancellationToken ct=default)
+    {using var r=await _httpClient.PostAsync($"api/v1/project-intelligence/projects/{projectId}/sources/{Uri.EscapeDataString(provider)}/sync?dryRun={dryRun.ToString().ToLowerInvariant()}",null,ct);r.EnsureSuccessStatusCode();return await r.Content.ReadFromJsonAsync<ProjectSourceSyncResult>(cancellationToken:ct)??throw new InvalidDataException("Project source sync API returned an empty response.");}
+    public Task<ProjectPlanAnalysisDto> AnalyzeProjectPlanAsync(Guid projectId,string fileName,string? contentType,Stream stream,CancellationToken ct=default)
+        =>UploadPlanAsync<ProjectPlanAnalysisDto>($"api/v1/project-intelligence/projects/{projectId}/plans/analyze",fileName,contentType,stream,null,ct);
+    public Task<ProjectPlanImportResult> ImportProjectPlanAsync(Guid projectId,string fileName,string? contentType,Stream stream,IReadOnlyList<PlanColumnMappingDto>? mappings,CancellationToken ct=default)
+        =>UploadPlanAsync<ProjectPlanImportResult>($"api/v1/project-intelligence/projects/{projectId}/plans/import",fileName,contentType,stream,mappings,ct);
+    public Task BindProjectEntityAsync(Guid projectId,BindProjectEntityCommand command,CancellationToken ct=default)
+        =>PostNoContentAsync($"api/v1/project-intelligence/projects/{projectId}/entity-bindings",command,ct);
+
+    private async Task<T> UploadPlanAsync<T>(string uri,string fileName,string? contentType,Stream stream,IReadOnlyList<PlanColumnMappingDto>? mappings,CancellationToken ct)
+    {
+        using var form=new MultipartFormDataContent();using var file=new StreamContent(stream);if(!string.IsNullOrWhiteSpace(contentType))file.Headers.ContentType=new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);form.Add(file,"file",fileName);if(mappings is not null)form.Add(new StringContent(System.Text.Json.JsonSerializer.Serialize(mappings)),"mappingJson");using var r=await _httpClient.PostAsync(uri,form,ct);r.EnsureSuccessStatusCode();return await r.Content.ReadFromJsonAsync<T>(cancellationToken:ct)??throw new InvalidDataException($"{typeof(T).Name} API returned an empty response.");
+    }
 
     private async Task PostNoContentAsync(string uri,object payload,CancellationToken ct){using var r=await _httpClient.PostAsJsonAsync(uri,payload,ct);r.EnsureSuccessStatusCode();}
 
