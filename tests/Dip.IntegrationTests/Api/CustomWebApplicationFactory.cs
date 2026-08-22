@@ -14,6 +14,13 @@ public sealed class CustomWebApplicationFactory(string connectionString)
     {
         builder.UseEnvironment("Testing");
 
+        // Program calls AddInfrastructure(configuration) while the application
+        // host is being built. Make the test PostgreSQL connection string
+        // available before Program reaches that point.
+        builder.UseSetting(
+            "ConnectionStrings:PostgreSql",
+            connectionString);
+
         builder.ConfigureServices(services =>
         {
             // Replace every registration added by AddDbContext. Leaving an old

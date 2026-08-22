@@ -412,7 +412,7 @@ else
     private string _projectName = string.Empty;
     private string _repositoryUrl = string.Empty;
     private string _defaultBranch = "main";
-    private string _releaseDate = string.Empty;
+    private DateTime? _releaseDate;
     private string _projectReason = "Project settings updated from the DIP UI.";
     private string _deleteConfirmation = string.Empty;
     private bool _projectBusy;
@@ -441,8 +441,8 @@ else
     private string _auditSearch = string.Empty;
     private string _auditCategory = string.Empty;
     private string _auditCorrelation = string.Empty;
-    private string _auditFrom = string.Empty;
-    private string _auditTo = string.Empty;
+    private DateTime? _auditFrom;
+    private DateTime? _auditTo;
     private string? _auditNextCursor;
     private bool _auditLoadingMore;
     private Guid? _expandedAuditId;
@@ -533,7 +533,7 @@ else
         _projectName = _project.Name;
         _repositoryUrl = _project.RepositoryUrl;
         _defaultBranch = _project.DefaultBranch;
-        _releaseDate = _project.ReleaseDateUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
+        _releaseDate = _project.ReleaseDateUtc?.ToLocalTime().Date;
     }
 
     private async Task SaveProjectAsync()
@@ -546,11 +546,10 @@ else
         try
         {
             DateTimeOffset? release = null;
-            if (!string.IsNullOrWhiteSpace(_releaseDate))
+            if (_releaseDate.HasValue)
             {
-                if (!DateTime.TryParse(_releaseDate, out var date))
-                    throw new InvalidOperationException("Release date is invalid.");
-                release = new DateTimeOffset(date.Date, TimeZoneInfo.Local.GetUtcOffset(date.Date));
+                var date = DateTime.SpecifyKind(_releaseDate.Value.Date, DateTimeKind.Unspecified);
+                release = new DateTimeOffset(date, TimeZoneInfo.Local.GetUtcOffset(date));
             }
 
             _project = await Api.UpdateProjectAsync(
@@ -807,11 +806,11 @@ else
         }
     }
 
-    private static DateTimeOffset? ParseLocalAuditDate(string value)
+    private static DateTimeOffset? ParseLocalAuditDate(DateTime? value)
     {
-        if (string.IsNullOrWhiteSpace(value) || !DateTime.TryParse(value, out var parsed))
+        if (!value.HasValue)
             return null;
-        var local = DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified);
+        var local = DateTime.SpecifyKind(value.Value, DateTimeKind.Unspecified);
         return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)).ToUniversalTime();
     }
 

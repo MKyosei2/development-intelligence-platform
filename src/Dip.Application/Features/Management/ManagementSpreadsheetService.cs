@@ -105,7 +105,7 @@ public sealed class ManagementSpreadsheetService
             string operation;
             if(snapshot is null&&extRows.Count==0)
                 operation=effectiveAuthority.Equals("GoogleSheets",StringComparison.OrdinalIgnoreCase)||effectiveAuthority.Equals("External",StringComparison.OrdinalIgnoreCase)?"Pull":"Push";
-            else if(snapshot is null&&localRows.Count<=1&&extRows.Count>1)
+            else if(snapshot is null&&localRows.Length<=1&&extRows.Count>1)
                 operation=effectiveAuthority.Equals("DIP",StringComparison.OrdinalIgnoreCase)?"Push":"Pull";
             else if(localChanged&&externalChanged)
             {

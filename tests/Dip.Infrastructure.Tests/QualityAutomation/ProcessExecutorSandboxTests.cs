@@ -19,10 +19,17 @@ public sealed class ProcessExecutorSandboxTests
     {
         if(!OperatingSystem.IsWindows())return;
         var root=Path.Combine(Path.GetTempPath(),"dip-sandbox-win-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
-        try{
-            var sut=new ProcessExecutor(Options.Create(new QaExecutionOptions{SandboxEnabled=true,SandboxCpuPercent=50,SandboxMemoryLimitMb=512,SanitizeEnvironment=true}));
-            var result=await sut.RunQaAsync("dotnet",new[]{"--info"},root,null,TimeSpan.FromSeconds(20),Path.Combine(root,"out.txt"),Path.Combine(root,"err.txt"),CancellationToken.None);
-            result.ExitCode.Should().Be(0);result.Sandbox.Should().NotBeNull();result.Sandbox!.WorkspaceBoundaryEnforced.Should().BeTrue();result.Sandbox.EnvironmentSanitized.Should().BeTrue();result.Sandbox.CpuLimitApplied.Should().BeTrue();result.Sandbox.MemoryLimitApplied.Should().BeTrue();
-        }finally{try{Directory.Delete(root,true);}catch{}}
+        try
+        {
+            var sut=new ProcessExecutor(Options.Create(new QaExecutionOptions{SandboxEnabled=true,SandboxCpuPercent=50,SandboxMemoryLimitMb=1024,SanitizeEnvironment=true}));
+            var result=await sut.RunQaAsync("dotnet",new[]{"--version"},root,null,TimeSpan.FromSeconds(20),Path.Combine(root,"out.txt"),Path.Combine(root,"err.txt"),CancellationToken.None);
+            result.ExitCode.Should().Be(0,"the trusted dotnet probe should run inside the Windows QA sandbox. stdout: {0}; stderr: {1}",result.StandardOutput,result.StandardError);
+            result.Sandbox.Should().NotBeNull();
+            result.Sandbox!.WorkspaceBoundaryEnforced.Should().BeTrue();
+            result.Sandbox.EnvironmentSanitized.Should().BeTrue();
+            result.Sandbox.CpuLimitApplied.Should().BeTrue();
+            result.Sandbox.MemoryLimitApplied.Should().BeTrue();
+        }
+        finally{try{Directory.Delete(root,true);}catch{}}
     }
 }

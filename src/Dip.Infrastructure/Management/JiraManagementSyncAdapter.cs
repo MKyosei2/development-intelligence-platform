@@ -48,7 +48,8 @@ public sealed class JiraManagementSyncAdapter : IManagementSyncAdapter, IDisposa
                 var ownerRole = NormalizeOptional(Field(description, "Owner role:"));
                 list.Add(new("Jira", id, key, title, status, ownerRole, due, updated, updated.ToUnixTimeMilliseconds().ToString(), new Uri(baseUri, "browse/" + Uri.EscapeDataString(id)).ToString()));
             }
-            var hasTotal = doc.RootElement.TryGetProperty("total", out var totalEl) && totalEl.TryGetInt32(out var total);
+            var total = 0;
+            var hasTotal = doc.RootElement.TryGetProperty("total", out var totalEl) && totalEl.TryGetInt32(out total);
             var isLast = doc.RootElement.TryGetProperty("isLast", out var lastEl) && lastEl.ValueKind == JsonValueKind.True;
             if (pageCount == 0 || isLast || (hasTotal && startAt + pageCount >= total)) return list;
             startAt += pageCount;
