@@ -41,4 +41,15 @@ public sealed class GitHubWebhookVerifierTests
             Encoding.UTF8.GetBytes("{}"),
             "sha256=" + new string('0', 64)));
     }
+    [Fact]
+    public void PullRequestBackfillPaginationDefaults_AreBoundedAndCoverLargeRepositories()
+    {
+        var options = new GitHubOptions();
+
+        Assert.InRange(options.MaxPullRequestPages, 2, 50);
+        Assert.Equal(3, options.MaxPullRequestCommitPages);
+        Assert.InRange(options.MaxPullRequestFilePages, 2, 30);
+        Assert.InRange(options.MaxPullRequestReviewPages, 2, 50);
+    }
+
 }

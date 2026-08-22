@@ -14,10 +14,12 @@ public sealed class ManagementOperationsService
     private readonly IDevelopmentGraphRepository _repo;
     private readonly ManagementAnalyticsService _analytics;
     private readonly ManagementDashboardService _dashboard;
+    private readonly IAuditLogRepository _audit;
+    private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
 
-    public ManagementOperationsService(DevelopmentGraphService graph,IDevelopmentGraphRepository repo,ManagementAnalyticsService analytics,ManagementDashboardService dashboard,ISystemClock clock)
-    { _graph=graph;_repo=repo;_analytics=analytics;_dashboard=dashboard;_clock=clock; }
+    public ManagementOperationsService(DevelopmentGraphService graph,IDevelopmentGraphRepository repo,ManagementAnalyticsService analytics,ManagementDashboardService dashboard,IAuditLogRepository audit,IUnitOfWork uow,ISystemClock clock)
+    { _graph=graph;_repo=repo;_analytics=analytics;_dashboard=dashboard;_audit=audit;_uow=uow;_clock=clock; }
 
     public async Task<DevelopmentGraphNodeDto> UpsertResponsibilityAsync(UpsertResponsibilityCommand c,CancellationToken ct)
     {
@@ -169,7 +171,39 @@ public sealed class ManagementOperationsService
             AlertDueAtUtc=currentAlert?.DueAtUtc??(existing is null?null:ReadNullableDate(existing,"AlertDueAtUtc")),
             AlertSourceKey=currentAlert?.SourceKey??(existing is null?c.AlertKey:WorkManagementService.MetaString(existing,"AlertSourceKey",c.AlertKey))});
         var node=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,c.AlertKey,disposition,"DIP",null,meta),ct);
+        if(requested!="Read"||current.ViewedAtUtc is null)
+        {
+            var action=requested switch{
+                "Read"=>"notification.viewed",
+                "Acknowledged"=>"notification.acknowledged",
+                "Snoozed"=>"notification.snoozed",
+                "Resolved"=>"notification.resolved",
+                "Open"=>"notification.reopened",
+                _=>"notification.updated"};
+            await RecordNotificationAuditAsync(
+                c.ProjectId,
+                c.AlertKey,
+                action,
+                Clean(c.Actor,200)??"unknown",
+                Clean(c.Comment,2000),
+                JsonSerializer.Serialize(new{PreviousStatus=current.Status,CurrentStatus=disposition,SnoozeUntilUtc=snooze,ViewedAtUtc=viewedAt,ViewedBy=viewedBy,EscalationLevel=level}),
+                now,
+                ct);
+        }
         return ParseAlertState(node);
+    }
+
+    public async Task<IReadOnlyList<NotificationHistoryEntryDto>> GetAlertHistoryAsync(Guid projectId,string alertKey,int take,CancellationToken ct)
+    {
+        NeedProject(projectId);
+        if(string.IsNullOrWhiteSpace(alertKey))throw new ArgumentException("AlertKey is required.",nameof(alertKey));
+        var entries=await _audit.SearchAsync(projectId,alertKey,"notification",null,null,null,Math.Clamp(take,1,200),ct);
+        return entries
+            .Where(x=>string.Equals(x.SubjectKey,alertKey,StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x=>x.CreatedAtUtc)
+            .ThenByDescending(x=>x.Id)
+            .Select(x=>new NotificationHistoryEntryDto(x.Id,alertKey,x.Action,x.Actor,x.Reason,x.DetailJson,x.CreatedAtUtc))
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<OperationalAlertDto>> GetOperationalAlertsAsync(Guid projectId,int horizonWeeks,CancellationToken ct)
@@ -242,7 +276,22 @@ public sealed class ManagementOperationsService
 
     public async Task<DevelopmentGraphNodeDto> RecordAlertDeliveryAsync(Guid projectId,ManagementAlertDto alert,int level,DateTimeOffset deliveredAt,CancellationToken ct)
     {
-        var key=AlertStateKey(alert.Key);var existing=await _repo.FindNodeAsync(projectId,DevelopmentGraphNodeType.AlertState,key,ct);var current=existing is null?new AlertStateDto(alert.Key,"Open",null,null,deliveredAt,null,0,null,alert.TriggeredAtUtc):ParseAlertState(existing);var meta=JsonSerializer.Serialize(new{AlertKey=alert.Key,current.Actor,current.Comment,UpdatedAtUtc=current.UpdatedAtUtc,current.SnoozeUntilUtc,EscalationLevel=Math.Max(current.EscalationLevel,level),LastDeliveredAtUtc=deliveredAt,FirstSeenAtUtc=current.FirstSeenAtUtc??alert.TriggeredAtUtc,current.ViewedAtUtc,current.ViewedBy,AlertSeverity=alert.Severity,AlertCategory=alert.Category,AlertTitle=alert.Title,AlertExplanation=alert.Explanation,AlertRecommendedAction=alert.RecommendedAction,AlertDueAtUtc=alert.DueAtUtc,AlertSourceKey=alert.SourceKey});return await _graph.UpsertNodeAsync(new(projectId,DevelopmentGraphNodeType.AlertState,key,alert.Key,current.Status,"DIP",null,meta),ct);
+        var key=AlertStateKey(alert.Key);
+        var existing=await _repo.FindNodeAsync(projectId,DevelopmentGraphNodeType.AlertState,key,ct);
+        var current=existing is null?new AlertStateDto(alert.Key,"Open",null,null,deliveredAt,null,0,null,alert.TriggeredAtUtc):ParseAlertState(existing);
+        var effectiveLevel=Math.Max(current.EscalationLevel,level);
+        var meta=JsonSerializer.Serialize(new{AlertKey=alert.Key,current.Actor,current.Comment,UpdatedAtUtc=current.UpdatedAtUtc,current.SnoozeUntilUtc,EscalationLevel=effectiveLevel,LastDeliveredAtUtc=deliveredAt,FirstSeenAtUtc=current.FirstSeenAtUtc??alert.TriggeredAtUtc,current.ViewedAtUtc,current.ViewedBy,AlertSeverity=alert.Severity,AlertCategory=alert.Category,AlertTitle=alert.Title,AlertExplanation=alert.Explanation,AlertRecommendedAction=alert.RecommendedAction,AlertDueAtUtc=alert.DueAtUtc,AlertSourceKey=alert.SourceKey});
+        var node=await _graph.UpsertNodeAsync(new(projectId,DevelopmentGraphNodeType.AlertState,key,alert.Key,current.Status,"DIP",null,meta),ct);
+        await RecordNotificationAuditAsync(
+            projectId,
+            alert.Key,
+            "notification.delivered",
+            "system:notification-worker",
+            $"Delivered escalation level L{effectiveLevel}.",
+            JsonSerializer.Serialize(new{Level=effectiveLevel,DeliveredAtUtc=deliveredAt,alert.Severity,alert.Category,alert.Title}),
+            deliveredAt,
+            ct);
+        return node;
     }
 
     internal async Task<DevelopmentGraphNodeDto> RecordSyncConflictAsync(Guid projectId,string provider,string dataType,string itemKey,string dipValue,string externalValue,CancellationToken ct)
@@ -257,6 +306,23 @@ public sealed class ManagementOperationsService
 
     internal async Task<SourceAuthorityRuleDto?> AuthorityForAsync(Guid projectId,string dataType,CancellationToken ct)
         =>(await GetSyncStateAsync(projectId,ct)).AuthorityRules.Where(x=>x.Status.Equals("Active",StringComparison.OrdinalIgnoreCase)&&(x.DataType.Equals(dataType,StringComparison.OrdinalIgnoreCase)||x.DataType.Equals("*",StringComparison.OrdinalIgnoreCase))).OrderBy(x=>x.Priority).FirstOrDefault();
+
+    private async Task RecordNotificationAuditAsync(Guid projectId,string alertKey,string action,string actor,string? comment,string detailJson,DateTimeOffset at,CancellationToken ct)
+    {
+        await _audit.AddAsync(
+            new AuditLog(
+                Guid.NewGuid(),
+                projectId,
+                "notification",
+                action,
+                actor,
+                alertKey,
+                detailJson,
+                at,
+                reason:comment),
+            ct);
+        await _uow.SaveChangesAsync(ct);
+    }
 
     private ResponsibilityDto ParseRaci(DevelopmentGraphNode n)=>new(WorkManagementService.MetaString(n,"Key",WorkManagementService.Strip(n.Key)),WorkManagementService.MetaString(n,"TargetType"),WorkManagementService.MetaString(n,"TargetKey"),Null(WorkManagementService.MetaString(n,"ResponsibleRole")),Null(WorkManagementService.MetaString(n,"AccountableRole")),WorkManagementService.MetaStringArray(n,"ConsultedRoles"),WorkManagementService.MetaStringArray(n,"InformedRoles"),n.Status);
     private ManagementRoleBindingDto ParseRoleBinding(DevelopmentGraphNode n)=>new(WorkManagementService.MetaString(n,"Key",WorkManagementService.Strip(n.Key)),WorkManagementService.MetaString(n,"ActorIdentity"),WorkManagementService.MetaString(n,"Role"),Null(WorkManagementService.MetaString(n,"DisplayName")),n.Status);

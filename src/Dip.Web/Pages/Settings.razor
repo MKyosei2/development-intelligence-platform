@@ -271,9 +271,22 @@ else
                             </div>
                             @if (_githubTest is not null)
                             {
-                                <div class="alert @(_githubTest.Success ? "alert-success" : "alert-danger") mt-3 mb-0">
-                                    <strong>@(_githubTest.Success ? "PASS" : "FAIL")</strong> — @_githubTest.Message<br />
-                                    <small>Mode: @_githubTest.Mode · Repositories: @_githubTest.RepositoryCount · @FormatDate(_githubTest.TestedAtUtc)</small>
+                                <div class="alert @(_githubTest.Success ? "alert-success" : _githubTest.OverallStatus == "Partial" ? "alert-warning" : "alert-danger") mt-3 mb-0">
+                                    <div class="d-flex justify-content-between gap-2"><strong>@_githubTest.OverallStatus</strong><span>@(_githubTest.Repository ?? "Account-level probe")</span></div>
+                                    <div class="small mt-1">@_githubTest.Message</div>
+                                    @if (_githubTest.Checks is { Count: > 0 } checks)
+                                    {
+                                        <div class="mt-2">
+                                            @foreach (var check in checks)
+                                            {
+                                                <div class="d-flex justify-content-between gap-3 small border-top py-1">
+                                                    <span><strong>@check.Name</strong><span class="text-muted"> · @check.Message</span></span>
+                                                    <StatusBadge Value="@check.Status" />
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    <small class="d-block mt-2">Mode: @_githubTest.Mode · Visible repositories: @_githubTest.RepositoryCount · @FormatDate(_githubTest.TestedAtUtc)</small>
                                 </div>
                             }
                         }
@@ -330,7 +343,7 @@ else
                             <table class="table table-hover mb-0">
                                 <thead><tr><th>Time</th><th>Actor</th><th>Category</th><th>Action</th><th>Subject</th></tr></thead>
                                 <tbody>
-                                @foreach (var entry in FilteredAudit.Take(500))
+                                @foreach (var entry in FilteredAudit)
                                 {
                                     <tr role="button" @onclick="() => ToggleAudit(entry.Id)">
                                         <td>@FormatDate(entry.CreatedAtUtc)</td>
@@ -353,6 +366,12 @@ else
                                 }
                                 </tbody>
                             </table>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_auditNextCursor))
+                    {
+                        <div class="p-3 border-top text-center">
+                            <button class="btn btn-outline-secondary" type="button" @onclick="LoadMoreAuditAsync" disabled="@_auditLoadingMore">@(_auditLoadingMore ? "Loading…" : "Load more")</button>
                         </div>
                     }
                 </div>
@@ -424,6 +443,8 @@ else
     private string _auditCorrelation = string.Empty;
     private string _auditFrom = string.Empty;
     private string _auditTo = string.Empty;
+    private string? _auditNextCursor;
+    private bool _auditLoadingMore;
     private Guid? _expandedAuditId;
 
     private bool RequireAuthentication => Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
@@ -491,6 +512,7 @@ else
             _project = null;
             _members = Array.Empty<ProjectMembershipDto>();
             _audit = Array.Empty<ProjectAuditEntryDto>();
+            _auditNextCursor = null;
             return;
         }
 
@@ -713,7 +735,7 @@ else
         _githubTesting = true;
         try
         {
-            _githubTest = await Api.TestGitHubConnectionAsync();
+            _githubTest = await Api.TestGitHubConnectionAsync(_project?.Id);
             _github = await Api.GetGitHubConnectionStatusAsync();
         }
         catch (Exception exception)
@@ -731,22 +753,58 @@ else
         if (_project is null)
         {
             _audit = Array.Empty<ProjectAuditEntryDto>();
+            _auditNextCursor = null;
             return;
         }
         try
         {
             DateTimeOffset? fromUtc = ParseLocalAuditDate(_auditFrom);
             DateTimeOffset? toUtc = ParseLocalAuditDate(_auditTo);
-            _audit = await Api.GetProjectAuditAsync(
+            var page = await Api.GetProjectAuditPageAsync(
                 _project.Id,
-                500,
+                100,
                 _auditSearch,
                 _auditCategory,
                 _auditCorrelation,
                 fromUtc,
-                toUtc);
+                toUtc,
+                null);
+            _audit = page.Items;
+            _auditNextCursor = page.NextCursor;
+            _expandedAuditId = null;
         }
-        catch { _audit = Array.Empty<ProjectAuditEntryDto>(); }
+        catch
+        {
+            _audit = Array.Empty<ProjectAuditEntryDto>();
+            _auditNextCursor = null;
+        }
+    }
+
+    private async Task LoadMoreAuditAsync()
+    {
+        if (_project is null || string.IsNullOrWhiteSpace(_auditNextCursor) || _auditLoadingMore)
+            return;
+        _auditLoadingMore = true;
+        try
+        {
+            DateTimeOffset? fromUtc = ParseLocalAuditDate(_auditFrom);
+            DateTimeOffset? toUtc = ParseLocalAuditDate(_auditTo);
+            var page = await Api.GetProjectAuditPageAsync(
+                _project.Id,
+                100,
+                _auditSearch,
+                _auditCategory,
+                _auditCorrelation,
+                fromUtc,
+                toUtc,
+                _auditNextCursor);
+            _audit = _audit.Concat(page.Items).GroupBy(x => x.Id).Select(x => x.First()).ToArray();
+            _auditNextCursor = page.NextCursor;
+        }
+        finally
+        {
+            _auditLoadingMore = false;
+        }
     }
 
     private static DateTimeOffset? ParseLocalAuditDate(string value)

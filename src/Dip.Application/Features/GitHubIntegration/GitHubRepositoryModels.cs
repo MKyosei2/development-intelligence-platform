@@ -58,6 +58,7 @@ public sealed record GitHubPullRequestSnapshotDto(
     string HeadBranch,
     string HtmlUrl,
     bool Merged,
+    IReadOnlyList<string> CommitShas,
     IReadOnlyList<GitHubPullRequestFileDto> Files,
     IReadOnlyList<GitHubPullRequestReviewDto> Reviews);
 

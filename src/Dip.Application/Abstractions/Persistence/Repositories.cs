@@ -22,6 +22,12 @@ public interface IPipelineRunRepository
     Task<PipelineRun?> GetByIdAsync(Guid id,CancellationToken ct);
     Task<PipelineRun?> FindByExternalRunAsync(Guid projectId,string externalRunId,string collectorType,int attemptNumber,CancellationToken ct);
     Task<IReadOnlyList<PipelineRun>> ListByProjectAsync(Guid projectId,int take,CancellationToken ct);
+    async Task<IReadOnlyList<PipelineRun>> ListByCommitShasAsync(Guid projectId,IReadOnlyCollection<string> commitShas,CancellationToken ct)
+    {
+        if(commitShas.Count==0)return Array.Empty<PipelineRun>();
+        var revisions=commitShas.Where(x=>!string.IsNullOrWhiteSpace(x)).Select(x=>x.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return (await ListByProjectAsync(projectId,500,ct)).Where(x=>revisions.Contains(x.CommitSha.Value)).ToArray();
+    }
     Task AddAsync(PipelineRun run,CancellationToken ct);
 }
 public interface IMetricRepository{Task AddRangeAsync(IEnumerable<Metric> metrics,CancellationToken ct);}
@@ -70,6 +76,7 @@ public interface IProjectTruthRepository
     Task<IReadOnlyList<ProjectTruthSnapshot>> ListRecentAsync(Guid projectId,int take,CancellationToken ct);
     Task AddAsync(ProjectTruthSnapshot snapshot,CancellationToken ct);
 }
+public sealed record AuditLogPage(IReadOnlyList<AuditLog> Items,DateTimeOffset? NextBeforeUtc,Guid? NextBeforeId);
 public interface IAuditLogRepository
 {
     Task AddAsync(AuditLog entry,CancellationToken ct);
@@ -83,6 +90,17 @@ public interface IAuditLogRepository
             &&(!fromUtc.HasValue||x.CreatedAtUtc>=fromUtc.Value)
             &&(!toUtc.HasValue||x.CreatedAtUtc<=toUtc.Value))
             .Take(Math.Clamp(take,1,5000)).ToArray();
+    }
+    async Task<AuditLogPage> SearchPageAsync(Guid projectId,string? search,string? category,string? correlationId,DateTimeOffset? fromUtc,DateTimeOffset? toUtc,DateTimeOffset? beforeUtc,Guid? beforeId,int take,CancellationToken ct)
+    {
+        var limit=Math.Clamp(take,1,500);
+        var items=(await SearchAsync(projectId,search,category,correlationId,fromUtc,toUtc,5000,ct))
+            .Where(x=>!beforeUtc.HasValue||x.CreatedAtUtc<beforeUtc.Value||(x.CreatedAtUtc==beforeUtc.Value&&(!beforeId.HasValue||x.Id.CompareTo(beforeId.Value)<0)))
+            .OrderByDescending(x=>x.CreatedAtUtc).ThenByDescending(x=>x.Id)
+            .Take(limit+1).ToArray();
+        var page=items.Take(limit).ToArray();
+        var last=items.Length>limit?page.LastOrDefault():null;
+        return new AuditLogPage(page,last?.CreatedAtUtc,last?.Id);
     }
     async Task<AuditLog?> GetLatestByCategoryAsync(Guid projectId,string category,CancellationToken ct)
         =>(await ListByProjectAsync(projectId,5000,ct)).FirstOrDefault(x=>x.Category.Equals(category,StringComparison.OrdinalIgnoreCase));

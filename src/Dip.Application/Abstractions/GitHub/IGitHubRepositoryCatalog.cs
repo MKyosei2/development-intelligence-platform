@@ -16,6 +16,12 @@ public interface IGitHubRepositoryCatalog
         string repository,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<GitHubPullRequestSnapshotDto>> ListPullRequestsAsync(
+        string owner,
+        string repository,
+        string state,
+        CancellationToken cancellationToken);
+
     Task<GitHubWorkspaceSyncDto> SyncWorkspaceAsync(
         Guid projectId,
         string owner,

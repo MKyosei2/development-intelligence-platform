@@ -85,6 +85,12 @@ public sealed class ManagementOperationsController(ManagementOperationsService o
     public Task<IReadOnlyList<OperationalAlertDto>> Alerts(Guid projectId,[FromQuery]int horizonWeeks=8,CancellationToken ct=default)
         =>operations.GetOperationalAlertsAsync(projectId,horizonWeeks,ct);
 
+    [Authorize(Policy=Policies.ProjectRead)]
+    [RequireProjectRole(ProjectMembershipRole.Viewer,"projectId")]
+    [HttpGet("projects/{projectId:guid}/alerts/{alertKey}/history")]
+    public Task<IReadOnlyList<NotificationHistoryEntryDto>> AlertHistory(Guid projectId,string alertKey,[FromQuery]int take=100,CancellationToken ct=default)
+        =>operations.GetAlertHistoryAsync(projectId,alertKey,take,ct);
+
     [Authorize(Policy=Policies.ProjectWrite)]
     [RequireProjectRole(ProjectMembershipRole.Member,"projectId")]
     [HttpPost("projects/{projectId:guid}/alerts/{alertKey}/disposition")]

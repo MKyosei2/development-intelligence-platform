@@ -41,4 +41,43 @@ public sealed class ManagementOperationsAuthorizationSurfaceTests
         var authorize = action.GetCustomAttributes().OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Single();
         Assert.Equal(Policies.ProjectRead, authorize.Policy);
     }
+    [Fact]
+    public void NotificationHistory_IsReadOnlyAndViewerScoped()
+    {
+        var action = typeof(ManagementOperationsController).GetMethod(nameof(ManagementOperationsController.AlertHistory))
+            ?? throw new InvalidOperationException("Missing ManagementOperationsController.AlertHistory");
+        var role = action.GetCustomAttribute<RequireProjectRoleAttribute>();
+        var authorize = action.GetCustomAttributes().OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Single();
+
+        Assert.NotNull(role);
+        Assert.Equal(ProjectMembershipRole.Viewer, role!.Role);
+        Assert.Equal("projectId", role.RouteKey);
+        Assert.Equal(Policies.ProjectRead, authorize.Policy);
+    }
+
+    [Fact]
+    public void ProjectGitHubCapabilityProbe_IsViewerScoped()
+    {
+        var action = typeof(GitHubRepositoriesController).GetMethod(nameof(GitHubRepositoriesController.TestProjectConnection))
+            ?? throw new InvalidOperationException("Missing GitHubRepositoriesController.TestProjectConnection");
+        var role = action.GetCustomAttribute<RequireProjectRoleAttribute>();
+
+        Assert.NotNull(role);
+        Assert.Equal(ProjectMembershipRole.Viewer, role!.Role);
+        Assert.Equal("projectId", role.RouteKey);
+    }
+
+    [Fact]
+    public void PullRequestDetails_ExposePipelineQaAndEvidenceTraceability()
+    {
+        var names = typeof(PullRequestDetailsResponse)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Select(x => x.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains("PipelineRuns", names);
+        Assert.Contains("QualityIssues", names);
+        Assert.Contains("Evidence", names);
+    }
+
 }

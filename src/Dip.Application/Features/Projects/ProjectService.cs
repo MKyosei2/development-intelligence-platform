@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
@@ -44,6 +45,11 @@ public sealed record ProjectAuditEntryDto(
     string? CorrelationId,
     string? Reason,
     DateTimeOffset CreatedAtUtc);
+
+public sealed record ProjectAuditPageDto(
+    IReadOnlyList<ProjectAuditEntryDto> Items,
+    string? NextCursor,
+    bool HasMore);
 
 public sealed class ProjectService(
     IProjectRepository projects,
@@ -232,6 +238,39 @@ public sealed class ProjectService(
         return entries.Select(MapAudit).ToArray();
     }
 
+    public async Task<ProjectAuditPageDto> GetAuditPageAsync(
+        Guid projectId,
+        int take,
+        string? search,
+        string? category,
+        string? correlationId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        string? cursor,
+        CancellationToken ct)
+    {
+        _ = await NeedProjectAsync(projectId, ct);
+        var (beforeUtc, beforeId) = DecodeAuditCursor(cursor);
+        var page = await audit.SearchPageAsync(
+            projectId,
+            search,
+            category,
+            correlationId,
+            fromUtc,
+            toUtc,
+            beforeUtc,
+            beforeId,
+            Math.Clamp(take, 1, 500),
+            ct);
+        var nextCursor = page.NextBeforeUtc.HasValue && page.NextBeforeId.HasValue
+            ? EncodeAuditCursor(page.NextBeforeUtc.Value, page.NextBeforeId.Value)
+            : null;
+        return new ProjectAuditPageDto(
+            page.Items.Select(MapAudit).ToArray(),
+            nextCursor,
+            nextCursor is not null);
+    }
+
     private async Task<ProjectDto> ChangeLifecycleAsync(
         Guid id,
         string nextState,
@@ -331,6 +370,39 @@ public sealed class ProjectService(
             entry.CorrelationId,
             entry.Reason,
             entry.CreatedAtUtc);
+
+    private static string EncodeAuditCursor(DateTimeOffset createdAtUtc, Guid id)
+    {
+        var raw = $"{createdAtUtc.UtcDateTime.Ticks}|{id:N}";
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(raw))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    private static (DateTimeOffset? BeforeUtc, Guid? BeforeId) DecodeAuditCursor(string? cursor)
+    {
+        if (string.IsNullOrWhiteSpace(cursor))
+            return (null, null);
+        try
+        {
+            var normalized = cursor.Trim().Replace('-', '+').Replace('_', '/');
+            normalized += normalized.Length % 4 switch { 2 => "==", 3 => "=", _ => string.Empty };
+            var raw = Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
+            var parts = raw.Split('|', 2);
+            if (parts.Length != 2
+                || !long.TryParse(parts[0], out var ticks)
+                || !Guid.TryParseExact(parts[1], "N", out var id))
+            {
+                throw new ArgumentException("Audit cursor is invalid.", nameof(cursor));
+            }
+            return (new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc)), id);
+        }
+        catch (FormatException exception)
+        {
+            throw new ArgumentException("Audit cursor is invalid.", nameof(cursor), exception);
+        }
+    }
 
     private static string CleanReason(string? reason)
     {

@@ -18,6 +18,10 @@ public sealed class GitHubOptions
     public string AppPrivateKeyBase64 { get; init; } = string.Empty;
     public string ApiBaseUrl { get; init; } = "https://api.github.com/";
     public int MaxRepositoryPages { get; init; } = 10;
+    public int MaxPullRequestPages { get; init; } = 20;
+    public int MaxPullRequestCommitPages { get; init; } = 3;
+    public int MaxPullRequestFilePages { get; init; } = 30;
+    public int MaxPullRequestReviewPages { get; init; } = 20;
     public int WorkspaceMaxArchiveMb { get; init; } = 512;
 
     public bool HasGitHubAppCredentials =>

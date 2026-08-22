@@ -50,7 +50,6 @@ public sealed class EvidenceRepository : IEvidenceRepository
                            && item.PipelineRunId.HasValue
                            && ids.Contains(item.PipelineRunId.Value))
             .OrderByDescending(item => item.ObservedAtUtc)
-            .Take(2000)
             .ToListAsync(cancellationToken);
     }
 

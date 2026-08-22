@@ -182,6 +182,7 @@
                             }
                             <div class="d-flex flex-wrap gap-2 mt-3">
                                 <button class="btn btn-primary btn-sm" type="button" @onclick="() => OpenNotificationAsync(item)">Open</button>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => LoadAlertHistoryAsync(item)" disabled="@_notificationHistoryLoading">History</button>
                                 @if (!item.State.Status.Equals("Acknowledged", StringComparison.OrdinalIgnoreCase))
                                 {
                                     <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => AcknowledgeAsync(item)">Acknowledge</button>
@@ -192,6 +193,36 @@
                                     <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => ResolveAsync(item)">Resolve</button>
                                 }
                             </div>
+                            @if (_historyAlertKey?.Equals(item.Alert.Key, StringComparison.OrdinalIgnoreCase) == true)
+                            {
+                                <div class="border-top mt-3 pt-3" data-testid="notification-history">
+                                    <div class="d-flex justify-content-between align-items-center mb-2"><strong class="small">Event history</strong><span class="small text-muted">@_notificationHistory.Count event(s)</span></div>
+                                    @if (_notificationHistoryLoading)
+                                    {
+                                        <div class="small text-muted">Loading history…</div>
+                                    }
+                                    else if (_notificationHistory.Count == 0)
+                                    {
+                                        <div class="small text-muted">No persisted notification event has been recorded yet.</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var history in _notificationHistory)
+                                        {
+                                            <div class="small border-start ps-2 mb-2">
+                                                <div><strong>@history.Action</strong> · @FormatRelative(history.AtUtc)</div>
+                                                <div class="text-muted">
+                                                    <span>@history.Actor</span>
+                                                    @if (!string.IsNullOrWhiteSpace(history.Comment))
+                                                    {
+                                                        <span> · @history.Comment</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
                         </div>
                     }
                 </div>
@@ -208,6 +239,9 @@
     private bool _notificationLoading;
     private string? _notificationError;
     private Guid? _notificationsProjectId;
+    private string? _historyAlertKey;
+    private bool _notificationHistoryLoading;
+    private IReadOnlyList<NotificationHistoryEntryDto> _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
     private IReadOnlyList<OperationalAlertDto> _alerts = Array.Empty<OperationalAlertDto>();
 
     protected override async Task OnInitializedAsync()
@@ -294,6 +328,8 @@
         {
             _alerts = Array.Empty<OperationalAlertDto>();
             _notificationsProjectId = null;
+            _historyAlertKey = null;
+            _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
             return;
         }
 
@@ -301,11 +337,36 @@
         _notificationError = null;
         try
         {
+            if (_notificationsProjectId != projectId)
+            {
+                _historyAlertKey = null;
+                _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
+            }
             _alerts = await Api.GetOperationalAlertsAsync(projectId.Value, 8);
             _notificationsProjectId = projectId;
         }
         catch (Exception exception) { _notificationError = exception.Message; }
         finally { _notificationLoading = false; }
+    }
+
+    private async Task LoadAlertHistoryAsync(OperationalAlertDto item)
+    {
+        if (Projects.CurrentProjectId is not { } projectId) return;
+        if (_historyAlertKey?.Equals(item.Alert.Key, StringComparison.OrdinalIgnoreCase) == true && !_notificationHistoryLoading)
+        {
+            _historyAlertKey = null;
+            _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
+            return;
+        }
+        _historyAlertKey = item.Alert.Key;
+        _notificationHistoryLoading = true;
+        _notificationError = null;
+        try
+        {
+            _notificationHistory = await Api.GetAlertHistoryAsync(projectId, item.Alert.Key, 100);
+        }
+        catch (Exception exception) { _notificationError = exception.Message; }
+        finally { _notificationHistoryLoading = false; }
     }
 
     private async Task MarkReadAsync(OperationalAlertDto item)

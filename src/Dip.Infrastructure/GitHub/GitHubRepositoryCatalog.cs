@@ -232,44 +232,21 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         }
 
         var pullRequestsReadable = false;
-        var pullRequests = new List<GitHubPullRequestSnapshotDto>();
         try
         {
             using var pullsRequest = await CreateRequestAsync(
                 HttpMethod.Get,
-                $"{repoPath}/pulls?state=open&sort=updated&direction=desc&per_page=20",
+                $"{repoPath}/pulls?state=open&sort=updated&direction=desc&per_page=1&page=1",
                 cancellationToken);
             using var pullsResponse = await _httpClient.SendAsync(pullsRequest, cancellationToken);
             pullRequestsReadable = pullsResponse.IsSuccessStatusCode;
-            if (pullRequestsReadable)
-            {
-                using var pullsDocument = await ReadJsonAsync(pullsResponse, cancellationToken);
-                foreach (var item in pullsDocument.RootElement.EnumerateArray())
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var number = GetInt32(item, "number");
-                    if (number <= 0)
-                        continue;
-                    var head = item.TryGetProperty("head", out var headNode) ? headNode : default;
-                    var files = await LoadPullRequestFilesAsync(repoPath, number, cancellationToken);
-                    var reviews = await LoadPullRequestReviewsAsync(repoPath, number, cancellationToken);
-                    pullRequests.Add(new GitHubPullRequestSnapshotDto(
-                        number,
-                        GetString(item, "title") ?? $"Pull request #{number}",
-                        GetString(item, "state") ?? "open",
-                        head.ValueKind == JsonValueKind.Object ? GetString(head, "sha") ?? string.Empty : string.Empty,
-                        head.ValueKind == JsonValueKind.Object ? GetString(head, "ref") ?? string.Empty : string.Empty,
-                        GetString(item, "html_url") ?? string.Empty,
-                        GetBoolean(item, "merged"),
-                        files,
-                        reviews));
-                }
-            }
         }
         catch (HttpRequestException)
         {
             pullRequestsReadable = false;
         }
+
+        var pullRequests = Array.Empty<GitHubPullRequestSnapshotDto>();
 
         return new GitHubRepositoryDetailsDto(
             summary,
@@ -283,6 +260,73 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
                 Contents: contentsReadable,
                 PullRequests: pullRequestsReadable,
                 Actions: actionsReadable));
+    }
+
+    public async Task<IReadOnlyList<GitHubPullRequestSnapshotDto>> ListPullRequestsAsync(
+        string owner,
+        string repository,
+        string state,
+        CancellationToken cancellationToken)
+    {
+        ValidateOwnerRepository(owner, repository);
+        EnsureConfigured();
+
+        var normalizedState = (state ?? "all").Trim().ToLowerInvariant() switch
+        {
+            "open" => "open",
+            "closed" => "closed",
+            "all" => "all",
+            _ => throw new ArgumentException("Pull request state must be open, closed, or all.", nameof(state))
+        };
+        var repoPath = $"repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repository)}";
+        var results = new List<GitHubPullRequestSnapshotDto>();
+        var maxPages = Math.Clamp(_options.MaxPullRequestPages, 1, 50);
+
+        for (var page = 1; page <= maxPages; page++)
+        {
+            using var request = await CreateRequestAsync(
+                HttpMethod.Get,
+                $"{repoPath}/pulls?state={normalizedState}&sort=updated&direction=desc&per_page=100&page={page}",
+                cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            using var document = await ReadJsonAsync(response, cancellationToken);
+            var count = 0;
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                count++;
+                var number = GetInt32(item, "number");
+                if (number <= 0)
+                    continue;
+                var head = item.TryGetProperty("head", out var headNode) ? headNode : default;
+                var commits = await LoadPullRequestCommitsAsync(repoPath, number, cancellationToken);
+                var files = await LoadPullRequestFilesAsync(repoPath, number, cancellationToken);
+                var reviews = await LoadPullRequestReviewsAsync(repoPath, number, cancellationToken);
+                results.Add(new GitHubPullRequestSnapshotDto(
+                    number,
+                    GetString(item, "title") ?? $"Pull request #{number}",
+                    GetString(item, "state") ?? "open",
+                    head.ValueKind == JsonValueKind.Object ? GetString(head, "sha") ?? string.Empty : string.Empty,
+                    head.ValueKind == JsonValueKind.Object ? GetString(head, "ref") ?? string.Empty : string.Empty,
+                    GetString(item, "html_url") ?? string.Empty,
+                    GetDate(item, "merged_at").HasValue,
+                    commits.Count > 0
+                        ? commits
+                        : new[] { head.ValueKind == JsonValueKind.Object ? GetString(head, "sha") ?? string.Empty : string.Empty }.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray(),
+                    files,
+                    reviews));
+            }
+
+            if (count < 100)
+                break;
+            if (page == maxPages)
+                throw new InvalidOperationException($"Pull-request backfill reached the configured {maxPages * 100} item safety limit. Increase GitHub:MaxPullRequestPages to continue the explicit backfill.");
+        }
+
+        return results
+            .OrderByDescending(item => item.Number)
+            .ToArray();
     }
 
     public async Task<GitHubWorkspaceSyncDto> SyncWorkspaceAsync(
@@ -405,35 +449,73 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         }
     }
 
+    private async Task<IReadOnlyList<string>> LoadPullRequestCommitsAsync(
+        string repoPath,
+        int number,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<string>();
+        var maxPages = Math.Clamp(_options.MaxPullRequestCommitPages, 1, 3);
+        for (var page = 1; page <= maxPages; page++)
+        {
+            using var request = await CreateRequestAsync(
+                HttpMethod.Get,
+                $"{repoPath}/pulls/{number}/commits?per_page=100&page={page}",
+                cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            using var document = await ReadJsonAsync(response, cancellationToken);
+            var count = 0;
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                count++;
+                var sha = GetString(item, "sha");
+                if (!string.IsNullOrWhiteSpace(sha))
+                    results.Add(sha);
+            }
+            if (count < 100)
+                break;
+            if (page == maxPages)
+                throw new InvalidOperationException($"Pull request #{number} commit history reached the configured pagination safety limit.");
+        }
+        return results.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
     private async Task<IReadOnlyList<GitHubPullRequestFileDto>> LoadPullRequestFilesAsync(
         string repoPath,
         int number,
         CancellationToken cancellationToken)
     {
-        try
+        var results = new List<GitHubPullRequestFileDto>();
+        var maxPages = Math.Clamp(_options.MaxPullRequestFilePages, 1, 30);
+        for (var page = 1; page <= maxPages; page++)
         {
             using var request = await CreateRequestAsync(
                 HttpMethod.Get,
-                $"{repoPath}/pulls/{number}/files?per_page=100",
+                $"{repoPath}/pulls/{number}/files?per_page=100&page={page}",
                 cancellationToken);
             using var response = await _httpClient.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-                return Array.Empty<GitHubPullRequestFileDto>();
+            response.EnsureSuccessStatusCode();
             using var document = await ReadJsonAsync(response, cancellationToken);
-            return document.RootElement.EnumerateArray()
-                .Take(1000)
-                .Select(item => new GitHubPullRequestFileDto(
-                    GetString(item, "filename") ?? string.Empty,
+            var count = 0;
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                count++;
+                var path = GetString(item, "filename") ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(path))
+                    continue;
+                results.Add(new GitHubPullRequestFileDto(
+                    path,
                     GetString(item, "status") ?? "modified",
                     GetInt32(item, "additions"),
-                    GetInt32(item, "deletions")))
-                .Where(item => !string.IsNullOrWhiteSpace(item.Path))
-                .ToArray();
+                    GetInt32(item, "deletions")));
+            }
+            if (count < 100)
+                break;
+            if (page == maxPages)
+                throw new InvalidOperationException($"Pull request #{number} changed-file history reached the configured pagination safety limit.");
         }
-        catch (HttpRequestException)
-        {
-            return Array.Empty<GitHubPullRequestFileDto>();
-        }
+        return results;
     }
 
     private async Task<IReadOnlyList<GitHubPullRequestReviewDto>> LoadPullRequestReviewsAsync(
@@ -441,34 +523,35 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         int number,
         CancellationToken cancellationToken)
     {
-        try
+        var results = new List<GitHubPullRequestReviewDto>();
+        var maxPages = Math.Clamp(_options.MaxPullRequestReviewPages, 1, 50);
+        for (var page = 1; page <= maxPages; page++)
         {
             using var request = await CreateRequestAsync(
                 HttpMethod.Get,
-                $"{repoPath}/pulls/{number}/reviews?per_page=100",
+                $"{repoPath}/pulls/{number}/reviews?per_page=100&page={page}",
                 cancellationToken);
             using var response = await _httpClient.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-                return Array.Empty<GitHubPullRequestReviewDto>();
+            response.EnsureSuccessStatusCode();
             using var document = await ReadJsonAsync(response, cancellationToken);
-            return document.RootElement.EnumerateArray()
-                .Take(500)
-                .Select(item =>
-                {
-                    var reviewer = item.TryGetProperty("user", out var user)
-                        ? GetString(user, "login") ?? "reviewer"
-                        : "reviewer";
-                    return new GitHubPullRequestReviewDto(
-                        reviewer,
-                        GetString(item, "state") ?? "commented",
-                        GetDate(item, "submitted_at"));
-                })
-                .ToArray();
+            var count = 0;
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                count++;
+                var reviewer = item.TryGetProperty("user", out var user)
+                    ? GetString(user, "login") ?? "reviewer"
+                    : "reviewer";
+                results.Add(new GitHubPullRequestReviewDto(
+                    reviewer,
+                    GetString(item, "state") ?? "commented",
+                    GetDate(item, "submitted_at")));
+            }
+            if (count < 100)
+                break;
+            if (page == maxPages)
+                throw new InvalidOperationException($"Pull request #{number} review history reached the configured pagination safety limit.");
         }
-        catch (HttpRequestException)
-        {
-            return Array.Empty<GitHubPullRequestReviewDto>();
-        }
+        return results;
     }
 
     private async Task<HttpRequestMessage> CreateRequestAsync(

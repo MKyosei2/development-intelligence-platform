@@ -193,4 +193,41 @@ public sealed class ProjectsController(
             return NotFound();
         }
     }
+    [Authorize(Policy = Policies.ProjectRead)]
+    [RequireProjectRole(ProjectMembershipRole.Viewer, "id")]
+    [HttpGet("{id:guid}/audit-page")]
+    public async Task<ActionResult<ProjectAuditPageDto>> AuditPage(
+        Guid id,
+        [FromQuery] int take = 100,
+        [FromQuery] string? search = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? correlationId = null,
+        [FromQuery] DateTimeOffset? fromUtc = null,
+        [FromQuery] DateTimeOffset? toUtc = null,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return Ok(await service.GetAuditPageAsync(
+                id,
+                take,
+                search,
+                category,
+                correlationId,
+                fromUtc,
+                toUtc,
+                cursor,
+                cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { error = "invalid_cursor", message = exception.Message });
+        }
+    }
+
 }

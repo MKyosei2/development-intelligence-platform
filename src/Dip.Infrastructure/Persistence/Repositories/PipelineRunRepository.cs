@@ -1,5 +1,6 @@
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
+using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dip.Infrastructure.Persistence.Repositories;
@@ -33,6 +34,30 @@ public sealed class PipelineRunRepository(DipDbContext db) : IPipelineRunReposit
             .ThenByDescending(x => x.QueuedAtUtc)
             .Take(Math.Clamp(take, 1, 500))
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<PipelineRun>> ListByCommitShasAsync(
+        Guid projectId,
+        IReadOnlyCollection<string> commitShas,
+        CancellationToken ct)
+    {
+        if (commitShas.Count == 0)
+            return Array.Empty<PipelineRun>();
+
+        var revisions = commitShas
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => new CommitSha(value.Trim()))
+            .Distinct()
+            .ToArray();
+        if (revisions.Length == 0)
+            return Array.Empty<PipelineRun>();
+
+        return await db.PipelineRuns
+            .AsNoTracking()
+            .Where(run => run.ProjectId == projectId && revisions.Contains(run.CommitSha))
+            .OrderByDescending(run => run.FinishedAtUtc ?? run.StartedAtUtc ?? run.QueuedAtUtc)
+            .ThenByDescending(run => run.QueuedAtUtc)
+            .ToListAsync(ct);
+    }
 
     public Task AddAsync(PipelineRun run, CancellationToken ct)
         => db.PipelineRuns.AddAsync(run, ct).AsTask();

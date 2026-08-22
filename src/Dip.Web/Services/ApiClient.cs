@@ -64,12 +64,20 @@ public sealed record PipelineRunClientDto(
     IReadOnlyList<PipelineQualityIssueClientDto>? QualityIssues = null,
     IReadOnlyList<PipelineEvidenceClientDto>? Evidence = null);
 
+public sealed record GitHubCapabilityCheckClientDto(
+    string Name,
+    string Status,
+    string Message);
+
 public sealed record GitHubConnectionTestClientDto(
     bool Success,
     string Mode,
     string Message,
     int RepositoryCount,
-    DateTimeOffset TestedAtUtc);
+    DateTimeOffset TestedAtUtc,
+    string OverallStatus = "Unknown",
+    string? Repository = null,
+    IReadOnlyList<GitHubCapabilityCheckClientDto>? Checks = null);
 
 public sealed record PullRequestSummaryClientDto(
     int Number,
@@ -92,12 +100,25 @@ public sealed record PullRequestCiClientDto(
     string Status,
     string? Url);
 
+public sealed record PullRequestPipelineClientDto(
+    Guid Id,
+    string CommitSha,
+    string Status,
+    string CollectorType,
+    string ExternalRunId,
+    DateTimeOffset? FinishedAtUtc,
+    int QualityIssueCount,
+    int EvidenceCount);
+
 public sealed record PullRequestDetailsClientDto(
     PullRequestSummaryClientDto Summary,
     IReadOnlyList<string> Revisions,
     IReadOnlyList<string> ChangedFiles,
     IReadOnlyList<PullRequestReviewClientDto> Reviews,
-    IReadOnlyList<PullRequestCiClientDto> CiRuns);
+    IReadOnlyList<PullRequestCiClientDto> CiRuns,
+    IReadOnlyList<PullRequestPipelineClientDto> PipelineRuns,
+    IReadOnlyList<PipelineQualityIssueClientDto> QualityIssues,
+    IReadOnlyList<PipelineEvidenceClientDto> Evidence);
 
 public sealed record QualityIssueClientDto(
     Guid Id,
@@ -235,6 +256,30 @@ public sealed class ApiClient
                    $"api/projects/{projectId}/audit?{string.Join("&", query)}",
                    cancellationToken)
                ?? Array.Empty<ProjectAuditEntryDto>();
+    }
+
+    public async Task<ProjectAuditPageDto> GetProjectAuditPageAsync(
+        Guid projectId,
+        int take = 100,
+        string? search = null,
+        string? category = null,
+        string? correlationId = null,
+        DateTimeOffset? fromUtc = null,
+        DateTimeOffset? toUtc = null,
+        string? cursor = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new List<string> { $"take={Math.Clamp(take, 1, 500)}" };
+        if (!string.IsNullOrWhiteSpace(search)) query.Add("search=" + Uri.EscapeDataString(search.Trim()));
+        if (!string.IsNullOrWhiteSpace(category)) query.Add("category=" + Uri.EscapeDataString(category.Trim()));
+        if (!string.IsNullOrWhiteSpace(correlationId)) query.Add("correlationId=" + Uri.EscapeDataString(correlationId.Trim()));
+        if (fromUtc.HasValue) query.Add("fromUtc=" + Uri.EscapeDataString(fromUtc.Value.ToUniversalTime().ToString("O")));
+        if (toUtc.HasValue) query.Add("toUtc=" + Uri.EscapeDataString(toUtc.Value.ToUniversalTime().ToString("O")));
+        if (!string.IsNullOrWhiteSpace(cursor)) query.Add("cursor=" + Uri.EscapeDataString(cursor));
+        return await _httpClient.GetFromJsonAsync<ProjectAuditPageDto>(
+                   $"api/projects/{projectId}/audit-page?{string.Join("&", query)}",
+                   cancellationToken)
+               ?? new ProjectAuditPageDto(Array.Empty<ProjectAuditEntryDto>(), null, false);
     }
 
     private async Task<ProjectDto> ChangeProjectLifecycleAsync(
@@ -689,10 +734,14 @@ public sealed class ApiClient
            ?? throw new InvalidDataException("GitHub connection API returned an empty response.");
 
     public async Task<GitHubConnectionTestClientDto> TestGitHubConnectionAsync(
+        Guid? projectId = null,
         CancellationToken cancellationToken = default)
     {
+        var path = projectId.HasValue
+            ? $"api/v1/integrations/github/projects/{projectId.Value}/test"
+            : "api/v1/integrations/github/test";
         using var response = await _httpClient.PostAsync(
-            "api/v1/integrations/github/test",
+            path,
             content: null,
             cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -827,6 +876,16 @@ public sealed class ApiClient
                $"api/v1/management/projects/{projectId}/alerts?horizonWeeks={Math.Clamp(horizonWeeks, 1, 26)}",
                ct)
            ?? Array.Empty<OperationalAlertDto>();
+
+    public async Task<IReadOnlyList<NotificationHistoryEntryDto>> GetAlertHistoryAsync(
+        Guid projectId,
+        string alertKey,
+        int take = 100,
+        CancellationToken ct = default)
+        => await _httpClient.GetFromJsonAsync<IReadOnlyList<NotificationHistoryEntryDto>>(
+               $"api/v1/management/projects/{projectId}/alerts/{Uri.EscapeDataString(alertKey)}/history?take={Math.Clamp(take, 1, 200)}",
+               ct)
+           ?? Array.Empty<NotificationHistoryEntryDto>();
 
     public async Task<OperatingCadenceDto> GetOperatingCadenceAsync(
         Guid projectId,

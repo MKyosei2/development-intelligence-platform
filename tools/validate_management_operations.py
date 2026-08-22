@@ -135,15 +135,32 @@ check("pipeline_specific_qa_evidence", all(token in pipeline_controller for toke
 
 github_controller = text("src/Dip.Api/Controllers/GitHubRepositoriesController.cs")
 github_catalog = text("src/Dip.Infrastructure/GitHub/GitHubRepositoryCatalog.cs")
+github_contract = text("src/Dip.Application/Abstractions/GitHub/IGitHubRepositoryCatalog.cs")
+github_options = text("src/Dip.Infrastructure/GitHub/GitHubOptions.cs")
+repositories_contract = text("src/Dip.Application/Abstractions/Persistence/Repositories.cs")
+repository_page = text("src/Dip.Web/Pages/Dashboard/Repository.razor")
 check("github_capability_probe", all(token in github_catalog for token in ["GitHubCapabilityProbeDto", "Contents", "PullRequests", "Actions"]), "GitHub connection test can distinguish repository/content/PR/Actions capabilities")
-check("github_pr_backfill", "BackfillPullRequestsAsync" in github_controller and "TryBackfillPullRequestsAsync" in github_controller, "Repository/PR flow backfills Development Graph pull requests instead of depending only on future webhooks")
+check("github_project_specific_probe", "projects/{projectId:guid}/test" in github_controller and "ProbeRepositoryAsync" in github_controller and "TestGitHubConnectionAsync(_project?.Id)" in text("src/Dip.Web/Pages/Settings.razor"), "Settings verifies capabilities against the selected DIP project's repository instead of an arbitrary repository")
+check("github_pr_backfill_explicit_sync", 'ListPullRequestsAsync(owner, repository, "all"' in github_controller and "BackfillPullRequestsAsync" in github_controller and "TryBackfillPullRequestsAsync" not in github_controller, "Import/sync perform bounded historical PR backfill while PR GET endpoints stay read-only")
+check("github_pr_backfill_pagination", all(token in github_catalog for token in ["pulls?state={normalizedState}", "per_page=100&page={page}", "/commits?per_page=100&page={page}", "/files?per_page=100&page={page}", "/reviews?per_page=100&page={page}"]) and all(token in github_options for token in ["MaxPullRequestPages", "MaxPullRequestCommitPages", "MaxPullRequestFilePages", "MaxPullRequestReviewPages"]) and "ListPullRequestsAsync" in github_contract, "Historical PR, commit, file and review collection is paginated with explicit safety limits")
+check("github_pr_merged_from_timestamp", 'GetDate(item, "merged_at").HasValue' in github_catalog, "Closed and merged pull requests are distinguished using merged_at")
+check("pr_pipeline_qa_evidence_traceability", all(token in github_controller for token in ["ListByCommitShasAsync", "ListByPipelineRunsAsync", "PipelineRuns", "QualityIssues", "Evidence"]) and all(token in repository_page for token in ["Persisted pipeline runs", "Related QA issues", "Evidence records"]), "PR detail traces revisions through persisted pipelines to concrete QA issues and EvidenceRecord entries")
+check("pipeline_commit_query_contract", "ListByCommitShasAsync" in repositories_contract, "Pipeline repository exposes full-SHA lookup for PR traceability")
+evidence_repo = text("src/Dip.Infrastructure/Persistence/Repositories/EvidenceRepository.cs")
+quality_repo = text("src/Dip.Infrastructure/Persistence/Repositories/QualityIssueRepository.cs")
+check("pr_traceability_direct_repository_queries", "ListByPipelineRunsAsync" in evidence_repo and ".Take(2000)" not in evidence_repo and "ListByPipelineRunsAsync" in quality_repo, "PR evidence/QA traceability queries target pipeline IDs directly instead of truncating a latest-N project window")
+check("github_backfill_reports_safety_limit", "pagination safety limit" in github_catalog and "EnsureSuccessStatusCode" in github_catalog, "Historical GitHub enrichment fails explicitly instead of silently returning a partial page when permissions or configured bounds are exhausted")
 
 audit_repo = text("src/Dip.Infrastructure/Persistence/Repositories/AuditLogRepository.cs")
 projects_controller = text("src/Dip.Api/Controllers/ProjectsController.cs")
+project_service = text("src/Dip.Application/Features/Projects/ProjectService.cs")
+settings_page = text("src/Dip.Web/Pages/Settings.razor")
 check("audit_server_side_search", all(token in audit_repo for token in ["SearchAsync", "fromUtc", "toUtc", "correlationId"]) and all(token in projects_controller for token in ["fromUtc", "toUtc", "correlationId"]), "Audit search and date filters execute server-side before the result limit")
+check("audit_cursor_pagination", all(token in audit_repo for token in ["SearchPageAsync", "beforeUtc", "beforeId", "ThenByDescending(x => x.Id)"]) and "ProjectAuditPageDto" in project_service and "audit-page" in projects_controller and "LoadMoreAuditAsync" in settings_page, "Audit history uses stable CreatedAtUtc+Id keyset pagination and a browser Load more flow")
 
 main_layout = text("src/Dip.Web/Components/Layout/MainLayout.razor")
 check("notifications_not_localstorage", "localStorage" not in main_layout and "ViewedAtUtc" in main_layout, "Notification unread state comes from durable server state rather than browser localStorage")
+check("notification_event_history", all(token in ops for token in ["notification.viewed", "notification.acknowledged", "notification.snoozed", "notification.reopened", "notification.resolved", "notification.delivered", "GetAlertHistoryAsync"]) and "AlertHistory" in controller and "notification-history" in main_layout, "Notification interactions and deliveries append immutable audit events that are exposed as a timeline")
 
 api_client = text("src/Dip.Web/Services/ApiClient.cs")
 for call in ["GetDailyCockpitAsync", "UpsertSharedResourceMembershipAsync", "RespondApprovalAsync", "RunManagementSyncAsync", "SyncManagementGoogleCalendarAsync", "SyncManagementGoogleSheetsAsync"]:
