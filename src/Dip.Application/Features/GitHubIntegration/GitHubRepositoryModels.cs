@@ -39,12 +39,42 @@ public sealed record GitHubWorkflowRunDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc);
 
+public sealed record GitHubPullRequestFileDto(
+    string Path,
+    string Status,
+    int Additions,
+    int Deletions);
+
+public sealed record GitHubPullRequestReviewDto(
+    string Reviewer,
+    string State,
+    DateTimeOffset? SubmittedAtUtc);
+
+public sealed record GitHubPullRequestSnapshotDto(
+    int Number,
+    string Title,
+    string State,
+    string HeadSha,
+    string HeadBranch,
+    string HtmlUrl,
+    bool Merged,
+    IReadOnlyList<GitHubPullRequestFileDto> Files,
+    IReadOnlyList<GitHubPullRequestReviewDto> Reviews);
+
+public sealed record GitHubCapabilityProbeDto(
+    bool Metadata,
+    bool Contents,
+    bool PullRequests,
+    bool Actions);
+
 public sealed record GitHubRepositoryDetailsDto(
     GitHubRepositorySummaryDto Repository,
     string? LatestCommitSha,
     string? LatestCommitMessage,
     DateTimeOffset? LatestCommitAtUtc,
-    IReadOnlyList<GitHubWorkflowRunDto> WorkflowRuns);
+    IReadOnlyList<GitHubWorkflowRunDto> WorkflowRuns,
+    IReadOnlyList<GitHubPullRequestSnapshotDto>? PullRequests = null,
+    GitHubCapabilityProbeDto? Capabilities = null);
 
 public sealed record GitHubWorkspaceSyncDto(
     Guid ProjectId,

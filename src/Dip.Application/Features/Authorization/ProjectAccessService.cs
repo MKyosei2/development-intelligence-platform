@@ -89,6 +89,17 @@ public sealed class ProjectAccessService(
             }
             else
             {
+                if (existing.Role == ProjectMembershipRole.Owner
+                    && role != ProjectMembershipRole.Owner)
+                {
+                    var all = await memberships.ListByProjectAsync(projectId, token);
+                    if (all.Count(x => x.Role == ProjectMembershipRole.Owner) <= 1)
+                    {
+                        throw new InvalidOperationException(
+                            "The last project owner cannot be demoted. Transfer ownership first.");
+                    }
+                }
+
                 existing.ChangeRole(role, actor, clock.UtcNow);
             }
 

@@ -36,4 +36,22 @@ public sealed class EvidenceRepository : IEvidenceRepository
             .Take(1000)
             .ToListAsync(cancellationToken);
     }
+    public async Task<IReadOnlyList<EvidenceRecord>> ListByPipelineRunsAsync(
+        Guid projectId,
+        IReadOnlyCollection<Guid> pipelineRunIds,
+        CancellationToken cancellationToken)
+    {
+        if (pipelineRunIds.Count == 0)
+            return Array.Empty<EvidenceRecord>();
+        var ids = pipelineRunIds.Distinct().ToArray();
+        return await _db.EvidenceRecords
+            .AsNoTracking()
+            .Where(item => item.ProjectId == projectId
+                           && item.PipelineRunId.HasValue
+                           && ids.Contains(item.PipelineRunId.Value))
+            .OrderByDescending(item => item.ObservedAtUtc)
+            .Take(2000)
+            .ToListAsync(cancellationToken);
+    }
+
 }

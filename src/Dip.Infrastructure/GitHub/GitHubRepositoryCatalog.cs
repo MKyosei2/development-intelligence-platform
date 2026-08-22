@@ -177,6 +177,7 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         using var repoDocument = await ReadJsonAsync(repoResponse, cancellationToken);
         var summary = MapRepository(repoDocument.RootElement);
 
+        var contentsReadable = false;
         string? latestSha = null;
         string? latestMessage = null;
         DateTimeOffset? latestAt = null;
@@ -187,7 +188,8 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
                 $"{repoPath}/commits/{Uri.EscapeDataString(summary.DefaultBranch)}",
                 cancellationToken);
             using var commitResponse = await _httpClient.SendAsync(commitRequest, cancellationToken);
-            if (commitResponse.IsSuccessStatusCode)
+            contentsReadable = commitResponse.IsSuccessStatusCode;
+            if (contentsReadable)
             {
                 using var commitDocument = await ReadJsonAsync(commitResponse, cancellationToken);
                 latestSha = GetString(commitDocument.RootElement, "sha");
@@ -201,9 +203,10 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         }
         catch (HttpRequestException)
         {
-            // Repository metadata should remain usable even when commit lookup is unavailable.
+            contentsReadable = false;
         }
 
+        var actionsReadable = false;
         var runs = new List<GitHubWorkflowRunDto>();
         try
         {
@@ -212,7 +215,8 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
                 $"{repoPath}/actions/runs?branch={Uri.EscapeDataString(summary.DefaultBranch)}&per_page=30",
                 cancellationToken);
             using var runsResponse = await _httpClient.SendAsync(runsRequest, cancellationToken);
-            if (runsResponse.IsSuccessStatusCode)
+            actionsReadable = runsResponse.IsSuccessStatusCode;
+            if (actionsReadable)
             {
                 using var runsDocument = await ReadJsonAsync(runsResponse, cancellationToken);
                 if (runsDocument.RootElement.TryGetProperty("workflow_runs", out var array))
@@ -224,7 +228,47 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         }
         catch (HttpRequestException)
         {
-            // Actions can be disabled or not granted to the GitHub App. Keep repository browsing functional.
+            actionsReadable = false;
+        }
+
+        var pullRequestsReadable = false;
+        var pullRequests = new List<GitHubPullRequestSnapshotDto>();
+        try
+        {
+            using var pullsRequest = await CreateRequestAsync(
+                HttpMethod.Get,
+                $"{repoPath}/pulls?state=open&sort=updated&direction=desc&per_page=20",
+                cancellationToken);
+            using var pullsResponse = await _httpClient.SendAsync(pullsRequest, cancellationToken);
+            pullRequestsReadable = pullsResponse.IsSuccessStatusCode;
+            if (pullRequestsReadable)
+            {
+                using var pullsDocument = await ReadJsonAsync(pullsResponse, cancellationToken);
+                foreach (var item in pullsDocument.RootElement.EnumerateArray())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var number = GetInt32(item, "number");
+                    if (number <= 0)
+                        continue;
+                    var head = item.TryGetProperty("head", out var headNode) ? headNode : default;
+                    var files = await LoadPullRequestFilesAsync(repoPath, number, cancellationToken);
+                    var reviews = await LoadPullRequestReviewsAsync(repoPath, number, cancellationToken);
+                    pullRequests.Add(new GitHubPullRequestSnapshotDto(
+                        number,
+                        GetString(item, "title") ?? $"Pull request #{number}",
+                        GetString(item, "state") ?? "open",
+                        head.ValueKind == JsonValueKind.Object ? GetString(head, "sha") ?? string.Empty : string.Empty,
+                        head.ValueKind == JsonValueKind.Object ? GetString(head, "ref") ?? string.Empty : string.Empty,
+                        GetString(item, "html_url") ?? string.Empty,
+                        GetBoolean(item, "merged"),
+                        files,
+                        reviews));
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+            pullRequestsReadable = false;
         }
 
         return new GitHubRepositoryDetailsDto(
@@ -232,7 +276,13 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
             latestSha,
             latestMessage,
             latestAt,
-            runs);
+            runs,
+            pullRequests,
+            new GitHubCapabilityProbeDto(
+                Metadata: true,
+                Contents: contentsReadable,
+                PullRequests: pullRequestsReadable,
+                Actions: actionsReadable));
     }
 
     public async Task<GitHubWorkspaceSyncDto> SyncWorkspaceAsync(
@@ -352,6 +402,72 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    private async Task<IReadOnlyList<GitHubPullRequestFileDto>> LoadPullRequestFilesAsync(
+        string repoPath,
+        int number,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = await CreateRequestAsync(
+                HttpMethod.Get,
+                $"{repoPath}/pulls/{number}/files?per_page=100",
+                cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return Array.Empty<GitHubPullRequestFileDto>();
+            using var document = await ReadJsonAsync(response, cancellationToken);
+            return document.RootElement.EnumerateArray()
+                .Take(1000)
+                .Select(item => new GitHubPullRequestFileDto(
+                    GetString(item, "filename") ?? string.Empty,
+                    GetString(item, "status") ?? "modified",
+                    GetInt32(item, "additions"),
+                    GetInt32(item, "deletions")))
+                .Where(item => !string.IsNullOrWhiteSpace(item.Path))
+                .ToArray();
+        }
+        catch (HttpRequestException)
+        {
+            return Array.Empty<GitHubPullRequestFileDto>();
+        }
+    }
+
+    private async Task<IReadOnlyList<GitHubPullRequestReviewDto>> LoadPullRequestReviewsAsync(
+        string repoPath,
+        int number,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = await CreateRequestAsync(
+                HttpMethod.Get,
+                $"{repoPath}/pulls/{number}/reviews?per_page=100",
+                cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return Array.Empty<GitHubPullRequestReviewDto>();
+            using var document = await ReadJsonAsync(response, cancellationToken);
+            return document.RootElement.EnumerateArray()
+                .Take(500)
+                .Select(item =>
+                {
+                    var reviewer = item.TryGetProperty("user", out var user)
+                        ? GetString(user, "login") ?? "reviewer"
+                        : "reviewer";
+                    return new GitHubPullRequestReviewDto(
+                        reviewer,
+                        GetString(item, "state") ?? "commented",
+                        GetDate(item, "submitted_at"));
+                })
+                .ToArray();
+        }
+        catch (HttpRequestException)
+        {
+            return Array.Empty<GitHubPullRequestReviewDto>();
         }
     }
 

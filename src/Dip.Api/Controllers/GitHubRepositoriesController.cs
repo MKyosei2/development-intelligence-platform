@@ -85,10 +85,47 @@ public sealed class GitHubRepositoriesController(
                 null,
                 null,
                 cancellationToken);
+            if (repositories.Count == 0)
+            {
+                return new(
+                    true,
+                    status.Mode,
+                    "Authentication PASS; repository visibility PASS (0 repositories). Capability probes were skipped because there is no accessible repository.",
+                    0,
+                    DateTimeOffset.UtcNow);
+            }
+
+            var probeRepository = repositories[0];
+            var details = await github.GetRepositoryAsync(
+                probeRepository.Owner,
+                probeRepository.Name,
+                cancellationToken);
+            var capabilities = details.Capabilities;
+            if (capabilities is null)
+            {
+                return new(
+                    false,
+                    status.Mode,
+                    "Authentication PASS; repository listing PASS; detailed capability probe is unavailable.",
+                    repositories.Count,
+                    DateTimeOffset.UtcNow);
+            }
+
+            var success = capabilities.Metadata
+                          && capabilities.Contents
+                          && capabilities.PullRequests
+                          && capabilities.Actions;
+            var message = string.Join("; ", new[]
+            {
+                $"Metadata {(capabilities.Metadata ? "PASS" : "FAIL")}",
+                $"Contents {(capabilities.Contents ? "PASS" : "FAIL")}",
+                $"Pull Requests {(capabilities.PullRequests ? "PASS" : "FAIL")}",
+                $"Actions {(capabilities.Actions ? "PASS" : "FAIL")}"
+            });
             return new(
-                true,
+                success,
                 status.Mode,
-                $"GitHub connection is usable. {repositories.Count} repository/repositories are visible to DIP.",
+                $"{message}. Probe repository: {probeRepository.FullName}. Visible repositories: {repositories.Count}.",
                 repositories.Count,
                 DateTimeOffset.UtcNow);
         }
@@ -221,6 +258,15 @@ public sealed class GitHubRepositoriesController(
             }
         }
 
+        try
+        {
+            await BackfillPullRequestsAsync(created.Id, details, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            // Project import remains successful even if PR enrichment is temporarily unavailable.
+        }
+
         await realtime.PublishAsync(
             created.Id,
             workspace is not null ? "project.imported" : "project.imported.unsynced",
@@ -312,10 +358,22 @@ public sealed class GitHubRepositoriesController(
         Guid projectId,
         CancellationToken cancellationToken)
     {
-        if (await projects.GetAsync(projectId, cancellationToken) is null)
+        var project = await projects.GetAsync(projectId, cancellationToken);
+        if (project is null)
             return NotFound();
 
         var graph = await developmentGraph.GetAsync(projectId, null, cancellationToken);
+        var observedPullRequests = graph.Nodes
+            .Where(node => node.Type.Equals(
+                DevelopmentGraphNodeType.PullRequest.ToString(),
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (observedPullRequests.Length == 0
+            || observedPullRequests.Max(node => node.LastObservedAtUtc) < DateTimeOffset.UtcNow.AddMinutes(-5))
+        {
+            await TryBackfillPullRequestsAsync(project, cancellationToken);
+            graph = await developmentGraph.GetAsync(projectId, null, cancellationToken);
+        }
         var summaries = graph.Nodes
             .Where(node => node.Type.Equals(
                 DevelopmentGraphNodeType.PullRequest.ToString(),
@@ -336,10 +394,22 @@ public sealed class GitHubRepositoriesController(
         int number,
         CancellationToken cancellationToken)
     {
+        var project = await projects.GetAsync(projectId, cancellationToken);
+        if (project is null)
+            return NotFound();
+
         var graph = await developmentGraph.GetAsync(projectId, null, cancellationToken);
         var node = graph.Nodes.FirstOrDefault(candidate =>
             candidate.Type.Equals(DevelopmentGraphNodeType.PullRequest.ToString(), StringComparison.OrdinalIgnoreCase)
             && PullRequestNumber(candidate) == number);
+        if (node is null)
+        {
+            await TryBackfillPullRequestsAsync(project, cancellationToken);
+            graph = await developmentGraph.GetAsync(projectId, null, cancellationToken);
+            node = graph.Nodes.FirstOrDefault(candidate =>
+                candidate.Type.Equals(DevelopmentGraphNodeType.PullRequest.ToString(), StringComparison.OrdinalIgnoreCase)
+                && PullRequestNumber(candidate) == number);
+        }
         if (node is null)
             return NotFound();
 
@@ -374,6 +444,15 @@ public sealed class GitHubRepositoriesController(
                 repository,
                 project.DefaultBranch,
                 cancellationToken);
+            try
+            {
+                var details = await github.GetRepositoryAsync(owner, repository, cancellationToken);
+                await BackfillPullRequestsAsync(projectId, details, cancellationToken);
+            }
+            catch (HttpRequestException)
+            {
+                // Workspace sync result remains valid when PR enrichment is temporarily unavailable.
+            }
             await realtime.PublishAsync(
                 projectId,
                 "repository.synced",
@@ -389,6 +468,87 @@ public sealed class GitHubRepositoriesController(
                 "Repository synchronization failed.",
                 CancellationToken.None);
             throw;
+        }
+    }
+
+    private async Task TryBackfillPullRequestsAsync(
+        ProjectDto project,
+        CancellationToken cancellationToken)
+    {
+        if (!project.LifecycleState.Equals(ProjectService.ActiveState, StringComparison.OrdinalIgnoreCase))
+            return;
+        if (!TryParseRepository(project.RepositoryUrl, out var owner, out var repository))
+            return;
+        var status = await github.GetStatusAsync(cancellationToken);
+        if (!status.Connected)
+            return;
+        try
+        {
+            var details = await github.GetRepositoryAsync(owner, repository, cancellationToken);
+            await BackfillPullRequestsAsync(project.Id, details, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            // Backfill must not make graph reads unavailable when GitHub is temporarily unreachable.
+        }
+    }
+
+    private async Task BackfillPullRequestsAsync(
+        Guid projectId,
+        GitHubRepositoryDetailsDto details,
+        CancellationToken cancellationToken)
+    {
+        foreach (var pullRequest in details.PullRequests ?? Array.Empty<GitHubPullRequestSnapshotDto>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(pullRequest.HeadSha))
+                continue;
+
+            var normalized = new NormalizedVersionControlChange(
+                projectId,
+                VersionControlProvider.GitHub,
+                details.Repository.FullName,
+                details.Repository.HtmlUrl,
+                pullRequest.HeadSha,
+                string.IsNullOrWhiteSpace(pullRequest.HeadBranch) ? details.Repository.DefaultBranch : pullRequest.HeadBranch,
+                pullRequest.Title,
+                pullRequest.HtmlUrl,
+                DateTimeOffset.UtcNow,
+                pullRequest.Files.Select(file => new NormalizedChangedFile(
+                    file.Path,
+                    file.Status,
+                    file.Additions,
+                    file.Deletions)).ToArray(),
+                pullRequest.Number,
+                pullRequest.Reviews.Select(review => new NormalizedReview(
+                    review.Reviewer,
+                    review.State,
+                    review.SubmittedAtUtc)).ToArray(),
+                null,
+                pullRequest.Merged);
+            await developmentGraph.IngestVersionControlChangeAsync(normalized, cancellationToken);
+
+            var key = $"pr:{details.Repository.FullName}:{pullRequest.Number}";
+            var node = await developmentGraph.FindNodeAsync(
+                projectId,
+                DevelopmentGraphNodeType.PullRequest,
+                key,
+                cancellationToken);
+            if (node is not null)
+            {
+                var state = pullRequest.Merged
+                    ? "Merged"
+                    : pullRequest.State.Equals("open", StringComparison.OrdinalIgnoreCase) ? "Open" : pullRequest.State;
+                await developmentGraph.UpsertNodeAsync(new(
+                    projectId,
+                    DevelopmentGraphNodeType.PullRequest,
+                    node.Key,
+                    $"PR #{pullRequest.Number}: {pullRequest.Title}",
+                    state,
+                    "GitHub",
+                    pullRequest.HtmlUrl,
+                    node.MetadataJson), cancellationToken);
+            }
         }
     }
 

@@ -203,13 +203,32 @@ public sealed class ProjectService(
         CancellationToken ct)
         => ChangeLifecycleAsync(id, DeletedState, "project.deleted", actor, reason, ct);
 
-    public async Task<IReadOnlyList<ProjectAuditEntryDto>> GetAuditAsync(
+    public Task<IReadOnlyList<ProjectAuditEntryDto>> GetAuditAsync(
         Guid projectId,
         int take,
         CancellationToken ct)
+        => GetAuditAsync(projectId, take, null, null, null, null, null, ct);
+
+    public async Task<IReadOnlyList<ProjectAuditEntryDto>> GetAuditAsync(
+        Guid projectId,
+        int take,
+        string? search,
+        string? category,
+        string? correlationId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        CancellationToken ct)
     {
         _ = await NeedProjectAsync(projectId, ct);
-        var entries = await audit.ListByProjectAsync(projectId, Math.Clamp(take, 1, 5000), ct);
+        var entries = await audit.SearchAsync(
+            projectId,
+            search,
+            category,
+            correlationId,
+            fromUtc,
+            toUtc,
+            Math.Clamp(take, 1, 5000),
+            ct);
         return entries.Select(MapAudit).ToArray();
     }
 
@@ -232,6 +251,9 @@ public sealed class ProjectService(
             return Map(project, current.State, current.ChangedAtUtc);
 
         var changedAt = clock.UtcNow;
+        if (current.ChangedAtUtc is { } previous && changedAt <= previous)
+            changedAt = previous.AddTicks(1);
+
         await audit.AddAsync(
             new AuditLog(
                 Guid.NewGuid(),

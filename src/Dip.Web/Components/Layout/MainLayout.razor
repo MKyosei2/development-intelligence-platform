@@ -1,4 +1,3 @@
-@using System.Text.Json
 @using Dip.Application.Features.Management
 @using Dip.Application.Features.Realtime
 @inherits LayoutComponentBase
@@ -8,7 +7,6 @@
 @inject RealtimeUpdateService Realtime
 @inject ApiClient Api
 @inject IConfiguration Configuration
-@inject IJSRuntime JS
 
 <div class="app-shell">
     <aside class="sidebar">
@@ -161,7 +159,7 @@
                                 <div>
                                     <div class="d-flex align-items-center gap-2 mb-1">
                                         <StatusBadge Value="@item.Alert.Severity" />
-                                        @if (!IsRead(item.Alert.Key))
+                                        @if (!IsRead(item))
                                         {
                                             <span class="badge text-bg-primary">Unread</span>
                                         }
@@ -208,11 +206,9 @@
     private bool _notificationOpen;
     private bool _showNotificationHistory;
     private bool _notificationLoading;
-    private bool _jsReady;
     private string? _notificationError;
     private Guid? _notificationsProjectId;
     private IReadOnlyList<OperationalAlertDto> _alerts = Array.Empty<OperationalAlertDto>();
-    private HashSet<string> _readAlertKeys = new(StringComparer.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
@@ -229,18 +225,10 @@
         await LoadNotificationsAsync(loadReadState: false);
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-        _jsReady = true;
-        await LoadReadStateAsync(Projects.CurrentProjectId);
-        await InvokeAsync(StateHasChanged);
-    }
-
     private string CurrentProjectName => Projects.CurrentProject?.Name ?? "All projects";
     private string RealtimeLabel => _realtimeState.Equals("Connected", StringComparison.OrdinalIgnoreCase) ? "Live updates" : "Manual refresh";
     private string RealtimeDot => _realtimeState.Equals("Connected", StringComparison.OrdinalIgnoreCase) ? "healthy" : "neutral";
-    private int UnreadNotificationCount => _alerts.Count(x => x.Visible && !IsRead(x.Alert.Key));
+    private int UnreadNotificationCount => _alerts.Count(x => x.Visible && x.State.ViewedAtUtc is null);
     private IReadOnlyList<OperationalAlertDto> VisibleNotifications => (_showNotificationHistory ? _alerts : _alerts.Where(x => x.Visible)).ToArray();
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
@@ -306,12 +294,8 @@
         {
             _alerts = Array.Empty<OperationalAlertDto>();
             _notificationsProjectId = null;
-            _readAlertKeys.Clear();
             return;
         }
-
-        if (loadReadState || _notificationsProjectId != projectId)
-            await LoadReadStateAsync(projectId);
 
         _notificationLoading = true;
         _notificationError = null;
@@ -324,39 +308,23 @@
         finally { _notificationLoading = false; }
     }
 
-    private async Task LoadReadStateAsync(Guid? projectId)
+    private async Task MarkReadAsync(OperationalAlertDto item)
     {
-        _readAlertKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (!_jsReady || projectId is null) return;
+        if (item.State.ViewedAtUtc is not null || Projects.CurrentProjectId is not { } projectId) return;
         try
         {
-            var json = await JS.InvokeAsync<string?>("localStorage.getItem", ReadStorageKey(projectId.Value));
-            if (!string.IsNullOrWhiteSpace(json))
-            {
-                foreach (var key in JsonSerializer.Deserialize<string[]>(json) ?? Array.Empty<string>())
-                    if (!string.IsNullOrWhiteSpace(key)) _readAlertKeys.Add(key);
-            }
+            await Api.SetAlertDispositionAsync(
+                projectId,
+                item.Alert.Key,
+                new AlertDispositionCommand(projectId, item.Alert.Key, "browser", "read", null, "Viewed in the DIP notification drawer."));
+            await LoadNotificationsAsync(loadReadState: false);
         }
-        catch { }
-    }
-
-    private async Task MarkReadAsync(string alertKey)
-    {
-        if (string.IsNullOrWhiteSpace(alertKey) || !_readAlertKeys.Add(alertKey)) return;
-        if (!_jsReady || Projects.CurrentProjectId is not { } projectId) return;
-        try
-        {
-            await JS.InvokeVoidAsync(
-                "localStorage.setItem",
-                ReadStorageKey(projectId),
-                JsonSerializer.Serialize(_readAlertKeys.OrderBy(x => x).ToArray()));
-        }
-        catch { }
+        catch (Exception exception) { _notificationError = exception.Message; }
     }
 
     private async Task OpenNotificationAsync(OperationalAlertDto item)
     {
-        await MarkReadAsync(item.Alert.Key);
+        await MarkReadAsync(item);
         _notificationOpen = false;
         if (Projects.CurrentProjectId is not { } projectId) return;
 
@@ -376,7 +344,6 @@
     private async Task ChangeAlertStateAsync(OperationalAlertDto item, string disposition, DateTimeOffset? snoozeUntilUtc, string comment)
     {
         if (Projects.CurrentProjectId is not { } projectId) return;
-        await MarkReadAsync(item.Alert.Key);
         try
         {
             await Api.SetAlertDispositionAsync(
@@ -388,9 +355,8 @@
         catch (Exception exception) { _notificationError = exception.Message; }
     }
 
-    private bool IsRead(string alertKey) => _readAlertKeys.Contains(alertKey);
-    private string NotificationReadClass(OperationalAlertDto item) => IsRead(item.Alert.Key) ? string.Empty : "bg-body-tertiary";
-    private static string ReadStorageKey(Guid projectId) => $"dip.notifications.read.{projectId:N}";
+    private static bool IsRead(OperationalAlertDto item) => item.State.ViewedAtUtc is not null;
+    private static string NotificationReadClass(OperationalAlertDto item) => IsRead(item) ? string.Empty : "bg-body-tertiary";
 
     private string NavClass(string target, bool exact = false)
     {

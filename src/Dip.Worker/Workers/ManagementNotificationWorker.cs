@@ -29,7 +29,7 @@ public sealed class ManagementNotificationWorker(IServiceScopeFactory scopes,IEn
             {
                 var now=clock.UtcNow;var level=ManagementOperationsService.RequiredEscalation(operational.Alert,now,operational.State.FirstSeenAtUtc??operational.Alert.TriggeredAtUtc);var subject=$"[DIP][{operational.Alert.Severity}][L{level}] {project.Name}: {operational.Alert.Title}";var body=$"Category: {operational.Alert.Category}\nOwner route: {operational.RoutedRole}\nReason: {operational.Alert.Explanation}\nRecommended action: {operational.Alert.RecommendedAction}\nDue: {operational.Alert.DueAtUtc?.ToString("u")??"n/a"}\nAlert key: {operational.Alert.Key}\nProject: {project.Id}";var envelope=new ManagementNotificationEnvelope(project.Id,project.Name,operational,level,subject,body);var delivered=false;
                 var routed=ChannelsFor(operational.RoutedRole,configured);foreach(var channel in routed){try{await channel.DeliverAsync(envelope,ct);delivered=true;}catch(Exception ex){logger.LogWarning(ex,"Management alert {AlertKey} delivery through {Channel} failed.",operational.Alert.Key,channel.ChannelName);}}
-                if(delivered)await operations.RecordAlertDeliveryAsync(project.Id,operational.Alert.Key,level,now,ct);
+                if(delivered)await operations.RecordAlertDeliveryAsync(project.Id,operational.Alert,level,now,ct);
             }
         }
     }

@@ -64,4 +64,42 @@ test.describe('DIP GUI onboarding', () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByTestId('portfolio-page')).toBeVisible();
   });
+  test('project lifecycle, owner safety, notifications and audit are operable from existing GUI', async ({ page }) => {
+    const name = uniqueProjectName();
+    await page.goto('/projects/new');
+    await page.locator('#project-name').fill(name);
+    await page.locator('#repository-url').fill('https://github.com/example/dip-lifecycle-fixture');
+    await page.locator('#default-branch').fill('main');
+    await page.getByTestId('create-project-submit').click();
+    await expect(page).toHaveURL(/\/dashboard\/[0-9a-f-]{36}$/i);
+    const projectId = page.url().split('/').at(-1);
+
+    await page.goto('/settings');
+    await page.locator('#managed-project').selectOption(projectId);
+    await expect(page.getByText('Project settings')).toBeVisible();
+
+    const projectNameInput = page.getByText('Project name').locator('..').locator('input');
+    await projectNameInput.fill(`${name} Updated`);
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Project settings saved.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Archive project' }).click();
+    await expect(page.getByText('Project archived.')).toBeVisible();
+    await page.getByRole('button', { name: 'Restore project' }).click();
+    await expect(page.getByText('Project restored.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Members' }).click();
+    const ownerRow = page.locator('tbody tr').filter({ hasText: 'Owner' }).first();
+    await ownerRow.locator('select').selectOption('Viewer');
+    await expect(page.getByText(/last project owner cannot be demoted/i)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Audit' }).click();
+    await page.getByRole('button', { name: 'Search audit history' }).click();
+    await expect(page.getByText('project.archived')).toBeVisible();
+    await expect(page.getByText('project.restored')).toBeVisible();
+
+    await page.getByRole('button', { name: /Notifications/ }).click();
+    await expect(page.getByTestId('notification-drawer')).toBeVisible();
+  });
+
 });

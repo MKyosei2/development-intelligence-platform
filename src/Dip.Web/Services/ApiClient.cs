@@ -28,6 +28,25 @@ public sealed record CreateClaimRequest(
     string? ClaimedBy,
     string? Description);
 
+public sealed record PipelineQualityIssueClientDto(
+    Guid Id,
+    string Severity,
+    string Status,
+    string Title,
+    string Category,
+    string Fingerprint,
+    string? EvidenceJson);
+
+public sealed record PipelineEvidenceClientDto(
+    Guid Id,
+    string EvidenceKind,
+    string Outcome,
+    string Title,
+    string Summary,
+    string Confidence,
+    string? SourceReference,
+    DateTimeOffset ObservedAtUtc);
+
 public sealed record PipelineRunClientDto(
     Guid Id,
     Guid ProjectId,
@@ -41,7 +60,9 @@ public sealed record PipelineRunClientDto(
     DateTimeOffset QueuedAtUtc,
     DateTimeOffset? StartedAtUtc,
     DateTimeOffset? FinishedAtUtc,
-    string? FailureReason);
+    string? FailureReason,
+    IReadOnlyList<PipelineQualityIssueClientDto>? QualityIssues = null,
+    IReadOnlyList<PipelineEvidenceClientDto>? Evidence = null);
 
 public sealed record GitHubConnectionTestClientDto(
     bool Success,
@@ -197,11 +218,24 @@ public sealed class ApiClient
     public async Task<IReadOnlyList<ProjectAuditEntryDto>> GetProjectAuditAsync(
         Guid projectId,
         int take = 200,
+        string? search = null,
+        string? category = null,
+        string? correlationId = null,
+        DateTimeOffset? fromUtc = null,
+        DateTimeOffset? toUtc = null,
         CancellationToken cancellationToken = default)
-        => await _httpClient.GetFromJsonAsync<IReadOnlyList<ProjectAuditEntryDto>>(
-               $"api/projects/{projectId}/audit?take={Math.Clamp(take, 1, 5000)}",
-               cancellationToken)
-           ?? Array.Empty<ProjectAuditEntryDto>();
+    {
+        var query = new List<string> { $"take={Math.Clamp(take, 1, 5000)}" };
+        if (!string.IsNullOrWhiteSpace(search)) query.Add("search=" + Uri.EscapeDataString(search.Trim()));
+        if (!string.IsNullOrWhiteSpace(category)) query.Add("category=" + Uri.EscapeDataString(category.Trim()));
+        if (!string.IsNullOrWhiteSpace(correlationId)) query.Add("correlationId=" + Uri.EscapeDataString(correlationId.Trim()));
+        if (fromUtc.HasValue) query.Add("fromUtc=" + Uri.EscapeDataString(fromUtc.Value.ToUniversalTime().ToString("O")));
+        if (toUtc.HasValue) query.Add("toUtc=" + Uri.EscapeDataString(toUtc.Value.ToUniversalTime().ToString("O")));
+        return await _httpClient.GetFromJsonAsync<IReadOnlyList<ProjectAuditEntryDto>>(
+                   $"api/projects/{projectId}/audit?{string.Join("&", query)}",
+                   cancellationToken)
+               ?? Array.Empty<ProjectAuditEntryDto>();
+    }
 
     private async Task<ProjectDto> ChangeProjectLifecycleAsync(
         Guid projectId,
@@ -586,6 +620,14 @@ public sealed class ApiClient
             $"api/v1/projects/{projectId}/memberships/{Uri.EscapeDataString(subjectId)}",
             new { subjectId, login, role, reason },
             ct);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var error = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken: ct);
+            throw new InvalidOperationException(
+                error is not null && error.TryGetValue("message", out var message)
+                    ? message
+                    : "Project ownership constraints rejected the membership change.");
+        }
         response.EnsureSuccessStatusCode();
     }
 

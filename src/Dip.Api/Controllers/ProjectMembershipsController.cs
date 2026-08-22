@@ -43,15 +43,22 @@ public sealed class ProjectMembershipsController(ProjectAccessService access) : 
         if (!string.Equals(subjectId, request.SubjectId, StringComparison.Ordinal))
             return BadRequest(new { error = "route/body subject mismatch" });
 
-        await access.UpsertAsync(
-            projectId,
-            request.SubjectId,
-            request.Login,
-            request.Role,
-            RequestActor.AuditIdentity(User),
-            request.Reason,
-            ct);
-        return NoContent();
+        try
+        {
+            await access.UpsertAsync(
+                projectId,
+                request.SubjectId,
+                request.Login,
+                request.Role,
+                RequestActor.AuditIdentity(User),
+                request.Reason,
+                ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { error = "owner_required", message = exception.Message });
+        }
     }
 
     [Authorize(Policy = Policies.ProjectWrite)]

@@ -169,11 +169,24 @@ public sealed class ProjectsController(
     public async Task<ActionResult<IReadOnlyList<ProjectAuditEntryDto>>> Audit(
         Guid id,
         [FromQuery] int take = 200,
+        [FromQuery] string? search = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? correlationId = null,
+        [FromQuery] DateTimeOffset? fromUtc = null,
+        [FromQuery] DateTimeOffset? toUtc = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            return Ok(await service.GetAuditAsync(id, take, cancellationToken));
+            return Ok(await service.GetAuditAsync(
+                id,
+                take,
+                search,
+                category,
+                correlationId,
+                fromUtc,
+                toUtc,
+                cancellationToken));
         }
         catch (KeyNotFoundException)
         {

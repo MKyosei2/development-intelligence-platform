@@ -119,17 +119,80 @@ public sealed class ManagementOperationsService
 
     public async Task<AlertStateDto> SetAlertDispositionAsync(AlertDispositionCommand c,CancellationToken ct)
     {
-        NeedProject(c.ProjectId);if(string.IsNullOrWhiteSpace(c.AlertKey))throw new ArgumentException("AlertKey is required.",nameof(c));var disposition=c.Disposition.Trim().ToLowerInvariant() switch{"ack" or "acknowledge" or "acknowledged"=>"Acknowledged","snooze" or "snoozed"=>"Snoozed","resolve" or "resolved"=>"Resolved","reopen" or "open"=>"Open",_=>throw new ArgumentException("Disposition must be acknowledge, snooze, resolve, or reopen.",nameof(c))};if(disposition=="Snoozed"&&(!c.SnoozeUntilUtc.HasValue||c.SnoozeUntilUtc<=_clock.UtcNow))throw new ArgumentException("SnoozeUntilUtc must be in the future.",nameof(c));
-        var key=AlertStateKey(c.AlertKey);var existing=await _repo.FindNodeAsync(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,ct);var level=existing is null?0:(int)WorkManagementService.MetaDecimal(existing,"EscalationLevel");var last=existing is null?null:ReadNullableDate(existing,"LastDeliveredAtUtc");var currentAlert=(await _analytics.GetAlertsAsync(c.ProjectId,8,ct)).Alerts.FirstOrDefault(x=>x.Key.Equals(c.AlertKey,StringComparison.OrdinalIgnoreCase));var firstSeen=existing is null?(currentAlert?.TriggeredAtUtc??_clock.UtcNow):(ReadNullableDate(existing,"FirstSeenAtUtc")??currentAlert?.TriggeredAtUtc??existing.FirstObservedAtUtc);
-        if(disposition=="Acknowledged"&&currentAlert is not null)level=Math.Max(level,RequiredEscalation(currentAlert,_clock.UtcNow,firstSeen));
-        var meta=JsonSerializer.Serialize(new{AlertKey=c.AlertKey,Actor=Clean(c.Actor,200),Comment=Clean(c.Comment,2000),UpdatedAtUtc=_clock.UtcNow,SnoozeUntilUtc=disposition=="Snoozed"?c.SnoozeUntilUtc:null,EscalationLevel=level,LastDeliveredAtUtc=last,FirstSeenAtUtc=firstSeen});var node=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,c.AlertKey,disposition,"DIP",null,meta),ct);return ParseAlertState(node);
+        NeedProject(c.ProjectId);
+        if(string.IsNullOrWhiteSpace(c.AlertKey))throw new ArgumentException("AlertKey is required.",nameof(c));
+        var requested=c.Disposition.Trim().ToLowerInvariant() switch{
+            "read" or "view" or "viewed"=>"Read",
+            "ack" or "acknowledge" or "acknowledged"=>"Acknowledged",
+            "snooze" or "snoozed"=>"Snoozed",
+            "resolve" or "resolved"=>"Resolved",
+            "reopen" or "open"=>"Open",
+            _=>throw new ArgumentException("Disposition must be read, acknowledge, snooze, resolve, or reopen.",nameof(c))};
+
+        var key=AlertStateKey(c.AlertKey);
+        var existing=await _repo.FindNodeAsync(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,ct);
+        var currentAlert=(await _analytics.GetAlertsAsync(c.ProjectId,8,ct)).Alerts.FirstOrDefault(x=>x.Key.Equals(c.AlertKey,StringComparison.OrdinalIgnoreCase));
+        var current=existing is null
+            ?new AlertStateDto(c.AlertKey,"Open",null,null,currentAlert?.TriggeredAtUtc??_clock.UtcNow,null,0,null,currentAlert?.TriggeredAtUtc??_clock.UtcNow)
+            :ParseAlertState(existing);
+        var disposition=requested=="Read"?current.Status:requested;
+        if(requested=="Snoozed"&&(!c.SnoozeUntilUtc.HasValue||c.SnoozeUntilUtc<=_clock.UtcNow))
+            throw new ArgumentException("SnoozeUntilUtc must be in the future.",nameof(c));
+
+        var now=_clock.UtcNow;
+        var level=current.EscalationLevel;
+        var firstSeen=current.FirstSeenAtUtc??currentAlert?.TriggeredAtUtc??now;
+        if(disposition=="Acknowledged"&&currentAlert is not null)
+            level=Math.Max(level,RequiredEscalation(currentAlert,now,firstSeen));
+
+        var actor=requested=="Read"?current.Actor:Clean(c.Actor,200);
+        var comment=requested=="Read"?current.Comment:Clean(c.Comment,2000);
+        var viewedAt=current.ViewedAtUtc??now;
+        var viewedBy=current.ViewedBy??Clean(c.Actor,200);
+        var snooze=requested=="Read"?current.SnoozeUntilUtc:disposition=="Snoozed"?c.SnoozeUntilUtc:null;
+        var meta=JsonSerializer.Serialize(new{
+            AlertKey=c.AlertKey,
+            Actor=actor,
+            Comment=comment,
+            UpdatedAtUtc=now,
+            SnoozeUntilUtc=snooze,
+            EscalationLevel=level,
+            LastDeliveredAtUtc=current.LastDeliveredAtUtc,
+            FirstSeenAtUtc=firstSeen,
+            ViewedAtUtc=viewedAt,
+            ViewedBy=viewedBy,
+            AlertSeverity=currentAlert?.Severity??(existing is null?"Info":WorkManagementService.MetaString(existing,"AlertSeverity","Info")),
+            AlertCategory=currentAlert?.Category??(existing is null?"History":WorkManagementService.MetaString(existing,"AlertCategory","History")),
+            AlertTitle=currentAlert?.Title??(existing is null?c.AlertKey:WorkManagementService.MetaString(existing,"AlertTitle",c.AlertKey)),
+            AlertExplanation=currentAlert?.Explanation??(existing is null?"Historical alert state.":WorkManagementService.MetaString(existing,"AlertExplanation","Historical alert state.")),
+            AlertRecommendedAction=currentAlert?.RecommendedAction??(existing is null?"Review the recorded alert state.":WorkManagementService.MetaString(existing,"AlertRecommendedAction","Review the recorded alert state.")),
+            AlertDueAtUtc=currentAlert?.DueAtUtc??(existing is null?null:ReadNullableDate(existing,"AlertDueAtUtc")),
+            AlertSourceKey=currentAlert?.SourceKey??(existing is null?c.AlertKey:WorkManagementService.MetaString(existing,"AlertSourceKey",c.AlertKey))});
+        var node=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,c.AlertKey,disposition,"DIP",null,meta),ct);
+        return ParseAlertState(node);
     }
 
     public async Task<IReadOnlyList<OperationalAlertDto>> GetOperationalAlertsAsync(Guid projectId,int horizonWeeks,CancellationToken ct)
     {
         var alerts=(await _analytics.GetAlertsAsync(projectId,horizonWeeks,ct)).Alerts;var allNodes=await _repo.ListNodesAsync(projectId,null,ct);var states=allNodes.Where(x=>x.Type==DevelopmentGraphNodeType.AlertState).ToDictionary(x=>WorkManagementService.MetaString(x,"AlertKey",WorkManagementService.Strip(x.Key)),StringComparer.OrdinalIgnoreCase);var raci=allNodes.Where(x=>x.Type==DevelopmentGraphNodeType.ResponsibilityAssignment&&!x.Status.Equals("Archived",StringComparison.OrdinalIgnoreCase)).Select(ParseRaci).ToArray();var now=_clock.UtcNow;var list=new List<OperationalAlertDto>();
         foreach(var alert in alerts){var state=states.TryGetValue(alert.Key,out var n)?ParseAlertState(n):new AlertStateDto(alert.Key,"Open",null,null,alert.TriggeredAtUtc,null,0,null,alert.TriggeredAtUtc);var visible=!state.Status.Equals("Resolved",StringComparison.OrdinalIgnoreCase)&&!(state.Status.Equals("Snoozed",StringComparison.OrdinalIgnoreCase)&&state.SnoozeUntilUtc>now);var required=visible&&RequiredEscalation(alert,now,state.FirstSeenAtUtc??alert.TriggeredAtUtc)>state.EscalationLevel;list.Add(new(alert,state,visible,required,RouteRole(alert,raci,allNodes)));}
-        return list.OrderByDescending(x=>SeverityRank(x.Alert.Severity)).ThenBy(x=>x.Alert.DueAtUtc??DateTimeOffset.MaxValue).ToArray();
+        var liveKeys=alerts.Select(x=>x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach(var node in states.Values.Where(x=>!liveKeys.Contains(WorkManagementService.MetaString(x,"AlertKey",WorkManagementService.Strip(x.Key)))))
+        {
+            var state=ParseAlertState(node);var title=WorkManagementService.MetaString(node,"AlertTitle");if(string.IsNullOrWhiteSpace(title))continue;
+            var historical=new ManagementAlertDto(
+                state.AlertKey,
+                WorkManagementService.MetaString(node,"AlertSeverity","Info"),
+                WorkManagementService.MetaString(node,"AlertCategory","History"),
+                title,
+                WorkManagementService.MetaString(node,"AlertExplanation","Historical alert state."),
+                WorkManagementService.MetaString(node,"AlertRecommendedAction","Review the recorded alert state."),
+                state.FirstSeenAtUtc??node.FirstObservedAtUtc,
+                ReadNullableDate(node,"AlertDueAtUtc"),
+                WorkManagementService.MetaString(node,"AlertSourceKey",state.AlertKey));
+            list.Add(new(historical,state,false,false,RouteRole(historical,raci,allNodes)));
+        }
+        return list.OrderByDescending(x=>x.Visible).ThenByDescending(x=>SeverityRank(x.Alert.Severity)).ThenByDescending(x=>x.State.UpdatedAtUtc).ToArray();
     }
 
     public async Task<DailyCockpitDto> GetDailyCockpitAsync(Guid projectId,int horizonWeeks,string? ownerRole,CancellationToken ct)
@@ -177,9 +240,9 @@ public sealed class ManagementOperationsService
         NeedProject(c.ProjectId);var (type,key)=ResolveManagementType(c.Type,c.Key);var node=await _repo.FindNodeAsync(c.ProjectId,type,key,ct)??throw new KeyNotFoundException($"{c.Type} '{c.Key}' was not found.");var meta=MergeMetadata(node.MetadataJson,new Dictionary<string,object?>{{"ArchivedAtUtc",_clock.UtcNow},{"ArchivedBy",Clean(c.Actor,200)},{"ArchiveReason",Clean(c.Reason,1000)}});await _graph.UpsertNodeAsync(new(c.ProjectId,type,node.Key,node.Name,"Archived",node.Provider,node.ExternalReference,meta),ct);
     }
 
-    public async Task<DevelopmentGraphNodeDto> RecordAlertDeliveryAsync(Guid projectId,string alertKey,int level,DateTimeOffset deliveredAt,CancellationToken ct)
+    public async Task<DevelopmentGraphNodeDto> RecordAlertDeliveryAsync(Guid projectId,ManagementAlertDto alert,int level,DateTimeOffset deliveredAt,CancellationToken ct)
     {
-        var key=AlertStateKey(alertKey);var existing=await _repo.FindNodeAsync(projectId,DevelopmentGraphNodeType.AlertState,key,ct);var current=existing is null?new AlertStateDto(alertKey,"Open",null,null,deliveredAt,null,0,null,deliveredAt):ParseAlertState(existing);var meta=JsonSerializer.Serialize(new{AlertKey=alertKey,current.Actor,current.Comment,UpdatedAtUtc=current.UpdatedAtUtc,current.SnoozeUntilUtc,EscalationLevel=Math.Max(current.EscalationLevel,level),LastDeliveredAtUtc=deliveredAt,FirstSeenAtUtc=current.FirstSeenAtUtc??deliveredAt});return await _graph.UpsertNodeAsync(new(projectId,DevelopmentGraphNodeType.AlertState,key,alertKey,current.Status,"DIP",null,meta),ct);
+        var key=AlertStateKey(alert.Key);var existing=await _repo.FindNodeAsync(projectId,DevelopmentGraphNodeType.AlertState,key,ct);var current=existing is null?new AlertStateDto(alert.Key,"Open",null,null,deliveredAt,null,0,null,alert.TriggeredAtUtc):ParseAlertState(existing);var meta=JsonSerializer.Serialize(new{AlertKey=alert.Key,current.Actor,current.Comment,UpdatedAtUtc=current.UpdatedAtUtc,current.SnoozeUntilUtc,EscalationLevel=Math.Max(current.EscalationLevel,level),LastDeliveredAtUtc=deliveredAt,FirstSeenAtUtc=current.FirstSeenAtUtc??alert.TriggeredAtUtc,current.ViewedAtUtc,current.ViewedBy,AlertSeverity=alert.Severity,AlertCategory=alert.Category,AlertTitle=alert.Title,AlertExplanation=alert.Explanation,AlertRecommendedAction=alert.RecommendedAction,AlertDueAtUtc=alert.DueAtUtc,AlertSourceKey=alert.SourceKey});return await _graph.UpsertNodeAsync(new(projectId,DevelopmentGraphNodeType.AlertState,key,alert.Key,current.Status,"DIP",null,meta),ct);
     }
 
     internal async Task<DevelopmentGraphNodeDto> RecordSyncConflictAsync(Guid projectId,string provider,string dataType,string itemKey,string dipValue,string externalValue,CancellationToken ct)
@@ -205,7 +268,7 @@ public sealed class ManagementOperationsService
     {
         using var d=JsonDocument.Parse(n.MetadataJson);var r=d.RootElement;var roles=WorkManagementService.MetaStringArray(n,"RequiredRoles");var responses=new List<ApprovalResponseDto>();if(r.TryGetProperty("Responses",out var a)&&a.ValueKind==JsonValueKind.Array)foreach(var x in a.EnumerateArray()){var actor=GetString(x,"Actor");var role=GetString(x,"ActorRole");var decision=GetString(x,"Decision");if(string.IsNullOrWhiteSpace(actor)||string.IsNullOrWhiteSpace(role)||string.IsNullOrWhiteSpace(decision))continue;DateTimeOffset when=_clock.UtcNow;if(x.TryGetProperty("RespondedAtUtc",out var at)&&at.TryGetDateTimeOffset(out var parsed))when=parsed;responses.Add(new(actor,role,decision,GetString(x,"Comment"),when));}var approved=responses.Where(x=>x.Decision=="Approved").Select(x=>x.ActorRole).ToHashSet(StringComparer.OrdinalIgnoreCase);var pending=roles.Where(x=>!approved.Contains(x)).ToArray();var requested=ReadDate(n,"RequestedAtUtc",n.FirstObservedAtUtc);var due=ReadNullableDate(n,"DueAtUtc");var allowSameActor=false;try{if(r.TryGetProperty("AllowSameActorMultipleRoles",out var allow)&&allow.ValueKind is JsonValueKind.True or JsonValueKind.False)allowSameActor=allow.GetBoolean();}catch{}return new(WorkManagementService.MetaString(n,"Key",WorkManagementService.Strip(n.Key)),WorkManagementService.MetaString(n,"ApprovalType"),n.Name,WorkManagementService.MetaString(n,"TargetType"),WorkManagementService.MetaString(n,"TargetKey"),n.Status,WorkManagementService.MetaString(n,"RequestedBy"),Null(WorkManagementService.MetaString(n,"Rationale")),requested,due,roles,responses,pending,n.Status=="Pending"&&due.HasValue&&due<_clock.UtcNow,allowSameActor);
     }
-    private AlertStateDto ParseAlertState(DevelopmentGraphNode n)=>new(WorkManagementService.MetaString(n,"AlertKey",WorkManagementService.Strip(n.Key)),n.Status,Null(WorkManagementService.MetaString(n,"Actor")),Null(WorkManagementService.MetaString(n,"Comment")),ReadDate(n,"UpdatedAtUtc",n.LastObservedAtUtc),ReadNullableDate(n,"SnoozeUntilUtc"),(int)WorkManagementService.MetaDecimal(n,"EscalationLevel"),ReadNullableDate(n,"LastDeliveredAtUtc"),ReadNullableDate(n,"FirstSeenAtUtc")??n.FirstObservedAtUtc);
+    private AlertStateDto ParseAlertState(DevelopmentGraphNode n)=>new(WorkManagementService.MetaString(n,"AlertKey",WorkManagementService.Strip(n.Key)),n.Status,Null(WorkManagementService.MetaString(n,"Actor")),Null(WorkManagementService.MetaString(n,"Comment")),ReadDate(n,"UpdatedAtUtc",n.LastObservedAtUtc),ReadNullableDate(n,"SnoozeUntilUtc"),(int)WorkManagementService.MetaDecimal(n,"EscalationLevel"),ReadNullableDate(n,"LastDeliveredAtUtc"),ReadNullableDate(n,"FirstSeenAtUtc")??n.FirstObservedAtUtc,ReadNullableDate(n,"ViewedAtUtc"),Null(WorkManagementService.MetaString(n,"ViewedBy")));
     private SyncConflictDto ParseConflict(DevelopmentGraphNode n)=>new(WorkManagementService.MetaString(n,"Key",WorkManagementService.Strip(n.Key)),WorkManagementService.MetaString(n,"Provider"),WorkManagementService.MetaString(n,"DataType"),WorkManagementService.MetaString(n,"ItemKey"),WorkManagementService.MetaString(n,"DipValue"),WorkManagementService.MetaString(n,"ExternalValue"),n.Status,WorkManagementService.MetaString(n,"Resolution"),Null(WorkManagementService.MetaString(n,"ResolvedBy")),ReadDate(n,"DetectedAtUtc",n.FirstObservedAtUtc),ReadNullableDate(n,"ResolvedAtUtc"));
 
     private async Task<DevelopmentGraphNode> NeedTarget(Guid projectId,ManagementTarget target,CancellationToken ct){var (type,key)=ResolveManagementType(target.Type,target.Key);return await _repo.FindNodeAsync(projectId,type,key,ct)??throw new KeyNotFoundException($"{target.Type} '{target.Key}' was not found.");}

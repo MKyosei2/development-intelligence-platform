@@ -30,6 +30,14 @@ public interface IQualityIssueRepository
     Task<QualityIssue?> GetAsync(Guid id,CancellationToken ct);
     Task<QualityIssue?> FindOpenByFingerprintAsync(Guid projectId,string fingerprint,CancellationToken ct);
     Task<IReadOnlyList<QualityIssue>> ListByProjectAsync(Guid projectId,int take,CancellationToken ct);
+    async Task<IReadOnlyList<QualityIssue>> ListByPipelineRunsAsync(Guid projectId,IReadOnlyCollection<Guid> pipelineRunIds,CancellationToken ct)
+    {
+        if(pipelineRunIds.Count==0)return Array.Empty<QualityIssue>();
+        var ids=pipelineRunIds.ToHashSet();
+        return (await ListByProjectAsync(projectId,500,ct))
+            .Where(x=>ids.Contains(x.PipelineRunId)||ids.Contains(x.FirstSeenPipelineRunId)||ids.Contains(x.LastSeenPipelineRunId))
+            .ToArray();
+    }
     Task AddAsync(QualityIssue issue,CancellationToken ct);
 }
 public interface IEvidenceRepository
@@ -37,6 +45,14 @@ public interface IEvidenceRepository
     Task AddAsync(EvidenceRecord evidence,CancellationToken ct);
     Task AddRangeAsync(IEnumerable<EvidenceRecord> evidence,CancellationToken ct);
     Task<IReadOnlyList<EvidenceRecord>> ListForProjectAsync(Guid projectId,DateTimeOffset? observedSince,CancellationToken ct);
+    async Task<IReadOnlyList<EvidenceRecord>> ListByPipelineRunsAsync(Guid projectId,IReadOnlyCollection<Guid> pipelineRunIds,CancellationToken ct)
+    {
+        if(pipelineRunIds.Count==0)return Array.Empty<EvidenceRecord>();
+        var ids=pipelineRunIds.ToHashSet();
+        return (await ListForProjectAsync(projectId,null,ct))
+            .Where(x=>x.PipelineRunId.HasValue&&ids.Contains(x.PipelineRunId.Value))
+            .ToArray();
+    }
 }
 public interface IProjectClaimRepository
 {
@@ -58,6 +74,16 @@ public interface IAuditLogRepository
 {
     Task AddAsync(AuditLog entry,CancellationToken ct);
     Task<IReadOnlyList<AuditLog>> ListByProjectAsync(Guid projectId,int take,CancellationToken ct);
+    async Task<IReadOnlyList<AuditLog>> SearchAsync(Guid projectId,string? search,string? category,string? correlationId,DateTimeOffset? fromUtc,DateTimeOffset? toUtc,int take,CancellationToken ct)
+    {
+        var items=await ListByProjectAsync(projectId,Math.Clamp(Math.Max(take,500),1,5000),ct);
+        return items.Where(x=>(string.IsNullOrWhiteSpace(search)||x.Action.Contains(search,StringComparison.OrdinalIgnoreCase)||x.Actor.Contains(search,StringComparison.OrdinalIgnoreCase)||(x.SubjectKey?.Contains(search,StringComparison.OrdinalIgnoreCase)??false))
+            &&(string.IsNullOrWhiteSpace(category)||x.Category.Contains(category,StringComparison.OrdinalIgnoreCase))
+            &&(string.IsNullOrWhiteSpace(correlationId)||(x.CorrelationId?.Contains(correlationId,StringComparison.OrdinalIgnoreCase)??false))
+            &&(!fromUtc.HasValue||x.CreatedAtUtc>=fromUtc.Value)
+            &&(!toUtc.HasValue||x.CreatedAtUtc<=toUtc.Value))
+            .Take(Math.Clamp(take,1,5000)).ToArray();
+    }
     async Task<AuditLog?> GetLatestByCategoryAsync(Guid projectId,string category,CancellationToken ct)
         =>(await ListByProjectAsync(projectId,5000,ct)).FirstOrDefault(x=>x.Category.Equals(category,StringComparison.OrdinalIgnoreCase));
 }

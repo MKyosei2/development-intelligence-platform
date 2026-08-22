@@ -256,6 +256,65 @@ else if (_data is not null)
                                     }
                                 </div>
                             </details>
+
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h4 class="h6 mb-0">Related pipeline / QA</h4>
+                                    <span class="small text-muted">@SelectedPrPipelineRuns.Count run(s)</span>
+                                </div>
+                                @if (SelectedPrPipelineRuns.Count == 0)
+                                {
+                                    <p class="small text-muted">No persisted pipeline run is linked to this PR revision yet.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var run in SelectedPrPipelineRuns)
+                                    {
+                                        <div class="border rounded p-2 mb-2">
+                                            <div class="d-flex justify-content-between gap-2">
+                                                <a href="@($"/dashboard/{ProjectId}/ci?run={run.Id}")"><strong>@run.CollectorType</strong> · <code>@ShortSha(run.CommitSha)</code></a>
+                                                <StatusBadge Value="@run.Status" />
+                                            </div>
+                                            <div class="small text-muted">@run.Branch · @((run.QualityIssues?.Count ?? 0)) QA issue(s) · @((run.Evidence?.Count ?? 0)) evidence record(s)</div>
+                                            @if (run.QualityIssues is { Count: > 0 } runIssues)
+                                            {
+                                                <div class="mt-2">
+                                                    @foreach (var issue in runIssues.Take(8))
+                                                    {
+                                                        <div class="d-flex justify-content-between gap-2 small py-1">
+                                                            <a href="@($"/dashboard/{ProjectId}/qa?issue={issue.Id}")">@issue.Title</a>
+                                                            <StatusBadge Value="@issue.Severity" />
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                }
+                            </div>
+
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h4 class="h6 mb-0">Evidence records</h4>
+                                    <span class="small text-muted">@SelectedPrEvidence.Count record(s)</span>
+                                </div>
+                                @if (SelectedPrEvidence.Count == 0)
+                                {
+                                    <p class="small text-muted">No EvidenceRecord is linked to the persisted pipeline runs for this PR.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var evidence in SelectedPrEvidence.Take(12))
+                                    {
+                                        <details class="border rounded p-2 mb-2">
+                                            <summary><strong>@evidence.Title</strong> · @evidence.Outcome · @evidence.Confidence</summary>
+                                            <div class="small mt-2">@evidence.Summary</div>
+                                            <div class="small text-muted mt-1">@evidence.EvidenceKind · @FormatDate(evidence.ObservedAtUtc)</div>
+                                        </details>
+                                    }
+                                }
+                            </div>
+
                             <div class="d-flex gap-2 mt-3">
                                 <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/ci")">Open CI</a>
                                 <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa")">Open QA</a>
@@ -272,6 +331,7 @@ else if (_data is not null)
     [Parameter] public Guid ProjectId { get; set; }
     private GitHubProjectRepositoryDto? _data;
     private IReadOnlyList<PullRequestSummaryClientDto> _pullRequests = Array.Empty<PullRequestSummaryClientDto>();
+    private IReadOnlyList<PipelineRunClientDto> _pipelineRuns = Array.Empty<PipelineRunClientDto>();
     private PullRequestDetailsClientDto? _selectedPullRequest;
     private string _tab = "overview";
     private bool _loading = true;
@@ -303,11 +363,13 @@ else if (_data is not null)
         _error = null;
         try
         {
-            var repositoryTask = Api.GetProjectRepositoryAsync(ProjectId);
-            var pullsTask = Api.GetPullRequestsAsync(ProjectId);
-            _data = await repositoryTask;
-            try { _pullRequests = await pullsTask; }
+            _data = await Api.GetProjectRepositoryAsync(ProjectId);
+            // Pull-request reads lazily backfill pre-existing GitHub PRs when the graph is empty,
+            // while import/sync perform the same normalization on write paths.
+            try { _pullRequests = await Api.GetPullRequestsAsync(ProjectId); }
             catch { _pullRequests = Array.Empty<PullRequestSummaryClientDto>(); }
+            try { _pipelineRuns = await Api.GetPipelineRunsAsync(ProjectId, 500); }
+            catch { _pipelineRuns = Array.Empty<PipelineRunClientDto>(); }
 
             if (_selectedPullRequest is not null)
             {
@@ -363,6 +425,24 @@ else if (_data is not null)
             _ = InvokeAsync(LoadAsync);
         }
     }
+
+    private IReadOnlyList<PipelineRunClientDto> SelectedPrPipelineRuns
+    {
+        get
+        {
+            if (_selectedPullRequest is null || _selectedPullRequest.Revisions.Count == 0)
+                return Array.Empty<PipelineRunClientDto>();
+            var revisions = _selectedPullRequest.Revisions.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return _pipelineRuns.Where(run => revisions.Contains(run.CommitSha)).ToArray();
+        }
+    }
+
+    private IReadOnlyList<PipelineEvidenceClientDto> SelectedPrEvidence => SelectedPrPipelineRuns
+        .SelectMany(run => run.Evidence ?? Array.Empty<PipelineEvidenceClientDto>())
+        .GroupBy(item => item.Id)
+        .Select(group => group.First())
+        .OrderByDescending(item => item.ObservedAtUtc)
+        .ToArray();
 
     private void SetTab(string tab) => _tab = tab;
     private string TabClass(string tab) => _tab == tab ? "btn-primary" : "btn-outline-secondary";

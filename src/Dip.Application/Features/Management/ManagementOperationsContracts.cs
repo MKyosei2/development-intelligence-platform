@@ -40,7 +40,7 @@ public sealed record ApprovalRequestDto(
 public sealed record ApprovalOverviewDto(Guid ProjectId,int Pending,int Approved,int Rejected,int Overdue,IReadOnlyList<ApprovalRequestDto> Items,DateTimeOffset GeneratedAtUtc);
 
 public sealed record AlertDispositionCommand(Guid ProjectId,string AlertKey,string Actor,string Disposition,DateTimeOffset? SnoozeUntilUtc=null,string? Comment=null);
-public sealed record AlertStateDto(string AlertKey,string Status,string? Actor,string? Comment,DateTimeOffset UpdatedAtUtc,DateTimeOffset? SnoozeUntilUtc,int EscalationLevel,DateTimeOffset? LastDeliveredAtUtc,DateTimeOffset? FirstSeenAtUtc=null);
+public sealed record AlertStateDto(string AlertKey,string Status,string? Actor,string? Comment,DateTimeOffset UpdatedAtUtc,DateTimeOffset? SnoozeUntilUtc,int EscalationLevel,DateTimeOffset? LastDeliveredAtUtc,DateTimeOffset? FirstSeenAtUtc=null,DateTimeOffset? ViewedAtUtc=null,string? ViewedBy=null);
 public sealed record OperationalAlertDto(ManagementAlertDto Alert,AlertStateDto State,bool Visible,bool RequiresEscalation,string RoutedRole);
 
 public sealed record CockpitDecisionDto(string Type,string Key,string Title,string Severity,string Action,string? OwnerRole,DateTimeOffset? DueAtUtc);

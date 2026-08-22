@@ -311,10 +311,12 @@ else
                 <div class="card-header"><strong>Audit log</strong><span>@FilteredAudit.Count() matching event(s)</span></div>
                 <div class="card-body border-bottom">
                     <div class="row g-2">
-                        <div class="col-12 col-md-4"><input class="form-control" placeholder="Search action / actor / subject" @bind="_auditSearch" @bind:event="oninput" /></div>
-                        <div class="col-12 col-md-3"><input class="form-control" placeholder="Category" @bind="_auditCategory" @bind:event="oninput" /></div>
-                        <div class="col-12 col-md-3"><input class="form-control" placeholder="Correlation ID" @bind="_auditCorrelation" @bind:event="oninput" /></div>
-                        <div class="col-12 col-md-2"><button class="btn btn-outline-secondary w-100" type="button" @onclick="LoadAuditAsync">Reload</button></div>
+                        <div class="col-12 col-md-4"><input class="form-control" placeholder="Search action / actor / subject" @bind="_auditSearch" /></div>
+                        <div class="col-12 col-md-2"><input class="form-control" placeholder="Category" @bind="_auditCategory" /></div>
+                        <div class="col-12 col-md-2"><input class="form-control" placeholder="Correlation ID" @bind="_auditCorrelation" /></div>
+                        <div class="col-12 col-md-2"><input class="form-control" type="datetime-local" title="From" @bind="_auditFrom" /></div>
+                        <div class="col-12 col-md-2"><input class="form-control" type="datetime-local" title="To" @bind="_auditTo" /></div>
+                        <div class="col-12"><button class="btn btn-outline-secondary" type="button" @onclick="LoadAuditAsync">Search audit history</button></div>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -420,6 +422,8 @@ else
     private string _auditSearch = string.Empty;
     private string _auditCategory = string.Empty;
     private string _auditCorrelation = string.Empty;
+    private string _auditFrom = string.Empty;
+    private string _auditTo = string.Empty;
     private Guid? _expandedAuditId;
 
     private bool RequireAuthentication => Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
@@ -729,8 +733,28 @@ else
             _audit = Array.Empty<ProjectAuditEntryDto>();
             return;
         }
-        try { _audit = await Api.GetProjectAuditAsync(_project.Id, 500); }
+        try
+        {
+            DateTimeOffset? fromUtc = ParseLocalAuditDate(_auditFrom);
+            DateTimeOffset? toUtc = ParseLocalAuditDate(_auditTo);
+            _audit = await Api.GetProjectAuditAsync(
+                _project.Id,
+                500,
+                _auditSearch,
+                _auditCategory,
+                _auditCorrelation,
+                fromUtc,
+                toUtc);
+        }
         catch { _audit = Array.Empty<ProjectAuditEntryDto>(); }
+    }
+
+    private static DateTimeOffset? ParseLocalAuditDate(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !DateTime.TryParse(value, out var parsed))
+            return null;
+        var local = DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified);
+        return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)).ToUniversalTime();
     }
 
     private void ToggleAudit(Guid id) => _expandedAuditId = _expandedAuditId == id ? null : id;

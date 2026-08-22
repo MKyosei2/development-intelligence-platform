@@ -261,6 +261,7 @@ else
 
 @code {
     [Parameter] public Guid ProjectId { get; set; }
+    [SupplyParameterFromQuery(Name = "issue")] public Guid? RequestedIssueId { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private GitHubProjectRepositoryDto? _repository;
@@ -310,8 +311,16 @@ else
             _dashboard = await dashboardTask;
             _issues = await issuesTask;
             _trends = await trendsTask;
-            if (_selectedIssue is not null)
+            if (RequestedIssueId is { } requestedIssueId)
+            {
+                _selectedIssue = _issues.FirstOrDefault(x => x.Id == requestedIssueId);
+                if (_selectedIssue is not null)
+                    _tab = "issues";
+            }
+            else if (_selectedIssue is not null)
+            {
                 _selectedIssue = _issues.FirstOrDefault(x => x.Id == _selectedIssue.Id);
+            }
         }
         catch (Exception exception) { _error = exception.Message; }
         finally { _loading = false; }

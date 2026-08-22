@@ -92,6 +92,56 @@ else if (_dashboard is not null)
                         {
                             <div class="alert alert-danger mt-3 mb-0"><strong>Failure reason</strong><div class="small mt-1">@_selectedRun.FailureReason</div></div>
                         }
+
+                        <div class="mt-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>Related QA</strong>
+                                <span class="small text-muted">@(_selectedRun.QualityIssues?.Count ?? 0) issue(s)</span>
+                            </div>
+                            @if (_selectedRun.QualityIssues is { Count: > 0 } relatedIssues)
+                            {
+                                <div class="list-group list-group-flush border rounded">
+                                    @foreach (var issue in relatedIssues)
+                                    {
+                                        <a class="list-group-item list-group-item-action" href="@($"/dashboard/{ProjectId}/qa?issue={issue.Id}")">
+                                            <div class="d-flex justify-content-between gap-2"><strong>@issue.Title</strong><StatusBadge Value="@issue.Severity" /></div>
+                                            <div class="small text-muted">@issue.Category · @issue.Status · <code>@ShortText(issue.Fingerprint, 16)</code></div>
+                                        </a>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="small text-muted">No durable QA issue is linked to this pipeline run.</div>
+                            }
+                        </div>
+
+                        <div class="mt-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>Evidence records</strong>
+                                <span class="small text-muted">@(_selectedRun.Evidence?.Count ?? 0) record(s)</span>
+                            </div>
+                            @if (_selectedRun.Evidence is { Count: > 0 } relatedEvidence)
+                            {
+                                @foreach (var evidence in relatedEvidence.Take(12))
+                                {
+                                    <details class="border rounded p-2 mb-2">
+                                        <summary><strong>@evidence.Title</strong> · @evidence.Outcome · @evidence.Confidence</summary>
+                                        <div class="small mt-2">@evidence.Summary</div>
+                                        <div class="small text-muted mt-1">@evidence.EvidenceKind · @FormatDate(evidence.ObservedAtUtc)</div>
+                                        @if (!string.IsNullOrWhiteSpace(evidence.SourceReference))
+                                        {
+                                            <div class="small mt-1"><code>@evidence.SourceReference</code></div>
+                                        }
+                                    </details>
+                                }
+                            }
+                            else
+                            {
+                                <div class="small text-muted">No EvidenceRecord is linked to this pipeline run.</div>
+                            }
+                        </div>
+
                         <div class="d-flex flex-wrap gap-2 mt-3">
                             <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa")">Related QA</a>
                             <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/repository")">Repository / PR</a>
@@ -214,6 +264,7 @@ else if (_dashboard is not null)
     }
 
     private static string ShortSha(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= 8 ? value : value[..8];
+    private static string ShortText(string? value, int max) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= max ? value : value[..max];
     private static string FormatDate(DateTimeOffset? value) => value is null ? "Not available" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
     public void Dispose() => Realtime.ProjectEvent -= OnRealtimeEvent;
 }

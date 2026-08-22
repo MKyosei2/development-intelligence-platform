@@ -48,6 +48,8 @@ check("cockpit_role_filters_alert_payload", "activeAlerts,actions,myDecisions,my
 check("authority_policy", "ConflictPolicy must be Manual or PreferAuthority" in ops, "Source Authority has explicit safe conflict policy")
 check("conflict_applied", "MarkConflictAppliedAsync" in ops, "Resolved sync conflicts can transition to Applied")
 check("shared_resource_membership", "UpsertSharedResourceMembershipAsync" in ops, "Shared resource pool membership updates existing Team metadata")
+check("notification_read_durable", all(token in ops for token in ["ViewedAtUtc", "ViewedBy", '"read" or "view" or "viewed"', "AlertSeverity", "AlertTitle"]), "Notification read state and alert snapshot are persisted in AlertState metadata rather than browser-only storage")
+check("notification_history_from_state", "liveKeys" in ops and "Historical alert state." in ops and "states.Values.Where" in ops, "Resolved/disappeared alert states remain available as durable notification history")
 
 sync = text("src/Dip.Application/Features/Management/ManagementSyncService.cs")
 check("safe_sync_no_remote_delete", "The remote item is not deleted automatically" in sync, "Issue-tracker synchronization avoids destructive remote delete")
@@ -84,6 +86,7 @@ check("portfolio_pool_mismatch", "configured inconsistently" in portfolio, "Conf
 
 worker = text("src/Dip.Worker/Workers/ManagementNotificationWorker.cs")
 check("notification_worker", "GetOperationalAlertsAsync" in worker and "RecordAlertDeliveryAsync" in worker, "Worker scans and records delivered alert levels")
+check("notification_worker_persists_snapshot", "RecordAlertDeliveryAsync(project.Id,operational.Alert" in worker, "Worker records the full alert snapshot so notification history can survive later analytics changes")
 check("notification_first_seen", "FirstSeenAtUtc" in worker, "Worker escalation uses stable first-seen age")
 check("notification_public_application_boundary", "public async Task<DevelopmentGraphNodeDto> RecordAlertDeliveryAsync" in ops and "public static int RequiredEscalation" in ops, "Worker-facing notification operations are public across the Dip.Application/Dip.Worker assembly boundary")
 for channel in ["Slack", "Teams", "Email"]:
@@ -122,6 +125,25 @@ for token in ["Daily Cockpit", "Operational alerts", "Pending approvals", "Risk 
 check("web_full_update_fields", all(x in page for x in ["_riskMitigation", "_decisionStatus", "_actionCompletion", "_changeRequirementKeys", "_allocationRationale"]), "GUI update paths preserve extended management fields")
 check("web_approval_bound_role_select", "CurrentActorRoles" in page and "Select bound role" in page, "Approval response UI only offers management roles bound to the signed-in actor")
 check("web_cockpit_bound_role_filter", "All accessible work" in page and "@foreach(var role in CurrentActorRoles)" in page, "Daily Cockpit My-role filter is selected from roles bound to the signed-in actor")
+
+# Cross-feature completion checks added after the browser-first lifecycle/evidence pass.
+access = text("src/Dip.Application/Features/Authorization/ProjectAccessService.cs")
+check("last_owner_demotion_blocked", "The last project owner cannot be demoted" in access and "ProjectMembershipRole.Owner" in access, "Role updates cannot silently demote the final project owner")
+
+pipeline_controller = text("src/Dip.Api/Controllers/PipelineRunsController.cs")
+check("pipeline_specific_qa_evidence", all(token in pipeline_controller for token in ["IQualityIssueRepository", "IEvidenceRepository", "QualityIssues", "Evidence"]), "Pipeline detail returns concrete related QA issues and EvidenceRecord entries")
+
+github_controller = text("src/Dip.Api/Controllers/GitHubRepositoriesController.cs")
+github_catalog = text("src/Dip.Infrastructure/GitHub/GitHubRepositoryCatalog.cs")
+check("github_capability_probe", all(token in github_catalog for token in ["GitHubCapabilityProbeDto", "Contents", "PullRequests", "Actions"]), "GitHub connection test can distinguish repository/content/PR/Actions capabilities")
+check("github_pr_backfill", "BackfillPullRequestsAsync" in github_controller and "TryBackfillPullRequestsAsync" in github_controller, "Repository/PR flow backfills Development Graph pull requests instead of depending only on future webhooks")
+
+audit_repo = text("src/Dip.Infrastructure/Persistence/Repositories/AuditLogRepository.cs")
+projects_controller = text("src/Dip.Api/Controllers/ProjectsController.cs")
+check("audit_server_side_search", all(token in audit_repo for token in ["SearchAsync", "fromUtc", "toUtc", "correlationId"]) and all(token in projects_controller for token in ["fromUtc", "toUtc", "correlationId"]), "Audit search and date filters execute server-side before the result limit")
+
+main_layout = text("src/Dip.Web/Components/Layout/MainLayout.razor")
+check("notifications_not_localstorage", "localStorage" not in main_layout and "ViewedAtUtc" in main_layout, "Notification unread state comes from durable server state rather than browser localStorage")
 
 api_client = text("src/Dip.Web/Services/ApiClient.cs")
 for call in ["GetDailyCockpitAsync", "UpsertSharedResourceMembershipAsync", "RespondApprovalAsync", "RunManagementSyncAsync", "SyncManagementGoogleCalendarAsync", "SyncManagementGoogleSheetsAsync"]:
