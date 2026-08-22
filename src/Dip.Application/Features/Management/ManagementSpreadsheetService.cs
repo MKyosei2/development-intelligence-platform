@@ -93,7 +93,7 @@ public sealed class ManagementSpreadsheetService
         {
             ct.ThrowIfCancellationRequested();
             var localRows=new List<IReadOnlyList<string>>{sheet.Headers}.Concat(sheet.Rows).ToArray();
-            var extRows=external.TryGetValue(sheet.Name,out var rows)?rows:Array.Empty<IReadOnlyList<string>>();
+            IReadOnlyList<IReadOnlyList<string>> extRows=external.TryGetValue(sheet.Name,out var rows)?rows:Array.Empty<IReadOnlyList<string>>();
             var localHash=GridHash(localRows);var externalHash=GridHash(extRows);var snapshot=await ReadSheetSnapshotAsync(c.ProjectId,c.SpreadsheetId,sheet.Name,ct);
             var rule=await _operations.AuthorityForAsync(c.ProjectId,$"GoogleSheets:{sheet.Name}",ct)??await _operations.AuthorityForAsync(c.ProjectId,sheet.Name,ct);
             var authority=rule?.Authority??"Manual";var preferAuthority=rule?.ConflictPolicy.Equals("PreferAuthority",StringComparison.OrdinalIgnoreCase)==true;var itemKey=$"{c.SpreadsheetId}:{sheet.Name}";

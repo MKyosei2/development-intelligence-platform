@@ -387,7 +387,7 @@ public sealed class ProjectService(
         try
         {
             var normalized = cursor.Trim().Replace('-', '+').Replace('_', '/');
-            normalized += normalized.Length % 4 switch { 2 => "==", 3 => "=", _ => string.Empty };
+            normalized += (normalized.Length % 4) switch { 2 => "==", 3 => "=", _ => string.Empty };
             var raw = Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
             var parts = raw.Split('|', 2);
             if (parts.Length != 2

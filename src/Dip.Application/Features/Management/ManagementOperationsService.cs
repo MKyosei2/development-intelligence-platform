@@ -170,7 +170,7 @@ public sealed class ManagementOperationsService
             AlertRecommendedAction=currentAlert?.RecommendedAction??(existing is null?"Review the recorded alert state.":WorkManagementService.MetaString(existing,"AlertRecommendedAction","Review the recorded alert state.")),
             AlertDueAtUtc=currentAlert?.DueAtUtc??(existing is null?null:ReadNullableDate(existing,"AlertDueAtUtc")),
             AlertSourceKey=currentAlert?.SourceKey??(existing is null?c.AlertKey:WorkManagementService.MetaString(existing,"AlertSourceKey",c.AlertKey))});
-        var node=await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,c.AlertKey,disposition,"DIP",null,meta),ct);
+        await _graph.UpsertNodeAsync(new(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,c.AlertKey,disposition,"DIP",null,meta),ct);
         if(requested!="Read"||current.ViewedAtUtc is null)
         {
             var action=requested switch{
@@ -190,7 +190,9 @@ public sealed class ManagementOperationsService
                 now,
                 ct);
         }
-        return ParseAlertState(node);
+        var persisted=await _repo.FindNodeAsync(c.ProjectId,DevelopmentGraphNodeType.AlertState,key,ct)
+            ??throw new InvalidOperationException("Persisted alert state could not be reloaded.");
+        return ParseAlertState(persisted);
     }
 
     public async Task<IReadOnlyList<NotificationHistoryEntryDto>> GetAlertHistoryAsync(Guid projectId,string alertKey,int take,CancellationToken ct)

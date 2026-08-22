@@ -16,7 +16,7 @@ public sealed class ProjectSourceIngestionService
     public ProjectSourceIngestionService(IEnumerable<IProjectSourceAdapter> adapters,DevelopmentGraphService graph,IDevelopmentGraphRepository repo,IEvidenceRepository evidence,IUnitOfWork uow,ISystemClock clock,ProjectEntityResolutionService resolver)
     {_adapters=adapters;_graph=graph;_repo=repo;_evidence=evidence;_uow=uow;_clock=clock;_resolver=resolver;}
 
-    public IReadOnlyList<(string Provider,bool Configured)> Providers(Guid projectId)=>_adapters.Select(x=>(x.ProviderName,x.IsConfiguredFor(projectId))).OrderBy(x=>x.Provider,StringComparer.OrdinalIgnoreCase).ToArray();
+    public IReadOnlyList<(string Provider,bool Configured)> Providers(Guid projectId)=>_adapters.Select(x=>(Provider:x.ProviderName,Configured:x.IsConfiguredFor(projectId))).OrderBy(x=>x.Provider,StringComparer.OrdinalIgnoreCase).ToArray();
 
     public async Task<ProjectSourceSyncResult> SynchronizeAsync(ProjectSourcePullCommand command,CancellationToken ct)
     {
