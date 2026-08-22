@@ -5,6 +5,7 @@ public interface IProjectRepository
 {
     Task<Project?> GetByIdAsync(Guid id,CancellationToken ct);
     Task<IReadOnlyList<Project>> ListAsync(CancellationToken ct);
+    Task<IReadOnlyList<Project>> ListAllAsync(CancellationToken ct)=>ListAsync(ct);
     Task AddAsync(Project project,CancellationToken ct);
 }
 
@@ -20,12 +21,15 @@ public interface IPipelineRunRepository
 {
     Task<PipelineRun?> GetByIdAsync(Guid id,CancellationToken ct);
     Task<PipelineRun?> FindByExternalRunAsync(Guid projectId,string externalRunId,string collectorType,int attemptNumber,CancellationToken ct);
+    Task<IReadOnlyList<PipelineRun>> ListByProjectAsync(Guid projectId,int take,CancellationToken ct);
     Task AddAsync(PipelineRun run,CancellationToken ct);
 }
 public interface IMetricRepository{Task AddRangeAsync(IEnumerable<Metric> metrics,CancellationToken ct);}
 public interface IQualityIssueRepository
 {
+    Task<QualityIssue?> GetAsync(Guid id,CancellationToken ct);
     Task<QualityIssue?> FindOpenByFingerprintAsync(Guid projectId,string fingerprint,CancellationToken ct);
+    Task<IReadOnlyList<QualityIssue>> ListByProjectAsync(Guid projectId,int take,CancellationToken ct);
     Task AddAsync(QualityIssue issue,CancellationToken ct);
 }
 public interface IEvidenceRepository
@@ -54,6 +58,8 @@ public interface IAuditLogRepository
 {
     Task AddAsync(AuditLog entry,CancellationToken ct);
     Task<IReadOnlyList<AuditLog>> ListByProjectAsync(Guid projectId,int take,CancellationToken ct);
+    async Task<AuditLog?> GetLatestByCategoryAsync(Guid projectId,string category,CancellationToken ct)
+        =>(await ListByProjectAsync(projectId,5000,ct)).FirstOrDefault(x=>x.Category.Equals(category,StringComparison.OrdinalIgnoreCase));
 }
 public interface IQaRunRepository
 {

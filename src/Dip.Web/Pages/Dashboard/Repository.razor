@@ -7,7 +7,7 @@
 <PageTitle>Repository | DIP</PageTitle>
 
 <section class="page-heading" data-testid="repository-page">
-    <div><div class="eyebrow">Development</div><h1>Repository</h1><p>GitHub metadata and the server-side workspace used by QA.</p></div>
+    <div><div class="eyebrow">Development</div><h1>Repository</h1><p>GitHub metadata, pull-request evidence and the server-side workspace used by QA.</p></div>
     <div class="heading-actions">
         <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button>
         <button class="btn btn-primary" type="button" @onclick="SyncAsync" disabled="@(_syncing || !CanSync)">@(_syncing ? "Synchronizing…" : "Sync workspace")</button>
@@ -56,90 +56,227 @@ else if (_data is not null)
             <div class="repository-facts">
                 <div><span>Default branch</span><strong>@_data.DefaultBranch</strong></div>
                 <div><span>Latest commit</span><strong>@ShortSha(_data.Repository?.LatestCommitSha)</strong></div>
+                <div><span>Pull requests</span><strong>@_pullRequests.Count</strong></div>
                 <div><span>Open issues</span><strong>@(_data.Repository?.Repository.OpenIssuesCount.ToString() ?? "—")</strong></div>
-                <div><span>Stars</span><strong>@(_data.Repository?.Repository.StarsCount.ToString() ?? "—")</strong></div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-12 col-lg-8">
-            <section class="card mb-4">
-                <div class="card-header"><strong>Latest commit</strong><span>@FormatDate(_data.Repository?.LatestCommitAtUtc)</span></div>
-                <div class="card-body">
-                    @if (_data.Repository?.LatestCommitSha is { } sha)
-                    {
-                        <code class="commit-sha">@sha</code>
-                        <p class="mt-2 mb-0">@(_data.Repository.LatestCommitMessage ?? "No commit message")</p>
-                    }
-                    else
-                    {
-                        <p class="text-muted mb-0">Commit metadata is unavailable.</p>
-                    }
-                </div>
-            </section>
-
-            <section class="card">
-                <div class="card-header"><strong>Recent GitHub Actions</strong><a href="@($"/dashboard/{ProjectId}/ci")">Open CI →</a></div>
-                <div class="card-body p-0">
-                    @if (_data.Repository?.WorkflowRuns.Count > 0)
-                    {
-                        <div class="table-responsive">
-                            <table class="table mb-0">
-                                <thead><tr><th>Workflow</th><th>Branch</th><th>Status</th><th>Commit</th><th>Updated</th></tr></thead>
-                                <tbody>
-                                @foreach (var run in _data.Repository.WorkflowRuns.Take(6))
-                                {
-                                    <tr>
-                                        <td><a href="@run.HtmlUrl" target="_blank" rel="noopener noreferrer"><strong>@run.Name</strong></a><div class="small text-muted">@run.Event</div></td>
-                                        <td>@run.HeadBranch</td>
-                                        <td><StatusBadge Value="@(run.Conclusion ?? run.Status)" /></td>
-                                        <td><code>@ShortSha(run.HeadSha)</code></td>
-                                        <td>@FormatDate(run.UpdatedAtUtc ?? run.CreatedAtUtc)</td>
-                                    </tr>
-                                }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No workflow runs</strong><small>GitHub Actions may be disabled or the App may not have Actions read permission.</small></div></div>
-                    }
-                </div>
-            </section>
-        </div>
-
-        <div class="col-12 col-lg-4">
-            <section class="card">
-                <div class="card-header"><strong>QA workspace</strong><StatusBadge Value="@(_data.Workspace is null ? "Not synced" : "Healthy")" /></div>
-                <div class="card-body workspace-card">
-                    @if (_data.Workspace is { } workspace)
-                    {
-                        <div><span>Path</span><code>@workspace.WorkspaceRelativePath</code></div>
-                        <div><span>Branch</span><strong>@workspace.Branch</strong></div>
-                        <div><span>Commit</span><code>@ShortSha(workspace.CommitSha)</code></div>
-                        <div><span>Files</span><strong>@workspace.FileCount.ToString("N0")</strong></div>
-                        <div><span>Extracted</span><strong>@FormatBytes(workspace.ExtractedBytes)</strong></div>
-                        <div><span>Synced</span><strong>@FormatDate(workspace.SyncedAtUtc)</strong></div>
-                        <a class="btn btn-primary w-100 mt-3" href="@($"/dashboard/{ProjectId}/qa")">Open QA</a>
-                    }
-                    else
-                    {
-                        <p class="text-muted">Synchronize the repository to create a protected workspace for QA.</p>
-                        <button class="btn btn-primary w-100" type="button" @onclick="SyncAsync" disabled="@(_syncing || !CanSync)">Sync now</button>
-                    }
-                </div>
-            </section>
-        </div>
+    <div class="d-flex gap-2 mb-4">
+        <button class='btn @TabClass("overview")' type="button" @onclick='() => SetTab("overview")'>Overview</button>
+        <button class='btn @TabClass("pulls")' type="button" @onclick='() => SetTab("pulls")'>Pull Requests <span class="badge text-bg-secondary ms-1">@_pullRequests.Count</span></button>
     </div>
+
+    @if (_tab == "overview")
+    {
+        <div class="row g-4">
+            <div class="col-12 col-lg-8">
+                <section class="card mb-4">
+                    <div class="card-header"><strong>Latest commit</strong><span>@FormatDate(_data.Repository?.LatestCommitAtUtc)</span></div>
+                    <div class="card-body">
+                        @if (_data.Repository?.LatestCommitSha is { } sha)
+                        {
+                            <code class="commit-sha">@sha</code>
+                            <p class="mt-2 mb-0">@(_data.Repository.LatestCommitMessage ?? "No commit message")</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">Commit metadata is unavailable.</p>
+                        }
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-header"><strong>Recent GitHub Actions</strong><a href="@($"/dashboard/{ProjectId}/ci")">Open CI →</a></div>
+                    <div class="card-body p-0">
+                        @if (_data.Repository?.WorkflowRuns.Count > 0)
+                        {
+                            <div class="table-responsive">
+                                <table class="table mb-0">
+                                    <thead><tr><th>Workflow</th><th>Branch</th><th>Status</th><th>Commit</th><th>Updated</th></tr></thead>
+                                    <tbody>
+                                    @foreach (var run in _data.Repository.WorkflowRuns.Take(6))
+                                    {
+                                        <tr>
+                                            <td><a href="@run.HtmlUrl" target="_blank" rel="noopener noreferrer"><strong>@run.Name</strong></a><div class="small text-muted">@run.Event</div></td>
+                                            <td>@run.HeadBranch</td>
+                                            <td><StatusBadge Value="@(run.Conclusion ?? run.Status)" /></td>
+                                            <td><code>@ShortSha(run.HeadSha)</code></td>
+                                            <td>@FormatDate(run.UpdatedAtUtc ?? run.CreatedAtUtc)</td>
+                                        </tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No workflow runs</strong><small>GitHub Actions may be disabled or the App may not have Actions read permission.</small></div></div>
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <section class="card">
+                    <div class="card-header"><strong>QA workspace</strong><StatusBadge Value="@(_data.Workspace is null ? "Not synced" : "Healthy")" /></div>
+                    <div class="card-body workspace-card">
+                        @if (_data.Workspace is { } workspace)
+                        {
+                            <div><span>Path</span><code>@workspace.WorkspaceRelativePath</code></div>
+                            <div><span>Branch</span><strong>@workspace.Branch</strong></div>
+                            <div><span>Commit</span><code>@ShortSha(workspace.CommitSha)</code></div>
+                            <div><span>Files</span><strong>@workspace.FileCount.ToString("N0")</strong></div>
+                            <div><span>Extracted</span><strong>@FormatBytes(workspace.ExtractedBytes)</strong></div>
+                            <div><span>Synced</span><strong>@FormatDate(workspace.SyncedAtUtc)</strong></div>
+                            <a class="btn btn-primary w-100 mt-3" href="@($"/dashboard/{ProjectId}/qa")">Open QA</a>
+                        }
+                        else
+                        {
+                            <p class="text-muted">Synchronize the repository to create a protected workspace for QA.</p>
+                            <button class="btn btn-primary w-100" type="button" @onclick="SyncAsync" disabled="@(_syncing || !CanSync)">Sync now</button>
+                        }
+                    </div>
+                </section>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-12 col-xl-6">
+                <section class="card">
+                    <div class="card-header"><strong>Pull request evidence</strong><span>@_pullRequests.Count observed PR(s)</span></div>
+                    <div class="card-body p-0">
+                        @if (_pullRequests.Count == 0)
+                        {
+                            <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No pull-request evidence yet</strong><small>DIP builds this list from the provider-neutral Development Graph after GitHub PR/webhook observations are ingested.</small></div></div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead><tr><th>PR</th><th>Status</th><th>Evidence</th><th>Risk</th></tr></thead>
+                                    <tbody>
+                                    @foreach (var pr in _pullRequests)
+                                    {
+                                        <tr role="button" class="@SelectedPrClass(pr.Number)" @onclick="() => SelectPullRequestAsync(pr.Number)">
+                                            <td><strong>#@pr.Number @pr.Title</strong><div class="small text-muted">@pr.ChangedFiles file(s) · @pr.Reviews review(s) · @pr.CiRuns CI run(s)</div></td>
+                                            <td><StatusBadge Value="@pr.Status" /></td>
+                                            <td>@(pr.ReviewState ?? "Observed")</td>
+                                            <td><StatusBadge Value="@(pr.Critical ? "High" : "Low")" /></td>
+                                        </tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <section class="card">
+                    <div class="card-header"><strong>Pull request details</strong><span>@(_selectedPullRequest is null ? "Select a PR" : $"#{_selectedPullRequest.Summary.Number}")</span></div>
+                    <div class="card-body">
+                        @if (_pullRequestLoading)
+                        {
+                            <div class="compact-empty"><div class="spinner small-spinner"></div><div><strong>Loading PR evidence…</strong></div></div>
+                        }
+                        else if (_selectedPullRequest is null)
+                        {
+                            <p class="text-muted mb-0">Select a pull request to traverse commit, file, review and CI evidence.</p>
+                        }
+                        else
+                        {
+                            var pr = _selectedPullRequest;
+                            <div class="d-flex justify-content-between gap-3 align-items-start mb-3">
+                                <div><div class="eyebrow">PR #@pr.Summary.Number</div><h3 class="h5 mb-1">@pr.Summary.Title</h3><StatusBadge Value="@pr.Summary.Status" /></div>
+                                @if (!string.IsNullOrWhiteSpace(pr.Summary.Url))
+                                {
+                                    <a class="btn btn-outline-secondary btn-sm" href="@pr.Summary.Url" target="_blank" rel="noopener noreferrer">Open GitHub ↗</a>
+                                }
+                            </div>
+
+                            <div class="settings-list mb-4">
+                                <div><span>Review intelligence</span><strong>@(pr.Summary.ReviewState ?? "Not assessed")</strong></div>
+                                <div><span>Critical relation</span><strong>@(pr.Summary.Critical ? "Yes" : "No")</strong></div>
+                                <div><span>Revisions</span><strong>@pr.Revisions.Count</strong></div>
+                                <div><span>Changed files</span><strong>@pr.ChangedFiles.Count</strong></div>
+                                <div><span>Reviews</span><strong>@pr.Reviews.Count</strong></div>
+                                <div><span>CI runs</span><strong>@pr.CiRuns.Count</strong></div>
+                            </div>
+
+                            <h4 class="h6">Revisions</h4>
+                            @if (pr.Revisions.Count == 0)
+                            {
+                                <p class="small text-muted">No linked commit revision is available.</p>
+                            }
+                            else
+                            {
+                                <div class="d-flex flex-wrap gap-2 mb-3">@foreach (var revision in pr.Revisions) { <code>@revision</code> }</div>
+                            }
+
+                            <h4 class="h6">Reviews</h4>
+                            @if (pr.Reviews.Count == 0)
+                            {
+                                <p class="small text-muted">No review nodes are linked.</p>
+                            }
+                            else
+                            {
+                                <ul class="list-group list-group-flush mb-3">
+                                    @foreach (var review in pr.Reviews)
+                                    {
+                                        <li class="list-group-item px-0 d-flex justify-content-between"><span>@review.Reviewer</span><StatusBadge Value="@review.State" /></li>
+                                    }
+                                </ul>
+                            }
+
+                            <h4 class="h6">CI</h4>
+                            @if (pr.CiRuns.Count == 0)
+                            {
+                                <p class="small text-muted">No linked CI nodes are available.</p>
+                            }
+                            else
+                            {
+                                <ul class="list-group list-group-flush mb-3">
+                                    @foreach (var ci in pr.CiRuns)
+                                    {
+                                        <li class="list-group-item px-0 d-flex justify-content-between"><span>@ci.Name</span><StatusBadge Value="@ci.Status" /></li>
+                                    }
+                                </ul>
+                            }
+
+                            <details>
+                                <summary><strong>Changed files (@pr.ChangedFiles.Count)</strong></summary>
+                                <div class="mt-2" style="max-height:260px;overflow:auto">
+                                    @foreach (var file in pr.ChangedFiles)
+                                    {
+                                        <div><code>@file</code></div>
+                                    }
+                                </div>
+                            </details>
+                            <div class="d-flex gap-2 mt-3">
+                                <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/ci")">Open CI</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa")">Open QA</a>
+                            </div>
+                        }
+                    </div>
+                </section>
+            </div>
+        </div>
+    }
 }
 
 @code {
     [Parameter] public Guid ProjectId { get; set; }
     private GitHubProjectRepositoryDto? _data;
+    private IReadOnlyList<PullRequestSummaryClientDto> _pullRequests = Array.Empty<PullRequestSummaryClientDto>();
+    private PullRequestDetailsClientDto? _selectedPullRequest;
+    private string _tab = "overview";
     private bool _loading = true;
     private bool _syncing;
+    private bool _pullRequestLoading;
     private string? _error;
     private string? _syncError;
 
@@ -155,6 +292,7 @@ else if (_data is not null)
         if (!_loading && _data?.ProjectId != ProjectId)
         {
             Projects.Select(ProjectId);
+            _selectedPullRequest = null;
             await LoadAsync();
         }
     }
@@ -163,9 +301,36 @@ else if (_data is not null)
     {
         _loading = true;
         _error = null;
-        try { _data = await Api.GetProjectRepositoryAsync(ProjectId); }
-        catch (Exception exception) { _error = exception.Message; }
-        finally { _loading = false; }
+        try
+        {
+            var repositoryTask = Api.GetProjectRepositoryAsync(ProjectId);
+            var pullsTask = Api.GetPullRequestsAsync(ProjectId);
+            _data = await repositoryTask;
+            try { _pullRequests = await pullsTask; }
+            catch { _pullRequests = Array.Empty<PullRequestSummaryClientDto>(); }
+
+            if (_selectedPullRequest is not null)
+            {
+                var stillExists = _pullRequests.Any(x => x.Number == _selectedPullRequest.Summary.Number);
+                if (!stillExists)
+                    _selectedPullRequest = null;
+            }
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SelectPullRequestAsync(int number)
+    {
+        _pullRequestLoading = true;
+        try { _selectedPullRequest = await Api.GetPullRequestAsync(ProjectId, number); }
+        finally { _pullRequestLoading = false; }
     }
 
     private async Task SyncAsync()
@@ -179,21 +344,34 @@ else if (_data is not null)
             await Api.SyncProjectRepositoryAsync(ProjectId);
             await LoadAsync();
         }
-        catch (Exception exception) { _syncError = exception.Message; }
-        finally { _syncing = false; }
+        catch (Exception exception)
+        {
+            _syncError = exception.Message;
+        }
+        finally
+        {
+            _syncing = false;
+        }
     }
 
     private void OnRealtimeEvent(ProjectRealtimeEventDto evt)
     {
-        if (evt.ProjectId == ProjectId && evt.EventType.StartsWith("repository.", StringComparison.OrdinalIgnoreCase))
+        if (evt.ProjectId == ProjectId
+            && (evt.EventType.StartsWith("repository.", StringComparison.OrdinalIgnoreCase)
+                || evt.EventType.StartsWith("project.", StringComparison.OrdinalIgnoreCase)))
+        {
             _ = InvokeAsync(LoadAsync);
+        }
     }
 
+    private void SetTab(string tab) => _tab = tab;
+    private string TabClass(string tab) => _tab == tab ? "btn-primary" : "btn-outline-secondary";
+    private string SelectedPrClass(int number) => _selectedPullRequest?.Summary.Number == number ? "table-active" : string.Empty;
     private bool CanSync => _data?.Connection.Connected == true && _data.Repository is not null && string.IsNullOrWhiteSpace(_data.Warning);
     private string RepositoryName => _data?.Repository?.Repository.FullName ?? ShortRepository(_data?.RepositoryUrl ?? string.Empty);
     private static string Initial(string value) => string.IsNullOrWhiteSpace(value) ? "R" : value[0].ToString().ToUpperInvariant();
     private static string ShortRepository(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri.AbsolutePath.Trim('/') : value;
-    private static string ShortSha(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : (value.Length <= 8 ? value : value[..8]);
+    private static string ShortSha(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= 8 ? value : value[..8];
     private static string FormatDate(DateTimeOffset? value) => value is null ? "Not available" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
     private static string FormatBytes(long bytes) => bytes >= 1024L * 1024L ? $"{bytes / 1024d / 1024d:0.0} MB" : bytes >= 1024 ? $"{bytes / 1024d:0.0} KB" : $"{bytes} B";
 

@@ -7,7 +7,11 @@
 <PageTitle>CI / Builds | DIP</PageTitle>
 
 <section class="page-heading" data-testid="ci-page">
-    <div><div class="eyebrow">Development</div><h1>CI / Builds</h1><p>GitHub Actions and DIP pipeline evidence for the active project.</p></div>
+    <div>
+        <div class="eyebrow">Development</div>
+        <h1>CI / Builds</h1>
+        <p>Inspect DIP pipeline evidence and GitHub Actions without leaving the project context.</p>
+    </div>
     <div class="heading-actions"><button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button></div>
 </section>
 
@@ -23,9 +27,80 @@ else if (_dashboard is not null)
 {
     <div class="metric-grid mb-4">
         <div class="metric-card"><span>DIP pipeline</span><strong>@(_dashboard.LatestPipelineStatus ?? "No run")</strong><small>@FormatDate(_dashboard.LatestPipelineFinishedAtUtc)</small></div>
+        <div class="metric-card"><span>DIP runs</span><strong>@_pipelineRuns.Count</strong><small>recent persisted runs</small></div>
         <div class="metric-card"><span>GitHub Actions</span><strong>@WorkflowCount</strong><small>recent runs</small></div>
-        <div class="metric-card"><span>Failed</span><strong class="text-danger">@FailedCount</strong><small>recent GitHub runs</small></div>
         <div class="metric-card"><span>Quality gate</span><strong>@(_dashboard.QualityGateStatus ?? "Not evaluated")</strong><small>@_dashboard.CriticalIssueCount critical</small></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-xl-7">
+            <section class="card h-100">
+                <div class="card-header"><strong>DIP pipeline runs</strong><span>@_pipelineRuns.Count run(s)</span></div>
+                <div class="card-body p-0">
+                    @if (_pipelineRuns.Count == 0)
+                    {
+                        <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No DIP pipeline runs</strong><small>Collector or CI evidence will appear here after ingestion.</small></div></div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead><tr><th>Status</th><th>Collector</th><th>Branch</th><th>Commit</th><th>Duration</th><th>Finished</th></tr></thead>
+                                <tbody>
+                                @foreach (var run in _pipelineRuns)
+                                {
+                                    <tr role="button" class="@SelectedRunClass(run.Id)" @onclick="() => SelectRun(run)">
+                                        <td><StatusBadge Value="@run.Status" /></td>
+                                        <td><strong>@run.CollectorType</strong><div class="small text-muted">@run.ExternalRunId · attempt @run.AttemptNumber</div></td>
+                                        <td>@run.Branch</td>
+                                        <td><code>@ShortSha(run.CommitSha)</code></td>
+                                        <td>@Duration(run)</td>
+                                        <td>@FormatDate(run.FinishedAtUtc ?? run.StartedAtUtc ?? run.QueuedAtUtc)</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <section class="card h-100">
+                <div class="card-header"><strong>Run details</strong><span>@(_selectedRun is null ? "Select a run" : ShortSha(_selectedRun.CommitSha))</span></div>
+                <div class="card-body">
+                    @if (_selectedRun is null)
+                    {
+                        <p class="text-muted mb-0">Select a persisted DIP pipeline run to inspect its evidence context.</p>
+                    }
+                    else
+                    {
+                        <div class="settings-list">
+                            <div><span>Status</span><StatusBadge Value="@_selectedRun.Status" /></div>
+                            <div><span>Collector</span><strong>@_selectedRun.CollectorType @(_selectedRun.CollectorVersion)</strong></div>
+                            <div><span>External run</span><code>@_selectedRun.ExternalRunId</code></div>
+                            <div><span>Attempt</span><strong>@_selectedRun.AttemptNumber</strong></div>
+                            <div><span>Branch</span><strong>@_selectedRun.Branch</strong></div>
+                            <div><span>Commit</span><code>@_selectedRun.CommitSha</code></div>
+                            <div><span>Queued</span><strong>@FormatDate(_selectedRun.QueuedAtUtc)</strong></div>
+                            <div><span>Started</span><strong>@FormatDate(_selectedRun.StartedAtUtc)</strong></div>
+                            <div><span>Finished</span><strong>@FormatDate(_selectedRun.FinishedAtUtc)</strong></div>
+                            <div><span>Duration</span><strong>@Duration(_selectedRun)</strong></div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(_selectedRun.FailureReason))
+                        {
+                            <div class="alert alert-danger mt-3 mb-0"><strong>Failure reason</strong><div class="small mt-1">@_selectedRun.FailureReason</div></div>
+                        }
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa")">Related QA</a>
+                            <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/repository")">Repository / PR</a>
+                            <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}")">Project evidence</a>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
     </div>
 
     <section class="card">
@@ -62,19 +137,30 @@ else if (_dashboard is not null)
 
 @code {
     [Parameter] public Guid ProjectId { get; set; }
+    [SupplyParameterFromQuery(Name = "run")] public Guid? RequestedRunId { get; set; }
     private Dip.Application.Features.Dashboard.ProjectDashboardDetails? _dashboard;
     private GitHubProjectRepositoryDto? _repository;
+    private IReadOnlyList<PipelineRunClientDto> _pipelineRuns = Array.Empty<PipelineRunClientDto>();
+    private PipelineRunClientDto? _selectedRun;
     private bool _loading = true;
     private string? _error;
 
     private int WorkflowCount => _repository?.Repository?.WorkflowRuns.Count ?? 0;
-    private int FailedCount => _repository?.Repository?.WorkflowRuns.Count(run => string.Equals(run.Conclusion, "failure", StringComparison.OrdinalIgnoreCase)) ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
         Realtime.ProjectEvent += OnRealtimeEvent;
         Projects.Select(ProjectId);
         await LoadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_loading && Projects.CurrentProjectId != ProjectId)
+        {
+            Projects.Select(ProjectId);
+            await LoadAsync();
+        }
     }
 
     private async Task LoadAsync()
@@ -84,13 +170,31 @@ else if (_dashboard is not null)
         try
         {
             var dashboardTask = Api.GetProjectAsync(ProjectId);
-            var repositoryTask = Api.GetProjectRepositoryAsync(ProjectId);
+            var pipelineTask = Api.GetPipelineRunsAsync(ProjectId, 100);
             _dashboard = await dashboardTask;
-            try { _repository = await repositoryTask; } catch { _repository = null; }
+            _pipelineRuns = await pipelineTask;
+            try { _repository = await Api.GetProjectRepositoryAsync(ProjectId); }
+            catch { _repository = null; }
+
+            if (RequestedRunId is { } requested && _pipelineRuns.FirstOrDefault(x => x.Id == requested) is { } requestedRun)
+                _selectedRun = requestedRun;
+            else if (_selectedRun is null || !_pipelineRuns.Any(x => x.Id == _selectedRun.Id))
+                _selectedRun = _pipelineRuns.FirstOrDefault();
+            else
+                _selectedRun = _pipelineRuns.First(x => x.Id == _selectedRun.Id);
         }
-        catch (Exception exception) { _error = exception.Message; }
-        finally { _loading = false; }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
+
+    private void SelectRun(PipelineRunClientDto run) => _selectedRun = run;
+    private string SelectedRunClass(Guid id) => _selectedRun?.Id == id ? "table-active" : string.Empty;
 
     private void OnRealtimeEvent(ProjectRealtimeEventDto evt)
     {
@@ -98,7 +202,18 @@ else if (_dashboard is not null)
             _ = InvokeAsync(LoadAsync);
     }
 
-    private static string ShortSha(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= 8 ? value : value[..8];
+    private static string Duration(PipelineRunClientDto run)
+    {
+        if (run.StartedAtUtc is null)
+            return "—";
+        var end = run.FinishedAtUtc ?? DateTimeOffset.UtcNow;
+        var duration = end - run.StartedAtUtc.Value;
+        return duration.TotalMinutes >= 1
+            ? $"{(int)duration.TotalMinutes}m {duration.Seconds}s"
+            : $"{Math.Max(0, duration.TotalSeconds):0}s";
+    }
+
+    private static string ShortSha(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= 8 ? value : value[..8];
     private static string FormatDate(DateTimeOffset? value) => value is null ? "Not available" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
     public void Dispose() => Realtime.ProjectEvent -= OnRealtimeEvent;
 }

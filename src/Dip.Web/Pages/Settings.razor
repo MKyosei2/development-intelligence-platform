@@ -1,88 +1,741 @@
 @page "/settings"
+@using Dip.Application.Features.Authorization
+@using Dip.Application.Features.Projects
+@using Dip.Domain.Enums
 @inject IConfiguration Configuration
 @inject ApiClient Api
+@inject ProjectState Projects
 
 <PageTitle>Settings | DIP</PageTitle>
 
 <section class="page-heading">
-    <div><div class="eyebrow">Platform</div><h1>Settings</h1><p>Hosted Web configuration and integration status. Secrets are never rendered here.</p></div>
+    <div>
+        <div class="eyebrow">Platform</div>
+        <h1>Settings</h1>
+        <p>Project lifecycle, team access, integrations and immutable audit history. Secrets are never rendered here.</p>
+    </div>
+    <div class="heading-actions">
+        <button class="btn btn-outline-secondary" type="button" @onclick="ReloadAsync" disabled="@_loading">↻ Refresh</button>
+    </div>
 </section>
 
-<div class="settings-grid">
-    <div class="card">
-        <div class="card-header"><strong>GitHub repository connection</strong><StatusBadge Value="@(_github?.Connected == true ? "Healthy" : "Not configured")" /></div>
-        <div class="card-body">
-            @if (_githubLoading)
-            {
-                <div class="compact-empty"><div class="spinner small-spinner"></div><div><strong>Checking GitHub…</strong></div></div>
-            }
-            else if (_githubError is not null)
-            {
-                <div class="alert alert-warning">@_githubError</div>
-            }
-            else if (_github is not null)
-            {
-                <div class="settings-list">
-                    <div><span>Mode</span><strong>@_github.Mode</strong></div>
-                    <div><span>Account</span><strong>@(_github.Account ?? "—")</strong></div>
-                    <div><span>Installation ID</span><strong>@(_github.InstallationId?.ToString() ?? "—")</strong></div>
-                    <div><span>App</span><strong>@(_github.AppSlug ?? "—")</strong></div>
-                </div>
-                <p class="small text-muted mt-2">@_github.Message</p>
-                <div class="d-flex gap-2 mt-3">
-                    <a class="btn btn-primary btn-sm" href="/projects/import/github">Repository picker</a>
-                    @if (!string.IsNullOrWhiteSpace(_github.InstallUrl))
+@if (_loading)
+{
+    <LoadingState Message="Loading settings…" />
+}
+else
+{
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-body d-flex flex-wrap gap-3 align-items-end">
+            <div class="flex-grow-1" style="min-width:280px">
+                <label class="form-label" for="managed-project">Managed project</label>
+                <select id="managed-project" class="form-select" value="@(_selectedProjectId?.ToString() ?? string.Empty)" @onchange="ManagedProjectChanged">
+                    <option value="">Select a project</option>
+                    @foreach (var item in _projectOptions)
                     {
-                        <a class="btn btn-outline-secondary btn-sm" href="@_github.InstallUrl" target="_blank" rel="noopener noreferrer">Manage GitHub App</a>
+                        <option value="@item.Id">@item.Name (@item.LifecycleState)</option>
+                    }
+                </select>
+            </div>
+            @if (_project is not null)
+            {
+                <div><span class="small text-muted d-block">Lifecycle</span><StatusBadge Value="@_project.LifecycleState" /></div>
+                <div><span class="small text-muted d-block">Repository</span><code>@ShortRepository(_project.RepositoryUrl)</code></div>
+            }
+        </div>
+    </div>
+
+    <ul class="nav nav-pills gap-2 mb-4">
+        <li class="nav-item"><button class='btn @TabClass("project")' type="button" @onclick='() => SetTab("project")'>Project</button></li>
+        <li class="nav-item"><button class='btn @TabClass("members")' type="button" @onclick='() => SetTab("members")'>Members</button></li>
+        <li class="nav-item"><button class='btn @TabClass("integrations")' type="button" @onclick='() => SetTab("integrations")'>Integrations</button></li>
+        <li class="nav-item"><button class='btn @TabClass("audit")' type="button" @onclick='() => SetTab("audit")'>Audit</button></li>
+        <li class="nav-item"><button class='btn @TabClass("platform")' type="button" @onclick='() => SetTab("platform")'>Platform</button></li>
+    </ul>
+
+    @if (_tab == "project")
+    {
+        @if (_project is null)
+        {
+            <EmptyState Icon="⚙" Title="Select a project" Description="Choose a project above to edit its settings or lifecycle." />
+        }
+        else
+        {
+            <div class="row g-4">
+                <div class="col-12 col-xl-8">
+                    <section class="card">
+                        <div class="card-header"><strong>Project settings</strong><StatusBadge Value="@_project.LifecycleState" /></div>
+                        <div class="card-body">
+                            @if (_projectMessage is not null)
+                            {
+                                <div class="alert alert-success">@_projectMessage</div>
+                            }
+                            @if (_projectError is not null)
+                            {
+                                <div class="alert alert-danger">@_projectError</div>
+                            }
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Project name</label>
+                                    <input class="form-control" @bind="_projectName" disabled="@(!ProjectIsActive)" />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Default branch</label>
+                                    <input class="form-control" @bind="_defaultBranch" disabled="@(!ProjectIsActive)" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Repository URL</label>
+                                    <input class="form-control" @bind="_repositoryUrl" disabled="@(!ProjectIsActive)" />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Target release</label>
+                                    <input class="form-control" type="date" @bind="_releaseDate" disabled="@(!ProjectIsActive)" />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Change reason</label>
+                                    <input class="form-control" @bind="_projectReason" disabled="@(!ProjectIsActive)" />
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" type="button" @onclick="SaveProjectAsync" disabled="@(_projectBusy || !ProjectIsActive)">@(_projectBusy ? "Saving…" : "Save changes")</button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="col-12 col-xl-4">
+                    <section class="card mb-4">
+                        <div class="card-header"><strong>Lifecycle</strong></div>
+                        <div class="card-body">
+                            <div class="settings-list mb-3">
+                                <div><span>State</span><strong>@_project.LifecycleState</strong></div>
+                                <div><span>Changed</span><strong>@FormatDate(_project.LifecycleChangedAtUtc)</strong></div>
+                            </div>
+                            @if (ProjectIsActive)
+                            {
+                                <button class="btn btn-outline-warning w-100" type="button" @onclick="ArchiveProjectAsync" disabled="@_projectBusy">Archive project</button>
+                                <p class="small text-muted mt-2 mb-0">Archived projects leave the active portfolio and reject normal writes, while their evidence remains readable.</p>
+                            }
+                            else if (_project.LifecycleState.Equals(ProjectService.ArchivedState, StringComparison.OrdinalIgnoreCase))
+                            {
+                                <button class="btn btn-primary w-100" type="button" @onclick="RestoreProjectAsync" disabled="@_projectBusy">Restore project</button>
+                                <p class="small text-muted mt-2 mb-0">Restoring returns this project to the active portfolio and re-enables project writes.</p>
+                            }
+                        </div>
+                    </section>
+
+                    <section class="card border-danger">
+                        <div class="card-header"><strong>Danger zone</strong></div>
+                        <div class="card-body">
+                            <p class="small">Delete is a soft-delete lifecycle event. Audit history and stored evidence are not physically removed.</p>
+                            <label class="form-label">Type <code>@_project.Name</code> to confirm</label>
+                            <input class="form-control mb-2" @bind="_deleteConfirmation" />
+                            <button class="btn btn-danger w-100" type="button" @onclick="DeleteProjectAsync" disabled="@(_projectBusy || !DeleteConfirmed || ProjectIsDeleted)">Delete project</button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        }
+    }
+    else if (_tab == "members")
+    {
+        @if (_project is null)
+        {
+            <EmptyState Icon="♟" Title="Select a project" Description="Choose a project above to manage its team." />
+        }
+        else
+        {
+            <div class="row g-4">
+                <div class="col-12 col-xl-8">
+                    <section class="card">
+                        <div class="card-header"><strong>Project members</strong><span>@_members.Count member(s)</span></div>
+                        <div class="card-body p-0">
+                            @if (_members.Count == 0)
+                            {
+                                <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No memberships returned</strong><small>Owner access is required to change project membership.</small></div></div>
+                            }
+                            else
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead><tr><th>Login</th><th>Subject</th><th>Role</th><th>Updated</th><th></th></tr></thead>
+                                        <tbody>
+                                        @foreach (var member in _members)
+                                        {
+                                            <tr>
+                                                <td><strong>@member.Login</strong></td>
+                                                <td><code>@member.SubjectId</code></td>
+                                                <td>
+                                                    <select class="form-select form-select-sm" value="@member.Role.ToString()" @onchange="args => UpdateMemberRoleAsync(member, args)" disabled="@(!ProjectIsActive)">
+                                                        @foreach (var role in Enum.GetValues<ProjectMembershipRole>())
+                                                        {
+                                                            <option value="@role.ToString()">@role</option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td>@FormatDate(member.UpdatedAtUtc)</td>
+                                                <td><button class="btn btn-outline-danger btn-sm" type="button" @onclick="() => RemoveMemberAsync(member)" disabled="@(!ProjectIsActive)">Remove</button></td>
+                                            </tr>
+                                        }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                </div>
+
+                <div class="col-12 col-xl-4">
+                    <section class="card mb-4">
+                        <div class="card-header"><strong>Add / update member</strong></div>
+                        <div class="card-body">
+                            <label class="form-label">Subject ID</label>
+                            <input class="form-control mb-2" @bind="_memberSubject" />
+                            <label class="form-label">Login</label>
+                            <input class="form-control mb-2" @bind="_memberLogin" />
+                            <label class="form-label">Role</label>
+                            <select class="form-select mb-2" @bind="_memberRole">
+                                @foreach (var role in Enum.GetValues<ProjectMembershipRole>())
+                                {
+                                    <option value="@role.ToString()">@role</option>
+                                }
+                            </select>
+                            <label class="form-label">Reason</label>
+                            <input class="form-control mb-3" @bind="_memberReason" />
+                            <button class="btn btn-primary w-100" type="button" @onclick="UpsertMemberAsync" disabled="@(_memberBusy || !ProjectIsActive)">Save membership</button>
+                        </div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-header"><strong>Transfer ownership</strong></div>
+                        <div class="card-body">
+                            <p class="small text-muted">The new owner is promoted and the previous owner is demoted to Maintainer in one project mutation.</p>
+                            <label class="form-label">New owner subject ID</label>
+                            <input class="form-control mb-2" @bind="_newOwnerSubject" />
+                            <label class="form-label">New owner login</label>
+                            <input class="form-control mb-2" @bind="_newOwnerLogin" />
+                            <label class="form-label">Reason</label>
+                            <input class="form-control mb-3" @bind="_ownerTransferReason" />
+                            <button class="btn btn-outline-primary w-100" type="button" @onclick="TransferOwnerAsync" disabled="@(_memberBusy || !ProjectIsActive)">Transfer ownership</button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            @if (_memberMessage is not null)
+            {
+                <div class="alert alert-success mt-3">@_memberMessage</div>
+            }
+            @if (_memberError is not null)
+            {
+                <div class="alert alert-danger mt-3">@_memberError</div>
+            }
+        }
+    }
+    else if (_tab == "integrations")
+    {
+        <div class="row g-4">
+            <div class="col-12 col-xl-7">
+                <section class="card">
+                    <div class="card-header"><strong>GitHub repository connection</strong><StatusBadge Value="@(_github?.Connected == true ? "Healthy" : "Not configured")" /></div>
+                    <div class="card-body">
+                        @if (_githubLoading)
+                        {
+                            <div class="compact-empty"><div class="spinner small-spinner"></div><div><strong>Checking GitHub…</strong></div></div>
+                        }
+                        else if (_githubError is not null)
+                        {
+                            <div class="alert alert-warning">@_githubError</div>
+                        }
+                        else if (_github is not null)
+                        {
+                            <div class="settings-list">
+                                <div><span>Mode</span><strong>@_github.Mode</strong></div>
+                                <div><span>Account</span><strong>@(_github.Account ?? "—")</strong></div>
+                                <div><span>Installation ID</span><strong>@(_github.InstallationId?.ToString() ?? "—")</strong></div>
+                                <div><span>App</span><strong>@(_github.AppSlug ?? "—")</strong></div>
+                            </div>
+                            <p class="small text-muted mt-2">@_github.Message</p>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                <button class="btn btn-primary btn-sm" type="button" @onclick="TestGitHubAsync" disabled="@_githubTesting">@(_githubTesting ? "Testing…" : "Test connection")</button>
+                                <a class="btn btn-outline-secondary btn-sm" href="/projects/import/github">Repository picker</a>
+                                @if (!string.IsNullOrWhiteSpace(_github.InstallUrl))
+                                {
+                                    <a class="btn btn-outline-secondary btn-sm" href="@_github.InstallUrl" target="_blank" rel="noopener noreferrer">Manage / disconnect GitHub App</a>
+                                }
+                            </div>
+                            @if (_githubTest is not null)
+                            {
+                                <div class="alert @(_githubTest.Success ? "alert-success" : "alert-danger") mt-3 mb-0">
+                                    <strong>@(_githubTest.Success ? "PASS" : "FAIL")</strong> — @_githubTest.Message<br />
+                                    <small>Mode: @_githubTest.Mode · Repositories: @_githubTest.RepositoryCount · @FormatDate(_githubTest.TestedAtUtc)</small>
+                                </div>
+                            }
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12 col-xl-5">
+                <section class="card">
+                    <div class="card-header"><strong>GitHub App setup</strong></div>
+                    <div class="card-body">
+                        <p>Recommended repository permissions:</p>
+                        <div class="permission-list">
+                            <span><strong>Metadata</strong><small>Read</small></span>
+                            <span><strong>Contents</strong><small>Read</small></span>
+                            <span><strong>Actions</strong><small>Read</small></span>
+                            <span><strong>Pull requests</strong><small>Read</small></span>
+                            <span><strong>Issues</strong><small>Read (Write only if work-item creation is enabled)</small></span>
+                        </div>
+                        <p class="small text-muted mt-3 mb-0">Credentials remain server-side. DIP shows connection state and performs live tests, but does not render private keys or tokens.</p>
+                    </div>
+                </section>
+            </div>
+        </div>
+    }
+    else if (_tab == "audit")
+    {
+        @if (_project is null)
+        {
+            <EmptyState Icon="◎" Title="Select a project" Description="Choose a project above to inspect its immutable audit trail." />
+        }
+        else
+        {
+            <section class="card">
+                <div class="card-header"><strong>Audit log</strong><span>@FilteredAudit.Count() matching event(s)</span></div>
+                <div class="card-body border-bottom">
+                    <div class="row g-2">
+                        <div class="col-12 col-md-4"><input class="form-control" placeholder="Search action / actor / subject" @bind="_auditSearch" @bind:event="oninput" /></div>
+                        <div class="col-12 col-md-3"><input class="form-control" placeholder="Category" @bind="_auditCategory" @bind:event="oninput" /></div>
+                        <div class="col-12 col-md-3"><input class="form-control" placeholder="Correlation ID" @bind="_auditCorrelation" @bind:event="oninput" /></div>
+                        <div class="col-12 col-md-2"><button class="btn btn-outline-secondary w-100" type="button" @onclick="LoadAuditAsync">Reload</button></div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (!FilteredAudit.Any())
+                    {
+                        <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No audit entries match</strong><small>Adjust the filters or make a project change.</small></div></div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead><tr><th>Time</th><th>Actor</th><th>Category</th><th>Action</th><th>Subject</th></tr></thead>
+                                <tbody>
+                                @foreach (var entry in FilteredAudit.Take(500))
+                                {
+                                    <tr role="button" @onclick="() => ToggleAudit(entry.Id)">
+                                        <td>@FormatDate(entry.CreatedAtUtc)</td>
+                                        <td>@entry.Actor</td>
+                                        <td><code>@entry.Category</code></td>
+                                        <td><strong>@entry.Action</strong></td>
+                                        <td>@(entry.SubjectKey ?? "—")</td>
+                                    </tr>
+                                    @if (_expandedAuditId == entry.Id)
+                                    {
+                                        <tr>
+                                            <td colspan="5">
+                                                <div class="small mb-2"><strong>Reason:</strong> @(entry.Reason ?? "—")</div>
+                                                <div class="small mb-2"><strong>Request ID:</strong> @(entry.RequestId ?? "—")</div>
+                                                <div class="small mb-2"><strong>Correlation ID:</strong> @(entry.CorrelationId ?? "—")</div>
+                                                <pre class="small mb-0 text-wrap">@(entry.DetailJson ?? "{}")</pre>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                </tbody>
+                            </table>
+                        </div>
                     }
                 </div>
-            }
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header"><strong>GitHub App setup</strong></div>
-        <div class="card-body">
-            <p>Recommended repository permissions:</p>
-            <div class="permission-list">
-                <span><strong>Metadata</strong><small>Read</small></span>
-                <span><strong>Contents</strong><small>Read</small></span>
-                <span><strong>Actions</strong><small>Read</small></span>
-                <span><strong>Pull requests</strong><small>Read</small></span>
-                <span><strong>Issues</strong><small>Read (Write only if work-item creation is enabled)</small></span>
+            </section>
+        }
+    }
+    else
+    {
+        <div class="settings-grid">
+            <div class="card">
+                <div class="card-header"><strong>Web runtime</strong></div>
+                <div class="card-body settings-list">
+                    <div><span>Public site</span><code>@(Configuration["Ui:PublicWebUrl"] ?? "current hosted URL")</code></div>
+                    <div><span>Public API gateway</span><code>@(Configuration["Api:PublicBaseUrl"] ?? "same-origin")</code></div>
+                    <div><span>Authentication</span><strong>@(RequireAuthentication ? "GitHub OAuth required" : "Development mode")</strong></div>
+                </div>
             </div>
-            <p class="small text-muted mt-3">GitHub App credentials are configured only on the hosted DIP server. The private key is never required on a user's PC and is never rendered in the browser.</p>
-        </div>
-    </div>
 
-    <div class="card">
-        <div class="card-header"><strong>Web runtime</strong></div>
-        <div class="card-body settings-list">
-            <div><span>Public site</span><code>@(Configuration["Ui:PublicWebUrl"] ?? "current hosted URL")</code></div>
-            <div><span>Public API gateway</span><code>@(Configuration["Api:PublicBaseUrl"] ?? "same-origin")</code></div>
-            <div><span>Authentication</span><strong>@(RequireAuthentication ? "GitHub OAuth required" : "Development mode")</strong></div>
+            <div class="card">
+                <div class="card-header"><strong>Browser access</strong></div>
+                <div class="card-body">
+                    <p>DIP is operated from the browser. The same Full DIP backend remains in use; the settings page never switches to a fake backend.</p>
+                    <p class="small text-muted mb-0">Deployment and service operations are administrator concerns. Local development can still run the full Docker composition.</p>
+                </div>
+            </div>
         </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header"><strong>Browser-only access</strong></div>
-        <div class="card-body">
-            <p>DIP is used from this website. End users do not install or launch a Windows application, PowerShell script, Docker Desktop, .NET runtime, or Python environment.</p>
-            <p class="small text-muted mb-0">Deployment and service operations are performed on the hosted server by an administrator.</p>
-        </div>
-    </div>
-</div>
+    }
+}
 
 @code {
-    private GitHubConnectionStatusDto? _github;
-    private bool _githubLoading = true;
-    private string? _githubError;
-    private bool RequireAuthentication => Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
+    private string _tab = "project";
+    private bool _loading = true;
+    private string? _error;
 
-    protected override async Task OnInitializedAsync()
+    private IReadOnlyList<ProjectDto> _projectOptions = Array.Empty<ProjectDto>();
+    private Guid? _selectedProjectId;
+    private ProjectDto? _project;
+    private string _projectName = string.Empty;
+    private string _repositoryUrl = string.Empty;
+    private string _defaultBranch = "main";
+    private string _releaseDate = string.Empty;
+    private string _projectReason = "Project settings updated from the DIP UI.";
+    private string _deleteConfirmation = string.Empty;
+    private bool _projectBusy;
+    private string? _projectMessage;
+    private string? _projectError;
+
+    private IReadOnlyList<ProjectMembershipDto> _members = Array.Empty<ProjectMembershipDto>();
+    private string _memberSubject = string.Empty;
+    private string _memberLogin = string.Empty;
+    private string _memberRole = ProjectMembershipRole.Member.ToString();
+    private string _memberReason = "Membership updated from the DIP UI.";
+    private string _newOwnerSubject = string.Empty;
+    private string _newOwnerLogin = string.Empty;
+    private string _ownerTransferReason = "Project ownership transferred from the DIP UI.";
+    private bool _memberBusy;
+    private string? _memberMessage;
+    private string? _memberError;
+
+    private GitHubConnectionStatusDto? _github;
+    private GitHubConnectionTestClientDto? _githubTest;
+    private bool _githubLoading = true;
+    private bool _githubTesting;
+    private string? _githubError;
+
+    private IReadOnlyList<ProjectAuditEntryDto> _audit = Array.Empty<ProjectAuditEntryDto>();
+    private string _auditSearch = string.Empty;
+    private string _auditCategory = string.Empty;
+    private string _auditCorrelation = string.Empty;
+    private Guid? _expandedAuditId;
+
+    private bool RequireAuthentication => Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
+    private bool ProjectIsActive => _project?.LifecycleState.Equals(ProjectService.ActiveState, StringComparison.OrdinalIgnoreCase) == true;
+    private bool ProjectIsDeleted => _project?.LifecycleState.Equals(ProjectService.DeletedState, StringComparison.OrdinalIgnoreCase) == true;
+    private bool DeleteConfirmed => _project is not null && _deleteConfirmation.Equals(_project.Name, StringComparison.Ordinal);
+
+    private IEnumerable<ProjectAuditEntryDto> FilteredAudit => _audit.Where(entry =>
+        (string.IsNullOrWhiteSpace(_auditCategory) || entry.Category.Contains(_auditCategory, StringComparison.OrdinalIgnoreCase))
+        && (string.IsNullOrWhiteSpace(_auditCorrelation) || (entry.CorrelationId?.Contains(_auditCorrelation, StringComparison.OrdinalIgnoreCase) ?? false))
+        && (string.IsNullOrWhiteSpace(_auditSearch)
+            || entry.Action.Contains(_auditSearch, StringComparison.OrdinalIgnoreCase)
+            || entry.Actor.Contains(_auditSearch, StringComparison.OrdinalIgnoreCase)
+            || (entry.SubjectKey?.Contains(_auditSearch, StringComparison.OrdinalIgnoreCase) ?? false)));
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
     {
+        _loading = true;
+        _error = null;
+        try
+        {
+            await Task.WhenAll(LoadGitHubAsync(), LoadProjectsAsync());
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadProjectsAsync()
+    {
+        _projectOptions = await Api.GetProjectRecordsAsync();
+        var current = Projects.CurrentProjectId;
+        if (_selectedProjectId is null || !_projectOptions.Any(x => x.Id == _selectedProjectId.Value))
+        {
+            _selectedProjectId = current is { } active && _projectOptions.Any(x => x.Id == active)
+                ? active
+                : _projectOptions.FirstOrDefault(x => !x.LifecycleState.Equals(ProjectService.DeletedState, StringComparison.OrdinalIgnoreCase))?.Id
+                  ?? _projectOptions.FirstOrDefault()?.Id;
+        }
+        await LoadSelectedProjectAsync();
+    }
+
+    private async Task ManagedProjectChanged(ChangeEventArgs args)
+    {
+        _selectedProjectId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        await LoadSelectedProjectAsync();
+    }
+
+    private async Task LoadSelectedProjectAsync()
+    {
+        _projectMessage = null;
+        _projectError = null;
+        _memberMessage = null;
+        _memberError = null;
+        _deleteConfirmation = string.Empty;
+        if (_selectedProjectId is not { } id)
+        {
+            _project = null;
+            _members = Array.Empty<ProjectMembershipDto>();
+            _audit = Array.Empty<ProjectAuditEntryDto>();
+            return;
+        }
+
+        _project = await Api.GetProjectRecordAsync(id);
+        if (_project is null)
+            return;
+        CopyProjectToForm();
+
+        try { _members = await Api.GetProjectMembershipsAsync(id); }
+        catch { _members = Array.Empty<ProjectMembershipDto>(); }
+        await LoadAuditAsync();
+    }
+
+    private void CopyProjectToForm()
+    {
+        if (_project is null)
+            return;
+        _projectName = _project.Name;
+        _repositoryUrl = _project.RepositoryUrl;
+        _defaultBranch = _project.DefaultBranch;
+        _releaseDate = _project.ReleaseDateUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
+    }
+
+    private async Task SaveProjectAsync()
+    {
+        if (_project is null)
+            return;
+        _projectBusy = true;
+        _projectError = null;
+        _projectMessage = null;
+        try
+        {
+            DateTimeOffset? release = null;
+            if (!string.IsNullOrWhiteSpace(_releaseDate))
+            {
+                if (!DateTime.TryParse(_releaseDate, out var date))
+                    throw new InvalidOperationException("Release date is invalid.");
+                release = new DateTimeOffset(date.Date, TimeZoneInfo.Local.GetUtcOffset(date.Date));
+            }
+
+            _project = await Api.UpdateProjectAsync(
+                _project.Id,
+                new UpdateProjectCommand(_projectName, _repositoryUrl, _defaultBranch, release, _projectReason));
+            _projectMessage = "Project settings saved.";
+            await Projects.RefreshAsync();
+            await LoadAuditAsync();
+        }
+        catch (Exception exception)
+        {
+            _projectError = exception.Message;
+        }
+        finally
+        {
+            _projectBusy = false;
+        }
+    }
+
+    private async Task ArchiveProjectAsync() => await ChangeLifecycleAsync("archive");
+    private async Task RestoreProjectAsync() => await ChangeLifecycleAsync("restore");
+
+    private async Task ChangeLifecycleAsync(string action)
+    {
+        if (_project is null)
+            return;
+        _projectBusy = true;
+        _projectError = null;
+        _projectMessage = null;
+        try
+        {
+            _project = action == "archive"
+                ? await Api.ArchiveProjectAsync(_project.Id, _projectReason)
+                : await Api.RestoreProjectAsync(_project.Id, _projectReason);
+            _projectMessage = action == "archive" ? "Project archived." : "Project restored.";
+            await Projects.RefreshAsync();
+            _projectOptions = await Api.GetProjectRecordsAsync();
+            await LoadAuditAsync();
+        }
+        catch (Exception exception)
+        {
+            _projectError = exception.Message;
+        }
+        finally
+        {
+            _projectBusy = false;
+        }
+    }
+
+    private async Task DeleteProjectAsync()
+    {
+        if (_project is null || !DeleteConfirmed)
+            return;
+        _projectBusy = true;
+        _projectError = null;
+        try
+        {
+            var deletedProjectId = _project.Id;
+            await Api.DeleteProjectAsync(deletedProjectId, $"Soft-deleted from Settings. {_projectReason}");
+            await Projects.RefreshAsync();
+            _projectOptions = await Api.GetProjectRecordsAsync();
+            _selectedProjectId = deletedProjectId;
+            await LoadSelectedProjectAsync();
+            _projectMessage = "Project soft-deleted. Audit history remains available in the Audit tab.";
+        }
+        catch (Exception exception)
+        {
+            _projectError = exception.Message;
+        }
+        finally
+        {
+            _projectBusy = false;
+        }
+    }
+
+    private async Task UpsertMemberAsync()
+    {
+        if (_project is null)
+            return;
+        _memberBusy = true;
+        _memberError = null;
+        _memberMessage = null;
+        try
+        {
+            if (!Enum.TryParse<ProjectMembershipRole>(_memberRole, true, out var role))
+                throw new InvalidOperationException("Membership role is invalid.");
+            await Api.UpsertProjectMembershipAsync(_project.Id, _memberSubject, _memberLogin, role, _memberReason);
+            _members = await Api.GetProjectMembershipsAsync(_project.Id);
+            _memberMessage = "Membership saved.";
+            await LoadAuditAsync();
+        }
+        catch (Exception exception)
+        {
+            _memberError = exception.Message;
+        }
+        finally
+        {
+            _memberBusy = false;
+        }
+    }
+
+    private async Task UpdateMemberRoleAsync(ProjectMembershipDto member, ChangeEventArgs args)
+    {
+        if (_project is null || !Enum.TryParse<ProjectMembershipRole>(args.Value?.ToString(), true, out var role))
+            return;
+        _memberBusy = true;
+        _memberError = null;
+        try
+        {
+            await Api.UpsertProjectMembershipAsync(_project.Id, member.SubjectId, member.Login, role, "Role changed from Settings.");
+            _members = await Api.GetProjectMembershipsAsync(_project.Id);
+            _memberMessage = $"{member.Login} is now {role}.";
+            await LoadAuditAsync();
+        }
+        catch (Exception exception)
+        {
+            _memberError = exception.Message;
+        }
+        finally
+        {
+            _memberBusy = false;
+        }
+    }
+
+    private async Task RemoveMemberAsync(ProjectMembershipDto member)
+    {
+        if (_project is null)
+            return;
+        _memberBusy = true;
+        _memberError = null;
+        try
+        {
+            await Api.RemoveProjectMembershipAsync(_project.Id, member.SubjectId, "Membership removed from Settings.");
+            _members = await Api.GetProjectMembershipsAsync(_project.Id);
+            _memberMessage = $"Removed {member.Login}.";
+            await LoadAuditAsync();
+        }
+        catch (Exception exception)
+        {
+            _memberError = exception.Message;
+        }
+        finally
+        {
+            _memberBusy = false;
+        }
+    }
+
+    private async Task TransferOwnerAsync()
+    {
+        if (_project is null)
+            return;
+        _memberBusy = true;
+        _memberError = null;
+        try
+        {
+            await Api.TransferProjectOwnershipAsync(_project.Id, _newOwnerSubject, _newOwnerLogin, _ownerTransferReason);
+            _members = await Api.GetProjectMembershipsAsync(_project.Id);
+            _memberMessage = $"Ownership transferred to {_newOwnerLogin}.";
+            await LoadAuditAsync();
+        }
+        catch (Exception exception)
+        {
+            _memberError = exception.Message;
+        }
+        finally
+        {
+            _memberBusy = false;
+        }
+    }
+
+    private async Task LoadGitHubAsync()
+    {
+        _githubLoading = true;
+        _githubError = null;
         try { _github = await Api.GetGitHubConnectionStatusAsync(); }
         catch (Exception exception) { _githubError = exception.Message; }
         finally { _githubLoading = false; }
     }
+
+    private async Task TestGitHubAsync()
+    {
+        _githubTesting = true;
+        try
+        {
+            _githubTest = await Api.TestGitHubConnectionAsync();
+            _github = await Api.GetGitHubConnectionStatusAsync();
+        }
+        catch (Exception exception)
+        {
+            _githubTest = new(false, _github?.Mode ?? "Unknown", exception.Message, 0, DateTimeOffset.UtcNow);
+        }
+        finally
+        {
+            _githubTesting = false;
+        }
+    }
+
+    private async Task LoadAuditAsync()
+    {
+        if (_project is null)
+        {
+            _audit = Array.Empty<ProjectAuditEntryDto>();
+            return;
+        }
+        try { _audit = await Api.GetProjectAuditAsync(_project.Id, 500); }
+        catch { _audit = Array.Empty<ProjectAuditEntryDto>(); }
+    }
+
+    private void ToggleAudit(Guid id) => _expandedAuditId = _expandedAuditId == id ? null : id;
+    private void SetTab(string tab) => _tab = tab;
+    private string TabClass(string tab) => _tab == tab ? "btn-primary" : "btn-outline-secondary";
+    private static string FormatDate(DateTimeOffset? value) => value is null ? "—" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    private static string ShortRepository(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri.AbsolutePath.Trim('/') : value;
 }

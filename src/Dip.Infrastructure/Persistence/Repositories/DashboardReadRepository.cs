@@ -8,6 +8,7 @@ namespace Dip.Infrastructure.Persistence.Repositories;
 
 public sealed class DashboardReadRepository : IDashboardReadRepository
 {
+    private const string LifecycleCategory = "project-lifecycle";
     private readonly DipDbContext _db;
 
     public DashboardReadRepository(DipDbContext db)
@@ -18,8 +19,23 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
     public async Task<IReadOnlyList<ProjectDashboardSummary>> GetProjectsAsync(
         CancellationToken cancellationToken)
     {
+        var lifecycleEvents = await _db.AuditLogs
+            .AsNoTracking()
+            .Where(x => x.Category == LifecycleCategory)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Select(x => new { x.ProjectId, x.Action, x.CreatedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        var hiddenProjectIds = lifecycleEvents
+            .GroupBy(x => x.ProjectId)
+            .Select(group => group.OrderByDescending(x => x.CreatedAtUtc).First())
+            .Where(x => x.Action is "project.archived" or "project.deleted")
+            .Select(x => x.ProjectId)
+            .ToHashSet();
+
         var projects = await _db.Projects
             .AsNoTracking()
+            .Where(x => !hiddenProjectIds.Contains(x.Id))
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
 
@@ -72,6 +88,16 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
         Guid projectId,
         CancellationToken cancellationToken)
     {
+        var latestLifecycleAction = await _db.AuditLogs
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId && x.Category == LifecycleCategory)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Select(x => x.Action)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestLifecycleAction == "project.deleted")
+            return null;
+
         var project = await _db.Projects
             .AsNoTracking()
             .SingleOrDefaultAsync(
@@ -147,19 +173,33 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
         var reproducedByRun = recentQaIds.Length == 0
             ? new Dictionary<Guid, int>()
             : await _db.QaFindings.AsNoTracking()
-                .Where(x => recentQaIds.Contains(x.QaRunId) && x.ReproductionStatus == ReproductionStatus.Reproduced)
+                .Where(x => recentQaIds.Contains(x.QaRunId)
+                            && x.ReproductionStatus == ReproductionStatus.Reproduced)
                 .GroupBy(x => x.QaRunId)
                 .Select(g => new { RunId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.RunId, x => x.Count, cancellationToken);
         var recentQa = recentQaEntities.Select(x => new DashboardQaRun(
-            x.Id, x.Language.ToString(), x.Status.ToString(), x.FindingCount, x.CriticalFindingCount, x.WarningFindingCount,
-            reproducedByRun.TryGetValue(x.Id, out var reproduced) ? reproduced : 0, x.CreatedAtUtc)).ToArray();
+            x.Id,
+            x.Language.ToString(),
+            x.Status.ToString(),
+            x.FindingCount,
+            x.CriticalFindingCount,
+            x.WarningFindingCount,
+            reproducedByRun.TryGetValue(x.Id, out var reproduced) ? reproduced : 0,
+            x.CreatedAtUtc)).ToArray();
 
         var recentHardware = await (from sim in _db.PerformanceSimulationRuns.AsNoTracking()
-                                    join profile in _db.HardwareProfiles.AsNoTracking() on sim.HardwareProfileId equals profile.Id
+                                    join profile in _db.HardwareProfiles.AsNoTracking()
+                                        on sim.HardwareProfileId equals profile.Id
                                     where sim.ProjectId == projectId
                                     orderby sim.CreatedAtUtc descending
-                                    select new DashboardHardwareSimulation(sim.Id, profile.Name, profile.Platform, sim.Status.ToString(), sim.ConfidencePercent, sim.CreatedAtUtc))
+                                    select new DashboardHardwareSimulation(
+                                        sim.Id,
+                                        profile.Name,
+                                        profile.Platform,
+                                        sim.Status.ToString(),
+                                        sim.ConfidencePercent,
+                                        sim.CreatedAtUtc))
             .Take(5)
             .ToListAsync(cancellationToken);
 
@@ -169,7 +209,13 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(12)
             .Select(x => new DashboardP2Signal(
-                x.Id, x.Kind.ToString(), x.Status.ToString(), x.Score, x.Confidence.ToString(), x.Summary, x.CreatedAtUtc))
+                x.Id,
+                x.Kind.ToString(),
+                x.Status.ToString(),
+                x.Score,
+                x.Confidence.ToString(),
+                x.Summary,
+                x.CreatedAtUtc))
             .ToListAsync(cancellationToken);
 
         var decisionTraces = await _db.DecisionTraces
@@ -178,7 +224,13 @@ public sealed class DashboardReadRepository : IDashboardReadRepository
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(10)
             .Select(x => new DashboardDecisionTrace(
-                x.Id, x.DecisionType, x.SubjectKey, x.PreviousValue, x.NewValue, x.Reason, x.CreatedAtUtc))
+                x.Id,
+                x.DecisionType,
+                x.SubjectKey,
+                x.PreviousValue,
+                x.NewValue,
+                x.Reason,
+                x.CreatedAtUtc))
             .ToListAsync(cancellationToken);
 
         var details = new ProjectDashboardDetails(

@@ -15,6 +15,24 @@ public sealed class AuditLogRepository : IAuditLogRepository
         return _db.AuditLogs.AddAsync(entry, cancellationToken).AsTask();
     }
 
-    public async Task<IReadOnlyList<AuditLog>> ListByProjectAsync(Guid projectId,int take,CancellationToken cancellationToken) =>
-        await _db.AuditLogs.AsNoTracking().Where(x=>x.ProjectId==projectId).OrderByDescending(x=>x.CreatedAtUtc).Take(Math.Clamp(take,1,5000)).ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<AuditLog>> ListByProjectAsync(
+        Guid projectId,
+        int take,
+        CancellationToken cancellationToken) =>
+        await _db.AuditLogs
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(Math.Clamp(take, 1, 5000))
+            .ToListAsync(cancellationToken);
+
+    public Task<AuditLog?> GetLatestByCategoryAsync(
+        Guid projectId,
+        string category,
+        CancellationToken cancellationToken) =>
+        _db.AuditLogs
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId && x.Category == category)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
 }

@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Dip.Api.Authorization;
 using Dip.Api.Hubs;
 using Dip.Application.Abstractions.GitHub;
 using Dip.Application.Features.Authorization;
+using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Features.GitHubIntegration;
 using Dip.Application.Features.Projects;
 using Dip.Domain.Enums;
@@ -10,6 +12,41 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Dip.Api.Controllers;
 
+public sealed record GitHubConnectionTestResponse(
+    bool Success,
+    string Mode,
+    string Message,
+    int RepositoryCount,
+    DateTimeOffset TestedAtUtc);
+
+public sealed record PullRequestSummaryResponse(
+    int Number,
+    string Title,
+    string Status,
+    string? Url,
+    int ChangedFiles,
+    int Reviews,
+    int CiRuns,
+    bool Critical,
+    string? ReviewState);
+
+public sealed record PullRequestReviewResponse(
+    string Reviewer,
+    string State,
+    string? Url);
+
+public sealed record PullRequestCiResponse(
+    string Name,
+    string Status,
+    string? Url);
+
+public sealed record PullRequestDetailsResponse(
+    PullRequestSummaryResponse Summary,
+    IReadOnlyList<string> Revisions,
+    IReadOnlyList<string> ChangedFiles,
+    IReadOnlyList<PullRequestReviewResponse> Reviews,
+    IReadOnlyList<PullRequestCiResponse> CiRuns);
+
 [ApiController]
 [Route("api/v1/integrations/github")]
 [Produces("application/json")]
@@ -17,13 +54,57 @@ public sealed class GitHubRepositoriesController(
     IGitHubRepositoryCatalog github,
     ProjectService projects,
     ProjectAccessService access,
+    DevelopmentGraphService developmentGraph,
     ProjectRealtimePublisher realtime,
     IConfiguration configuration) : ControllerBase
 {
     [Authorize(Policy = Policies.ProjectRead)]
     [HttpGet("status")]
-    public Task<GitHubConnectionStatusDto> Status(CancellationToken cancellationToken) =>
-        github.GetStatusAsync(cancellationToken);
+    public Task<GitHubConnectionStatusDto> Status(CancellationToken cancellationToken)
+        => github.GetStatusAsync(cancellationToken);
+
+    [Authorize(Policy = Policies.ProjectRead)]
+    [HttpPost("test")]
+    public async Task<GitHubConnectionTestResponse> TestConnection(
+        CancellationToken cancellationToken)
+    {
+        var status = await github.GetStatusAsync(cancellationToken);
+        if (!status.Connected)
+        {
+            return new(
+                false,
+                status.Mode,
+                status.Message,
+                0,
+                DateTimeOffset.UtcNow);
+        }
+
+        try
+        {
+            var repositories = await github.ListRepositoriesAsync(
+                null,
+                null,
+                cancellationToken);
+            return new(
+                true,
+                status.Mode,
+                $"GitHub connection is usable. {repositories.Count} repository/repositories are visible to DIP.",
+                repositories.Count,
+                DateTimeOffset.UtcNow);
+        }
+        catch (Exception exception) when (
+            exception is HttpRequestException
+                or InvalidOperationException
+                or IOException)
+        {
+            return new(
+                false,
+                status.Mode,
+                "GitHub test failed: " + SafeMessage(exception.Message),
+                0,
+                DateTimeOffset.UtcNow);
+        }
+    }
 
     [Authorize(Policy = Policies.ProjectRead)]
     [HttpGet("repositories")]
@@ -38,9 +119,17 @@ public sealed class GitHubRepositoriesController(
         if ((configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false)
             && !User.IsInRole(Roles.Admin))
         {
-            var allowed = await access.AccessibleProjectsAsync(RequestActor.Subject(User), cancellationToken);
+            var allowed = await access.AccessibleProjectsAsync(
+                RequestActor.Subject(User),
+                cancellationToken);
             registered = registered.Where(project => allowed.Contains(project.Id)).ToArray();
         }
+
+        registered = registered
+            .Where(project => !project.LifecycleState.Equals(
+                ProjectService.DeletedState,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
 
         return repositories
             .Select(repository =>
@@ -59,8 +148,8 @@ public sealed class GitHubRepositoriesController(
     public Task<GitHubRepositoryDetailsDto> Repository(
         string owner,
         string repository,
-        CancellationToken cancellationToken) =>
-        github.GetRepositoryAsync(owner, repository, cancellationToken);
+        CancellationToken cancellationToken)
+        => github.GetRepositoryAsync(owner, repository, cancellationToken);
 
     [Authorize(Policy = Policies.ProjectWrite)]
     [HttpPost("import")]
@@ -69,13 +158,21 @@ public sealed class GitHubRepositoriesController(
         CancellationToken cancellationToken)
     {
         if (!TryParseRepository(request.Repository, out var owner, out var repository))
-            return BadRequest(new { error = "invalid_repository", message = "Repository must be owner/name or a github.com repository URL." });
+        {
+            return BadRequest(new
+            {
+                error = "invalid_repository",
+                message = "Repository must be owner/name or a github.com repository URL."
+            });
+        }
 
         var details = await github.GetRepositoryAsync(owner, repository, cancellationToken);
         var repositoryUrl = details.Repository.HtmlUrl;
 
         var existing = (await projects.ListAsync(cancellationToken))
-            .FirstOrDefault(project => SameRepository(project.RepositoryUrl, repositoryUrl));
+            .FirstOrDefault(project =>
+                !project.LifecycleState.Equals(ProjectService.DeletedState, StringComparison.OrdinalIgnoreCase)
+                && SameRepository(project.RepositoryUrl, repositoryUrl));
         if (existing is not null)
         {
             return Conflict(new
@@ -113,7 +210,11 @@ public sealed class GitHubRepositoriesController(
                     details.Repository.DefaultBranch,
                     cancellationToken);
             }
-            catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or InvalidOperationException)
+            catch (Exception exception) when (
+                exception is HttpRequestException
+                    or IOException
+                    or InvalidDataException
+                    or InvalidOperationException)
             {
                 syncWarning = "Project import succeeded, but the initial QA workspace synchronization failed: "
                     + SafeMessage(exception.Message);
@@ -204,6 +305,48 @@ public sealed class GitHubRepositoriesController(
         }
     }
 
+    [Authorize(Policy = Policies.ProjectRead)]
+    [RequireProjectRole(ProjectMembershipRole.Viewer, "projectId")]
+    [HttpGet("projects/{projectId:guid}/pull-requests")]
+    public async Task<ActionResult<IReadOnlyList<PullRequestSummaryResponse>>> PullRequests(
+        Guid projectId,
+        CancellationToken cancellationToken)
+    {
+        if (await projects.GetAsync(projectId, cancellationToken) is null)
+            return NotFound();
+
+        var graph = await developmentGraph.GetAsync(projectId, null, cancellationToken);
+        var summaries = graph.Nodes
+            .Where(node => node.Type.Equals(
+                DevelopmentGraphNodeType.PullRequest.ToString(),
+                StringComparison.OrdinalIgnoreCase))
+            .Select(node => BuildPullRequestDetails(graph, node))
+            .Where(details => details is not null)
+            .Select(details => details!.Summary)
+            .OrderByDescending(x => x.Number)
+            .ToArray();
+        return Ok(summaries);
+    }
+
+    [Authorize(Policy = Policies.ProjectRead)]
+    [RequireProjectRole(ProjectMembershipRole.Viewer, "projectId")]
+    [HttpGet("projects/{projectId:guid}/pull-requests/{number:int}")]
+    public async Task<ActionResult<PullRequestDetailsResponse>> PullRequest(
+        Guid projectId,
+        int number,
+        CancellationToken cancellationToken)
+    {
+        var graph = await developmentGraph.GetAsync(projectId, null, cancellationToken);
+        var node = graph.Nodes.FirstOrDefault(candidate =>
+            candidate.Type.Equals(DevelopmentGraphNodeType.PullRequest.ToString(), StringComparison.OrdinalIgnoreCase)
+            && PullRequestNumber(candidate) == number);
+        if (node is null)
+            return NotFound();
+
+        var details = BuildPullRequestDetails(graph, node);
+        return details is null ? NotFound() : Ok(details);
+    }
+
     [Authorize(Policy = Policies.ProjectWrite)]
     [RequireProjectRole(ProjectMembershipRole.Member, "projectId")]
     [HttpPost("projects/{projectId:guid}/sync")]
@@ -215,7 +358,13 @@ public sealed class GitHubRepositoriesController(
         if (project is null)
             return NotFound();
         if (!TryParseRepository(project.RepositoryUrl, out var owner, out var repository))
-            return BadRequest(new { error = "not_github_repository", message = "Only github.com projects can be synchronized by the GitHub repository connection." });
+        {
+            return BadRequest(new
+            {
+                error = "not_github_repository",
+                message = "Only github.com projects can be synchronized by the GitHub repository connection."
+            });
+        }
 
         try
         {
@@ -243,14 +392,171 @@ public sealed class GitHubRepositoriesController(
         }
     }
 
-    private static (string Owner, string Repository) ParseRepository(string value)
+    private static PullRequestDetailsResponse? BuildPullRequestDetails(
+        DevelopmentGraphDto graph,
+        DevelopmentGraphNodeDto pullRequest)
     {
-        if (!TryParseRepository(value, out var owner, out var repository))
-            throw new ArgumentException("Repository must be an owner/name value or github.com repository URL.");
-        return (owner, repository);
+        var number = PullRequestNumber(pullRequest);
+        if (!number.HasValue)
+            return null;
+
+        var byId = graph.Nodes.ToDictionary(node => node.Id);
+        var commitIds = graph.Edges
+            .Where(edge =>
+                edge.SourceNodeId == pullRequest.Id
+                && edge.Type.Equals(DevelopmentGraphEdgeType.Contains.ToString(), StringComparison.OrdinalIgnoreCase))
+            .Select(edge => edge.TargetNodeId)
+            .Where(id => byId.TryGetValue(id, out var node)
+                         && node.Type.Equals(DevelopmentGraphNodeType.Commit.ToString(), StringComparison.OrdinalIgnoreCase))
+            .ToHashSet();
+
+        var revisionNodes = commitIds
+            .Where(byId.ContainsKey)
+            .Select(id => byId[id])
+            .ToArray();
+        var revisions = revisionNodes
+            .Select(node => MetaString(node.MetadataJson, "Revision") ?? StripKeyTail(node.Key))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var fileIds = graph.Edges
+            .Where(edge =>
+                commitIds.Contains(edge.SourceNodeId)
+                && edge.Type.Equals(DevelopmentGraphEdgeType.Changes.ToString(), StringComparison.OrdinalIgnoreCase))
+            .Select(edge => edge.TargetNodeId)
+            .ToHashSet();
+        var changedFiles = fileIds
+            .Where(byId.ContainsKey)
+            .Select(id => byId[id])
+            .Where(node => node.Type.Equals(DevelopmentGraphNodeType.File.ToString(), StringComparison.OrdinalIgnoreCase))
+            .Select(node => node.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var reviewEdges = graph.Edges
+            .Where(edge =>
+                edge.TargetNodeId == pullRequest.Id
+                && edge.Type.Equals(DevelopmentGraphEdgeType.Reviews.ToString(), StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var reviewNodes = reviewEdges
+            .Select(edge => edge.SourceNodeId)
+            .Where(byId.ContainsKey)
+            .Select(id => byId[id])
+            .Where(node => node.Type.Equals(DevelopmentGraphNodeType.Review.ToString(), StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var assessment = reviewNodes.FirstOrDefault(node =>
+            node.Key.StartsWith("review-assessment:", StringComparison.OrdinalIgnoreCase));
+        var reviews = reviewNodes
+            .Where(node => !node.Key.StartsWith("review-assessment:", StringComparison.OrdinalIgnoreCase))
+            .Select(node => new PullRequestReviewResponse(
+                node.Name,
+                node.Status,
+                node.ExternalReference))
+            .OrderBy(x => x.Reviewer, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var ciIds = graph.Edges
+            .Where(edge =>
+                commitIds.Contains(edge.SourceNodeId)
+                && edge.Type.Equals(DevelopmentGraphEdgeType.BuiltBy.ToString(), StringComparison.OrdinalIgnoreCase))
+            .Select(edge => edge.TargetNodeId)
+            .ToHashSet();
+        var ciRuns = ciIds
+            .Where(byId.ContainsKey)
+            .Select(id => byId[id])
+            .Where(node => node.Type.Equals(DevelopmentGraphNodeType.CiRun.ToString(), StringComparison.OrdinalIgnoreCase))
+            .Select(node => new PullRequestCiResponse(
+                node.Name,
+                node.Status,
+                node.ExternalReference))
+            .OrderByDescending(x => x.Status.Equals("failure", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var critical = reviewEdges.Any(edge => edge.Critical)
+                       || ciRuns.Any(run => IsFailure(run.Status))
+                       || assessment?.Status is "Blocked" or "HighRisk";
+        var title = PullRequestTitle(pullRequest.Name, number.Value);
+        var summary = new PullRequestSummaryResponse(
+            number.Value,
+            title,
+            pullRequest.Status,
+            pullRequest.ExternalReference,
+            changedFiles.Length,
+            reviews.Length,
+            ciRuns.Length,
+            critical,
+            assessment?.Status);
+
+        return new(summary, revisions, changedFiles, reviews, ciRuns);
     }
 
-    private static bool TryParseRepository(string value, out string owner, out string repository)
+    private static bool IsFailure(string value)
+        => value.Equals("failure", StringComparison.OrdinalIgnoreCase)
+           || value.Equals("failed", StringComparison.OrdinalIgnoreCase)
+           || value.Equals("error", StringComparison.OrdinalIgnoreCase)
+           || value.Equals("cancelled", StringComparison.OrdinalIgnoreCase);
+
+    private static int? PullRequestNumber(DevelopmentGraphNodeDto node)
+    {
+        var metadata = MetaInt(node.MetadataJson, "PullRequestNumber");
+        if (metadata.HasValue)
+            return metadata;
+        var tail = StripKeyTail(node.Key);
+        return int.TryParse(tail, out var number) ? number : null;
+    }
+
+    private static string PullRequestTitle(string value, int number)
+    {
+        var prefix = $"PR #{number}:";
+        if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return value[prefix.Length..].Trim();
+        return value;
+    }
+
+    private static int? MetaInt(string json, string property)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
+            if (document.RootElement.TryGetProperty(property, out var value)
+                && value.TryGetInt32(out var result))
+            {
+                return result;
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        return null;
+    }
+
+    private static string? MetaString(string json, string property)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
+            if (document.RootElement.TryGetProperty(property, out var value))
+                return value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
+        }
+        catch (JsonException)
+        {
+        }
+        return null;
+    }
+
+    private static string StripKeyTail(string key)
+    {
+        var index = key.LastIndexOf(':');
+        return index >= 0 && index + 1 < key.Length ? key[(index + 1)..] : key;
+    }
+
+    private static bool TryParseRepository(
+        string value,
+        out string owner,
+        out string repository)
     {
         owner = string.Empty;
         repository = string.Empty;
