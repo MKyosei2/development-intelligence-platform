@@ -4,8 +4,9 @@ using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
 
-public sealed class CSharpQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):IQaAdapter
+public sealed class CSharpQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer,IUniversalSemanticAnalyzer semantic):IQaAdapter
 {
+    public CSharpQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):this(executor,normalizer,new UniversalSemanticAnalyzer()){}
     public string AdapterId=>"csharp";
     public int Priority=>500;
     public bool Supports(LanguageId language,QaTechnologyProfile profile,string workspace)=>language==LanguageId.CSharp;
@@ -15,6 +16,8 @@ public sealed class CSharpQaEngine(ProcessExecutor executor,UniversalDiagnosticN
         var dotnet=ProcessExecutor.FindExecutable("dotnet")??throw new FileNotFoundException("dotnet SDK was not found in PATH.");
         var tools=new List<QaToolExecution>();var findings=new List<QaFindingCandidate>();
         var timeout=TimeSpan.FromSeconds(Math.Clamp(command.TimeoutSeconds,5,1800));
+        var semanticResult=await semantic.AnalyzeAsync(new(LanguageId.CSharp,workspace),ct);findings.AddRange(semanticResult.Findings);
+        tools.Add(new("dip-semantic",true,true,0,0,string.Empty,string.Empty,$"DIP semantic analysis scanned {semanticResult.FilesAnalyzed} C# source file(s).",Version:"1.0"));
         await Run("dotnet-restore",dotnet,["restore"],Severity.Critical,"restore");
         await Run("dotnet-build",dotnet,["build","--no-restore","-c","Release","-v","minimal"],Severity.Critical,"compile");
         await Run("dotnet-test",dotnet,["test","--no-build","-c","Release","--logger","console;verbosity=minimal"],Severity.Warning,"test");

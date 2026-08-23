@@ -13,7 +13,14 @@ namespace Dip.Infrastructure.QualityAutomation;
 public sealed class UniversalSemanticAnalyzer:IUniversalSemanticAnalyzer
 {
     private static readonly HashSet<string> Ignored=new(StringComparer.OrdinalIgnoreCase){".git","bin","obj","node_modules","artifacts",".dipqa","Library","Temp","Logs","Build","build","vendor","target"};
-    private static readonly string[] SourceExtensions={".py",".cs",".c",".cc",".cpp",".cxx",".h",".hpp",".js",".jsx",".ts",".tsx",".java",".kt",".kts",".go",".rs",".rb",".php",".swift",".m",".mm",".lua",".sh",".ps1",".gd"};
+    private static readonly IReadOnlyDictionary<string,LanguageId> LanguageByExtension=new Dictionary<string,LanguageId>(StringComparer.OrdinalIgnoreCase)
+    {
+        [".py"]=LanguageId.Python,[".cs"]=LanguageId.CSharp,[".c"]=LanguageId.C,[".h"]=LanguageId.Cpp,[".cc"]=LanguageId.Cpp,[".cpp"]=LanguageId.Cpp,[".cxx"]=LanguageId.Cpp,[".hpp"]=LanguageId.Cpp,
+        [".js"]=LanguageId.JavaScript,[".jsx"]=LanguageId.JavaScript,[".mjs"]=LanguageId.JavaScript,[".cjs"]=LanguageId.JavaScript,[".ts"]=LanguageId.TypeScript,[".tsx"]=LanguageId.TypeScript,
+        [".java"]=LanguageId.Java,[".kt"]=LanguageId.Kotlin,[".kts"]=LanguageId.Kotlin,[".go"]=LanguageId.Go,[".rs"]=LanguageId.Rust,[".rb"]=LanguageId.Ruby,[".php"]=LanguageId.Php,
+        [".swift"]=LanguageId.Swift,[".m"]=LanguageId.ObjectiveC,[".mm"]=LanguageId.ObjectiveC,[".lua"]=LanguageId.Lua,[".sh"]=LanguageId.Bash,[".ps1"]=LanguageId.PowerShell,[".gd"]=LanguageId.Gdscript,
+        [".hlsl"]=LanguageId.Hlsl,[".compute"]=LanguageId.Hlsl,[".glsl"]=LanguageId.Glsl,[".vert"]=LanguageId.Glsl,[".frag"]=LanguageId.Glsl,[".geom"]=LanguageId.Glsl
+    };
     private static readonly Regex Assignment=new(@"(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?:=|:=)\s*(?<rhs>.+)",RegexOptions.Compiled|RegexOptions.CultureInvariant);
     private static readonly Regex DangerousSink=new(@"(?<sink>eval|exec|system|popen|Process\.Start|Runtime\.getRuntime\(\)\.exec|child_process\.(?:exec|execSync)|os\.system|subprocess\.(?:run|Popen|call)|shell_exec|mysqli_query|executeQuery|ExecuteSqlRaw|FromSqlRaw)\s*\((?<arg>.+)",RegexOptions.Compiled|RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
     private static readonly Regex Source=new(@"(?<source>Request\.|HttpContext\.|Console\.ReadLine|Environment\.GetEnvironmentVariable|process\.argv|req\.(?:body|query|params)|input\(|sys\.argv|os\.environ|params\[|ARGV|\$_(?:GET|POST|REQUEST)|readLine\(|getenv\(|std::cin|scanf\s*\()",RegexOptions.Compiled|RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
@@ -23,7 +30,7 @@ public sealed class UniversalSemanticAnalyzer:IUniversalSemanticAnalyzer
 
     public async Task<QaSemanticAnalysisResult> AnalyzeAsync(QaSemanticAnalysisRequest request,CancellationToken ct)
     {
-        var findings=new List<QaFindingCandidate>();var evidence=new List<string>();var files=EnumerateFiles(request.Workspace).Take(Math.Clamp(request.MaximumFiles,1,5000)).ToArray();
+        var findings=new List<QaFindingCandidate>();var evidence=new List<string>();var files=EnumerateFiles(request.Workspace,request.Language).Take(Math.Clamp(request.MaximumFiles,1,5000)).ToArray();
         foreach(var file in files)
         {
             ct.ThrowIfCancellationRequested();string text;try{text=await File.ReadAllTextAsync(file,ct);}catch{continue;}if(text.Length>2_000_000)continue;
@@ -65,9 +72,19 @@ public sealed class UniversalSemanticAnalyzer:IUniversalSemanticAnalyzer
     }
 
     private static bool LooksPlaceholder(string value)=>value.Contains("change-me",StringComparison.OrdinalIgnoreCase)||value.Contains("replace",StringComparison.OrdinalIgnoreCase)||value.Contains("example",StringComparison.OrdinalIgnoreCase)||value.All(c=>c is '*' or 'x' or 'X');
-    private static IEnumerable<string> EnumerateFiles(string root)
+    private static IEnumerable<string> EnumerateFiles(string root,LanguageId requestedLanguage)
     {
-        var extensions=SourceExtensions.ToHashSet(StringComparer.OrdinalIgnoreCase);var stack=new Stack<string>();stack.Push(Path.GetFullPath(root));
-        while(stack.Count>0){var dir=stack.Pop();string[] dirs,files;try{dirs=Directory.GetDirectories(dir);files=Directory.GetFiles(dir);}catch{continue;}foreach(var file in files)if(extensions.Contains(Path.GetExtension(file)))yield return file;foreach(var child in dirs)if(!Ignored.Contains(Path.GetFileName(child)))stack.Push(child);}
+        var allLanguages=requestedLanguage.IsAuto||requestedLanguage.IsMulti||requestedLanguage.IsUnknown;
+        var stack=new Stack<string>();stack.Push(Path.GetFullPath(root));
+        while(stack.Count>0)
+        {
+            var dir=stack.Pop();string[] dirs,files;try{dirs=Directory.GetDirectories(dir);files=Directory.GetFiles(dir);}catch{continue;}
+            foreach(var file in files)
+            {
+                if(!LanguageByExtension.TryGetValue(Path.GetExtension(file),out var fileLanguage))continue;
+                if(allLanguages||fileLanguage==requestedLanguage)yield return file;
+            }
+            foreach(var child in dirs)if(!Ignored.Contains(Path.GetFileName(child)))stack.Push(child);
+        }
     }
 }

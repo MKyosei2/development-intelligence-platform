@@ -4,8 +4,9 @@ using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
 
-public sealed class CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):IQaAdapter
+public sealed class CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer,IUniversalSemanticAnalyzer semantic):IQaAdapter
 {
+    public CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):this(executor,normalizer,new UniversalSemanticAnalyzer()){}
     public string AdapterId=>"cpp";
     public int Priority=>500;
     public bool Supports(LanguageId language,QaTechnologyProfile profile,string workspace)
@@ -16,6 +17,8 @@ public sealed class CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNorm
         var cmake=ProcessExecutor.FindExecutable("cmake")??throw new FileNotFoundException("CMake was not found in PATH.");
         var tools=new List<QaToolExecution>();var findings=new List<QaFindingCandidate>();
         var timeout=TimeSpan.FromSeconds(Math.Clamp(command.TimeoutSeconds,5,1800));
+        var semanticResult=await semantic.AnalyzeAsync(new(LanguageId.Cpp,workspace),ct);findings.AddRange(semanticResult.Findings);
+        tools.Add(new("dip-semantic",true,true,0,0,string.Empty,string.Empty,$"DIP semantic analysis scanned {semanticResult.FilesAnalyzed} C/C++ source file(s).",Version:"1.0"));
         var sanitizerEnvironment=new Dictionary<string,string>{{"ASAN_OPTIONS",OperatingSystem.IsWindows()?"halt_on_error=1":"detect_leaks=1:halt_on_error=1"},{"UBSAN_OPTIONS","print_stacktrace=1:halt_on_error=0"}};
         var build=Path.Combine(workspace,".dipqa","asan-build");Directory.CreateDirectory(build);
         var flags=OperatingSystem.IsWindows()?"/W4 /fsanitize=address /Zi":"-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";

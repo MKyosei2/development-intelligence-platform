@@ -7,6 +7,7 @@ using Dip.Application.Features.Authorization;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Features.GitHubIntegration;
 using Dip.Application.Features.Projects;
+using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -80,6 +81,7 @@ public sealed class GitHubRepositoriesController(
     IPipelineRunRepository pipelineRuns,
     IQualityIssueRepository qualityIssues,
     IEvidenceRepository evidence,
+    QaOrchestrationService qa,
     ProjectRealtimePublisher realtime,
     IConfiguration configuration) : ControllerBase
 {
@@ -290,6 +292,49 @@ public sealed class GitHubRepositoriesController(
                 : syncWarning + " Pull-request history backfill also failed: " + SafeMessage(exception.Message);
         }
 
+        QaRunResultDto? initialQa = null;
+        if (request.RunInitialQa && workspace is not null)
+        {
+            try
+            {
+                await realtime.PublishAsync(
+                    created.Id,
+                    "qa.started",
+                    "Initial repository QA started after GitHub import.",
+                    cancellationToken);
+                initialQa = await qa.RunAsync(
+                    new QaExecutionCommand(
+                        created.Id,
+                        $"github-import:{workspace.Branch}:{ShortSha(workspace.CommitSha)}",
+                        LanguageId.Auto,
+                        workspace.WorkspaceRelativePath,
+                        workspace.CommitSha,
+                        null,
+                        null,
+                        TimeoutSeconds: 300,
+                        AutomaticallyReproduce: true,
+                        RecordScreen: false,
+                        RecordSystemAudio: false),
+                    cancellationToken);
+                await realtime.PublishAsync(
+                    created.Id,
+                    "qa.completed",
+                    $"Initial repository QA completed with {initialQa.FindingCount} finding(s).",
+                    cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                syncWarning = string.IsNullOrWhiteSpace(syncWarning)
+                    ? "Project import and workspace synchronization succeeded, but initial QA failed: " + SafeMessage(exception.Message)
+                    : syncWarning + " Initial QA also failed: " + SafeMessage(exception.Message);
+                await realtime.PublishAsync(
+                    created.Id,
+                    "qa.failed",
+                    "Initial repository QA failed: " + SafeMessage(exception.Message),
+                    CancellationToken.None);
+            }
+        }
+
         await realtime.PublishAsync(
             created.Id,
             workspace is not null ? "project.imported" : "project.imported.unsynced",
@@ -305,7 +350,11 @@ public sealed class GitHubRepositoriesController(
             created.DefaultBranch,
             workspace is not null,
             workspace,
-            syncWarning));
+            syncWarning,
+            initialQa?.QaRunId,
+            initialQa?.Status,
+            initialQa?.FindingCount ?? 0,
+            initialQa?.CriticalFindingCount ?? 0));
     }
 
     [Authorize(Policy = Policies.ProjectRead)]
@@ -888,6 +937,9 @@ public sealed class GitHubRepositoriesController(
         }
         return Normalize(left).Equals(Normalize(right), StringComparison.OrdinalIgnoreCase);
     }
+
+    private static string ShortSha(string value) =>
+        value.Length <= 8 ? value : value[..8];
 
     private static string SafeMessage(string value)
     {

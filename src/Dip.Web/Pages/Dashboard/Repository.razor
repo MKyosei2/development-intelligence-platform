@@ -119,7 +119,7 @@ else if (_data is not null)
 
             <div class="col-12 col-lg-4">
                 <section class="card">
-                    <div class="card-header"><strong>QA workspace</strong><StatusBadge Value="@(_data.Workspace is null ? "Not synced" : "Healthy")" /></div>
+                    <div class="card-header"><strong>QA workspace</strong><StatusBadge Value="@WorkspaceState" /></div>
                     <div class="card-body workspace-card">
                         @if (_data.Workspace is { } workspace)
                         {
@@ -129,7 +129,11 @@ else if (_data is not null)
                             <div><span>Files</span><strong>@workspace.FileCount.ToString("N0")</strong></div>
                             <div><span>Extracted</span><strong>@FormatBytes(workspace.ExtractedBytes)</strong></div>
                             <div><span>Synced</span><strong>@FormatDate(workspace.SyncedAtUtc)</strong></div>
-                            <a class="btn btn-primary w-100 mt-3" href="@($"/dashboard/{ProjectId}/qa")">Open QA</a>
+                            @if (WorkspaceStale)
+                            {
+                                <div class="alert alert-warning mt-3 mb-0"><strong>Newer GitHub commit detected.</strong><br /><small>QA will synchronize the latest branch snapshot before running.</small></div>
+                            }
+                            <a class="btn btn-primary w-100 mt-3" href="@($"/dashboard/{ProjectId}/qa?autorun=true")">@(WorkspaceStale ? "Sync latest & Run QA" : "Run QA")</a>
                         }
                         else
                         {
@@ -442,6 +446,10 @@ else if (_data is not null)
     private string TabClass(string tab) => _tab == tab ? "btn-primary" : "btn-outline-secondary";
     private string SelectedPrClass(int number) => _selectedPullRequest?.Summary.Number == number ? "table-active" : string.Empty;
     private bool CanSync => _data?.Connection.Connected == true && _data.Repository is not null && string.IsNullOrWhiteSpace(_data.Warning);
+    private bool WorkspaceStale => _data?.Workspace is { } workspace
+        && !string.IsNullOrWhiteSpace(_data.Repository?.LatestCommitSha)
+        && !workspace.CommitSha.Equals(_data.Repository!.LatestCommitSha, StringComparison.OrdinalIgnoreCase);
+    private string WorkspaceState => _data?.Workspace is null ? "Not synced" : WorkspaceStale ? "Warning" : "Healthy";
     private string RepositoryName => _data?.Repository?.Repository.FullName ?? ShortRepository(_data?.RepositoryUrl ?? string.Empty);
     private static string Initial(string value) => string.IsNullOrWhiteSpace(value) ? "R" : value[0].ToString().ToUpperInvariant();
     private static string ShortRepository(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri.AbsolutePath.Trim('/') : value;

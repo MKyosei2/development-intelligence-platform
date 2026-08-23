@@ -101,7 +101,8 @@ public sealed record ImportGitHubProjectRequest(
     string Repository,
     string? ProjectName = null,
     DateTimeOffset? ReleaseDateUtc = null,
-    bool SyncWorkspace = true);
+    bool SyncWorkspace = true,
+    bool RunInitialQa = true);
 
 public sealed record ImportGitHubProjectResult(
     Guid ProjectId,
@@ -110,4 +111,8 @@ public sealed record ImportGitHubProjectResult(
     string DefaultBranch,
     bool WorkspaceSynced,
     GitHubWorkspaceSyncDto? Workspace,
-    string? Warning = null);
+    string? Warning = null,
+    Guid? InitialQaRunId = null,
+    string? InitialQaStatus = null,
+    int InitialQaFindingCount = 0,
+    int InitialQaCriticalCount = 0);

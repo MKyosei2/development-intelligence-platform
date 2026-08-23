@@ -7,14 +7,19 @@
 else if(_run is null){<div class="alert alert-warning">QA run was not found.</div>}
 else{
 <div class="d-flex justify-content-between align-items-start mb-4"><div><div class="text-uppercase small text-muted fw-semibold">Technical Evidence</div><h1 class="h3">@_run.Language QA</h1><div class="text-muted">Run @_run.QaRunId</div></div><a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}")">Back to Project Truth</a></div>
-<div class="alert @(_run.CriticalFindingCount>0?"alert-danger":_run.WarningFindingCount>0?"alert-warning":"alert-success")"><strong>@_run.Status</strong> — @_run.FindingCount finding(s), @_run.CriticalFindingCount critical, @_run.WarningFindingCount warning.</div>
+<div class="alert @(_run.CriticalFindingCount>0?"alert-danger":_run.WarningFindingCount>0?"alert-warning":"alert-success")"><strong>@_run.Status</strong> — @_run.FindingCount finding(s), @_run.CriticalFindingCount critical, @_run.WarningFindingCount warning.@if(_run.PipelineRunId is { } pipelineId){<text> Linked pipeline: <a href="@($"/dashboard/{ProjectId}/ci?run={pipelineId}")"><code>@(pipelineId.ToString("N")[..8])</code></a>.</text>}</div>
 <div class="row g-4">
 <div class="col-12 col-xl-7"><section class="card shadow-sm"><div class="card-header"><h2 class="h5 mb-0">Findings</h2></div><div class="list-group list-group-flush">
 @if(_run.Findings.Count==0){<div class="list-group-item text-muted">No findings.</div>}else{@foreach(var f in _run.Findings){<div class="list-group-item"><div class="d-flex justify-content-between"><strong>@f.Title</strong><span class="badge @(f.Severity=="Critical"?"text-bg-danger":f.Severity=="Warning"?"text-bg-warning":"text-bg-secondary")">@f.Severity</span></div><div class="small mt-1">@f.Message</div>@if(!string.IsNullOrWhiteSpace(f.FilePath)){<div class="small text-muted mt-1">@f.FilePath@if(f.Line is not null){<text>:@f.Line</text>}</div>}<div class="small mt-2">Reproduction: <strong>@f.ReproductionStatus</strong> @f.ReproducedAttempts/@f.TotalAttempts</div><div class="small text-muted">Fingerprint: <code>@f.Fingerprint</code></div></div>}}
 </div></section></div>
 <div class="col-12 col-xl-5"><section class="card shadow-sm"><div class="card-header"><h2 class="h5 mb-0">Evidence artifacts</h2></div><div class="list-group list-group-flush">
 @if(_artifacts.Count==0){<div class="list-group-item text-muted">No artifacts were stored.</div>}else{@foreach(var a in _artifacts){<div class="list-group-item"><div class="d-flex justify-content-between gap-2"><a href="@Api.QaArtifactUrl(RunId,a.RelativePath)" target="_blank" rel="noopener noreferrer">@a.RelativePath</a><span class="badge text-bg-secondary">@a.Kind</span></div><div class="small text-muted">@FormatBytes(a.Length)</div></div>}}
-</div></section><div class="alert alert-info mt-3 small">Video/audio/dumps are evidence for debugging. They support Project Truth but do not replace real-device verification when the issue is hardware-specific.</div></div>
+</div></section>
+@if(!string.IsNullOrWhiteSpace(_run.SummaryJson))
+{
+<details class="card shadow-sm mt-3"><summary class="card-header" style="cursor:pointer"><strong>Detected technology / QA toolchain</strong></summary><div class="card-body"><pre class="small mb-0" style="white-space:pre-wrap;max-height:420px;overflow:auto">@_run.SummaryJson</pre></div></details>
+}
+<div class="alert alert-info mt-3 small">Video/audio/dumps are evidence for debugging. They support Project Truth but do not replace real-device verification when the issue is hardware-specific.</div></div>
 </div>}
 @code{
  [Parameter]public Guid ProjectId{get;set;}[Parameter]public Guid RunId{get;set;}private QaRunResultDto?_run;private IReadOnlyList<QaArtifactDto>_artifacts=Array.Empty<QaArtifactDto>();private bool _loading=true;

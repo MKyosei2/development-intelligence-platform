@@ -80,6 +80,10 @@ services:
       GitHub__AppSlug: ${DIP_GITHUB_APP_SLUG:-}
       GitHub__AppPrivateKeyBase64: ${DIP_GITHUB_APP_PRIVATE_KEY_BASE64:-}
       Qa__WorkspaceRoot: /data/dip-workspaces
+      Qa__DefaultTimeoutSeconds: ${DIP_QA_DEFAULT_TIMEOUT_SECONDS:-300}
+      Qa__SandboxMemoryLimitMb: ${DIP_QA_SANDBOX_MEMORY_MB:-4096}
+      DIP_QA_ENABLE_TSAN: ${DIP_QA_ENABLE_TSAN:-0}
+      NUGET_PACKAGES: /home/dipuser/.nuget/packages
       Artifacts__Provider: ${DIP_ARTIFACT_PROVIDER:-Local}
       Artifacts__LocalRoot: /data/dip-artifacts
       Artifacts__Minio__Endpoint: http://minio:9000
@@ -108,6 +112,7 @@ services:
     volumes:
       - dip-artifact-data:/data/dip-artifacts
       - dip-workspace-data:/data/dip-workspaces
+      - dip-nuget-data:/home/dipuser/.nuget/packages
     ports:
       - "${API_PORT:-5080}:8080"
     depends_on:
@@ -264,6 +269,7 @@ volumes:
   dip-minio-data:
   dip-artifact-data:
   dip-workspace-data:
+  dip-nuget-data:
   dip-prometheus-data:
   dip-grafana-data:
 

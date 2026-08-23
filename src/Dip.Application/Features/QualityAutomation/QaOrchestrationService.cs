@@ -12,10 +12,10 @@ namespace Dip.Application.Features.QualityAutomation;
 
 public sealed class QaOrchestrationService
 {
-    private readonly IProjectRepository _projects;private readonly IQaRunRepository _runs;private readonly IQaFindingRepository _findings;private readonly IReproductionAttemptRepository _attempts;private readonly IEvidenceRepository _evidence;private readonly IUnitOfWork _unitOfWork;private readonly ISystemClock _clock;
+    private readonly IProjectRepository _projects;private readonly IQaRunRepository _runs;private readonly IQaFindingRepository _findings;private readonly IPipelineRunRepository _pipelineRuns;private readonly IQualityIssueRepository _qualityIssues;private readonly IReproductionAttemptRepository _attempts;private readonly IEvidenceRepository _evidence;private readonly IUnitOfWork _unitOfWork;private readonly ISystemClock _clock;
     private readonly IQaAdapterRegistry _registry;private readonly IRepositoryTechnologyDetector _detector;private readonly IReproductionCoordinator _reproduction;private readonly IQaWorkspaceResolver _workspace;private readonly ProjectTruthService _truth;private readonly PmEvidenceTranslator _pm;private readonly IncidentAggregationService _incidents;private readonly QaGovernanceRunProcessor _governance;private readonly IReadOnlyList<ICrossCuttingQaPack> _crossPacks;
-    public QaOrchestrationService(IProjectRepository projects,IQaRunRepository runs,IQaFindingRepository findings,IReproductionAttemptRepository attempts,IEvidenceRepository evidence,IUnitOfWork unitOfWork,ISystemClock clock,IQaAdapterRegistry registry,IRepositoryTechnologyDetector detector,IReproductionCoordinator reproduction,IQaWorkspaceResolver workspace,ProjectTruthService truth,PmEvidenceTranslator pm,IncidentAggregationService incidents,QaGovernanceRunProcessor governance,IEnumerable<ICrossCuttingQaPack> crossPacks)
-    {_projects=projects;_runs=runs;_findings=findings;_attempts=attempts;_evidence=evidence;_unitOfWork=unitOfWork;_clock=clock;_registry=registry;_detector=detector;_reproduction=reproduction;_workspace=workspace;_truth=truth;_pm=pm;_incidents=incidents;_governance=governance;_crossPacks=crossPacks.ToArray();}
+    public QaOrchestrationService(IProjectRepository projects,IQaRunRepository runs,IQaFindingRepository findings,IPipelineRunRepository pipelineRuns,IQualityIssueRepository qualityIssues,IReproductionAttemptRepository attempts,IEvidenceRepository evidence,IUnitOfWork unitOfWork,ISystemClock clock,IQaAdapterRegistry registry,IRepositoryTechnologyDetector detector,IReproductionCoordinator reproduction,IQaWorkspaceResolver workspace,ProjectTruthService truth,PmEvidenceTranslator pm,IncidentAggregationService incidents,QaGovernanceRunProcessor governance,IEnumerable<ICrossCuttingQaPack> crossPacks)
+    {_projects=projects;_runs=runs;_findings=findings;_pipelineRuns=pipelineRuns;_qualityIssues=qualityIssues;_attempts=attempts;_evidence=evidence;_unitOfWork=unitOfWork;_clock=clock;_registry=registry;_detector=detector;_reproduction=reproduction;_workspace=workspace;_truth=truth;_pm=pm;_incidents=incidents;_governance=governance;_crossPacks=crossPacks.ToArray();}
 
     public async Task<QaRunResultDto> RunAsync(QaExecutionCommand command,CancellationToken cancellationToken)
     {
@@ -62,16 +62,86 @@ public sealed class QaOrchestrationService
         var allAdaptersFailed=unavailableLanguages.Length>=selections.Count;
         var finalStatus=allAdaptersFailed?QaRunStatus.InfrastructureFailure:critical>0?QaRunStatus.Failed:warning>0||adapterFailures.Count>0||unavailableLanguages.Length>0||unsupportedDetectedLanguages.Length>0?QaRunStatus.Partial:QaRunStatus.Succeeded;
         var summary=JsonSerializer.Serialize(new{schema="dip-universal-qa-v1",requestedLanguage=requested.Value,runLanguage=runLanguage.Value,detected=new{languages=profile.Languages.Select(x=>x.Value),profile.BuildSystems,profile.Frameworks,profile.GameEngines,profile.Evidence},adapters=selections.Select(x=>new{language=x.Language.Value,adapterId=x.Adapter.AdapterId}),crossCuttingPacks=crossResults.Select(x=>x.PackId),adapterFailures,unavailableLanguages,unsupportedDetectedLanguages,tools=tools.Select(x=>new{x.Tool,x.WasAvailable,x.Succeeded,x.ExitCode,x.DurationMs,x.Executable,x.Version,x.SandboxJson,x.CpuTimeMs}),findingCount=findingEntities.Count,critical,warning});run.Complete(finalStatus,findingEntities.Count,critical,warning,summary,_clock.UtcNow);
-        await _evidence.AddRangeAsync(BuildEvidence(command,run,findingEntities,tools,profile,summary),cancellationToken);await _unitOfWork.SaveChangesAsync(cancellationToken);await _governance.ProcessCompletedRunAsync(run,findingEntities,cancellationToken);await _truth.RecalculateAsync(command.ProjectId,cancellationToken);return Map(run,findingEntities);
+        var pipelineRunId=await MaterializePipelineAndIssuesAsync(command,run,findingEntities,cancellationToken);
+        await _evidence.AddRangeAsync(BuildEvidence(command,run,findingEntities,tools,profile,summary,pipelineRunId),cancellationToken);await _unitOfWork.SaveChangesAsync(cancellationToken);await _governance.ProcessCompletedRunAsync(run,findingEntities,cancellationToken);await _truth.RecalculateAsync(command.ProjectId,cancellationToken);return Map(run,findingEntities,pipelineRunId);
     }
-    public async Task<QaRunResultDto?> GetAsync(Guid qaRunId,CancellationToken cancellationToken){var run=await _runs.GetAsync(qaRunId,cancellationToken);if(run is null)return null;var findings=await _findings.ListByRunAsync(qaRunId,cancellationToken);return Map(run,findings);}
+    public async Task<QaRunResultDto?> GetAsync(Guid qaRunId,CancellationToken cancellationToken){var run=await _runs.GetAsync(qaRunId,cancellationToken);if(run is null)return null;var findings=await _findings.ListByRunAsync(qaRunId,cancellationToken);var pipeline=await _pipelineRuns.GetByIdAsync(qaRunId,cancellationToken);return Map(run,findings,pipeline?.Id);}
     public async Task<IReadOnlyList<QaCrashClusterDto>> GetCrashClustersAsync(Guid projectId,int take,CancellationToken cancellationToken)
     {if(projectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(projectId));var requested=Math.Clamp(take,1,200);var findings=await _findings.ListRecentByProjectAsync(projectId,Math.Clamp(requested*20,100,4000),cancellationToken);return findings.Where(x=>x.Severity==Severity.Critical||x.Category.Contains("crash",StringComparison.OrdinalIgnoreCase)||x.Category.Contains("runtime",StringComparison.OrdinalIgnoreCase)||x.Category.Contains("hang",StringComparison.OrdinalIgnoreCase)).GroupBy(x=>x.Fingerprint,StringComparer.OrdinalIgnoreCase).Select(g=>new QaCrashClusterDto(g.Key,g.OrderByDescending(x=>x.ObservedAtUtc).First().Category,g.Max(x=>x.Severity).ToString(),g.OrderByDescending(x=>x.ObservedAtUtc).First().Title,g.Count(),g.Min(x=>x.ObservedAtUtc),g.Max(x=>x.ObservedAtUtc),g.Count(x=>x.ReproductionStatus==ReproductionStatus.Reproduced),g.Select(x=>x.SubjectKey).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x=>x).Take(20).ToArray())).OrderByDescending(x=>x.Occurrences).ThenByDescending(x=>x.LastSeenAtUtc).Take(requested).ToArray();}
     private static bool ShouldReproduce(QaFinding finding)=>finding.Severity==Severity.Critical||finding.Category.Contains("runtime",StringComparison.OrdinalIgnoreCase)||finding.Category.Contains("crash",StringComparison.OrdinalIgnoreCase)||finding.Category.Contains("test",StringComparison.OrdinalIgnoreCase)||finding.Category.Contains("hang",StringComparison.OrdinalIgnoreCase);
     private static string ResolveRuntimeExecutable(string workspace,string value){if(Path.IsPathRooted(value))throw new InvalidOperationException("Runtime executable must be workspace-relative.");var candidate=Path.GetFullPath(Path.Combine(workspace,value));var prefix=workspace.TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;if(!candidate.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Runtime executable escapes the QA workspace.");return candidate;}
     private static IReadOnlyDictionary<string,string> ReproductionEnvironment(LanguageId language)=>language==LanguageId.Python?new Dictionary<string,string>{{"PYTHONFAULTHANDLER","1"},{"PYTHONASYNCIODEBUG","1"}}:new Dictionary<string,string>();
-    private IEnumerable<EvidenceRecord> BuildEvidence(QaExecutionCommand command,QaRun run,IReadOnlyList<QaFinding> findings,IReadOnlyList<QaToolExecution> tools,QaTechnologyProfile profile,string summary)
-    {var confidence=tools.Count>0&&tools.All(x=>x.WasAvailable)?EvidenceConfidence.Verified:EvidenceConfidence.High;var outcome=run.Status==QaRunStatus.InfrastructureFailure?EvidenceOutcome.Unknown:run.Status==QaRunStatus.Failed||findings.Any(x=>x.Severity==Severity.Critical)?EvidenceOutcome.Failed:run.Status==QaRunStatus.Partial||findings.Any(x=>x.Severity==Severity.Warning)?EvidenceOutcome.Warning:EvidenceOutcome.Succeeded;yield return new EvidenceRecord(Guid.NewGuid(),command.ProjectId,null,command.SubjectKey,EvidenceSourceType.Quality,$"qa.{run.Language.Value}",outcome,$"{run.Language.Value} universal QA {outcome}",$"{findings.Count} finding(s); detected languages: {string.Join(", ",profile.Languages.Select(x=>x.Value))}.",confidence,null,TrimPayload(summary),_clock.UtcNow,_clock.UtcNow);foreach(var finding in findings.Where(x=>x.Severity is Severity.Critical or Severity.Warning).Take(50)){var reproduced=finding.ReproductionStatus==ReproductionStatus.Reproduced;var candidate=new QaFindingCandidate(finding.Category,finding.Severity,finding.Tool,finding.Title,finding.Message,finding.FilePath,finding.Line,finding.Column,finding.Function,finding.ExceptionType,finding.StackTrace,finding.RuleId,finding.DiagnosticSchemaVersion,finding.SourceFormat,finding.SourceFormatVersion);var pm=_pm.Explain(candidate);var payload=TrimPayload(JsonSerializer.Serialize(new{language=finding.Language.Value,finding.Fingerprint,finding.Tool,finding.Title,finding.Message,finding.FilePath,finding.Line,finding.ExceptionType,stackPreview=Preview(finding.StackTrace,4000),finding.ReproductionStatus,finding.ReproducedAttempts,finding.TotalAttempts,pm.RecommendedAction}));var text=reproduced?$"{pm.Summary} The same failure was automatically reproduced {finding.ReproducedAttempts}/{finding.TotalAttempts} attempts.":pm.Summary;yield return new EvidenceRecord(Guid.NewGuid(),command.ProjectId,null,command.SubjectKey,EvidenceSourceType.Quality,$"qa.finding.{finding.Category}",finding.Severity==Severity.Critical?EvidenceOutcome.Failed:EvidenceOutcome.Warning,pm.Title,text,reproduced?EvidenceConfidence.Verified:EvidenceConfidence.High,null,payload,_clock.UtcNow,_clock.UtcNow);}}
-    private static QaRunResultDto Map(QaRun run,IReadOnlyCollection<QaFinding> findings)=>new(run.Id,run.Status.ToString(),run.Language.Value,run.FindingCount,run.CriticalFindingCount,run.WarningFindingCount,findings.Select(x=>new QaFindingDto(x.Id,x.Category,x.Severity.ToString(),x.Tool,x.Title,x.Message,x.Fingerprint,x.FilePath,x.Line,x.ReproductionStatus.ToString(),x.ReproducedAttempts,x.TotalAttempts)).ToArray(),$"api/v1/qa/runs/{run.Id}/artifacts");
+    private async Task<Guid?> MaterializePipelineAndIssuesAsync(QaExecutionCommand command,QaRun run,IReadOnlyList<QaFinding> findings,CancellationToken ct)
+    {
+        if(!TryCommitSha(command.CommitSha,out var commitSha))return null;
+        var pipeline=new PipelineRun(run.Id,command.ProjectId,commitSha,$"qa:{run.Id:N}",1,"qa-workspace","DIP-QA","universal-qa-v1",run.CreatedAtUtc);
+        pipeline.Start(run.StartedAtUtc??run.CreatedAtUtc);
+        var finished=run.FinishedAtUtc??_clock.UtcNow;
+        switch(run.Status)
+        {
+            case QaRunStatus.Succeeded:pipeline.Complete(finished);break;
+            case QaRunStatus.Partial:pipeline.CompletePartial("QA completed with warnings, unsupported languages, or unavailable optional capabilities.",finished);break;
+            case QaRunStatus.Cancelled:pipeline.Cancel("QA run was cancelled.",finished);break;
+            case QaRunStatus.InfrastructureFailure:pipeline.Fail("QA infrastructure was unavailable.",finished);break;
+            default:pipeline.Fail("QA reported one or more critical findings.",finished);break;
+        }
+        await _pipelineRuns.AddAsync(pipeline,ct);
+
+        foreach(var finding in findings
+            .Where(x=>x.Severity is Severity.Critical or Severity.Warning)
+            .GroupBy(x=>x.Fingerprint,StringComparer.OrdinalIgnoreCase)
+            .Select(x=>x.OrderByDescending(item=>item.Severity).First()))
+        {
+            var existing=await _qualityIssues.FindOpenByFingerprintAsync(command.ProjectId,finding.Fingerprint,ct);
+            if(existing is not null)
+            {
+                existing.Reoccur(pipeline.Id,finding.Severity,_clock.UtcNow);
+                continue;
+            }
+
+            var evidenceJson=TrimPayload(JsonSerializer.Serialize(new
+            {
+                origin="dip-manual-qa",
+                qaRunId=run.Id,
+                pipelineRunId=pipeline.Id,
+                commitSha=command.CommitSha,
+                language=finding.Language.Value,
+                finding.Tool,
+                finding.FilePath,
+                finding.Line,
+                finding.Column,
+                finding.Function,
+                finding.ExceptionType,
+                finding.ReproductionStatus,
+                finding.ReproducedAttempts,
+                finding.TotalAttempts,
+                finding.DiagnosticSchemaVersion,
+                finding.SourceFormat,
+                finding.SourceFormatVersion
+            }));
+            var issue=new QualityIssue(
+                Guid.NewGuid(),
+                command.ProjectId,
+                pipeline.Id,
+                finding.Fingerprint,
+                Limit(finding.Category,80),
+                finding.Severity,
+                Limit(finding.Title,200),
+                Limit(finding.Message,4000),
+                LimitOptional(finding.FilePath,1000),
+                LimitOptional(finding.RuleId,200),
+                evidenceJson,
+                _clock.UtcNow);
+            await _qualityIssues.AddAsync(issue,ct);
+        }
+        return pipeline.Id;
+    }
+
+    private IEnumerable<EvidenceRecord> BuildEvidence(QaExecutionCommand command,QaRun run,IReadOnlyList<QaFinding> findings,IReadOnlyList<QaToolExecution> tools,QaTechnologyProfile profile,string summary,Guid? pipelineRunId)
+    {var confidence=tools.Count>0&&tools.All(x=>x.WasAvailable)?EvidenceConfidence.Verified:EvidenceConfidence.High;var outcome=run.Status==QaRunStatus.InfrastructureFailure?EvidenceOutcome.Unknown:run.Status==QaRunStatus.Failed||findings.Any(x=>x.Severity==Severity.Critical)?EvidenceOutcome.Failed:run.Status==QaRunStatus.Partial||findings.Any(x=>x.Severity==Severity.Warning)?EvidenceOutcome.Warning:EvidenceOutcome.Succeeded;yield return new EvidenceRecord(Guid.NewGuid(),command.ProjectId,pipelineRunId,command.SubjectKey,EvidenceSourceType.Quality,$"qa.{run.Language.Value}",outcome,$"{run.Language.Value} universal QA {outcome}",$"{findings.Count} finding(s); detected languages: {string.Join(", ",profile.Languages.Select(x=>x.Value))}.",confidence,null,TrimPayload(summary),_clock.UtcNow,_clock.UtcNow);foreach(var finding in findings.Where(x=>x.Severity is Severity.Critical or Severity.Warning).Take(50)){var reproduced=finding.ReproductionStatus==ReproductionStatus.Reproduced;var candidate=new QaFindingCandidate(finding.Category,finding.Severity,finding.Tool,finding.Title,finding.Message,finding.FilePath,finding.Line,finding.Column,finding.Function,finding.ExceptionType,finding.StackTrace,finding.RuleId,finding.DiagnosticSchemaVersion,finding.SourceFormat,finding.SourceFormatVersion);var pm=_pm.Explain(candidate);var payload=TrimPayload(JsonSerializer.Serialize(new{language=finding.Language.Value,finding.Fingerprint,finding.Tool,finding.Title,finding.Message,finding.FilePath,finding.Line,finding.ExceptionType,stackPreview=Preview(finding.StackTrace,4000),finding.ReproductionStatus,finding.ReproducedAttempts,finding.TotalAttempts,pm.RecommendedAction}));var text=reproduced?$"{pm.Summary} The same failure was automatically reproduced {finding.ReproducedAttempts}/{finding.TotalAttempts} attempts.":pm.Summary;yield return new EvidenceRecord(Guid.NewGuid(),command.ProjectId,pipelineRunId,command.SubjectKey,EvidenceSourceType.Quality,$"qa.finding.{finding.Category}",finding.Severity==Severity.Critical?EvidenceOutcome.Failed:EvidenceOutcome.Warning,pm.Title,text,reproduced?EvidenceConfidence.Verified:EvidenceConfidence.High,null,payload,_clock.UtcNow,_clock.UtcNow);}}
+    private static QaRunResultDto Map(QaRun run,IReadOnlyCollection<QaFinding> findings,Guid? pipelineRunId)=>new(run.Id,run.Status.ToString(),run.Language.Value,run.FindingCount,run.CriticalFindingCount,run.WarningFindingCount,findings.Select(x=>new QaFindingDto(x.Id,x.Category,x.Severity.ToString(),x.Tool,x.Title,x.Message,x.Fingerprint,x.FilePath,x.Line,x.ReproductionStatus.ToString(),x.ReproducedAttempts,x.TotalAttempts)).ToArray(),$"api/v1/qa/runs/{run.Id}/artifacts",run.SummaryJson,pipelineRunId);
+    private static bool TryCommitSha(string? value,out CommitSha sha){var text=value?.Trim()??string.Empty;if(text.Length is>=7 and<=64&&text.All(Uri.IsHexDigit)){sha=new CommitSha(text);return true;}sha=default;return false;}
+    private static string Limit(string value,int max){var text=value.Trim();return text.Length<=max?text:text[..max];}
+    private static string? LimitOptional(string? value,int max){if(string.IsNullOrWhiteSpace(value))return null;var text=value.Trim();return text.Length<=max?text:text[..max];}
     private static string TrimPayload(string value)=>value.Length<=15900?value:value[..15900];private static string? Preview(string? value,int max)=>string.IsNullOrEmpty(value)?value:value.Length<=max?value:value[..max];
 }

@@ -1,6 +1,7 @@
 using Dip.Api.Authorization;
 using Dip.Application.Features.SystemStatus;
 using Dip.Infrastructure.Persistence;
+using Dip.Infrastructure.QualityAutomation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -78,6 +79,33 @@ public sealed class SystemStatusController(
                 : "Sandbox boundary is disabled; QA execution is not isolated.",
             checkedAt));
 
+        var qaTools = new[]
+        {
+            (Name: "dotnet", Candidates: new[] { "dotnet" }),
+            (Name: "python", Candidates: new[] { "python3", "python" }),
+            (Name: "cmake", Candidates: new[] { "cmake" }),
+            (Name: "clang-tidy", Candidates: new[] { "clang-tidy" }),
+            (Name: "cppcheck", Candidates: new[] { "cppcheck" })
+        };
+        var availableQaTools = qaTools
+            .Where(tool => tool.Candidates.Any(candidate => ProcessExecutor.FindExecutable(candidate) is not null))
+            .Select(tool => tool.Name)
+            .ToArray();
+        var missingQaTools = qaTools
+            .Where(tool => tool.Candidates.All(candidate => ProcessExecutor.FindExecutable(candidate) is null))
+            .Select(tool => tool.Name)
+            .ToArray();
+        components.Add(new SystemComponentStatusDto(
+            "qa-toolchain",
+            "QA Toolchain",
+            missingQaTools.Length == 0
+                ? SystemComponentStates.Healthy
+                : SystemComponentStates.Degraded,
+            missingQaTools.Length == 0
+                ? $"Core repository QA tools are available: {string.Join(", ", availableQaTools)}."
+                : $"Available: {(availableQaTools.Length == 0 ? "none" : string.Join(", ", availableQaTools))}. Missing core tools: {string.Join(", ", missingQaTools)}. Rebuild the API image with the real-use QA toolchain before relying on repository-wide QA.",
+            checkedAt));
+
         var githubAppConfigured =
             configuration.GetValue<long>("GitHub:AppId") > 0
             && configuration.GetValue<long>("GitHub:InstallationId") > 0
@@ -85,23 +113,27 @@ public sealed class SystemStatusController(
                 || !string.IsNullOrWhiteSpace(configuration["GitHub:AppPrivateKeyPath"]));
         var githubTokenConfigured = !string.IsNullOrWhiteSpace(configuration["GitHub:Token"]);
         var githubOAuthConfigured = !string.IsNullOrWhiteSpace(configuration["Authentication:GitHub:ClientId"]);
-        var githubConfigured = githubAppConfigured || githubTokenConfigured || githubOAuthConfigured;
+        var repositoryConnectionConfigured = githubAppConfigured || githubTokenConfigured;
         var githubMode = githubAppConfigured
             ? "GitHub App repository connection"
             : githubTokenConfigured
                 ? "GitHub token repository connection"
                 : githubOAuthConfigured
-                    ? "GitHub OAuth sign-in"
+                    ? "GitHub OAuth sign-in only"
                     : "none";
         components.Add(new SystemComponentStatusDto(
             "github",
-            "GitHub",
-            githubConfigured
+            "GitHub Repository Access",
+            repositoryConnectionConfigured
                 ? SystemComponentStates.Healthy
-                : SystemComponentStates.NotConfigured,
-            githubConfigured
-                ? $"Configured mode: {githubMode}. Use the Repository Picker for a live connectivity check."
-                : "GitHub is not configured. Local development and manual projects can still run.",
+                : githubOAuthConfigured
+                    ? SystemComponentStates.Degraded
+                    : SystemComponentStates.NotConfigured,
+            repositoryConnectionConfigured
+                ? $"Configured mode: {githubMode}. Use Settings > Integrations or the Repository Picker for a live capability check."
+                : githubOAuthConfigured
+                    ? "GitHub OAuth sign-in is configured, but repository API access is not. Set GitHub:Token or GitHub App installation credentials to import and synchronize repositories."
+                    : "GitHub repository access is not configured. Set a read-only GitHub token or GitHub App installation to browse, import and synchronize repositories.",
             checkedAt));
 
         var core = components.Where(x => x.Key is

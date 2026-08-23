@@ -400,8 +400,12 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
             }
 
             var extracted = ExtractRepositoryArchive(archive, extractRoot, maxArchiveBytes * 4);
+            // Resolve the exact revision of the branch that was requested. Using the
+            // repository default-branch SHA here makes workspace freshness incorrect
+            // for projects whose DIP default branch differs from GitHub's default.
+            var branchCommitSha = await GetBranchCommitShaAsync(repoPath, branch, cancellationToken);
             var details = await GetRepositoryAsync(owner, repository, cancellationToken);
-            var commitSha = details.LatestCommitSha ?? branch;
+            var commitSha = branchCommitSha ?? details.LatestCommitSha ?? branch;
             var sync = new GitHubWorkspaceSyncDto(
                 projectId,
                 $"{owner}/{repository}",
@@ -447,6 +451,22 @@ public sealed class GitHubRepositoryCatalog : IGitHubRepositoryCatalog, IDisposa
         {
             return null;
         }
+    }
+
+    private async Task<string?> GetBranchCommitShaAsync(
+        string repoPath,
+        string branch,
+        CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(
+            HttpMethod.Get,
+            $"{repoPath}/commits/{Uri.EscapeDataString(branch)}",
+            cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            return null;
+        using var document = await ReadJsonAsync(response, cancellationToken);
+        return GetString(document.RootElement, "sha");
     }
 
     private async Task<IReadOnlyList<string>> LoadPullRequestCommitsAsync(

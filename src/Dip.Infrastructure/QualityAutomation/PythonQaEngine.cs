@@ -4,8 +4,9 @@ using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
 
-public sealed class PythonQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):IQaAdapter
+public sealed class PythonQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer,IUniversalSemanticAnalyzer semantic):IQaAdapter
 {
+    public PythonQaEngine(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):this(executor,normalizer,new UniversalSemanticAnalyzer()){}
     public string AdapterId=>"python";
     public int Priority=>500;
     public bool Supports(LanguageId language,QaTechnologyProfile profile,string workspace)=>language==LanguageId.Python;
@@ -14,6 +15,8 @@ public sealed class PythonQaEngine(ProcessExecutor executor,UniversalDiagnosticN
     {
         var python=ProcessExecutor.FindExecutable("python")??ProcessExecutor.FindExecutable("python3")??throw new FileNotFoundException("Python executable was not found in PATH.");
         var tools=new List<QaToolExecution>();var findings=new List<QaFindingCandidate>();
+        var semanticResult=await semantic.AnalyzeAsync(new(LanguageId.Python,workspace),ct);findings.AddRange(semanticResult.Findings);
+        tools.Add(new("dip-semantic",true,true,0,0,string.Empty,string.Empty,$"DIP semantic analysis scanned {semanticResult.FilesAnalyzed} Python source file(s).",Version:"1.0"));
         var env=new Dictionary<string,string>{{"PYTHONFAULTHANDLER","1"},{"PYTHONASYNCIODEBUG","1"},{"PYTHONHASHSEED","0"}};
         var timeout=TimeSpan.FromSeconds(Math.Clamp(command.TimeoutSeconds,5,1800));
         await Run("python-compileall",python,["-m","compileall","-q","."],Severity.Critical,"syntax");

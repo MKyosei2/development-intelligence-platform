@@ -4,6 +4,8 @@ COPY . .
 RUN dotnet restore src/Dip.Api/Dip.Api.csproj
 RUN dotnet publish src/Dip.Api/Dip.Api.csproj -c Release -o /out --no-restore
 
+# DIP executes repository QA from the API process. The runtime therefore needs
+# the SDK/analyzer toolchain, not only the ASP.NET runtime.
 FROM mcr.microsoft.com/dotnet/sdk:8.0
 WORKDIR /app
 
@@ -43,14 +45,17 @@ RUN apt-get update \
        shellcheck \
     && python3 -m venv /opt/dip-qa \
     && /opt/dip-qa/bin/python -m pip install --upgrade pip setuptools wheel \
-    && /opt/dip-qa/bin/python -m pip install ruff mypy pytest sqlfluff \
-    && npm install --global typescript \
+    && /opt/dip-qa/bin/python -m pip install ruff mypy pytest sqlfluff semgrep \
+    && npm install --global typescript eslint \
     && rm -rf /var/lib/apt/lists/* /root/.cache
 
 ENV PATH="/opt/dip-qa/bin:${PATH}"
 
 COPY --from=build /out .
 
+# Docker named volumes start empty. Create/chown every persistent mount point
+# in the image first so the non-root API can sync GitHub repositories, restore
+# packages and persist QA evidence on the first real-use run.
 RUN useradd --create-home --uid 10001 dipuser \
     && mkdir -p \
        /home/dipuser/.aspnet/DataProtection-Keys \

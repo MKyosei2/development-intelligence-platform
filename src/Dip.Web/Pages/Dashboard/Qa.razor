@@ -14,9 +14,18 @@
     </div>
     <div class="heading-actions">
         <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button>
-        <button class="btn btn-primary" type="button" @onclick="RunQaAsync" disabled="@(_running || _repository?.Workspace is null)">@(_running ? "QA running…" : "Run QA")</button>
+        <button class="btn btn-primary" type="button" @onclick="RunQaAsync" disabled="@(_running || !CanRunQa)">@(_running ? "QA running…" : RunButtonText)</button>
     </div>
 </section>
+
+@if (!string.IsNullOrWhiteSpace(ImportWarning))
+{
+    <div class="alert alert-warning"><strong>GitHub import completed with a warning.</strong> @ImportWarning</div>
+}
+@if (WorkspaceStale)
+{
+    <div class="alert alert-warning"><strong>Workspace is stale.</strong> GitHub has a newer default-branch commit. The next QA run will synchronize the repository before analysis.</div>
+}
 
 <div class="d-flex gap-2 flex-wrap mb-4">
     <button class="@TabClass("runs")" type="button" @onclick="ShowRuns">Runs</button>
@@ -157,7 +166,7 @@ else
 {
     @if (_repository?.Workspace is null)
     {
-        <EmptyState Icon="⌘" Title="Synchronize the repository first" Description="QA runs only inside the protected Qa:WorkspaceRoot. Synchronize this GitHub project to create the workspace." ActionText="Open repository" ActionHref="@($"/dashboard/{ProjectId}/repository")" />
+        <EmptyState Icon="⌘" Title="Repository workspace is not synchronized" Description="Use Sync & Run QA above to download the current GitHub branch into the persistent protected workspace, or inspect the Repository page first." ActionText="Open repository" ActionHref="@($"/dashboard/{ProjectId}/repository")" />
     }
     else
     {
@@ -176,7 +185,7 @@ else
         }
 
         <div class="metric-grid mb-4">
-            <div class="metric-card"><span>Workspace</span><strong class="metric-text">Ready</strong><small>@_repository.Workspace.WorkspaceRelativePath</small></div>
+            <div class="metric-card"><span>Workspace</span><strong class="metric-text">@(WorkspaceStale ? "Stale" : "Ready")</strong><small>@_repository.Workspace.WorkspaceRelativePath</small></div>
             <div class="metric-card"><span>Commit</span><strong class="metric-text"><code>@ShortSha(_repository.Workspace.CommitSha)</code></strong><small>@_repository.Workspace.Branch</small></div>
             <div class="metric-card"><span>Latest QA</span><strong class="metric-text">@LatestQaStatus</strong><small>@LatestQaDate</small></div>
             <div class="metric-card"><span>Durable issues</span><strong>@OpenIssueCount</strong><small>open / reopened</small></div>
@@ -185,7 +194,7 @@ else
         @if (_lastRun is not null)
         {
             <section class="card mb-4 qa-result-card">
-                <div class="card-header"><div><div class="eyebrow">Latest manual run</div><strong>QA result</strong></div><StatusBadge Value="@_lastRun.Status" /></div>
+                <div class="card-header"><div><div class="eyebrow">Selected / latest run</div><strong>QA result</strong></div><StatusBadge Value="@_lastRun.Status" /></div>
                 <div class="card-body">
                     <div class="qa-result-summary">
                         <div><span>Findings</span><strong>@_lastRun.FindingCount</strong></div>
@@ -262,6 +271,9 @@ else
 @code {
     [Parameter] public Guid ProjectId { get; set; }
     [SupplyParameterFromQuery(Name = "issue")] public Guid? RequestedIssueId { get; set; }
+    [SupplyParameterFromQuery(Name = "run")] public Guid? RequestedRunId { get; set; }
+    [SupplyParameterFromQuery(Name = "autorun")] public bool AutoRun { get; set; }
+    [SupplyParameterFromQuery(Name = "importWarning")] public string? ImportWarning { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private GitHubProjectRepositoryDto? _repository;
@@ -273,6 +285,7 @@ else
     private string _tab = "runs";
     private bool _loading = true;
     private bool _running;
+    private bool _autoRunConsumed;
     private string? _error;
     private string? _runError;
 
@@ -280,12 +293,25 @@ else
     private string LatestQaDate => _dashboard?.RecentQaRuns.FirstOrDefault() is { } run ? FormatDate(run.CreatedAtUtc) : "No QA evidence";
     private int OpenIssueCount => _issues.Count(x => x.Status is "Open" or "Reopened");
     private int MaxTrendFindings => Math.Max(1, _trends.Count == 0 ? 1 : _trends.Max(x => x.FindingCount));
+    private bool WorkspaceStale => _repository?.Workspace is { } workspace
+        && !string.IsNullOrWhiteSpace(_repository.Repository?.LatestCommitSha)
+        && !workspace.CommitSha.Equals(_repository.Repository!.LatestCommitSha, StringComparison.OrdinalIgnoreCase);
+    private bool CanRunQa => _repository is not null
+        && (_repository.Workspace is not null || _repository.Connection.Connected);
+    private string RunButtonText => _repository?.Workspace is null
+        ? "Sync & Run QA"
+        : WorkspaceStale ? "Sync latest & Run QA" : "Run QA";
 
     protected override async Task OnInitializedAsync()
     {
         Realtime.ProjectEvent += OnRealtimeEvent;
         Projects.Select(ProjectId);
         await LoadAsync();
+        if (AutoRun && !_autoRunConsumed && _error is null)
+        {
+            _autoRunConsumed = true;
+            await RunQaAsync();
+        }
     }
 
     protected override async Task OnParametersSetAsync()
@@ -311,6 +337,11 @@ else
             _dashboard = await dashboardTask;
             _issues = await issuesTask;
             _trends = await trendsTask;
+            var selectedRunId = RequestedRunId
+                ?? _lastRun?.QaRunId
+                ?? _dashboard?.RecentQaRuns.FirstOrDefault()?.Id;
+            if (selectedRunId is { } runId)
+                _lastRun = await Api.GetQaRunAsync(runId);
             if (RequestedIssueId is { } requestedIssueId)
             {
                 _selectedIssue = _issues.FirstOrDefault(x => x.Id == requestedIssueId);
@@ -328,7 +359,7 @@ else
 
     private async Task RunQaAsync()
     {
-        if (_repository?.Workspace is not { } workspace)
+        if (_repository is null)
             return;
         _running = true;
         _runError = null;
@@ -336,6 +367,16 @@ else
         await Task.Yield();
         try
         {
+            if (_repository.Workspace is null || WorkspaceStale)
+            {
+                if (!_repository.Connection.Connected)
+                    throw new InvalidOperationException("GitHub is disconnected and no current workspace can be synchronized.");
+                await Api.SyncProjectRepositoryAsync(ProjectId);
+                _repository = await Api.GetProjectRepositoryAsync(ProjectId);
+            }
+
+            var workspace = _repository.Workspace
+                ?? throw new InvalidOperationException("Repository synchronization completed without a QA workspace.");
             var command = new QaExecutionCommand(
                 ProjectId,
                 $"gui:{workspace.Branch}:{ShortSha(workspace.CommitSha)}",
@@ -344,7 +385,7 @@ else
                 workspace.CommitSha,
                 null,
                 null,
-                TimeoutSeconds: 180,
+                TimeoutSeconds: 300,
                 AutomaticallyReproduce: true,
                 RecordScreen: false,
                 RecordSystemAudio: false);

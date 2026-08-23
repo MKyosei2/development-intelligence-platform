@@ -4,14 +4,17 @@ using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
 
-public sealed class GenericCommandQaAdapter(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):IQaAdapter
+public sealed class GenericCommandQaAdapter(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer,IUniversalSemanticAnalyzer semantic):IQaAdapter
 {
+    public GenericCommandQaAdapter(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):this(executor,normalizer,new UniversalSemanticAnalyzer()){}
     private static readonly HashSet<LanguageId> Supported=new(){LanguageId.JavaScript,LanguageId.TypeScript,LanguageId.Java,LanguageId.Kotlin,LanguageId.Go,LanguageId.Rust,LanguageId.Lua,LanguageId.Ruby,LanguageId.Php,LanguageId.Swift,LanguageId.ObjectiveC,LanguageId.Bash,LanguageId.PowerShell,LanguageId.Sql,LanguageId.Glsl,LanguageId.C,LanguageId.Cpp};
     public string AdapterId=>"builtin-generic";public int Priority=>100;
     public bool Supports(LanguageId language,QaTechnologyProfile profile,string workspace)=>Supported.Contains(language);
     public async Task<QaAdapterResult> RunAsync(QaExecutionCommand command,string workspace,string artifactRoot,CancellationToken ct)
     {
         var tools=new List<QaToolExecution>();var findings=new List<QaFindingCandidate>();var timeout=TimeSpan.FromSeconds(Math.Clamp(command.TimeoutSeconds,5,1800));
+        var semanticResult=await semantic.AnalyzeAsync(new(command.Language,workspace),ct);findings.AddRange(semanticResult.Findings);
+        tools.Add(new("dip-semantic",true,true,0,0,string.Empty,string.Empty,$"DIP semantic analysis scanned {semanticResult.FilesAnalyzed} {command.Language.Value} source file(s).",Version:"1.0"));
         async Task Run(string name,string exe,IEnumerable<string> args,string category="compile",Severity severity=Severity.Critical)
         {var resolved=ProcessExecutor.FindExecutable(exe);if(resolved is null){tools.Add(new(name,false,false,null,0,"","",$"{exe} is unavailable; check skipped."));return;}var r=await QaToolSupport.ExecuteAsync(executor,normalizer,name,resolved,args,workspace,artifactRoot,null,timeout,command.Language,severity,category,ct);tools.Add(r.Tool);findings.AddRange(r.Findings);}
         async Task PerFile(string name,string exe,string[] extensions,Func<string,IEnumerable<string>> args)

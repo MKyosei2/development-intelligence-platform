@@ -296,17 +296,19 @@ else
 
             <div class="col-12 col-xl-5">
                 <section class="card">
-                    <div class="card-header"><strong>GitHub App setup</strong></div>
+                    <div class="card-header"><strong>GitHub repository access</strong></div>
                     <div class="card-body">
+                        <p class="mb-2"><strong>Local / single-user:</strong> set a fine-grained read-only token in <code>DIP_GITHUB_TOKEN</code> inside <code>.env</code>, then restart the API.</p>
+                        <p class="mb-3"><strong>Shared / hosted:</strong> configure a GitHub App installation with App ID, installation ID, slug and private key. OAuth browser sign-in alone does not grant the server repository-sync access used by the Repository Picker.</p>
                         <p>Recommended repository permissions:</p>
                         <div class="permission-list">
                             <span><strong>Metadata</strong><small>Read</small></span>
                             <span><strong>Contents</strong><small>Read</small></span>
                             <span><strong>Actions</strong><small>Read</small></span>
                             <span><strong>Pull requests</strong><small>Read</small></span>
-                            <span><strong>Issues</strong><small>Read (Write only if work-item creation is enabled)</small></span>
+                            <span><strong>Issues</strong><small>Read (optional)</small></span>
                         </div>
-                        <p class="small text-muted mt-3 mb-0">Credentials remain server-side. DIP shows connection state and performs live tests, but does not render private keys or tokens.</p>
+                        <p class="small text-muted mt-3 mb-0">Credentials remain server-side. DIP shows connection state and performs live capability tests, but never renders private keys or tokens in the browser.</p>
                     </div>
                 </section>
             </div>

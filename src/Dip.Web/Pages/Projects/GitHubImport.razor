@@ -9,7 +9,7 @@
     <div>
         <div class="eyebrow">Project onboarding</div>
         <h1>Import GitHub repository</h1>
-        <p>Select a repository that the configured GitHub App installation can access. Repository metadata and the default branch are filled automatically.</p>
+        <p>Select a repository visible to the configured GitHub App or read-only token. DIP can synchronize the source and run the first QA pass during import.</p>
     </div>
     <div class="heading-actions">
         <a class="btn btn-outline-secondary" href="/projects/new">Manual setup</a>
@@ -18,7 +18,7 @@
 
 @if (_loading)
 {
-    <LoadingState Message="Loading GitHub repositories…" Detail="Checking the server-side GitHub App installation." />
+    <LoadingState Message="Loading GitHub repositories…" Detail="Checking the server-side GitHub repository connection." />
 }
 else if (_error is not null)
 {
@@ -29,7 +29,7 @@ else if (_connection is not null && !_connection.Connected)
     <div class="integration-banner warning" data-testid="github-disconnected">
         <div>
             <div class="eyebrow">GitHub repository connection</div>
-            <h2>Connect a GitHub App installation</h2>
+            <h2>Connect GitHub repository access</h2>
             <p>@_connection.Message</p>
         </div>
         @if (!string.IsNullOrWhiteSpace(_connection.InstallUrl))
@@ -40,7 +40,7 @@ else if (_connection is not null && !_connection.Connected)
     <div class="card mt-3">
         <div class="card-body">
             <strong>Required server configuration</strong>
-            <p class="small text-muted mt-2">Set the GitHub App ID, installation ID, slug and private key in <code>.env</code>, then restart the API. The private key never enters the browser.</p>
+            <p class="small text-muted mt-2">Set <code>DIP_GITHUB_TOKEN</code> to a repository-scoped fine-grained PAT, or configure the GitHub App ID / installation ID / private key in <code>.env</code>, then restart the API. Secrets never enter the browser.</p>
             <a href="/settings" class="btn btn-outline-secondary btn-sm">Open settings</a>
         </div>
     </div>
@@ -80,7 +80,7 @@ else
 
     @if (_repositories.Count == 0)
     {
-        <EmptyState Icon="⌕" Title="No repositories found" Description="Change the search/filter or grant the GitHub App access to another repository." />
+        <EmptyState Icon="⌕" Title="No repositories found" Description="Change the search/filter or grant the configured GitHub App/token access to another repository." />
     }
     else
     {
@@ -138,7 +138,11 @@ else
                         </div>
                         <label class="check-row">
                             <InputCheckbox @bind-Value="_syncWorkspace" />
-                            <span><strong>Synchronize workspace now</strong><small>Downloads the selected branch into the protected QA workspace so QA can run from the GUI.</small></span>
+                            <span><strong>Synchronize workspace now</strong><small>Downloads the selected branch into the persistent protected QA workspace.</small></span>
+                        </label>
+                        <label class="check-row">
+                            <InputCheckbox @bind-Value="_runInitialQa" disabled="@(!_syncWorkspace)" />
+                            <span><strong>Run initial QA after import</strong><small>Detects the repository technology, executes available analyzers/tests and persists Critical/Warning findings as durable Issues.</small></span>
                         </label>
                         <button class="btn btn-primary w-100" data-testid="import-repository-submit" type="button" @onclick="ImportAsync" disabled="@_importing">
                             @(_importing ? "Importing…" : "Import repository")
@@ -159,6 +163,7 @@ else
     private string _projectName = string.Empty;
     private DateTime? _releaseDate;
     private bool _syncWorkspace = true;
+    private bool _runInitialQa = true;
     private bool _loading = true;
     private bool _filtering;
     private bool _importing;
@@ -241,13 +246,24 @@ else
                 _selected.FullName,
                 _projectName.Trim(),
                 release,
-                _syncWorkspace));
+                _syncWorkspace,
+                _runInitialQa));
             await Projects.RefreshAsync();
             Projects.Select(imported.ProjectId);
-            var suffix = string.IsNullOrWhiteSpace(imported.Warning)
-                ? string.Empty
-                : "?importWarning=" + Uri.EscapeDataString(imported.Warning);
-            Navigation.NavigateTo($"/dashboard/{imported.ProjectId}{suffix}");
+            if (imported.InitialQaRunId is { } qaRunId)
+            {
+                var suffix = $"?run={qaRunId}";
+                if (!string.IsNullOrWhiteSpace(imported.Warning))
+                    suffix += "&importWarning=" + Uri.EscapeDataString(imported.Warning);
+                Navigation.NavigateTo($"/dashboard/{imported.ProjectId}/qa{suffix}");
+            }
+            else
+            {
+                var suffix = string.IsNullOrWhiteSpace(imported.Warning)
+                    ? string.Empty
+                    : "?importWarning=" + Uri.EscapeDataString(imported.Warning);
+                Navigation.NavigateTo($"/dashboard/{imported.ProjectId}{suffix}");
+            }
         }
         catch (Exception exception)
         {

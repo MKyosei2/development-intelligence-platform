@@ -34,7 +34,7 @@ else if (_dashboard is not null)
         </div>
         <div class="heading-actions">
             <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button>
-            <a class="btn btn-primary" href="@($"/dashboard/{ProjectId}/qa")">Run QA</a>
+            <a class="btn btn-primary" href="@($"/dashboard/{ProjectId}/qa?autorun=true")">Run QA</a>
         </div>
     </section>
 

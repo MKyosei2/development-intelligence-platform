@@ -16,6 +16,7 @@ public sealed class UnityProjectQaAdapter(
     UniversalDiagnosticNormalizer normalizer,
     IUniversalSemanticAnalyzer semantic):IQaAdapter
 {
+    public UnityProjectQaAdapter(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):this(executor,normalizer,new UniversalSemanticAnalyzer()){}
     public string AdapterId=>"unity";
     public int Priority=>800;
     public bool Supports(LanguageId language,QaTechnologyProfile profile,string workspace)
