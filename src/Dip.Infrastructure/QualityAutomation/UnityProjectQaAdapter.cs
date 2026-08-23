@@ -8,8 +8,13 @@ namespace Dip.Infrastructure.QualityAutomation;
 /// Engine-aware Unity QA. It deliberately takes precedence over the normal
 /// dotnet adapter because Unity projects are compiled and tested by the Editor,
 /// not by assuming that a standalone .sln/.csproj is authoritative.
+/// When a Unity Editor is not installed in the container, DIP still performs
+/// repository-local semantic/source analysis instead of returning an empty QA run.
 /// </summary>
-public sealed class UnityProjectQaAdapter(ProcessExecutor executor,UniversalDiagnosticNormalizer normalizer):IQaAdapter
+public sealed class UnityProjectQaAdapter(
+    ProcessExecutor executor,
+    UniversalDiagnosticNormalizer normalizer,
+    IUniversalSemanticAnalyzer semantic):IQaAdapter
 {
     public string AdapterId=>"unity";
     public int Priority=>800;
@@ -23,9 +28,41 @@ public sealed class UnityProjectQaAdapter(ProcessExecutor executor,UniversalDiag
         var unity=FindUnityEditor();
         if(unity is null)
         {
-            tools.Add(new("unity-editmode",false,false,null,0,string.Empty,string.Empty,
-                "Unity Editor was not found. Set UNITY_EDITOR_PATH (or UNITY_PATH) to run engine-aware QA."));
-            return new(LanguageId.CSharp,tools,findings,QaToolSupport.JsonSummary(LanguageId.CSharp,tools,findings));
+            // A Linux Docker runtime normally does not contain the licensed Unity
+            // Editor. Do not silently produce zero findings: retain engine-aware
+            // status while still analyzing the checked-out C# source.
+            var semanticResult=await semantic.AnalyzeAsync(
+                new(LanguageId.CSharp,workspace),
+                ct);
+            findings.AddRange(semanticResult.Findings);
+            tools.Add(new(
+                "dip-semantic",
+                true,
+                true,
+                0,
+                0,
+                string.Empty,
+                string.Empty,
+                $"Unity Editor is unavailable; DIP semantic analysis scanned {semanticResult.FilesAnalyzed} source file(s).",
+                Version:"1.0"));
+            tools.Add(new(
+                "unity-editmode",
+                false,
+                false,
+                null,
+                0,
+                string.Empty,
+                string.Empty,
+                "Unity Editor was not found. Engine EditMode tests were skipped; source-level DIP analysis still ran. Set UNITY_EDITOR_PATH (or UNITY_PATH) on a compatible runner to add Unity Test Framework evidence."));
+            return new(
+                LanguageId.CSharp,
+                tools,
+                findings
+                    .GroupBy(x=>string.Join('|',x.Category,x.FilePath,x.Line,x.RuleId,x.Message),StringComparer.Ordinal)
+                    .Select(x=>x.First())
+                    .Take(500)
+                    .ToArray(),
+                QaToolSupport.JsonSummary(LanguageId.CSharp,tools,findings));
         }
 
         Directory.CreateDirectory(artifactRoot);
