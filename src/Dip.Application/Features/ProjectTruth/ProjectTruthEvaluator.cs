@@ -10,6 +10,7 @@ public sealed class ProjectTruthEvaluator
     private readonly ProgressEvaluator _progress;
     private readonly ProjectBlockerEvaluator _blockers;
     private readonly ProjectRiskEvaluator _risk;
+    private readonly ProjectTruthPolicy _policy;
 
     public ProjectTruthEvaluator(
         ClaimVerificationEvaluator claimVerification,
@@ -17,12 +18,30 @@ public sealed class ProjectTruthEvaluator
         ProgressEvaluator progress,
         ProjectBlockerEvaluator blockers,
         ProjectRiskEvaluator risk)
+        : this(
+            claimVerification,
+            confidence,
+            progress,
+            blockers,
+            risk,
+            ProjectTruthPolicy.Default)
     {
-        _claimVerification = claimVerification;
-        _confidence = confidence;
-        _progress = progress;
-        _blockers = blockers;
-        _risk = risk;
+    }
+
+    public ProjectTruthEvaluator(
+        ClaimVerificationEvaluator claimVerification,
+        EvidenceConfidenceEvaluator confidence,
+        ProgressEvaluator progress,
+        ProjectBlockerEvaluator blockers,
+        ProjectRiskEvaluator risk,
+        ProjectTruthPolicy policy)
+    {
+        _claimVerification = claimVerification ?? throw new ArgumentNullException(nameof(claimVerification));
+        _confidence = confidence ?? throw new ArgumentNullException(nameof(confidence));
+        _progress = progress ?? throw new ArgumentNullException(nameof(progress));
+        _blockers = blockers ?? throw new ArgumentNullException(nameof(blockers));
+        _risk = risk ?? throw new ArgumentNullException(nameof(risk));
+        _policy = (policy ?? throw new ArgumentNullException(nameof(policy))).Validate();
     }
 
     public ProjectTruthAssessment Evaluate(
@@ -93,7 +112,7 @@ public sealed class ProjectTruthEvaluator
             topActions);
     }
 
-    private static decimal CalculateHealth(
+    private decimal CalculateHealth(
         ProgressAssessment progress,
         EvidenceConfidence confidence,
         IReadOnlyCollection<ProjectBlocker> blockers,
@@ -101,30 +120,34 @@ public sealed class ProjectTruthEvaluator
         int unverifiedClaimCount)
     {
         var score = 100m;
-        score -= blockers.Count(item => item.Severity == "Critical") * 25m;
-        score -= blockers.Count(item => item.Severity == "Blocker") * 12m;
-        score -= contradictionCount * 10m;
-        score -= Math.Min(12m, unverifiedClaimCount * 3m);
+        score -= blockers.Count(item => item.Severity == "Critical") * _policy.CriticalBlockerHealthPenalty;
+        score -= blockers.Count(item => item.Severity == "Blocker") * _policy.BlockerHealthPenalty;
+        score -= contradictionCount * _policy.ContradictionHealthPenalty;
+        score -= Math.Min(
+            _policy.MaxUnverifiedClaimHealthPenalty,
+            unverifiedClaimCount * _policy.UnverifiedClaimHealthPenalty);
 
         if (progress.ReportedProgress is { } reported)
         {
             var gap = Math.Max(0m, reported - progress.VerifiedProgress);
-            score -= Math.Min(20m, gap * 0.25m);
+            score -= Math.Min(
+                _policy.MaxProgressGapHealthPenalty,
+                gap * _policy.ProgressGapHealthPenaltyFactor);
         }
 
         score -= confidence switch
         {
-            EvidenceConfidence.Unverified => 20m,
-            EvidenceConfidence.Low => 15m,
-            EvidenceConfidence.Medium => 8m,
-            EvidenceConfidence.High => 3m,
+            EvidenceConfidence.Unverified => _policy.UnverifiedEvidenceHealthPenalty,
+            EvidenceConfidence.Low => _policy.LowEvidenceHealthPenalty,
+            EvidenceConfidence.Medium => _policy.MediumEvidenceHealthPenalty,
+            EvidenceConfidence.High => _policy.HighEvidenceHealthPenalty,
             _ => 0m
         };
 
         return decimal.Round(Math.Clamp(score, 0m, 100m), 2);
     }
 
-    private static IReadOnlyList<string> BuildTopActions(
+    private IReadOnlyList<string> BuildTopActions(
         IReadOnlyCollection<ProjectBlocker> blockers,
         EvidenceConfidence confidence,
         ProgressAssessment progress,
@@ -142,7 +165,7 @@ public sealed class ProjectTruthEvaluator
             actions.Add("Collect fresh automated evidence for the most important project areas.");
 
         if (progress.ReportedProgress is { } reported
-            && reported - progress.VerifiedProgress >= 20m
+            && reported - progress.VerifiedProgress >= _policy.MediumRiskProgressGapThreshold
             && actions.Count < 3)
         {
             actions.Add("Verify the large gap between reported and evidence-backed progress.");

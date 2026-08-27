@@ -89,6 +89,7 @@ public static class DependencyInjection
         services.AddSingleton<EvidenceConfidenceEvaluator>();
         services.AddSingleton<ProgressEvaluator>();
         services.AddSingleton<ProjectBlockerEvaluator>();
+        services.AddSingleton<ProjectTruthPolicy>(ProjectTruthPolicy.Default);
         services.AddSingleton<ProjectRiskEvaluator>();
         services.AddSingleton<ProjectTruthEvaluator>();
         services.AddSingleton<PmEvidenceTranslator>();

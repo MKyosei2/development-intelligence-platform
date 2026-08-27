@@ -1,6 +1,6 @@
 ## Purpose
 
-Describe the problem this pull request solves.
+Describe the engineering problem this pull request solves. Avoid feature-list-only descriptions.
 
 ## Changes
 
@@ -17,22 +17,29 @@ Describe the problem this pull request solves.
 - [ ] Web dashboard
 - [ ] Worker
 - [ ] Python analysis service
-- [ ] Collector
+- [ ] Collector / engine integration
 - [ ] Database migration
 - [ ] CI/CD
-- [ ] Documentation
+- [ ] Documentation / portfolio evidence
+
+## Technical decision
+
+Explain the important trade-off or invariant introduced/changed by this PR. If a threshold, retry count, timeout, score, or performance target changed, explain why.
 
 ## Verification
 
-Describe how this change was tested.
+List only checks that actually executed for this revision.
 
 ```text
-Commands:
-- dotnet build
-- dotnet test
-- pytest
-- cmake --build ...
+Commands/workflows:
+- dotnet build ...
+- dotnet test ...
+- pytest ...
+- Integration and E2E Tests
+- Security Scan
 ```
+
+If a runner or dependency was unavailable, record it as unavailable rather than PASS.
 
 ## Quality and risk
 
@@ -40,19 +47,22 @@ Commands:
 - Performance impact:
 - Security impact:
 - Backward compatibility:
-- Database migration:
+- Database/configuration impact:
 - Rollback method:
 
 ## Evidence
 
-Add screenshots, logs, benchmark results, trace IDs, or sample collector reports.
+Add screenshots, logs, benchmark results, trace IDs, sample collector reports, or artifact links. State the exact commit/SHA for measured results.
 
 ## Checklist
 
 - [ ] The change has a single clear purpose.
-- [ ] Tests were added or updated.
+- [ ] Commit subjects describe intent using the repository's Conventional Commit rules.
+- [ ] Tests were added or updated for behavior changes.
+- [ ] Numeric thresholds/penalties are named, documented, or configurable rather than unexplained magic numbers.
 - [ ] Public contracts and schemas remain backward compatible, or the breaking change is documented.
 - [ ] Secrets and personal information are not included.
 - [ ] Error handling and logging were reviewed.
 - [ ] Documentation was updated when behavior changed.
-- [ ] Generated files and local artifacts are not committed.
+- [ ] Generated files and local artifacts are not committed unless they are intentional evidence.
+- [ ] Historical evidence is not presented as proof for a newer revision.

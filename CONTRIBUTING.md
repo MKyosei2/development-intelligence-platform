@@ -11,7 +11,7 @@ Required tools:
 - Git;
 - Visual Studio 2022, Visual Studio Code, or JetBrains Rider.
 
-Start the local infrastructure:
+Start local infrastructure:
 
 ```bash
 docker compose up -d
@@ -38,13 +38,11 @@ docs/short-description
 test/short-description
 ```
 
-Do not combine unrelated refactoring, formatting, behavior changes, and
-dependency updates in one pull request.
+Do not combine unrelated refactoring, formatting, behavior changes, and dependency updates in one pull request.
 
 ## Coding rules
 
-- Preserve the dependency direction:
-  `Domain <- Application <- Infrastructure <- Api / Worker`.
+- Preserve the dependency direction: `Domain <- Application <- Infrastructure <- Api / Worker`.
 - Keep shared transport contracts in `Dip.Shared`.
 - Use UTC for persisted timestamps.
 - Pass `CancellationToken` through asynchronous operations.
@@ -52,20 +50,30 @@ dependency updates in one pull request.
 - Validate external input at the boundary.
 - Keep secrets and production data out of source control and logs.
 - Add or update tests when behavior changes.
-- Keep public APIs and JSON contracts backward compatible unless the breaking
-  change is documented.
+- Keep public APIs and JSON contracts backward compatible unless a breaking change is explicitly documented.
+- Keep implemented-source claims separate from exact-revision runtime verification.
 
-## Commit messages
+## Commit subjects
 
-Use short, imperative messages that describe one logical change.
+Use Conventional Commit-style subjects so reviewers can understand intent directly from history. Generic subjects such as `改善`, `修正`, `update`, or numbered variants do not describe the engineering change and should not be used for new commits.
 
 Examples:
 
 ```text
-Add collector report validation
-Fix duplicate pipeline run handling
-Document local Redis setup
+feat(qa): add runtime defect evidence
+fix(ci): restore integration test startup
+perf(metrics): reduce million-row query latency
+refactor(web): split management cockpit components
+docs(portfolio): explain exact-revision evidence
 ```
+
+Keep the subject imperative and at most 72 characters. Install the optional local template with:
+
+```bash
+git config commit.template .gitmessage
+```
+
+Pull requests and pushes to protected development branches validate commit subjects automatically.
 
 ## Pull requests
 
@@ -76,9 +84,10 @@ A pull request should contain:
 - testing performed;
 - migration or configuration impact;
 - screenshots for dashboard changes;
-- known limitations and follow-up work.
+- known limitations and follow-up work;
+- exact-revision evidence when the PR claims measured/runtime behavior.
 
-Before requesting review, confirm that:
+Before requesting review, confirm that the applicable checks run locally or in CI:
 
 ```bash
 dotnet format --verify-no-changes
@@ -86,7 +95,7 @@ dotnet build DevelopmentIntelligencePlatform.sln -c Release
 dotnet test DevelopmentIntelligencePlatform.sln -c Release
 ```
 
-If a command cannot be run, state the reason in the pull request.
+If a required command cannot run, state the reason. Infrastructure-unavailable is not equivalent to PASS.
 
 ## Database changes
 
@@ -102,19 +111,4 @@ Never edit an already-applied production migration.
 
 ## Security
 
-Follow `SECURITY.md`. Never place vulnerabilities, tokens, secrets, or private
-payloads in a public issue or pull request.
-
-
-## Commit subjects
-
-Use Conventional Commit-style subjects so a reviewer can understand change intent from history:
-
-```text
-feat(qa): add runtime defect evidence
-fix(ci): restore integration test startup
-refactor(web): split management cockpit components
-docs(portfolio): add verified evidence index
-```
-
-Keep the subject imperative and at most 72 characters. Install the optional local template with `git config commit.template .gitmessage`. Pull requests validate commit subjects automatically.
+Follow `SECURITY.md`. Never place vulnerabilities, tokens, secrets, or private payloads in a public issue or pull request.
