@@ -1,7 +1,6 @@
 @page "/dashboard/{ProjectId:guid}/management"
 @using Dip.Application.Features.Management
 @inject ApiClient Api
-@inject HttpClient Http
 
 <PageTitle>Management Operations | DIP</PageTitle>
 
@@ -130,7 +129,7 @@ else if (_cockpit is not null && _management is not null)
                 <div class="alert alert-light border small">XLSX data is analyzed before mutation. Japanese/English columns and software, media/VFX, construction, or generic project semantics are inferred, while unknown columns are preserved as custom metadata.</div>
                 @if (!string.IsNullOrWhiteSpace(_spreadsheetError)) { <div class="alert alert-danger">@_spreadsheetError</div> }
                 <div class="row g-3 align-items-end">
-                    <div class="col-12 col-lg-5"><label class="form-label">Workbook (.xlsx)</label><InputFile OnChange="OnSpreadsheetSelected" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control" /></div>
+                    <div class="col-12 col-lg-5"><label class="form-label">Workbook (.xlsx)</label><InputFile OnChange="OnSpreadsheetSelected" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control" data-testid="spreadsheet-file" /></div>
                     <div class="col-12 col-lg-3"><label class="form-label">Domain override <span class="text-muted">optional</span></label><input class="form-control" @bind="_spreadsheetDomainOverride" placeholder="media.production" /></div>
                     <div class="col-12 col-lg-4"><div class="d-flex gap-2"><button class="btn btn-outline-primary flex-fill" data-testid="spreadsheet-analyze" disabled="@(!CanUseSpreadsheet || _spreadsheetBusy)" @onclick="AnalyzeSpreadsheetAsync">Analyze schema</button><button class="btn btn-outline-secondary flex-fill" data-testid="spreadsheet-dry-run" disabled="@(!CanUseSpreadsheet || _spreadsheetBusy)" @onclick="PreviewSpreadsheetAsync">Dry run</button><button class="btn btn-primary flex-fill" data-testid="spreadsheet-apply" disabled="@(!CanUseSpreadsheet || _spreadsheetBusy)" @onclick="ImportSpreadsheetAsync">Apply import</button></div></div>
                 </div>

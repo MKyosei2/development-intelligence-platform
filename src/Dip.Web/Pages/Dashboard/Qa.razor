@@ -1,7 +1,6 @@
 @page "/dashboard/{ProjectId:guid}/qa"
 @implements IDisposable
 @inject ApiClient Api
-@inject HttpClient Http
 @inject ProjectState Projects
 @inject RealtimeUpdateService Realtime
 
@@ -257,6 +256,37 @@ else if (_tab == "debug")
                 }
             </div>
         }
+
+        <div class="card-body border-top" data-testid="qa-debug-history">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="eyebrow">Durable history</div><strong>Recent autonomous debug sessions</strong></div>
+                <span>@_debugSessions.Count session(s)</span>
+            </div>
+            @if (_debugSessions.Count == 0)
+            {
+                <div class="compact-empty"><span class="status-dot neutral"></span><div><small>No autonomous debug session has been persisted for this project.</small></div></div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead><tr><th>Status</th><th>Subject</th><th>Domain</th><th>Started</th><th>Attempts</th></tr></thead>
+                        <tbody>
+                        @foreach (var session in _debugSessions)
+                        {
+                            <tr class="@(_debugSession?.SessionId == session.SessionId ? "table-active" : string.Empty)" style="cursor:pointer" @onclick="() => SelectDebugSession(session)">
+                                <td><StatusBadge Value="@session.Status" /></td>
+                                <td><strong>@session.SubjectKey</strong><div class="small text-muted"><code>@ShortGuid(session.SessionId)</code></div></td>
+                                <td><code>@session.DomainId</code></td>
+                                <td>@FormatDate(session.StartedAtUtc)</td>
+                                <td>@session.Attempts.Count</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
     </section>
 }
 else
@@ -362,6 +392,7 @@ else
     private bool _debugRunning;
     private string? _debugError;
     private AutonomousDebugSessionDto? _debugSession;
+    private IReadOnlyList<AutonomousDebugSessionDto> _debugSessions = Array.Empty<AutonomousDebugSessionDto>();
 
     private string LatestQaStatus => _dashboard?.RecentQaRuns.FirstOrDefault()?.Status ?? "No run";
     private string LatestQaDate => _dashboard?.RecentQaRuns.FirstOrDefault() is { } run ? FormatDate(run.CreatedAtUtc) : "No QA evidence";
@@ -408,10 +439,16 @@ else
             var dashboardTask = Api.GetProjectAsync(ProjectId);
             var issuesTask = Api.GetQualityIssuesAsync(ProjectId, 250);
             var trendsTask = Api.GetQaTrendsAsync(ProjectId, 30);
+            var debugSessionsTask = Api.GetAutonomousDebugSessionsAsync(ProjectId, 20);
             _repository = await repositoryTask;
             _dashboard = await dashboardTask;
             _issues = await issuesTask;
             _trends = await trendsTask;
+            var selectedDebugId = _debugSession?.SessionId;
+            _debugSessions = await debugSessionsTask;
+            _debugSession = selectedDebugId is { } debugId
+                ? _debugSessions.FirstOrDefault(x => x.SessionId == debugId) ?? _debugSessions.FirstOrDefault()
+                : _debugSessions.FirstOrDefault();
             var selectedRunId = RequestedRunId ?? _lastRun?.QaRunId ?? _dashboard?.RecentQaRuns.FirstOrDefault()?.Id;
             if (selectedRunId is { } runId)
                 _lastRun = await Api.GetQaRunAsync(runId);
@@ -481,34 +518,25 @@ else
         _debugRunning = true;
         try
         {
-            var body = new
-            {
-                subjectKey = _debugSubject.Trim(),
-                question = _debugQuestion.Trim(),
-                evidenceJson = _debugEvidenceJson,
-                workspaceRelativePath = workspace.WorkspaceRelativePath,
-                repositoryContext = string.IsNullOrWhiteSpace(_debugRepositoryContext) ? null : _debugRepositoryContext,
-                baseCommit = workspace.CommitSha,
-                language = "auto",
-                domainId = _debugDomain,
-                budget = new
-                {
-                    maxHypotheses = Math.Clamp(_debugMaxHypotheses, 1, 10),
-                    maxExperiments = Math.Clamp(_debugMaxExperiments, 1, 10),
-                    maxAiCalls = Math.Clamp(_debugMaxAiCalls, 2, 20),
-                    timeoutSecondsPerExperiment = Math.Clamp(_debugTimeoutSeconds, 30, 1800),
-                    maxWallClockMinutes = Math.Clamp(_debugWallClockMinutes, 1, 120)
-                }
-            };
+            var budget = new AutonomousDebugBudget(
+                Math.Clamp(_debugMaxHypotheses, 1, 10),
+                Math.Clamp(_debugMaxExperiments, 1, 10),
+                Math.Clamp(_debugMaxAiCalls, 2, 20),
+                Math.Clamp(_debugTimeoutSeconds, 30, 1800),
+                Math.Clamp(_debugWallClockMinutes, 1, 120));
 
-            using var response = await Http.PostAsJsonAsync($"api/v1/defect-intelligence/projects/{ProjectId}/autonomous-debug", body);
-            if (!response.IsSuccessStatusCode)
-            {
-                var detail = await response.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"Autonomous debug API returned {(int)response.StatusCode}: {Limit(detail, 1200)}");
-            }
-            _debugSession = await response.Content.ReadFromJsonAsync<AutonomousDebugSessionDto>()
-                ?? throw new InvalidDataException("Autonomous debug API returned an empty response.");
+            _debugSession = await Api.RunAutonomousDebugAsync(
+                ProjectId,
+                _debugSubject.Trim(),
+                _debugQuestion.Trim(),
+                _debugEvidenceJson,
+                workspace.WorkspaceRelativePath,
+                string.IsNullOrWhiteSpace(_debugRepositoryContext) ? null : _debugRepositoryContext,
+                workspace.CommitSha,
+                "auto",
+                _debugDomain,
+                budget);
+            _debugSessions = await Api.GetAutonomousDebugSessionsAsync(ProjectId, 20);
         }
         catch (Exception exception)
         {
@@ -533,6 +561,7 @@ else
     private void ShowIssues() => _tab = "issues";
     private void ShowTrends() => _tab = "trends";
     private void ShowDebug() => _tab = "debug";
+    private void SelectDebugSession(AutonomousDebugSessionDto session) => _debugSession = session;
     private string TabClass(string value) => _tab == value ? "btn btn-primary btn-sm" : "btn btn-outline-secondary btn-sm";
     private void SelectIssue(QualityIssueClientDto issue) => _selectedIssue = issue;
     private string SelectedIssueClass(Guid id) => _selectedIssue?.Id == id ? "table-active" : string.Empty;
@@ -554,6 +583,5 @@ else
     private static string ShortFingerprint(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= 12 ? value : value[..12];
     private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
     private static string FormatLocation(string? path, int? line) => string.IsNullOrWhiteSpace(path) ? "—" : line is null ? path : $"{path}:{line}";
-    private static string Limit(string value, int max) => value.Length <= max ? value : value[..max];
     public void Dispose() => Realtime.ProjectEvent -= OnRealtimeEvent;
 }

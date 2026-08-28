@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using Dip.Application.Features.Management;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -164,8 +163,11 @@ public partial class ManagementOperations
     {
         await RunSpreadsheetOperation(async () =>
         {
-            _spreadsheetAnalysis = await PostSpreadsheetAsync<SpreadsheetSchemaAnalysisDto>(
-                $"api/v1/project-control/projects/{ProjectId}/management.xlsx/analyze");
+            var bytes = _spreadsheetBytes ?? throw new InvalidOperationException("Choose an XLSX workbook first.");
+            _spreadsheetAnalysis = await Api.AnalyzeManagementSpreadsheetAsync(
+                ProjectId,
+                SpreadsheetFileName(),
+                bytes);
             _spreadsheetPreview = null;
             _spreadsheetImport = null;
             _notice = "Spreadsheet schema analysis completed without mutating project state.";
@@ -176,7 +178,13 @@ public partial class ManagementOperations
     {
         await RunSpreadsheetOperation(async () =>
         {
-            _spreadsheetPreview = await PostSpreadsheetAsync<FlexibleSpreadsheetImportResult>(FlexibleSpreadsheetImportUrl(dryRun: true));
+            var bytes = _spreadsheetBytes ?? throw new InvalidOperationException("Choose an XLSX workbook first.");
+            _spreadsheetPreview = await Api.ImportFlexibleManagementSpreadsheetAsync(
+                ProjectId,
+                SpreadsheetFileName(),
+                bytes,
+                dryRun: true,
+                domainId: Null(_spreadsheetDomainOverride));
             _spreadsheetAnalysis = _spreadsheetPreview.Analysis;
             _spreadsheetImport = null;
             _notice = "Flexible spreadsheet dry run completed; no project state was changed.";
@@ -187,7 +195,13 @@ public partial class ManagementOperations
     {
         await RunSpreadsheetOperation(async () =>
         {
-            _spreadsheetImport = await PostSpreadsheetAsync<FlexibleSpreadsheetImportResult>(FlexibleSpreadsheetImportUrl(dryRun: false));
+            var bytes = _spreadsheetBytes ?? throw new InvalidOperationException("Choose an XLSX workbook first.");
+            _spreadsheetImport = await Api.ImportFlexibleManagementSpreadsheetAsync(
+                ProjectId,
+                SpreadsheetFileName(),
+                bytes,
+                dryRun: false,
+                domainId: Null(_spreadsheetDomainOverride));
             _spreadsheetAnalysis = _spreadsheetImport.Analysis;
             _spreadsheetPreview = null;
             _notice = $"Flexible spreadsheet import applied: {_spreadsheetImport.Imported} row(s), {_spreadsheetImport.DependencyLinks} dependency link(s).";
@@ -211,30 +225,8 @@ public partial class ManagementOperations
         finally { _spreadsheetBusy = false; }
     }
 
-    private async Task<T> PostSpreadsheetAsync<T>(string url)
-    {
-        var bytes = _spreadsheetBytes ?? throw new InvalidOperationException("Choose an XLSX workbook first.");
-        using var form = new MultipartFormDataContent();
-        using var fileContent = new ByteArrayContent(bytes);
-        fileContent.Headers.ContentType = new("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        form.Add(fileContent, "file", string.IsNullOrWhiteSpace(_spreadsheetFileName) ? "management.xlsx" : _spreadsheetFileName);
-        using var response = await Http.PostAsync(url, form);
-        if (!response.IsSuccessStatusCode)
-        {
-            var detail = await response.Content.ReadAsStringAsync();
-            if (detail.Length > 1500) detail = detail[..1500];
-            throw new InvalidOperationException($"Spreadsheet API returned {(int)response.StatusCode}: {detail}");
-        }
-        return await response.Content.ReadFromJsonAsync<T>()
-               ?? throw new InvalidDataException("Spreadsheet API returned an empty response.");
-    }
-
-    private string FlexibleSpreadsheetImportUrl(bool dryRun)
-    {
-        var url = $"api/v1/project-control/projects/{ProjectId}/management.xlsx/import-flexible?dryRun={dryRun.ToString().ToLowerInvariant()}";
-        var domain = Null(_spreadsheetDomainOverride);
-        return domain is null ? url : url + "&domainId=" + Uri.EscapeDataString(domain);
-    }
+    private string SpreadsheetFileName()
+        => string.IsNullOrWhiteSpace(_spreadsheetFileName) ? "management.xlsx" : _spreadsheetFileName;
 
     private void EditRisk(RiskRegisterItemDto risk) { _riskKey = risk.Key; _riskTitle = risk.Title; _riskDescription = risk.Description; _riskStatus = risk.Status; _riskCategory = risk.Category; _riskProbability = risk.ProbabilityPercent; _riskImpact = risk.ImpactPercent; _riskOwner = risk.OwnerRole ?? ""; _riskTrigger = risk.Trigger ?? ""; _riskMitigation = risk.Mitigation ?? ""; _riskAffected = string.Join(", ", risk.AffectedItems); if (risk.ReviewDueUtc is not null) _riskReview = risk.ReviewDueUtc.Value.LocalDateTime; }
     private void EditDecision(ManagementDecisionDto decision) { _decisionKey = decision.Key; _decisionTitle = decision.Title; _decisionValue = decision.Decision; _decisionRationale = decision.Rationale; _decisionStatus = decision.Status; _decisionOwner = decision.DecisionOwnerRole ?? ""; _decisionRelated = string.Join(", ", decision.RelatedItems); _decisionDecided = decision.DecidedAtUtc?.LocalDateTime; if (decision.DecisionDueUtc is not null) _decisionDue = decision.DecisionDueUtc.Value.LocalDateTime; }

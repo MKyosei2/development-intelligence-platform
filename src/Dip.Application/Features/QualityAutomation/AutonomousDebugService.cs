@@ -364,6 +364,47 @@ Original question: {request.Question}
         }
     }
 
+    public async Task<IReadOnlyList<AutonomousDebugSessionDto>> ListAsync(
+        Guid projectId,
+        int take,
+        CancellationToken ct)
+    {
+        if (projectId == Guid.Empty)
+            return Array.Empty<AutonomousDebugSessionDto>();
+
+        var graphSnapshot = await graph.GetUniversalAsync(
+            projectId,
+            null,
+            "dip.debug.session",
+            ct);
+        var sessions = new List<AutonomousDebugSessionDto>();
+
+        foreach (var node in graphSnapshot.Nodes)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(node.Node.MetadataJson);
+                if (!document.RootElement.TryGetProperty("snapshot", out var snapshot))
+                    continue;
+
+                var session = snapshot.Deserialize<AutonomousDebugSessionDto>();
+                if (session is not null && session.ProjectId == projectId)
+                    sessions.Add(session);
+            }
+            catch (JsonException)
+            {
+                // Ignore corrupt/incompatible legacy snapshots; one bad graph node
+                // must not make the whole QA history unavailable.
+            }
+        }
+
+        return sessions
+            .OrderByDescending(x => x.StartedAtUtc)
+            .ThenByDescending(x => x.SessionId)
+            .Take(Math.Clamp(take, 1, 100))
+            .ToArray();
+    }
+
     public async Task<AutonomousDebugSessionDto?> GetAsync(
         Guid projectId,
         Guid sessionId,

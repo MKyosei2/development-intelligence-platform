@@ -153,6 +153,14 @@ public sealed class SpreadsheetSchemaInferenceService(DevelopmentGraphService gr
         }
         if(domain=="media.production")
         {
+            // Prefer the sheet name when it expresses the managed object. A shot
+            // schedule often carries Review/Retake columns, but those columns are
+            // attributes of the shot and must not reclassify the whole sheet as
+            // a media.review object collection.
+            var sheet=sheetName.ToLowerInvariant();
+            if(ContainsAny(sheet,["render","レンダー"]))return "media.render-job";
+            if(ContainsAny(sheet,["review","retake","レビュー","リテイク"]))return "media.review";
+            if(ContainsAny(sheet,["shot","cut","ショット","カット"]))return "media.shot";
             if(ContainsAny(text,["render","レンダー"]))return "media.render-job";
             if(ContainsAny(text,["review","retake","レビュー","リテイク"]))return "media.review";
             if(ContainsAny(text,["shot","cut","ショット","カット"]))return "media.shot";

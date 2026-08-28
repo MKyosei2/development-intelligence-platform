@@ -29,6 +29,10 @@ public sealed class DefectIntelligenceController(IFixProposalAgent fixAgent,IVer
         return autonomousDebug.RunAsync(new(projectId,r.SubjectKey,r.Question,r.EvidenceJson,r.WorkspaceRelativePath,r.RepositoryContext,r.BaseCommit,language,r.DomainId,r.Budget),ct);
     }
 
+    [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/autonomous-debug")]
+    public Task<IReadOnlyList<AutonomousDebugSessionDto>> ListAutonomousDebug(Guid projectId,[FromQuery]int take=20,CancellationToken ct=default)
+        =>autonomousDebug.ListAsync(projectId,take,ct);
+
     [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/autonomous-debug/{sessionId:guid}")]
     public async Task<IActionResult> GetAutonomousDebug(Guid projectId,Guid sessionId,CancellationToken ct)
     {

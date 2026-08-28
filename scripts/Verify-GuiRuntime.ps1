@@ -359,6 +359,7 @@ try {
         }
 
         $env:DIP_WEB_BASE_URL = $web
+        $env:DIP_API_BASE_URL = $api
         $playwrightArgs = @('playwright', 'test', '--grep-invert', '@live-github')
         if ($Headed) {
             $playwrightArgs += '--headed'
@@ -389,8 +390,32 @@ try {
         $headSha = 'unknown'
     }
 
+    $checks = @(
+        'PostgreSQL readiness',
+        'Redis readiness',
+        'Python Analysis health',
+        'API health',
+        'Worker metrics',
+        'Blazor application shell',
+        'Create Project GUI',
+        'System Status core components healthy',
+        'Project create/list persistence',
+        'Project Dashboard render',
+        'QA Autonomous Debug GUI render',
+        'Management Operations GUI render',
+        'Project Intelligence render',
+        'QA Governance render'
+    )
+    if ($RunPlaywright) {
+        $checks += @(
+            'Autonomous Debug persisted-history browser E2E',
+            'Flexible Spreadsheet analyze/dry-run/apply browser E2E',
+            'Media/VFX universal graph import browser E2E'
+        )
+    }
+
     $payload = [ordered]@{
-        schema = 'dip-gui-runtime-verification-v2'
+        schema = 'dip-gui-runtime-verification-v3'
         revision = $headSha
         verifiedAtUtc = $verifiedAt.ToString('o')
         startedAtUtc = $startedAt.ToString('o')
@@ -399,22 +424,7 @@ try {
         ports = $ports
         playwright = [bool]$RunPlaywright
         playwrightPassed = $playwrightPassed
-        checks = @(
-            'PostgreSQL readiness',
-            'Redis readiness',
-            'Python Analysis health',
-            'API health',
-            'Worker metrics',
-            'Blazor application shell',
-            'Create Project GUI',
-            'System Status core components healthy',
-            'Project create/list persistence',
-            'Project Dashboard render',
-            'QA Autonomous Debug GUI render',
-            'Management Operations GUI render',
-            'Project Intelligence render',
-            'QA Governance render'
-        )
+        checks = $checks
     }
     $payload | ConvertTo-Json -Depth 8 | Set-Content -Path $resultFile -Encoding UTF8
 
@@ -435,7 +445,10 @@ try {
         'ProjectDashboard=PASS',
         'QaAutonomousDebugGui=PASS',
         'ManagementGui=PASS',
-        "Playwright=$playwrightStatus"
+        "Playwright=$playwrightStatus",
+        "AutonomousDebugHistoryE2E=$playwrightStatus",
+        "FlexibleSpreadsheetE2E=$playwrightStatus",
+        "MediaVfxE2E=$playwrightStatus"
     ) | Set-Content -Path $passFile -Encoding UTF8
 
     Write-Host ''
