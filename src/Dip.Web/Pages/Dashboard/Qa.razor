@@ -1,6 +1,7 @@
 @page "/dashboard/{ProjectId:guid}/qa"
 @implements IDisposable
 @inject ApiClient Api
+@inject HttpClient Http
 @inject ProjectState Projects
 @inject RealtimeUpdateService Realtime
 
@@ -10,7 +11,7 @@
     <div>
         <div class="eyebrow">Development</div>
         <h1>QA</h1>
-        <p>Run QA, inspect durable quality issues, and review quality trends without leaving the project context.</p>
+        <p>Run QA, inspect durable quality issues, and review evidence-grounded debug experiments without leaving the project context.</p>
     </div>
     <div class="heading-actions">
         <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button>
@@ -31,6 +32,7 @@
     <button class="@TabClass("runs")" type="button" @onclick="ShowRuns">Runs</button>
     <button class="@TabClass("issues")" type="button" @onclick="ShowIssues">Issues (@OpenIssueCount)</button>
     <button class="@TabClass("trends")" type="button" @onclick="ShowTrends">Trends</button>
+    <button class="@TabClass("debug")" data-testid="qa-autonomous-debug-tab" type="button" @onclick="ShowDebug">Autonomous Debug</button>
 </div>
 
 @if (_loading)
@@ -107,6 +109,7 @@ else if (_tab == "issues")
                         <div class="d-flex gap-2 mt-3 flex-wrap">
                             <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="OpenRelatedPipeline">Open related CI</button>
                             <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa-governance")">Open governance</a>
+                            <button class="btn btn-outline-primary btn-sm" type="button" @onclick="PrepareDebugFromIssue">Debug this issue</button>
                         </div>
                         <div class="mt-3">
                             <div class="small text-muted mb-1">Evidence JSON</div>
@@ -150,9 +153,7 @@ else if (_tab == "trends")
                                 <td>@point.FindingCount</td>
                                 <td class="text-danger">@point.CriticalFindingCount</td>
                                 <td class="text-warning">@point.WarningFindingCount</td>
-                                <td style="min-width:160px">
-                                    <div class="progress" style="height:8px"><div class="progress-bar" role="progressbar" style="width:@TrendWidth(point)%"></div></div>
-                                </td>
+                                <td style="min-width:160px"><div class="progress" style="height:8px"><div class="progress-bar" role="progressbar" style="width:@TrendWidth(point)%"></div></div></td>
                             </tr>
                         }
                         </tbody>
@@ -162,11 +163,107 @@ else if (_tab == "trends")
         </div>
     </section>
 }
+else if (_tab == "debug")
+{
+    <section class="card" data-testid="qa-autonomous-debug-panel">
+        <div class="card-header">
+            <div><div class="eyebrow">Evidence grounded</div><strong>Autonomous Debug</strong></div>
+            <span>Human review required</span>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-light border small">
+                The AI proposes bounded hypotheses and candidates only. DIP verifies candidates in a disposable workspace; it never edits or merges the source workspace automatically.
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_debugError))
+            {
+                <div class="alert alert-danger">@_debugError</div>
+            }
+            <div class="row g-3">
+                <div class="col-12 col-xl-7">
+                    <div class="form-grid">
+                        <label class="form-label mb-0">Subject key</label>
+                        <input class="form-control" data-testid="qa-debug-subject" @bind="_debugSubject" placeholder="issue fingerprint / QA finding / subsystem" />
+                        <label class="form-label mb-0">Question</label>
+                        <textarea class="form-control" data-testid="qa-debug-question" rows="4" @bind="_debugQuestion" placeholder="What failed, what should be explained, and what result would falsify the hypothesis?"></textarea>
+                        <label class="form-label mb-0">Evidence JSON</label>
+                        <textarea class="form-control font-monospace" data-testid="qa-debug-evidence" rows="7" @bind="_debugEvidenceJson" placeholder='{"evidenceIds":["..."]}'></textarea>
+                        <label class="form-label mb-0">Repository context <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control font-monospace" rows="4" @bind="_debugRepositoryContext" placeholder="Small, relevant repository context only. Treat as untrusted data."></textarea>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-5">
+                    <div class="form-grid">
+                        <label class="form-label mb-0">Domain</label>
+                        <select class="form-select" @bind="_debugDomain">
+                            <option value="software">software</option>
+                            <option value="media.production">media.production</option>
+                            <option value="construction">construction</option>
+                            <option value="generic.project">generic.project</option>
+                        </select>
+                        <div class="d-flex gap-2">
+                            <div class="flex-fill"><label class="form-label small">Hypotheses</label><input class="form-control" type="number" min="1" max="10" @bind="_debugMaxHypotheses" /></div>
+                            <div class="flex-fill"><label class="form-label small">Experiments</label><input class="form-control" type="number" min="1" max="10" @bind="_debugMaxExperiments" /></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <div class="flex-fill"><label class="form-label small">AI calls</label><input class="form-control" type="number" min="2" max="20" @bind="_debugMaxAiCalls" /></div>
+                            <div class="flex-fill"><label class="form-label small">Timeout sec</label><input class="form-control" type="number" min="30" max="1800" @bind="_debugTimeoutSeconds" /></div>
+                        </div>
+                        <label class="form-label mb-0">Wall-clock budget (minutes)</label>
+                        <input class="form-control" type="number" min="1" max="120" @bind="_debugWallClockMinutes" />
+                        <button class="btn btn-primary" data-testid="qa-run-autonomous-debug" type="button" disabled="@(!CanRunAutonomousDebug || _debugRunning)" @onclick="RunAutonomousDebugAsync">@(_debugRunning ? "Running bounded experiments…" : "Run autonomous debug")</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_debugSession is not null)
+        {
+            <div class="card-body border-top" data-testid="qa-autonomous-debug-result">
+                <div class="d-flex justify-content-between gap-3 align-items-start mb-3">
+                    <div><div class="eyebrow">Session <code>@ShortGuid(_debugSession.SessionId)</code></div><h2 class="h5 mb-1">@_debugSession.Status</h2><p class="mb-0">@_debugSession.Summary</p></div>
+                    <StatusBadge Value="@_debugSession.Status" />
+                </div>
+
+                <h3 class="h6">Hypotheses</h3>
+                @if (_debugSession.Hypotheses.Count == 0)
+                {
+                    <div class="compact-empty"><span class="status-dot neutral"></span><div><small>No grounded hypothesis was returned.</small></div></div>
+                }
+                else
+                {
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm mb-0"><thead><tr><th>Confidence</th><th>Hypothesis</th><th>Evidence</th><th>Suggested experiments</th></tr></thead><tbody>
+                        @foreach (var hypothesis in _debugSession.Hypotheses)
+                        {
+                            <tr><td>@hypothesis.Confidence.ToString("P0")</td><td><strong>@hypothesis.Title</strong><div class="small text-muted">@hypothesis.Explanation</div></td><td>@hypothesis.EvidenceIds.Count</td><td>@string.Join(", ", hypothesis.SuggestedExperiments)</td></tr>
+                        }
+                        </tbody></table>
+                    </div>
+                }
+
+                <h3 class="h6">Verification attempts</h3>
+                @if (_debugSession.Attempts.Count == 0)
+                {
+                    <div class="compact-empty"><span class="status-dot neutral"></span><div><small>No candidate experiment was executed.</small></div></div>
+                }
+                else
+                {
+                    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Status</th><th>Hypothesis</th><th>Verified</th><th>Summary</th><th>Artifact</th></tr></thead><tbody>
+                    @foreach (var attempt in _debugSession.Attempts)
+                    {
+                        <tr><td><StatusBadge Value="@attempt.Status" /></td><td>@attempt.HypothesisTitle</td><td>@(attempt.Verified ? "Yes" : "No")</td><td>@attempt.Summary</td><td><code>@(attempt.ArtifactRoot ?? "—")</code></td></tr>
+                    }
+                    </tbody></table></div>
+                }
+            </div>
+        }
+    </section>
+}
 else
 {
     @if (_repository?.Workspace is null)
     {
-        <EmptyState Icon="⌘" Title="Repository workspace is not synchronized" Description="Use Sync & Run QA above to download the current GitHub branch into the persistent protected workspace, or inspect the Repository page first." ActionText="Open repository" ActionHref="@($"/dashboard/{ProjectId}/repository")" />
+        <EmptyState Icon="⌘" Title="Repository workspace is not synchronized" Description="Synchronize the repository first. Use Sync & Run QA above to download the current GitHub branch into the persistent protected workspace, or inspect the Repository page first." ActionText="Open repository" ActionHref="@($"/dashboard/{ProjectId}/repository")" />
     }
     else
     {
@@ -176,12 +273,7 @@ else
         }
         @if (_running)
         {
-            <div class="qa-progress card mb-4">
-                <div class="card-body">
-                    <div class="qa-progress-head"><div><div class="spinner small-spinner"></div><div><strong>QA is running</strong><small>Detecting repository technology, running available adapters and normalizing findings.</small></div></div><span>Auto language detection</span></div>
-                    <div class="progress mt-3"><div class="progress-bar indeterminate"></div></div>
-                </div>
-            </div>
+            <div class="qa-progress card mb-4"><div class="card-body"><div class="qa-progress-head"><div><div class="spinner small-spinner"></div><div><strong>QA is running</strong><small>Detecting repository technology, running available adapters and normalizing findings.</small></div></div><span>Auto language detection</span></div><div class="progress mt-3"><div class="progress-bar indeterminate"></div></div></div></div>
         }
 
         <div class="metric-grid mb-4">
@@ -195,13 +287,7 @@ else
         {
             <section class="card mb-4 qa-result-card">
                 <div class="card-header"><div><div class="eyebrow">Selected / latest run</div><strong>QA result</strong></div><StatusBadge Value="@_lastRun.Status" /></div>
-                <div class="card-body">
-                    <div class="qa-result-summary">
-                        <div><span>Findings</span><strong>@_lastRun.FindingCount</strong></div>
-                        <div><span>Critical</span><strong class="text-danger">@_lastRun.CriticalFindingCount</strong></div>
-                        <div><span>Warnings</span><strong class="text-warning">@_lastRun.WarningFindingCount</strong></div>
-                    </div>
-                </div>
+                <div class="card-body"><div class="qa-result-summary"><div><span>Findings</span><strong>@_lastRun.FindingCount</strong></div><div><span>Critical</span><strong class="text-danger">@_lastRun.CriticalFindingCount</strong></div><div><span>Warnings</span><strong class="text-warning">@_lastRun.WarningFindingCount</strong></div></div></div>
                 <div class="card-body p-0">
                     @if (_lastRun.Findings.Count == 0)
                     {
@@ -209,29 +295,15 @@ else
                     }
                     else
                     {
-                        <div class="table-responsive">
-                            <table class="table mb-0">
-                                <thead><tr><th>Severity</th><th>Finding</th><th>Tool</th><th>Location</th><th>Reproduction</th></tr></thead>
-                                <tbody>
-                                @foreach (var finding in _lastRun.Findings.Take(100))
-                                {
-                                    <tr>
-                                        <td><StatusBadge Value="@finding.Severity" /></td>
-                                        <td><strong>@finding.Title</strong><div class="small text-muted finding-message">@finding.Message</div></td>
-                                        <td>@finding.Tool</td>
-                                        <td>@FormatLocation(finding.FilePath, finding.Line)</td>
-                                        <td>@finding.ReproductionStatus</td>
-                                    </tr>
-                                }
-                                </tbody>
-                            </table>
-                        </div>
+                        <div class="table-responsive"><table class="table mb-0"><thead><tr><th>Severity</th><th>Finding</th><th>Tool</th><th>Location</th><th>Reproduction</th></tr></thead><tbody>
+                        @foreach (var finding in _lastRun.Findings.Take(100))
+                        {
+                            <tr><td><StatusBadge Value="@finding.Severity" /></td><td><strong>@finding.Title</strong><div class="small text-muted finding-message">@finding.Message</div></td><td>@finding.Tool</td><td>@FormatLocation(finding.FilePath, finding.Line)</td><td>@finding.ReproductionStatus</td></tr>
+                        }
+                        </tbody></table></div>
                     }
                 </div>
-                <div class="card-footer d-flex gap-2">
-                    <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa/runs/{_lastRun.QaRunId}")">Open evidence</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa-governance")">Open QA Governance</a>
-                </div>
+                <div class="card-footer d-flex gap-2"><a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa/runs/{_lastRun.QaRunId}")">Open evidence</a><a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{ProjectId}/qa-governance")">Open QA Governance</a></div>
             </section>
         }
 
@@ -240,24 +312,12 @@ else
             <div class="card-body p-0">
                 @if (_dashboard?.RecentQaRuns.Count > 0)
                 {
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead><tr><th>Run</th><th>Language</th><th>Status</th><th>Findings</th><th>Reproduced</th><th>Created</th></tr></thead>
-                            <tbody>
-                            @foreach (var run in _dashboard.RecentQaRuns)
-                            {
-                                <tr>
-                                    <td><a href="@($"/dashboard/{ProjectId}/qa/runs/{run.Id}")"><code>@ShortGuid(run.Id)</code></a></td>
-                                    <td>@run.Language</td>
-                                    <td><StatusBadge Value="@run.Status" /></td>
-                                    <td>@run.FindingCount <span class="text-danger">(@run.CriticalFindingCount critical)</span></td>
-                                    <td>@run.ReproducedFindingCount</td>
-                                    <td>@FormatDate(run.CreatedAtUtc)</td>
-                                </tr>
-                            }
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Run</th><th>Language</th><th>Status</th><th>Findings</th><th>Reproduced</th><th>Created</th></tr></thead><tbody>
+                    @foreach (var run in _dashboard.RecentQaRuns)
+                    {
+                        <tr><td><a href="@($"/dashboard/{ProjectId}/qa/runs/{run.Id}")"><code>@ShortGuid(run.Id)</code></a></td><td>@run.Language</td><td><StatusBadge Value="@run.Status" /></td><td>@run.FindingCount <span class="text-danger">(@run.CriticalFindingCount critical)</span></td><td>@run.ReproducedFindingCount</td><td>@FormatDate(run.CreatedAtUtc)</td></tr>
+                    }
+                    </tbody></table></div>
                 }
                 else
                 {
@@ -289,6 +349,20 @@ else
     private string? _error;
     private string? _runError;
 
+    private string _debugSubject = "qa-failure";
+    private string _debugQuestion = "Explain the most likely root cause using only the supplied evidence, then verify the smallest safe candidate in isolation.";
+    private string _debugEvidenceJson = "{}";
+    private string? _debugRepositoryContext;
+    private string _debugDomain = "software";
+    private int _debugMaxHypotheses = 4;
+    private int _debugMaxExperiments = 3;
+    private int _debugMaxAiCalls = 5;
+    private int _debugTimeoutSeconds = 900;
+    private int _debugWallClockMinutes = 30;
+    private bool _debugRunning;
+    private string? _debugError;
+    private AutonomousDebugSessionDto? _debugSession;
+
     private string LatestQaStatus => _dashboard?.RecentQaRuns.FirstOrDefault()?.Status ?? "No run";
     private string LatestQaDate => _dashboard?.RecentQaRuns.FirstOrDefault() is { } run ? FormatDate(run.CreatedAtUtc) : "No QA evidence";
     private int OpenIssueCount => _issues.Count(x => x.Status is "Open" or "Reopened");
@@ -296,11 +370,12 @@ else
     private bool WorkspaceStale => _repository?.Workspace is { } workspace
         && !string.IsNullOrWhiteSpace(_repository.Repository?.LatestCommitSha)
         && !workspace.CommitSha.Equals(_repository.Repository!.LatestCommitSha, StringComparison.OrdinalIgnoreCase);
-    private bool CanRunQa => _repository is not null
-        && (_repository.Workspace is not null || _repository.Connection.Connected);
-    private string RunButtonText => _repository?.Workspace is null
-        ? "Sync & Run QA"
-        : WorkspaceStale ? "Sync latest & Run QA" : "Run QA";
+    private bool CanRunQa => _repository is not null && (_repository.Workspace is not null || _repository.Connection.Connected);
+    private bool CanRunAutonomousDebug => _repository?.Workspace is not null
+        && !string.IsNullOrWhiteSpace(_debugSubject)
+        && !string.IsNullOrWhiteSpace(_debugQuestion)
+        && !string.IsNullOrWhiteSpace(_debugEvidenceJson);
+    private string RunButtonText => _repository?.Workspace is null ? "Sync & Run QA" : WorkspaceStale ? "Sync latest & Run QA" : "Run QA";
 
     protected override async Task OnInitializedAsync()
     {
@@ -337,9 +412,7 @@ else
             _dashboard = await dashboardTask;
             _issues = await issuesTask;
             _trends = await trendsTask;
-            var selectedRunId = RequestedRunId
-                ?? _lastRun?.QaRunId
-                ?? _dashboard?.RecentQaRuns.FirstOrDefault()?.Id;
+            var selectedRunId = RequestedRunId ?? _lastRun?.QaRunId ?? _dashboard?.RecentQaRuns.FirstOrDefault()?.Id;
             if (selectedRunId is { } runId)
                 _lastRun = await Api.GetQaRunAsync(runId);
             if (RequestedIssueId is { } requestedIssueId)
@@ -359,8 +432,7 @@ else
 
     private async Task RunQaAsync()
     {
-        if (_repository is null)
-            return;
+        if (_repository is null) return;
         _running = true;
         _runError = null;
         await InvokeAsync(StateHasChanged);
@@ -375,8 +447,7 @@ else
                 _repository = await Api.GetProjectRepositoryAsync(ProjectId);
             }
 
-            var workspace = _repository.Workspace
-                ?? throw new InvalidOperationException("Repository synchronization completed without a QA workspace.");
+            var workspace = _repository.Workspace ?? throw new InvalidOperationException("Repository synchronization completed without a QA workspace.");
             var command = new QaExecutionCommand(
                 ProjectId,
                 $"gui:{workspace.Branch}:{ShortSha(workspace.CommitSha)}",
@@ -396,9 +467,72 @@ else
         finally { _running = false; }
     }
 
+    private async Task RunAutonomousDebugAsync()
+    {
+        _debugError = null;
+        _debugSession = null;
+        var workspace = _repository?.Workspace;
+        if (workspace is null)
+        {
+            _debugError = "Synchronize the repository before autonomous debugging.";
+            return;
+        }
+
+        _debugRunning = true;
+        try
+        {
+            var body = new
+            {
+                subjectKey = _debugSubject.Trim(),
+                question = _debugQuestion.Trim(),
+                evidenceJson = _debugEvidenceJson,
+                workspaceRelativePath = workspace.WorkspaceRelativePath,
+                repositoryContext = string.IsNullOrWhiteSpace(_debugRepositoryContext) ? null : _debugRepositoryContext,
+                baseCommit = workspace.CommitSha,
+                language = "auto",
+                domainId = _debugDomain,
+                budget = new
+                {
+                    maxHypotheses = Math.Clamp(_debugMaxHypotheses, 1, 10),
+                    maxExperiments = Math.Clamp(_debugMaxExperiments, 1, 10),
+                    maxAiCalls = Math.Clamp(_debugMaxAiCalls, 2, 20),
+                    timeoutSecondsPerExperiment = Math.Clamp(_debugTimeoutSeconds, 30, 1800),
+                    maxWallClockMinutes = Math.Clamp(_debugWallClockMinutes, 1, 120)
+                }
+            };
+
+            using var response = await Http.PostAsJsonAsync($"api/v1/defect-intelligence/projects/{ProjectId}/autonomous-debug", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var detail = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException($"Autonomous debug API returned {(int)response.StatusCode}: {Limit(detail, 1200)}");
+            }
+            _debugSession = await response.Content.ReadFromJsonAsync<AutonomousDebugSessionDto>()
+                ?? throw new InvalidDataException("Autonomous debug API returned an empty response.");
+        }
+        catch (Exception exception)
+        {
+            _debugError = exception.Message;
+        }
+        finally
+        {
+            _debugRunning = false;
+        }
+    }
+
+    private void PrepareDebugFromIssue()
+    {
+        if (_selectedIssue is null) return;
+        _debugSubject = string.IsNullOrWhiteSpace(_selectedIssue.Fingerprint) ? _selectedIssue.Id.ToString("N") : _selectedIssue.Fingerprint;
+        _debugQuestion = $"Explain the root cause of '{_selectedIssue.Title}' and verify the smallest safe candidate without modifying the source workspace.";
+        _debugEvidenceJson = string.IsNullOrWhiteSpace(_selectedIssue.EvidenceJson) ? "{}" : _selectedIssue.EvidenceJson!;
+        _tab = "debug";
+    }
+
     private void ShowRuns() => _tab = "runs";
     private void ShowIssues() => _tab = "issues";
     private void ShowTrends() => _tab = "trends";
+    private void ShowDebug() => _tab = "debug";
     private string TabClass(string value) => _tab == value ? "btn btn-primary btn-sm" : "btn btn-outline-secondary btn-sm";
     private void SelectIssue(QualityIssueClientDto issue) => _selectedIssue = issue;
     private string SelectedIssueClass(Guid id) => _selectedIssue?.Id == id ? "table-active" : string.Empty;
@@ -420,5 +554,6 @@ else
     private static string ShortFingerprint(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value.Length <= 12 ? value : value[..12];
     private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
     private static string FormatLocation(string? path, int? line) => string.IsNullOrWhiteSpace(path) ? "—" : line is null ? path : $"{path}:{line}";
+    private static string Limit(string value, int max) => value.Length <= max ? value : value[..max];
     public void Dispose() => Realtime.ProjectEvent -= OnRealtimeEvent;
 }

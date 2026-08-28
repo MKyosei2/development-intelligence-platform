@@ -53,6 +53,18 @@ test.describe('DIP GUI onboarding', () => {
     await page.goto(`/dashboard/${projectId}/qa`);
     await expect(page.getByTestId('qa-page')).toBeVisible();
     await expect(page.getByText('Synchronize the repository first')).toBeVisible();
+    await expect(page.getByTestId('qa-autonomous-debug-tab')).toBeVisible();
+    await page.getByTestId('qa-autonomous-debug-tab').click();
+    await expect(page.getByTestId('qa-autonomous-debug-panel')).toBeVisible();
+    await expect(page.getByTestId('qa-run-autonomous-debug')).toBeDisabled();
+
+    await page.goto(`/dashboard/${projectId}/management`);
+    await expect(page.getByTestId('management-operations-page')).toBeVisible();
+    await page.getByRole('button', { name: 'Sync & source of truth' }).click();
+    await expect(page.getByTestId('management-spreadsheet-intelligence')).toBeVisible();
+    await expect(page.getByTestId('spreadsheet-analyze')).toBeDisabled();
+    await expect(page.getByTestId('spreadsheet-dry-run')).toBeDisabled();
+    await expect(page.getByTestId('spreadsheet-apply')).toBeDisabled();
 
     await page.goto(`/dashboard/${projectId}/intelligence`);
     await expect(page.getByRole('heading', { name: 'Development Intelligence' })).toBeVisible();
@@ -64,6 +76,7 @@ test.describe('DIP GUI onboarding', () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByTestId('portfolio-page')).toBeVisible();
   });
+
   test('project lifecycle, owner safety, notifications and audit are operable from existing GUI', async ({ page }) => {
     const name = uniqueProjectName();
     await page.goto('/projects/new');
@@ -101,5 +114,4 @@ test.describe('DIP GUI onboarding', () => {
     await page.getByRole('button', { name: /Notifications/ }).click();
     await expect(page.getByTestId('notification-drawer')).toBeVisible();
   });
-
 });

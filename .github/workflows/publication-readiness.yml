@@ -1,38 +1,109 @@
 name: Portfolio Publication Readiness
+
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: portfolio-publication-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   portfolio-static:
-    name: Publication safety and portfolio static checks
+    name: Publication safety and exact-revision static evidence
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Publication safety
         run: python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
+
       - name: Portfolio readiness
         run: python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
-      - name: Reject zero-step evidence claims
+
+      - name: Validate reviewer-facing capability contract
+        shell: python
         run: |
-          grep -q "Historical verified baseline" README.md
-          grep -q "not automatically attributed to newer commits" README.md
+          from pathlib import Path
+          text = Path("README.md").read_text(encoding="utf-8")
+          required = [
+              "Project Truth",
+              "Evidence-Grounded Autonomous Debugging",
+              "Flexible Spreadsheet Intelligence",
+              "Historical PASS ≠ Current Revision PASS",
+          ]
+          missing = [value for value in required if value not in text]
+          if missing:
+              raise SystemExit("README capability/verification contract is incomplete: " + ", ".join(missing))
+          print("PASS: reviewer-facing capability and verification boundaries are present.")
+
+      - name: Generate exact-revision evidence artifact
+        shell: python
+        env:
+          DIP_EXACT_SHA: ${{ github.sha }}
+          DIP_REF: ${{ github.ref }}
+          DIP_EVENT: ${{ github.event_name }}
+          DIP_RUN_ID: ${{ github.run_id }}
+          DIP_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          out = Path("artifacts/portfolio-readiness")
+          out.mkdir(parents=True, exist_ok=True)
+          payload = {
+              "schema": "dip.exact-revision.static.v1",
+              "revision": os.environ["DIP_EXACT_SHA"],
+              "ref": os.environ["DIP_REF"],
+              "event": os.environ["DIP_EVENT"],
+              "runId": os.environ["DIP_RUN_ID"],
+              "runAttempt": os.environ["DIP_RUN_ATTEMPT"],
+              "generatedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "publicationSafety": "PASS",
+              "portfolioStaticReadiness": "PASS",
+              "runtimeVerified": False,
+              "note": "Runtime verification is tracked separately by GUI/Integration workflows for this exact SHA.",
+          }
+          (out / "exact-revision.json").write_text(
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          (out / "exact-revision.md").write_text(
+              "# Exact revision static evidence\n\n"
+              f"- Revision: `{payload['revision']}`\n"
+              f"- Event: `{payload['event']}`\n"
+              f"- Ref: `{payload['ref']}`\n"
+              f"- Publication safety: **PASS**\n"
+              f"- Portfolio static readiness: **PASS**\n"
+              f"- Runtime verified by this workflow: **NO**\n\n"
+              "This artifact is generated at workflow runtime so the exact SHA is not self-referentially hard-coded into a tracked file.\n",
+              encoding="utf-8",
+          )
+
       - name: Upload static evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: portfolio-publication-readiness
+          name: portfolio-publication-readiness-${{ github.sha }}
           path: |
             artifacts/publication-safety/publication-safety.json
             artifacts/portfolio-readiness/static.json
+            artifacts/portfolio-readiness/exact-revision.json
+            artifacts/portfolio-readiness/exact-revision.md
+          if-no-files-found: warn
           retention-days: 30
