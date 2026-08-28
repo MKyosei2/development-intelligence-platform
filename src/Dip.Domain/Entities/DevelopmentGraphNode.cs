@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;
@@ -9,6 +10,8 @@ namespace Dip.Domain.Entities;
 /// </summary>
 public sealed class DevelopmentGraphNode
 {
+    private static readonly string[] UniversalIdentityKeys = ["domainId", "kind", "schemaVersion", "sourceObjectId"];
+
     private DevelopmentGraphNode() { }
 
     public DevelopmentGraphNode(Guid id,Guid projectId,DevelopmentGraphNodeType type,string key,string name,string status,string? provider,string? externalReference,string metadataJson,DateTimeOffset observedAtUtc)
@@ -29,8 +32,49 @@ public sealed class DevelopmentGraphNode
     public void Observe(string name,string status,string? provider,string? externalReference,string metadataJson,DateTimeOffset observedAtUtc)
     {
         Name=Required(name,300,nameof(name));Status=Required(status,80,nameof(status));Provider=Optional(provider,80,nameof(provider));
-        ExternalReference=Optional(externalReference,2000,nameof(externalReference));MetadataJson=Required(metadataJson,64000,nameof(metadataJson));
+        ExternalReference=Optional(externalReference,2000,nameof(externalReference));
+        MetadataJson=PreserveUniversalIdentity(MetadataJson,Required(metadataJson,64000,nameof(metadataJson)));
         if(observedAtUtc>LastObservedAtUtc)LastObservedAtUtc=observedAtUtc;
+    }
+
+    /// <summary>
+    /// Returns one string metadata value without making callers depend on a
+    /// provider-specific schema. Invalid/non-object legacy payloads simply
+    /// return null rather than breaking reads.
+    /// </summary>
+    public string? MetadataValue(string name)
+    {
+        if(string.IsNullOrWhiteSpace(name))return null;
+        try
+        {
+            var node=JsonNode.Parse(MetadataJson) as JsonObject;
+            if(node is null)return null;
+            foreach(var pair in node)
+                if(pair.Key.Equals(name,StringComparison.OrdinalIgnoreCase))
+                    return pair.Value?.GetValue<string>();
+        }
+        catch{}
+        return null;
+    }
+
+    private static string PreserveUniversalIdentity(string existing,string incoming)
+    {
+        try
+        {
+            var oldObject=JsonNode.Parse(existing) as JsonObject;
+            var newObject=JsonNode.Parse(incoming) as JsonObject;
+            if(oldObject is null||newObject is null)return incoming;
+            foreach(var key in UniversalIdentityKeys)
+                if(!newObject.ContainsKey(key)&&oldObject[key] is { } value)
+                    newObject[key]=value.DeepClone();
+            return newObject.ToJsonString();
+        }
+        catch
+        {
+            // Preserve legacy behavior for old payloads that were stored before
+            // metadata became structured JSON.
+            return incoming;
+        }
     }
 
     private static string Required(string? value,int max,string name){var v=value?.Trim()??string.Empty;if(v.Length is <1||v.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);return v;}

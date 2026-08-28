@@ -40,6 +40,7 @@ public sealed class ManagementSyncService
         if (command.ProjectId == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(command));
         var adapter = _adapters.FirstOrDefault(x => x.ProviderName.Equals(command.Provider, StringComparison.OrdinalIgnoreCase))
             ?? throw new NotSupportedException($"Management sync provider '{command.Provider}' is not configured.");
+        var dataType = NormalizeDataType(command.DataType);
 
         var direction = command.Direction;
         var external = direction is ManagementSyncDirection.Pull or ManagementSyncDirection.Bidirectional
@@ -47,8 +48,9 @@ public sealed class ManagementSyncService
             : Array.Empty<ManagementExternalItem>();
         var actions = (await _analytics.GetDecisionsAsync(command.ProjectId, ct)).Actions.ToDictionary(x => x.Key, StringComparer.OrdinalIgnoreCase);
         var externalByKey = external.GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.UpdatedAtUtc).First(), StringComparer.OrdinalIgnoreCase);
-        var links = await ReadLinksAsync(command.ProjectId, adapter.ProviderName, ct);
-        var authority = await _operations.AuthorityForAsync(command.ProjectId, "Action", ct);
+        var links = await ReadLinksAsync(command.ProjectId, adapter.ProviderName, dataType, ct);
+        var authority = await _operations.AuthorityForAsync(command.ProjectId, dataType, ct)
+            ?? (dataType.Equals("Action", StringComparison.OrdinalIgnoreCase) ? null : await _operations.AuthorityForAsync(command.ProjectId, "Action", ct));
         var authorityName = authority?.Authority ?? "Manual";
         var preferAuthority = authority?.ConflictPolicy.Equals("PreferAuthority", StringComparison.OrdinalIgnoreCase) == true;
         var syncState = await _operations.GetSyncStateAsync(command.ProjectId, ct);
@@ -65,14 +67,14 @@ public sealed class ManagementSyncService
                 var externalValue = Canonical(ext);
                 if (!actions.TryGetValue(ext.Key, out var local))
                 {
-                    var prior = FindConflict(syncState, adapter.ProviderName, ext.Key);
+                    var prior = FindConflict(syncState, adapter.ProviderName, dataType, ext.Key);
                     if (direction == ManagementSyncDirection.Pull || (preferAuthority && IsExternalAuthority(authorityName, adapter.ProviderName)) || IsResolved(prior, "External"))
                     {
                         changes.Add(new("PullCreate", ext.Key, adapter.ProviderName, ext.ExternalId, IsResolved(prior, "External") ? "Applied resolved conflict: keep external item." : "External action does not exist in DIP.", Absent, externalValue));
                         if (!command.DryRun)
                         {
-                            await _work.UpsertActionItemAsync(new(command.ProjectId, ext.Key, ext.Title, NormalizeStatus(ext.Status), "Medium", ext.OwnerRole, ext.DueAtUtc, 0m, null, null, ext.Url), ct);
-                            await RecordLinkAsync(command.ProjectId, adapter.ProviderName, ext, ct);
+                            await _work.UpsertActionItemAsync(new(command.ProjectId, ext.Key, ext.Title, NormalizeStatus(ext.Status), "Medium", ext.OwnerRole, ext.DueAtUtc, Progress(ext), null, null, ext.Url), ct);
+                            await RecordLinkAsync(command.ProjectId, adapter.ProviderName, dataType, ext, ct);
                             if (IsResolved(prior, "External")) await _operations.MarkConflictAppliedAsync(command.ProjectId, prior!.Key, ct);
                         }
                         pulled++;
@@ -89,20 +91,20 @@ public sealed class ManagementSyncService
                     else
                     {
                         changes.Add(new("Conflict", ext.Key, adapter.ProviderName, ext.ExternalId, "External-only item requires an explicit source-authority or conflict decision.", Absent, externalValue));
-                        if (!command.DryRun) await _operations.RecordSyncConflictAsync(command.ProjectId, adapter.ProviderName, "Action", ext.Key, Absent, externalValue, ct);
+                        if (!command.DryRun) await _operations.RecordSyncConflictAsync(command.ProjectId, adapter.ProviderName, dataType, ext.Key, Absent, externalValue, ct);
                         conflicts++;
                     }
                     continue;
                 }
 
                 var localValue = Canonical(local);
-                if (localValue == externalValue)
+                if (EquivalentByManagedFields(local, ext))
                 {
-                    if (!command.DryRun) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, ext, ct);
+                    if (!command.DryRun) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, dataType, ext, ct);
                     continue;
                 }
 
-                var resolved = FindConflict(syncState, adapter.ProviderName, local.Key, "Resolved");
+                var resolved = FindConflict(syncState, adapter.ProviderName, dataType, local.Key, "Resolved");
                 var effectiveAuthority = IsResolved(resolved, "DIP")
                     ? "DIP"
                     : IsResolved(resolved, "External")
@@ -116,8 +118,8 @@ public sealed class ManagementSyncService
                     changes.Add(new("PullUpdate", ext.Key, adapter.ProviderName, ext.ExternalId, resolved is null ? $"{adapter.ProviderName} is authoritative under PreferAuthority." : "Applied resolved conflict: keep external value.", localValue, externalValue));
                     if (!command.DryRun)
                     {
-                        await _work.UpsertActionItemAsync(new(command.ProjectId, local.Key, ext.Title, NormalizeStatus(ext.Status), local.Priority, ext.OwnerRole, ext.DueAtUtc, local.CompletionPercent, local.DecisionKey, TargetFrom(local.Target), ext.Url), ct);
-                        await RecordLinkAsync(command.ProjectId, adapter.ProviderName, ext, ct);
+                        await _work.UpsertActionItemAsync(new(command.ProjectId, local.Key, ext.Title, NormalizeStatus(ext.Status), local.Priority, ext.OwnerRole, ext.DueAtUtc, Progress(ext, local.CompletionPercent), local.DecisionKey, TargetFrom(local.Target), ext.Url), ct);
+                        await RecordLinkAsync(command.ProjectId, adapter.ProviderName, dataType, ext, ct);
                         if (resolved is not null) await _operations.MarkConflictAppliedAsync(command.ProjectId, resolved.Key, ct);
                     }
                     pulled++;
@@ -126,14 +128,14 @@ public sealed class ManagementSyncService
                 {
                     var remote = await PushAsync(adapter, command.ProjectId, local, ext.ExternalId, command.DryRun, ct);
                     changes.Add(new("PushUpdate", local.Key, adapter.ProviderName, ext.ExternalId, resolved is null ? "DIP is authoritative under PreferAuthority." : "Applied resolved conflict: keep DIP value.", localValue, externalValue));
-                    if (remote is not null) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, remote, ct);
+                    if (remote is not null) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, dataType, remote, ct);
                     if (!command.DryRun && resolved is not null) await _operations.MarkConflictAppliedAsync(command.ProjectId, resolved.Key, ct);
                     pushed++;
                 }
                 else
                 {
                     changes.Add(new("Conflict", local.Key, adapter.ProviderName, ext.ExternalId, direction == ManagementSyncDirection.Pull && effectiveAuthority.Equals("DIP", StringComparison.OrdinalIgnoreCase) ? "DIP resolution cannot be pushed during a Pull-only run." : "Values differ and conflict policy requires manual resolution.", localValue, externalValue));
-                    if (!command.DryRun) await _operations.RecordSyncConflictAsync(command.ProjectId, adapter.ProviderName, "Action", local.Key, localValue, externalValue, ct);
+                    if (!command.DryRun) await _operations.RecordSyncConflictAsync(command.ProjectId, adapter.ProviderName, dataType, local.Key, localValue, externalValue, ct);
                     conflicts++;
                 }
             }
@@ -151,17 +153,17 @@ public sealed class ManagementSyncService
                 {
                     changes.Add(new("PushCreate", local.Key, adapter.ProviderName, externalId, "Explicit Push run: DIP action is not present in the external set.", localValue, Absent));
                     var remote = await PushAsync(adapter, command.ProjectId, local, externalId, command.DryRun, ct);
-                    if (remote is not null) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, remote, ct);
+                    if (remote is not null) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, dataType, remote, ct);
                     pushed++;
                     continue;
                 }
 
-                var prior = FindConflict(syncState, adapter.ProviderName, local.Key);
+                var prior = FindConflict(syncState, adapter.ProviderName, dataType, local.Key);
                 if ((preferAuthority && authorityName.Equals("DIP", StringComparison.OrdinalIgnoreCase)) || IsResolved(prior, "DIP"))
                 {
                     changes.Add(new("PushCreate", local.Key, adapter.ProviderName, externalId, IsResolved(prior, "DIP") ? "Applied resolved conflict: keep DIP item." : "DIP is authoritative under PreferAuthority.", localValue, Absent));
                     var remote = await PushAsync(adapter, command.ProjectId, local, externalId, command.DryRun, ct);
-                    if (remote is not null) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, remote, ct);
+                    if (remote is not null) await RecordLinkAsync(command.ProjectId, adapter.ProviderName, dataType, remote, ct);
                     if (!command.DryRun && IsResolved(prior, "DIP")) await _operations.MarkConflictAppliedAsync(command.ProjectId, prior!.Key, ct);
                     pushed++;
                 }
@@ -178,7 +180,7 @@ public sealed class ManagementSyncService
                 else
                 {
                     changes.Add(new("Conflict", local.Key, adapter.ProviderName, externalId, "DIP-only item requires an explicit source-authority or conflict decision.", localValue, Absent));
-                    if (!command.DryRun) await _operations.RecordSyncConflictAsync(command.ProjectId, adapter.ProviderName, "Action", local.Key, localValue, Absent, ct);
+                    if (!command.DryRun) await _operations.RecordSyncConflictAsync(command.ProjectId, adapter.ProviderName, dataType, local.Key, localValue, Absent, ct);
                     conflicts++;
                 }
             }
@@ -187,10 +189,10 @@ public sealed class ManagementSyncService
         return new(command.ProjectId, adapter.ProviderName, pulled, pushed, conflicts, command.DryRun, changes, _clock.UtcNow);
     }
 
-    private static SyncConflictDto? FindConflict(SyncStateOverviewDto state, string provider, string itemKey, string? status = null)
+    private static SyncConflictDto? FindConflict(SyncStateOverviewDto state, string provider, string dataType, string itemKey, string? status = null)
         => state.Conflicts
             .Where(x => x.Provider.Equals(provider, StringComparison.OrdinalIgnoreCase)
-                        && x.DataType.Equals("Action", StringComparison.OrdinalIgnoreCase)
+                        && x.DataType.Equals(dataType, StringComparison.OrdinalIgnoreCase)
                         && x.ItemKey.Equals(itemKey, StringComparison.OrdinalIgnoreCase)
                         && (status is null || x.Status.Equals(status, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(x => x.ResolvedAtUtc ?? x.DetectedAtUtc)
@@ -209,11 +211,14 @@ public sealed class ManagementSyncService
     private static async Task<ManagementExternalItem?> PushAsync(IManagementSyncAdapter adapter, Guid projectId, ManagementActionDto action, string? externalId, bool dryRun, CancellationToken ct)
         => dryRun ? null : await adapter.UpsertAsync(projectId, action, externalId, ct);
 
-    private async Task<Dictionary<string, string>> ReadLinksAsync(Guid projectId, string provider, CancellationToken ct)
+    private async Task<Dictionary<string, string>> ReadLinksAsync(Guid projectId, string provider, string dataType, CancellationToken ct)
     {
         var nodes = await _repo.ListNodesAsync(projectId, DevelopmentGraphNodeType.ExternalSyncState, ct);
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var n in nodes.Where(x => x.Status != "Archived" && WorkManagementService.MetaString(x, "Kind") == "Link" && WorkManagementService.MetaString(x, "Provider").Equals(provider, StringComparison.OrdinalIgnoreCase)))
+        foreach (var n in nodes.Where(x => x.Status != "Archived"
+            && WorkManagementService.MetaString(x, "Kind") == "Link"
+            && WorkManagementService.MetaString(x, "Provider").Equals(provider, StringComparison.OrdinalIgnoreCase)
+            && (string.IsNullOrWhiteSpace(WorkManagementService.MetaString(x, "DataType")) || WorkManagementService.MetaString(x, "DataType").Equals(dataType,StringComparison.OrdinalIgnoreCase))))
         {
             var key = WorkManagementService.MetaString(n, "ItemKey");
             var id = WorkManagementService.MetaString(n, "ExternalId");
@@ -222,10 +227,10 @@ public sealed class ManagementSyncService
         return result;
     }
 
-    private async Task RecordLinkAsync(Guid projectId, string provider, ManagementExternalItem item, CancellationToken ct)
+    private async Task RecordLinkAsync(Guid projectId, string provider, string dataType, ManagementExternalItem item, CancellationToken ct)
     {
-        var safe = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(provider + ":" + item.Key))).ToLowerInvariant()[..20];
-        var meta = JsonSerializer.Serialize(new { Kind = "Link", Provider = provider, DataType = "Action", ItemKey = item.Key, item.ExternalId, item.Url, item.Revision, item.UpdatedAtUtc });
+        var safe = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(provider + ":" + dataType + ":" + item.Key))).ToLowerInvariant()[..20];
+        var meta = JsonSerializer.Serialize(new { Kind = "Link", Provider = provider, DataType = dataType, ItemKey = item.Key, item.ExternalId, item.Url, item.Revision, item.UpdatedAtUtc, item.Fields });
         await _graph.UpsertNodeAsync(new(projectId, DevelopmentGraphNodeType.ExternalSyncState, $"sync-link:{safe}", $"{provider} {item.Key}", "Active", provider, item.Url, meta), ct);
     }
 
@@ -233,18 +238,41 @@ public sealed class ManagementSyncService
         => authority.Equals(provider, StringComparison.OrdinalIgnoreCase) || authority.Equals("External", StringComparison.OrdinalIgnoreCase);
 
     private static string Canonical(ManagementActionDto a)
-        => JsonSerializer.Serialize(new { a.Title, Status = NormalizeStatus(a.Status), Owner = a.OwnerRole ?? "", Due = a.DueAtUtc?.UtcDateTime.Date.ToString("yyyy-MM-dd") ?? "" });
+        => JsonSerializer.Serialize(new { a.Title, Status = NormalizeStatus(a.Status), Owner = a.OwnerRole ?? "", Due = a.DueAtUtc?.UtcDateTime.Date.ToString("yyyy-MM-dd") ?? "", Progress = Math.Round(a.CompletionPercent,2) });
 
     private static string Canonical(ManagementExternalItem a)
-        => JsonSerializer.Serialize(new { a.Title, Status = NormalizeStatus(a.Status), Owner = a.OwnerRole ?? "", Due = a.DueAtUtc?.UtcDateTime.Date.ToString("yyyy-MM-dd") ?? "" });
+        => JsonSerializer.Serialize(new { a.Title, Status = NormalizeStatus(a.Status), Owner = a.OwnerRole ?? "", Due = a.DueAtUtc?.UtcDateTime.Date.ToString("yyyy-MM-dd") ?? "", Progress = Progress(a) });
+
+    private static bool EquivalentByManagedFields(ManagementActionDto local,ManagementExternalItem external)
+        => Canonical(local)==Canonical(external);
+
+    private static decimal Progress(ManagementExternalItem item,decimal fallback=0m)
+    {
+        if(item.Fields is null)return fallback;
+        foreach(var pair in item.Fields)
+            if(pair.Key.Equals("Progress",StringComparison.OrdinalIgnoreCase)||pair.Key.Equals("CompletionPercent",StringComparison.OrdinalIgnoreCase)||pair.Key.Equals("進捗",StringComparison.OrdinalIgnoreCase))
+            {
+                var raw=pair.Value.Trim().TrimEnd('%');
+                if(decimal.TryParse(raw,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var value))return Math.Clamp(value,0m,100m);
+            }
+        return fallback;
+    }
 
     private static string NormalizeStatus(string status)
         => status.Trim().ToLowerInvariant() switch
         {
-            "done" or "completed" or "closed" or "resolved" or "canceled" or "cancelled" => "Completed",
-            "in progress" or "inprogress" or "started" or "active" => "InProgress",
+            "done" or "completed" or "closed" or "resolved" or "canceled" or "cancelled" or "approved" or "passed" or "delivered" => "Completed",
+            "in progress" or "inprogress" or "started" or "active" or "reviewing" or "inspecting" => "InProgress",
+            "blocked" or "failed" or "rejected" => "Blocked",
             _ => "Open"
         };
+
+    private static string NormalizeDataType(string? value)
+    {
+        var normalized=string.IsNullOrWhiteSpace(value)?"Action":value.Trim();
+        if(normalized.Length>120)throw new ArgumentException("Sync DataType must be at most 120 characters.",nameof(value));
+        return normalized;
+    }
 
     private static ManagementReference? TargetFrom(string? target)
     {

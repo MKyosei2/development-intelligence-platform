@@ -21,6 +21,8 @@ public static class DependencyInjection
         services.AddScoped<ProjectClaimService>();
         services.AddScoped<ProjectTruthService>();
         services.AddScoped<QaOrchestrationService>();
+        services.AddScoped<AutonomousDebugService>();
+        services.AddScoped<IAutonomousDebugAgent>(sp=>sp.GetRequiredService<IFixProposalAgent>() as IAutonomousDebugAgent??throw new InvalidOperationException("The configured fix proposal agent does not support autonomous debugging."));
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceCoreEngine>();
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceRunProcessor>();
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceAdministrationService>();
@@ -72,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.Management.WorkManagementService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementAnalyticsService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementSpreadsheetService>();
+        services.AddScoped<Dip.Application.Features.Management.SpreadsheetSchemaInferenceService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementOperationsService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementSyncService>();
         services.AddScoped<Dip.Application.Features.Management.PortfolioManagementService>();

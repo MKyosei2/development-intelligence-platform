@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Entities;
@@ -28,6 +29,57 @@ public sealed class DevelopmentGraphService
         if(edge is null){edge=new DevelopmentGraphEdge(Guid.NewGuid(),c.ProjectId,c.SourceNodeId,c.TargetNodeId,c.Type,c.Weight,c.Critical,Json(c.MetadataJson),_clock.UtcNow);await _repo.AddEdgeAsync(edge,ct);}
         else edge.Observe(c.Weight,c.Critical,Json(c.MetadataJson),_clock.UtcNow);
         await _uow.SaveChangesAsync(ct);return Map(edge);
+    }
+
+    /// <summary>
+    /// Writes an industry-neutral object without changing the database schema.
+    /// The legacy enum remains the indexing/query fallback while the durable
+    /// domain/kind/source identity lives in metadata.
+    /// </summary>
+    public async Task<UniversalGraphNodeDto> UpsertUniversalNodeAsync(UpsertUniversalGraphNodeCommand c,CancellationToken ct)
+    {
+        if(c.ProjectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(c));
+        var domain=Identifier(c.DomainId,120,nameof(c.DomainId));
+        var kind=Identifier(c.Kind,160,nameof(c.Kind));
+        var schema=Identifier(c.SchemaVersion,40,nameof(c.SchemaVersion));
+        var sourceObjectId=Optional(c.SourceObjectId,500,nameof(c.SourceObjectId));
+        var metadata=MergeMetadata(c.MetadataJson,new Dictionary<string,string?>
+        {
+            ["domainId"]=domain,["kind"]=kind,["schemaVersion"]=schema,["sourceObjectId"]=sourceObjectId
+        });
+        var node=await UpsertNodeAsync(new(c.ProjectId,c.FallbackType,c.Key,c.Name,c.Status,c.Provider,c.ExternalReference,metadata),ct);
+        return new(node,domain,kind,schema,sourceObjectId);
+    }
+
+    public async Task<UniversalGraphEdgeDto> LinkUniversalAsync(LinkUniversalGraphNodesCommand c,CancellationToken ct)
+    {
+        if(c.ProjectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(c));
+        var relation=Identifier(c.RelationKind,160,nameof(c.RelationKind));
+        var metadata=MergeMetadata(c.MetadataJson,new Dictionary<string,string?>{{"relationKind",relation}});
+        var edge=await LinkAsync(new(c.ProjectId,c.SourceNodeId,c.TargetNodeId,c.FallbackType,c.Weight,c.Critical,metadata),ct);
+        return new(edge,relation);
+    }
+
+    public async Task<UniversalGraphDto> GetUniversalAsync(Guid projectId,string? domainId,string? kind,CancellationToken ct)
+    {
+        if(projectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(projectId));
+        var nodes=await _repo.ListNodesAsync(projectId,null,ct);
+        var universal=new List<UniversalGraphNodeDto>();
+        foreach(var entity in nodes)
+        {
+            var dto=Map(entity);var domain=Meta(dto.MetadataJson,"domainId");var objectKind=Meta(dto.MetadataJson,"kind");
+            if(string.IsNullOrWhiteSpace(domain)||string.IsNullOrWhiteSpace(objectKind))continue;
+            if(!string.IsNullOrWhiteSpace(domainId)&&!domain.Equals(domainId,StringComparison.OrdinalIgnoreCase))continue;
+            if(!string.IsNullOrWhiteSpace(kind)&&!objectKind.Equals(kind,StringComparison.OrdinalIgnoreCase))continue;
+            universal.Add(new(dto,domain,objectKind,Meta(dto.MetadataJson,"schemaVersion")??"1",Meta(dto.MetadataJson,"sourceObjectId")));
+        }
+        var ids=universal.Select(x=>x.Node.Id).ToHashSet();var edges=new List<UniversalGraphEdgeDto>();
+        foreach(var entity in await _repo.ListEdgesAsync(projectId,ct))
+        {
+            if(!ids.Contains(entity.SourceNodeId)&&!ids.Contains(entity.TargetNodeId))continue;var dto=Map(entity);var relation=Meta(dto.MetadataJson,"relationKind");
+            if(!string.IsNullOrWhiteSpace(relation))edges.Add(new(dto,relation));
+        }
+        return new(projectId,universal.OrderBy(x=>x.DomainId).ThenBy(x=>x.Kind).ThenBy(x=>x.Node.Name).ToArray(),edges.ToArray());
     }
 
     public async Task<DevelopmentGraphDto> GetAsync(Guid projectId,DevelopmentGraphNodeType? type,CancellationToken ct)
@@ -78,6 +130,16 @@ public sealed class DevelopmentGraphService
     private static string? InferComponent(string path){var p=Normalize(path).Split('/',StringSplitOptions.RemoveEmptyEntries);if(p.Length<2)return null;if(p[0].Equals("src",StringComparison.OrdinalIgnoreCase)||p[0].Equals("tests",StringComparison.OrdinalIgnoreCase)||p[0].Equals("collectors",StringComparison.OrdinalIgnoreCase)||p[0].Equals("services",StringComparison.OrdinalIgnoreCase))return $"{p[0]}/{p[1]}";return p.Length>=3&&p[0].Equals("Assets",StringComparison.OrdinalIgnoreCase)?$"Assets/{p[1]}":p[0];}
     private static string Normalize(string p)=>p.Replace('\\','/').Trim('/');
     private static string Json(string value){try{using var _=JsonDocument.Parse(string.IsNullOrWhiteSpace(value)?"{}":value);return string.IsNullOrWhiteSpace(value)?"{}":value;}catch(JsonException ex){throw new ArgumentException("MetadataJson must contain valid JSON.",nameof(value),ex);}}
+    private static string MergeMetadata(string json,IReadOnlyDictionary<string,string?> fields)
+    {
+        JsonNode? parsed;try{parsed=JsonNode.Parse(string.IsNullOrWhiteSpace(json)?"{}":json);}catch(JsonException ex){throw new ArgumentException("MetadataJson must contain valid JSON.",nameof(json),ex);}
+        var obj=parsed as JsonObject;if(obj is null){obj=new JsonObject();if(parsed is not null)obj["payload"]=parsed.DeepClone();}
+        foreach(var pair in fields){if(pair.Value is null)obj.Remove(pair.Key);else obj[pair.Key]=pair.Value;}
+        return obj.ToJsonString();
+    }
+    private static string Identifier(string value,int max,string name){var v=value?.Trim()??string.Empty;if(v.Length is <1||v.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);if(v.Any(ch=>!(char.IsLetterOrDigit(ch)||ch is '.' or '-' or '_' or ':' or '/')))throw new ArgumentException($"{name} contains unsupported characters.",name);return v;}
+    private static string? Optional(string? value,int max,string name){if(string.IsNullOrWhiteSpace(value))return null;var v=value.Trim();if(v.Length>max)throw new ArgumentException($"{name} must be at most {max} characters.",name);return v;}
+    private static string? Meta(string json,string name){try{using var d=JsonDocument.Parse(json);if(d.RootElement.ValueKind==JsonValueKind.Object&&d.RootElement.TryGetProperty(name,out var v)&&v.ValueKind==JsonValueKind.String)return v.GetString();}catch{}return null;}
     private static DevelopmentGraphNodeDto Map(DevelopmentGraphNode x)=>new(x.Id,x.Type.ToString(),x.Key,x.Name,x.Status,x.Provider,x.ExternalReference,x.MetadataJson,x.LastObservedAtUtc);
     private static DevelopmentGraphEdgeDto Map(DevelopmentGraphEdge x)=>new(x.Id,x.SourceNodeId,x.TargetNodeId,x.Type.ToString(),x.Weight,x.Critical,x.MetadataJson,x.LastObservedAtUtc);
 }

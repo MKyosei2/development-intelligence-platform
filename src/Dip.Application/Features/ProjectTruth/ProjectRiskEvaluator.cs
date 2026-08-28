@@ -6,15 +6,8 @@ public sealed class ProjectRiskEvaluator
 {
     private readonly ProjectTruthPolicy _policy;
 
-    public ProjectRiskEvaluator()
-        : this(ProjectTruthPolicy.Default)
-    {
-    }
-
-    public ProjectRiskEvaluator(ProjectTruthPolicy policy)
-    {
-        _policy = (policy ?? throw new ArgumentNullException(nameof(policy))).Validate();
-    }
+    public ProjectRiskEvaluator():this(ProjectTruthPolicy.Default){}
+    public ProjectRiskEvaluator(ProjectTruthPolicy policy){_policy=(policy??throw new ArgumentNullException(nameof(policy))).Validate();}
 
     public ProjectRiskLevel Evaluate(
         ProgressAssessment progress,
@@ -26,10 +19,10 @@ public sealed class ProjectRiskEvaluator
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(blockers);
 
-        if (blockers.Any(item => item.Severity == "Critical"))
+        if (blockers.Any(item => SeverityIs(item.Severity,"Critical","SafetyCritical","ReleaseCritical")))
             return ProjectRiskLevel.Critical;
 
-        if (blockers.Any(item => item.Severity == "Blocker"))
+        if (blockers.Any(item => SeverityIs(item.Severity,"Blocker","High","Rejected","Failed")))
             return ProjectRiskLevel.High;
 
         if (contradictionCount >= _policy.HighRiskContradictionThreshold)
@@ -41,13 +34,13 @@ public sealed class ProjectRiskEvaluator
 
         if (contradictionCount > 0
             || progressGap >= _policy.MediumRiskProgressGapThreshold
-            || (unverifiedClaimCount > 0
-                && progress.ReportedProgress >= _policy.NearCompletionReportedProgressThreshold)
+            || (unverifiedClaimCount > 0 && progress.ReportedProgress >= _policy.NearCompletionReportedProgressThreshold)
             || confidence <= _policy.MediumRiskMaximumConfidence)
-        {
             return ProjectRiskLevel.Medium;
-        }
 
         return ProjectRiskLevel.Low;
     }
+
+    private static bool SeverityIs(string value,params string[] expected)
+        =>expected.Any(x=>value.Equals(x,StringComparison.OrdinalIgnoreCase));
 }

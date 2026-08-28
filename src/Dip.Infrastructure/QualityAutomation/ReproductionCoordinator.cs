@@ -17,12 +17,33 @@ public sealed class ReproductionCoordinator(
 
     public async Task<ReproductionResult> ReproduceAsync(ReproductionScenario scenario,CancellationToken ct)
     {
+        Validate(scenario);
         var results=new List<ReproductionAttemptResult>();
         for(var attempt=1;attempt<=Math.Clamp(scenario.AttemptCount,1,5);attempt++)
             results.Add(await RunAttemptAsync(scenario,attempt,ct));
+
         var reproduced=results.Count(x=>x.Reproduced);
-        var status=reproduced>0?ReproductionStatus.Reproduced:results.Any(x=>x.Status==ReproductionStatus.EnvironmentFailure)?ReproductionStatus.EnvironmentFailure:results.All(x=>x.TimedOut)?ReproductionStatus.TimedOut:ReproductionStatus.NotReproduced;
+        var required=Math.Max(1,(results.Count+1)/2); // majority for 3+ runs, one hit for 1-2
+        var status=reproduced>=required
+            ?ReproductionStatus.Reproduced
+            :results.Any(x=>x.Status==ReproductionStatus.EnvironmentFailure)
+                ?ReproductionStatus.EnvironmentFailure
+                :results.All(x=>x.TimedOut)
+                    ?ReproductionStatus.TimedOut
+                    :ReproductionStatus.NotReproduced;
         return new(status,reproduced,results.Count,results);
+    }
+
+    private static void Validate(ReproductionScenario scenario)
+    {
+        if(scenario.ProjectId==Guid.Empty)throw new ArgumentException("ProjectId is required.",nameof(scenario));
+        if(scenario.FindingId==Guid.Empty)throw new ArgumentException("FindingId is required.",nameof(scenario));
+        if(string.IsNullOrWhiteSpace(scenario.WorkspacePath)||!Directory.Exists(scenario.WorkspacePath))throw new DirectoryNotFoundException("Reproduction workspace does not exist.");
+        if(string.IsNullOrWhiteSpace(scenario.QaRunArtifactRoot))throw new ArgumentException("QaRunArtifactRoot is required.",nameof(scenario));
+        if(string.IsNullOrWhiteSpace(scenario.Executable)||scenario.Executable.Length>2000)throw new ArgumentException("Executable is invalid.",nameof(scenario));
+        if(scenario.Arguments.Count>128||scenario.Arguments.Any(x=>x.Length>4096))throw new ArgumentException("Reproduction arguments exceed safety limits.",nameof(scenario));
+        if(scenario.EnvironmentVariables.Count>128||scenario.EnvironmentVariables.Any(x=>x.Key.Length>256||x.Value.Length>8192))throw new ArgumentException("Reproduction environment exceeds safety limits.",nameof(scenario));
+        if(string.IsNullOrWhiteSpace(scenario.ExpectedFingerprint)||scenario.ExpectedFingerprint.Length>512)throw new ArgumentException("ExpectedFingerprint is invalid.",nameof(scenario));
     }
 
     private async Task<ReproductionAttemptResult> RunAttemptAsync(ReproductionScenario scenario,int attempt,CancellationToken ct)
@@ -63,7 +84,7 @@ public sealed class ReproductionCoordinator(
         var matches=diagnostics.Any(x=>QaFingerprint.Create(scenario.Language,x)==scenario.ExpectedFingerprint);
         var crashed=!execution.TimedOut&&diagnostics.Any(x=>x.Category is "runtime" or "native-crash" or "memory-safety" or "undefined-behavior");
         var status=execution.TimedOut?(matches?ReproductionStatus.Reproduced:ReproductionStatus.TimedOut):matches?ReproductionStatus.Reproduced:ReproductionStatus.NotReproduced;
-        var payload=new{attempt,reproduced=matches,crashed,timedOut=execution.TimedOut,execution.ExitCode,durationMs=execution.DurationMs,video=File.Exists(video)?video:null,audio=File.Exists(audio)?audio:null,dump=File.Exists(dump)?dump:null,environment=envPath,stdout=execution.StandardOutputPath,stderr=execution.StandardErrorPath};
+        var payload=new{attempt,reproduced=matches,crashed,timedOut=execution.TimedOut,execution.ExitCode,durationMs=execution.DurationMs,video=File.Exists(video)?video:null,audio=File.Exists(audio)?audio:null,dump=File.Exists(dump)?dump:null,environment=envPath,stdout=execution.StandardOutputPath,stderr=execution.StandardErrorPath,expectedFingerprint=scenario.ExpectedFingerprint};
         var json=JsonSerializer.Serialize(payload,new JsonSerializerOptions{WriteIndented=true});await File.WriteAllTextAsync(resultPath,json,ct);
         return new(attempt,status,matches,crashed,execution.TimedOut,execution.ExitCode,execution.DurationMs,dir,File.Exists(video)?video:null,File.Exists(audio)?audio:null,File.Exists(dump)?dump:null,json);
     }
@@ -102,10 +123,12 @@ public sealed class ReproductionCoordinator(
             return Process.Start(psi);
         }catch{return null;}
     }
+
     private async Task FinalizeCaptureAsync(Process capture)
     {
         try{using(capture){using var cts=new CancellationTokenSource(TimeSpan.FromSeconds(8));await capture.WaitForExitAsync(cts.Token);}}catch{try{capture.Kill(true);}catch{}}
     }
+
     private async Task TryCollectManagedEvidenceAsync(LanguageId language,int pid,string dump,string workspace)
     {
         if(language!=LanguageId.CSharp)return;var root=Path.GetDirectoryName(dump)!;
@@ -120,5 +143,6 @@ public sealed class ReproductionCoordinator(
         var dumpDir=Path.Combine(root,"dotnet-dump");Directory.CreateDirectory(dumpDir);
         await executor.RunAsync(tool,["collect","--process-id",pid.ToString(),"--output",dump,"--type","Full"],workspace,null,TimeSpan.FromSeconds(20),Path.Combine(dumpDir,"stdout.log"),Path.Combine(dumpDir,"stderr.log"),CancellationToken.None);
     }
+
     private static string ResolveConfigured(string value)=>Path.IsPathRooted(value)?value:Path.GetFullPath(value);
 }

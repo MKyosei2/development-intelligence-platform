@@ -6,14 +6,16 @@ namespace Dip.Application.Features.ProjectTruth;
 
 /// <summary>
 /// Compares a human status report with objective evidence for the same subject.
-/// It deliberately evaluates the statement, not the person who made it.
+/// It deliberately evaluates the statement, not the person who made it. The
+/// completion vocabulary intentionally spans software, media and construction;
+/// verification semantics remain EvidenceKind/Outcome based and domain-neutral.
 /// </summary>
 public sealed class ClaimVerificationEvaluator
 {
     private static readonly string[] CompletionTokens =
     [
-        "complete", "completed", "done", "finished", "ready",
-        "完了", "完成", "対応済", "終了"
+        "complete", "completed", "done", "finished", "ready", "approved", "published", "delivered", "inspected",
+        "完了", "完成", "対応済", "終了", "承認済", "公開済", "納品済", "検査済", "レビュー済", "レンダー完了"
     ];
 
     public ClaimVerificationAssessment Evaluate(

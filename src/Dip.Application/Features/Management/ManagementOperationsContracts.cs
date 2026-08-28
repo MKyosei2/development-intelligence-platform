@@ -60,9 +60,24 @@ public sealed record ResolveSyncConflictCommand(Guid ProjectId,string ConflictKe
 public sealed record SyncStateOverviewDto(Guid ProjectId,IReadOnlyList<SourceAuthorityRuleDto> AuthorityRules,IReadOnlyList<SyncConflictDto> Conflicts,int OpenConflicts,DateTimeOffset GeneratedAtUtc);
 
 public enum ManagementSyncDirection{Pull,Push,Bidirectional}
-public sealed record ManagementSyncCommand(Guid ProjectId,string Provider,ManagementSyncDirection Direction=ManagementSyncDirection.Bidirectional,bool DryRun=false);
-public sealed record ManagementExternalItem(string Provider,string ExternalId,string Key,string Title,string Status,string? OwnerRole,DateTimeOffset? DueAtUtc,DateTimeOffset UpdatedAtUtc,string Revision,string Url);
-public sealed record ManagementSyncChange(string Operation,string Key,string Provider,string? ExternalId,string Reason,string? DipValue,string? ExternalValue);
+
+/// <summary>
+/// Optional field-level rule used by spreadsheet/connector sync. The default
+/// contract remains Action-level and backward compatible with existing callers.
+/// </summary>
+public sealed record ManagementSyncFieldRule(string Field,string Authority="Manual",string ConflictPolicy="Manual");
+
+public sealed record ManagementSyncCommand(
+    Guid ProjectId,string Provider,ManagementSyncDirection Direction=ManagementSyncDirection.Bidirectional,bool DryRun=false,
+    string DataType="Action",IReadOnlyList<ManagementSyncFieldRule>? FieldRules=null,bool RequireRevisionMatch=true);
+
+public sealed record ManagementExternalItem(
+    string Provider,string ExternalId,string Key,string Title,string Status,string? OwnerRole,DateTimeOffset? DueAtUtc,
+    DateTimeOffset UpdatedAtUtc,string Revision,string Url,IReadOnlyDictionary<string,string>? Fields=null);
+
+public sealed record ManagementSyncChange(
+    string Operation,string Key,string Provider,string? ExternalId,string Reason,string? DipValue,string? ExternalValue,string? Field=null);
+
 public sealed record ManagementSyncResult(Guid ProjectId,string Provider,int Pulled,int Pushed,int Conflicts,bool DryRun,IReadOnlyList<ManagementSyncChange> Changes,DateTimeOffset SyncedAtUtc);
 public interface IManagementSyncAdapter
 {

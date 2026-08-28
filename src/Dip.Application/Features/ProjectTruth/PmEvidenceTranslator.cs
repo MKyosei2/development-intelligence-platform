@@ -1,4 +1,5 @@
 using Dip.Application.Features.QualityAutomation;
+using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectTruth;
@@ -10,6 +11,12 @@ public sealed class PmEvidenceTranslator
     public PmEvidenceExplanation Explain(QaFindingCandidate finding)
     {
         var category=finding.Category.ToLowerInvariant();
+        if(category.Contains("inspection")||category.Contains("construction"))
+            return new("Construction verification needs attention","Inspection or construction evidence does not currently support a fully completed state.","Review the inspection evidence, responsible work item and required approval before accepting completion.");
+        if(category.Contains("render")||category.Contains("publish")||category.Contains("review")||category.Contains("retake"))
+            return new("Media production verification needs attention","Render, publish, review or retake evidence indicates that the production item is not fully verified yet.","Open the latest shot/publish/review evidence and clear the remaining gate before marking the item complete.");
+        if(category.Contains("approval"))
+            return new("Required approval is not complete","A required approval gate is pending or rejected, so downstream work should not treat the item as formally complete.","Resolve the approval decision and retain the approval record as evidence.");
         if(category.Contains("memory-safety")||category.Contains("native-crash")||category.Contains("undefined-behavior"))
             return new("Critical runtime stability problem","The application can crash or corrupt memory during normal execution. This should be treated as a release blocker until fixed and reproduced as resolved.","Prioritize the owning implementation area and re-run the same reproduction scenario after the fix.");
         if(category.Contains("memory-growth")||category.Contains("memory-leak"))
@@ -29,5 +36,24 @@ public sealed class PmEvidenceTranslator
         return finding.Severity==Severity.Critical
             ? new("Critical automated verification problem","Automated evidence found a critical problem that conflicts with a fully complete state.","Review the attached technical evidence and verify the fix with a new run.")
             : new("Automated verification needs attention","Automated evidence found a warning that should be reviewed before relying on the reported status.","Review the evidence and either resolve it or record why it is acceptable.");
+    }
+
+    public PmEvidenceExplanation Explain(EvidenceRecord evidence)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        var kind=evidence.EvidenceKind.ToLowerInvariant();
+        if(kind.Contains("inspection"))
+            return evidence.Outcome==EvidenceOutcome.Succeeded
+                ?new("Inspection passed","The recorded inspection supports the current completion claim.","Retain the inspection record and link it to the affected work item.")
+                :new("Inspection is not passing","The current inspection evidence does not support treating the affected construction work as complete.","Resolve the inspection finding and capture a new passing inspection before approval.");
+        if(kind.Contains("approval"))
+            return evidence.Outcome==EvidenceOutcome.Succeeded
+                ?new("Approval recorded","A required approval gate has been satisfied.","Keep the approval attached to the project item for auditability.")
+                :new("Approval gate is unresolved","A required approval is pending or rejected.","Resolve the approval before downstream work relies on formal completion.");
+        if(kind.Contains("render")||kind.Contains("publish")||kind.Contains("review"))
+            return evidence.Outcome==EvidenceOutcome.Succeeded
+                ?new("Production gate passed","The current media-production evidence supports the reported state.","Keep the render/publish/review evidence linked to the shot or asset.")
+                :new("Production gate needs attention","Render, publish or review evidence does not yet support final completion.","Resolve the failed/pending production gate and re-run the same verification.");
+        return new("Project evidence update",evidence.Summary,evidence.Outcome==EvidenceOutcome.Failed?"Review the failed evidence before relying on the reported project state.":"Use this evidence together with independent sources when making a project decision.");
     }
 }

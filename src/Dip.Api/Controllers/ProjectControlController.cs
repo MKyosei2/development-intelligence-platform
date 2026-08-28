@@ -37,12 +37,18 @@ public sealed class ProjectControlController(
     WorkManagementService work,
     ManagementAnalyticsService management,
     ManagementDashboardService managementDashboard,
-    ManagementSpreadsheetService spreadsheets):ControllerBase
+    ManagementSpreadsheetService spreadsheets,
+    SpreadsheetSchemaInferenceService spreadsheetInference):ControllerBase
 {
     [Authorize(Policy=Policies.ProjectRead)]
     [HttpGet("projects/{projectId:guid}/graph")]
     public Task<DevelopmentGraphDto> GetGraph(Guid projectId,[FromQuery]DevelopmentGraphNodeType? type,CancellationToken ct)
         =>graph.GetAsync(projectId,type,ct);
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/graph/universal")]
+    public Task<UniversalGraphDto> GetUniversalGraph(Guid projectId,[FromQuery]string? domainId,[FromQuery]string? kind,CancellationToken ct)
+        =>graph.GetUniversalAsync(projectId,domainId,kind,ct);
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("graph/nodes")]
@@ -50,9 +56,19 @@ public sealed class ProjectControlController(
         =>graph.UpsertNodeAsync(command,ct);
 
     [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("graph/universal/nodes")]
+    public Task<UniversalGraphNodeDto> UpsertUniversalNode([FromBody]UpsertUniversalGraphNodeCommand command,CancellationToken ct)
+        =>graph.UpsertUniversalNodeAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("graph/edges")]
     public Task<DevelopmentGraphEdgeDto> LinkNodes([FromBody]LinkDevelopmentGraphNodesCommand command,CancellationToken ct)
         =>graph.LinkAsync(command,ct);
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("graph/universal/edges")]
+    public Task<UniversalGraphEdgeDto> LinkUniversalNodes([FromBody]LinkUniversalGraphNodesCommand command,CancellationToken ct)
+        =>graph.LinkUniversalAsync(command,ct);
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("change-impact")]
@@ -143,8 +159,6 @@ public sealed class ProjectControlController(
     [HttpPost("ci/ingest")]
     public Task<NormalizedCiRun> IngestCi([FromBody]NormalizedCiRun run,CancellationToken ct)
         =>ci.IngestAsync(run,ct);
-
-
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("teams")]
@@ -286,6 +300,18 @@ public sealed class ProjectControlController(
     [RequestSizeLimit(25_000_000)]
     public async Task<SpreadsheetImportResult> ImportManagementWorkbook(Guid projectId,IFormFile file,CancellationToken ct)
     { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheets.ImportXlsxAsync(projectId,stream,ct); }
+
+    [Authorize(Policy=Policies.ProjectRead)]
+    [HttpPost("projects/{projectId:guid}/management.xlsx/analyze")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<SpreadsheetSchemaAnalysisDto> AnalyzeManagementWorkbook(Guid projectId,IFormFile file,CancellationToken ct)
+    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheetInference.AnalyzeXlsxAsync(projectId,stream,ct); }
+
+    [Authorize(Policy=Policies.ProjectWrite)]
+    [HttpPost("projects/{projectId:guid}/management.xlsx/import-flexible")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<FlexibleSpreadsheetImportResult> ImportFlexibleManagementWorkbook(Guid projectId,IFormFile file,[FromQuery]string? domainId=null,[FromQuery]bool dryRun=true,CancellationToken ct=default)
+    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheetInference.ImportFlexibleXlsxAsync(projectId,stream,domainId,dryRun,ct); }
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [RequireProjectRole(ProjectMembershipRole.Maintainer)]

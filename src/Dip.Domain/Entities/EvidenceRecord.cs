@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;
@@ -73,6 +74,30 @@ public sealed class EvidenceRecord
     public string? PayloadJson { get; private set; }
     public DateTimeOffset ObservedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
+
+    /// <summary>
+    /// Best-effort lookup for provider/domain metadata embedded in PayloadJson.
+    /// PayloadJson remains backward compatible: non-JSON historical payloads are
+    /// allowed and simply return null here.
+    /// </summary>
+    public string? PayloadValue(string name)
+    {
+        if(string.IsNullOrWhiteSpace(PayloadJson)||string.IsNullOrWhiteSpace(name))return null;
+        try
+        {
+            using var doc=JsonDocument.Parse(PayloadJson);
+            if(doc.RootElement.ValueKind!=JsonValueKind.Object)return null;
+            foreach(var property in doc.RootElement.EnumerateObject())
+            {
+                if(!property.Name.Equals(name,StringComparison.OrdinalIgnoreCase))continue;
+                return property.Value.ValueKind==JsonValueKind.String
+                    ?property.Value.GetString()
+                    :property.Value.GetRawText();
+            }
+        }
+        catch{}
+        return null;
+    }
 
     private static string Required(string? value, int maxLength, string parameterName)
     {

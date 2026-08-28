@@ -8,12 +8,19 @@ namespace Dip.Application.Features.Management;
 
 internal static class ManagementXlsxCodec
 {
+    private const int MaxEntries=512;
+    private const long MaxUncompressedBytes=64L*1024*1024;
+    private const int MaxRowsPerSheet=100_000;
+    private const int MaxColumnsPerSheet=512;
+
     private static readonly XNamespace Main="http://schemas.openxmlformats.org/spreadsheetml/2006/main";
     private static readonly XNamespace Rel="http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private static readonly XNamespace PackageRel="http://schemas.openxmlformats.org/package/2006/relationships";
 
     public static byte[] Write(ManagementWorkbookDto workbook)
     {
+        ArgumentNullException.ThrowIfNull(workbook);
+        if(workbook.Sheets.Count>200)throw new InvalidDataException("Workbook contains too many sheets.");
         using var ms=new MemoryStream();using(var zip=new ZipArchive(ms,ZipArchiveMode.Create,true))
         {
             Add(zip,"[Content_Types].xml",ContentTypes(workbook.Sheets.Count));
@@ -30,20 +37,64 @@ internal static class ManagementXlsxCodec
 
     public static IReadOnlyDictionary<string,IReadOnlyList<IReadOnlyList<string>>> Read(Stream stream)
     {
-        using var zip=new ZipArchive(stream,ZipArchiveMode.Read,true);var wb=Load(zip,"xl/workbook.xml");var rels=Load(zip,"xl/_rels/workbook.xml.rels");var shared=ReadSharedStrings(zip);var relMap=rels.Root?.Elements(PackageRel+"Relationship").Where(x=>x.Attribute("Id") is not null&&x.Attribute("Target") is not null).ToDictionary(x=>x.Attribute("Id")!.Value,x=>x.Attribute("Target")!.Value)??new Dictionary<string,string>();var result=new Dictionary<string,IReadOnlyList<IReadOnlyList<string>>>(StringComparer.OrdinalIgnoreCase);
+        ArgumentNullException.ThrowIfNull(stream);
+        using var zip=new ZipArchive(stream,ZipArchiveMode.Read,true);
+        ValidateArchive(zip);
+        var wb=Load(zip,"xl/workbook.xml");var rels=Load(zip,"xl/_rels/workbook.xml.rels");var shared=ReadSharedStrings(zip);
+        var relMap=rels.Root?.Elements(PackageRel+"Relationship").Where(x=>x.Attribute("Id") is not null&&x.Attribute("Target") is not null).ToDictionary(x=>x.Attribute("Id")!.Value,x=>x.Attribute("Target")!.Value)??new Dictionary<string,string>();
+        var result=new Dictionary<string,IReadOnlyList<IReadOnlyList<string>>>(StringComparer.OrdinalIgnoreCase);
         foreach(var sheet in wb.Descendants(Main+"sheet"))
         {
-            var name=sheet.Attribute("name")?.Value;if(string.IsNullOrWhiteSpace(name))continue;var rid=sheet.Attribute(Rel+"id")?.Value;if(string.IsNullOrWhiteSpace(rid)||!relMap.TryGetValue(rid,out var target))continue;var path=target.StartsWith('/')?target.TrimStart('/'):$"xl/{target.TrimStart('/')}";path=Normalize(path);var entry=zip.GetEntry(path);if(entry is null)continue;using var s=entry.Open();var doc=LoadXml(s);var rows=new List<IReadOnlyList<string>>();foreach(var row in doc.Descendants(Main+"row")){var values=new List<string>();foreach(var cell in row.Elements(Main+"c")){var col=ColumnIndex(cell.Attribute("r")?.Value);while(values.Count<col)values.Add("");values.Add(CellValue(cell,shared));}rows.Add(values);}result[name]=rows;
+            var name=sheet.Attribute("name")?.Value;if(string.IsNullOrWhiteSpace(name))continue;
+            var rid=sheet.Attribute(Rel+"id")?.Value;if(string.IsNullOrWhiteSpace(rid)||!relMap.TryGetValue(rid,out var target))continue;
+            var rawTarget=target.Replace('\\','/');
+            if(rawTarget.Split('/',StringSplitOptions.RemoveEmptyEntries).Any(x=>x==".."))throw new InvalidDataException("Workbook relationship escapes the archive root.");
+            var path=rawTarget.StartsWith('/')?rawTarget.TrimStart('/'):$"xl/{rawTarget.TrimStart('/')}";path=Normalize(path);
+            var entry=zip.GetEntry(path);if(entry is null)continue;using var s=entry.Open();var doc=LoadXml(s);var rows=new List<IReadOnlyList<string>>();
+            foreach(var row in doc.Descendants(Main+"row"))
+            {
+                if(rows.Count>=MaxRowsPerSheet)throw new InvalidDataException($"Worksheet '{name}' exceeds the {MaxRowsPerSheet} row safety limit.");
+                var values=new List<string>();
+                foreach(var cell in row.Elements(Main+"c"))
+                {
+                    var col=ColumnIndex(cell.Attribute("r")?.Value);if(col>=MaxColumnsPerSheet)throw new InvalidDataException($"Worksheet '{name}' exceeds the {MaxColumnsPerSheet} column safety limit.");
+                    while(values.Count<col)values.Add("");
+                    values.Add(CellValue(cell,shared));
+                }
+                rows.Add(values);
+            }
+            result[name]=rows;
         }
         return result;
     }
 
+    private static void ValidateArchive(ZipArchive zip)
+    {
+        if(zip.Entries.Count>MaxEntries)throw new InvalidDataException($"XLSX archive exceeds the {MaxEntries} entry safety limit.");
+        long total=0;
+        foreach(var entry in zip.Entries)
+        {
+            total+=Math.Max(0,entry.Length);
+            if(total>MaxUncompressedBytes)throw new InvalidDataException("XLSX archive exceeds the 64 MiB uncompressed safety limit.");
+            var raw=entry.FullName.Replace('\\','/');
+            if(raw.Split('/',StringSplitOptions.RemoveEmptyEntries).Any(x=>x==".."))throw new InvalidDataException("XLSX archive contains an unsafe path.");
+            var normalized=Normalize(raw);
+            if(string.IsNullOrWhiteSpace(normalized))throw new InvalidDataException("XLSX archive contains an invalid path.");
+        }
+    }
+
     private static string Worksheet(SpreadsheetSheetDto sheet)
     {
-        var rows=new List<IReadOnlyList<string>>{sheet.Headers};rows.AddRange(sheet.Rows);var maxCols=Math.Max(1,rows.Max(r=>r.Count));var sb=new StringBuilder();sb.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols>");for(var c=1;c<=maxCols;c++)sb.Append($"<col min=\"{c}\" max=\"{c}\" width=\"{(c==1?24:18)}\" customWidth=\"1\"/>");sb.Append("</cols><sheetData>");
-        for(var r=0;r<rows.Count;r++){sb.Append($"<row r=\"{r+1}\">");for(var c=0;c<rows[r].Count;c++){var value=rows[r][c]??"";var style=r==0?1:StatusStyle(value);var cell=CellRef(c+1,r+1);sb.Append($"<c r=\"{cell}\" t=\"inlineStr\" s=\"{style}\"><is><t xml:space=\"preserve\">{Esc(value)}</t></is></c>");}sb.Append("</row>");}sb.Append("</sheetData>");if(rows.Count>0&&maxCols>0)sb.Append($"<autoFilter ref=\"A1:{ColumnName(maxCols)}{rows.Count}\"/>");sb.Append("</worksheet>");return sb.ToString();
+        var rows=new List<IReadOnlyList<string>>{sheet.Headers};rows.AddRange(sheet.Rows);
+        if(rows.Count>MaxRowsPerSheet)throw new InvalidDataException($"Sheet '{sheet.Name}' exceeds the row limit.");
+        var maxCols=Math.Max(1,rows.Max(r=>r.Count));if(maxCols>MaxColumnsPerSheet)throw new InvalidDataException($"Sheet '{sheet.Name}' exceeds the column limit.");
+        var sb=new StringBuilder();sb.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols>");
+        for(var c=1;c<=maxCols;c++)sb.Append($"<col min=\"{c}\" max=\"{c}\" width=\"{(c==1?24:18)}\" customWidth=\"1\"/>");sb.Append("</cols><sheetData>");
+        for(var r=0;r<rows.Count;r++){sb.Append($"<row r=\"{r+1}\">");for(var c=0;c<rows[r].Count;c++){var value=rows[r][c]??"";var style=r==0?1:StatusStyle(value);var cell=CellRef(c+1,r+1);sb.Append($"<c r=\"{cell}\" t=\"inlineStr\" s=\"{style}\"><is><t xml:space=\"preserve\">{Esc(value)}</t></is></c>");}sb.Append("</row>");}
+        sb.Append("</sheetData>");if(rows.Count>0&&maxCols>0)sb.Append($"<autoFilter ref=\"A1:{ColumnName(maxCols)}{rows.Count}\"/>");sb.Append("</worksheet>");return sb.ToString();
     }
-    private static int StatusStyle(string value)=>value.Trim().ToLowerInvariant() switch{"critical" or "blocked" or "overcapacity" or "failed"=>2,"atrisk" or "watch" or "nearcapacity"=>3,"healthy" or "ontrack" or "completed" or "ready"=>4,_=>0};
+
+    private static int StatusStyle(string value)=>value.Trim().ToLowerInvariant() switch{"critical" or "blocked" or "overcapacity" or "failed" or "rejected"=>2,"atrisk" or "watch" or "nearcapacity" or "pending"=>3,"healthy" or "ontrack" or "completed" or "ready" or "approved" or "passed"=>4,_=>0};
     private static string Styles()=>"""
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -55,6 +106,7 @@ internal static class ManagementXlsxCodec
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>
 """;
+
     private static string ContentTypes(int count){var s=new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/><Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/>");for(var i=1;i<=count;i++)s.Append($"<Override PartName=\"/xl/worksheets/sheet{i}.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>");s.Append("</Types>");return s.ToString();}
     private static string RootRels()=>"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>";
     private static string WorkbookXml(IReadOnlyList<SpreadsheetSheetDto> sheets){var sb=new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets>");for(var i=0;i<sheets.Count;i++)sb.Append($"<sheet name=\"{EscAttr(SafeSheetName(sheets[i].Name))}\" sheetId=\"{i+1}\" r:id=\"rId{i+1}\"/>");sb.Append("</sheets></workbook>");return sb.ToString();}
@@ -64,8 +116,18 @@ internal static class ManagementXlsxCodec
     private static void Add(ZipArchive zip,string path,string content){var e=zip.CreateEntry(path,CompressionLevel.Optimal);using var s=e.Open();using var w=new StreamWriter(s,new UTF8Encoding(false));w.Write(content);}
     private static XDocument Load(ZipArchive zip,string path){var e=zip.GetEntry(path)??throw new InvalidDataException($"XLSX part '{path}' is missing.");using var s=e.Open();return LoadXml(s);}
     private static XDocument LoadXml(Stream stream){var settings=new XmlReaderSettings{DtdProcessing=DtdProcessing.Prohibit,XmlResolver=null,MaxCharactersInDocument=32L*1024*1024};using var reader=XmlReader.Create(stream,settings);return XDocument.Load(reader,LoadOptions.None);}
-    private static List<string> ReadSharedStrings(ZipArchive zip){var e=zip.GetEntry("xl/sharedStrings.xml");if(e is null)return [];using var s=e.Open();var d=LoadXml(s);return d.Descendants(Main+"si").Select(si=>string.Concat(si.Descendants(Main+"t").Select(t=>t.Value))).ToList();}
-    private static string CellValue(XElement cell,IReadOnlyList<string> shared){var type=cell.Attribute("t")?.Value;if(type=="inlineStr")return string.Concat(cell.Descendants(Main+"t").Select(x=>x.Value));var value=cell.Element(Main+"v")?.Value??"";if(type=="s"&&int.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var i)&&i>=0&&i<shared.Count)return shared[i];return value;}
+    private static List<string> ReadSharedStrings(ZipArchive zip){var e=zip.GetEntry("xl/sharedStrings.xml");if(e is null)return [];using var s=e.Open();var d=LoadXml(s);return d.Descendants(Main+"si").Take(200_000).Select(si=>string.Concat(si.Descendants(Main+"t").Select(t=>t.Value))).ToList();}
+    private static string CellValue(XElement cell,IReadOnlyList<string> shared)
+    {
+        var type=cell.Attribute("t")?.Value;
+        if(type=="inlineStr")return string.Concat(cell.Descendants(Main+"t").Select(x=>x.Value));
+        var value=cell.Element(Main+"v")?.Value??"";
+        if(type=="s"&&int.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var i)&&i>=0&&i<shared.Count)return shared[i];
+        if(type=="b")return value=="1"?"TRUE":"FALSE";
+        if(type=="e")return $"#ERROR:{value}";
+        // Formula cells use the cached <v> value. DIP never evaluates formulas.
+        return value;
+    }
     private static int ColumnIndex(string? cellRef){if(string.IsNullOrWhiteSpace(cellRef))return 0;var n=0;foreach(var ch in cellRef){if(!char.IsLetter(ch))break;n=n*26+(char.ToUpperInvariant(ch)-'A'+1);}return Math.Max(0,n-1);}
     private static string CellRef(int col,int row)=>ColumnName(col)+row.ToString(CultureInfo.InvariantCulture);
     private static string ColumnName(int col){var s="";while(col>0){col--;s=(char)('A'+col%26)+s;col/=26;}return s;}

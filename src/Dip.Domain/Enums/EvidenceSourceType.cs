@@ -18,5 +18,11 @@ public enum EvidenceSourceType
     AiAssistant = 13,
     Planning = 14,
     IssueTracker = 15,
-    Collaboration = 16
+    Collaboration = 16,
+    Spreadsheet = 17,
+    MediaProduction = 18,
+    Construction = 19,
+    Inspection = 20,
+    Approval = 21,
+    Bim = 22
 }

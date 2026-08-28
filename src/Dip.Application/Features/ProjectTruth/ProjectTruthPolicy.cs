@@ -4,8 +4,8 @@ namespace Dip.Application.Features.ProjectTruth;
 
 /// <summary>
 /// Versionable policy for deterministic Project Truth scoring and risk thresholds.
-/// Defaults intentionally preserve the historical evaluator behavior; they are
-/// a conservative baseline, not a claim of statistical optimality.
+/// Defaults intentionally preserve the historical evaluator behavior where possible;
+/// they are a conservative baseline, not a claim of statistical optimality.
 /// </summary>
 public sealed record ProjectTruthPolicy
 {
@@ -29,6 +29,21 @@ public sealed record ProjectTruthPolicy
     public decimal NearCompletionReportedProgressThreshold { get; init; } = 80m;
     public EvidenceConfidence MediumRiskMaximumConfidence { get; init; } = EvidenceConfidence.Low;
 
+    public decimal PartiallyConfirmedProgressFactor { get; init; } = 0.5m;
+    public decimal StaleProgressFactor { get; init; } = 0.25m;
+
+    /// <summary>
+    /// Failure kinds that should be treated as project-level critical blockers.
+    /// Includes software, media-production and construction verification gates.
+    /// </summary>
+    public IReadOnlyList<string> CriticalEvidenceKindTokens { get; init; } =
+    [
+        "build","runtime","integration","release","pipeline","crash","memory-safety","memory-growth",
+        "undefined-behavior","hang","compile",
+        "inspection","safety","approval","delivery",
+        "render","publish","review"
+    ];
+
     public ProjectTruthPolicy Validate()
     {
         RequireNonNegative(CriticalBlockerHealthPenalty, nameof(CriticalBlockerHealthPenalty));
@@ -44,15 +59,15 @@ public sealed record ProjectTruthPolicy
         RequireNonNegative(HighEvidenceHealthPenalty, nameof(HighEvidenceHealthPenalty));
 
         if (HighRiskContradictionThreshold < 1)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(HighRiskContradictionThreshold),
-                HighRiskContradictionThreshold,
-                "The high-risk contradiction threshold must be at least 1.");
-        }
+            throw new ArgumentOutOfRangeException(nameof(HighRiskContradictionThreshold),HighRiskContradictionThreshold,"The high-risk contradiction threshold must be at least 1.");
 
         RequirePercentage(MediumRiskProgressGapThreshold, nameof(MediumRiskProgressGapThreshold));
         RequirePercentage(NearCompletionReportedProgressThreshold, nameof(NearCompletionReportedProgressThreshold));
+        RequireFactor(PartiallyConfirmedProgressFactor,nameof(PartiallyConfirmedProgressFactor));
+        RequireFactor(StaleProgressFactor,nameof(StaleProgressFactor));
+
+        if(CriticalEvidenceKindTokens is null||CriticalEvidenceKindTokens.Count==0||CriticalEvidenceKindTokens.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("Critical evidence kind tokens must contain at least one non-empty value.",nameof(CriticalEvidenceKindTokens));
 
         return this;
     }
@@ -67,5 +82,11 @@ public sealed record ProjectTruthPolicy
     {
         if (value is < 0m or > 100m)
             throw new ArgumentOutOfRangeException(name, value, "Percentage thresholds must be between 0 and 100.");
+    }
+
+    private static void RequireFactor(decimal value,string name)
+    {
+        if(value is <0m or >1m)
+            throw new ArgumentOutOfRangeException(name,value,"Progress factors must be between 0 and 1.");
     }
 }

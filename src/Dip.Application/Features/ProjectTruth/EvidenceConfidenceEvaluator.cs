@@ -6,8 +6,8 @@ namespace Dip.Application.Features.ProjectTruth;
 
 /// <summary>
 /// Converts the source and declared confidence of recent evidence into a
-/// project-level confidence. Multiple independent machine sources are needed
-/// before a project can be described as fully verified.
+/// project-level confidence. Multiple independent providers are needed before
+/// a project can be described as fully verified.
 /// </summary>
 public sealed class EvidenceConfidenceEvaluator
 {
@@ -29,23 +29,32 @@ public sealed class EvidenceConfidenceEvaluator
             .Select(item => new { Item = item, Confidence = EvidenceFreshnessPolicy.EffectiveConfidence(item, now) })
             .ToArray();
 
+        // SourceType alone is too coarse for an extensible platform. Prefer an
+        // explicit provider/source id in evidence payload when present.
         var distinctSources = effective
             .Where(item => item.Confidence >= EvidenceConfidence.High)
-            .Select(item => item.Item.SourceType)
-            .Distinct()
+            .Select(item => SourceIdentity(item.Item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
 
         var strongest = effective.Max(item => item.Confidence);
 
         if (strongest == EvidenceConfidence.Verified && distinctSources >= 3)
             return EvidenceConfidence.Verified;
-
         if (strongest >= EvidenceConfidence.High)
             return EvidenceConfidence.High;
-
         if (strongest == EvidenceConfidence.Medium)
             return EvidenceConfidence.Medium;
-
         return EvidenceConfidence.Low;
+    }
+
+    private static string SourceIdentity(EvidenceRecord item)
+    {
+        var provider=item.PayloadValue("provider")
+            ??item.PayloadValue("sourceProvider")
+            ??item.PayloadValue("source");
+        return string.IsNullOrWhiteSpace(provider)
+            ?item.SourceType.ToString()
+            :$"{item.SourceType}:{provider.Trim()}";
     }
 }

@@ -14,6 +14,31 @@ public sealed record DevelopmentGraphNodeDto(Guid Id,string Type,string Key,stri
 public sealed record DevelopmentGraphEdgeDto(Guid Id,Guid SourceNodeId,Guid TargetNodeId,string Type,decimal Weight,bool Critical,string MetadataJson,DateTimeOffset LastObservedAtUtc);
 public sealed record DevelopmentGraphDto(Guid ProjectId,IReadOnlyList<DevelopmentGraphNodeDto> Nodes,IReadOnlyList<DevelopmentGraphEdgeDto> Edges);
 
+/// <summary>
+/// Provider- and industry-neutral graph write. DomainId/Kind are stored in
+/// MetadataJson so adding a new industry does not require a database migration
+/// or a new enum member. FallbackType keeps existing queries and dashboards
+/// compatible with the legacy DevelopmentGraphNodeType model.
+/// </summary>
+public sealed record UpsertUniversalGraphNodeCommand(
+    Guid ProjectId,string DomainId,string Kind,string Key,string Name,string Status="Observed",
+    string? Provider=null,string? ExternalReference=null,string? SourceObjectId=null,string SchemaVersion="1",
+    DevelopmentGraphNodeType FallbackType=DevelopmentGraphNodeType.ExternalObservation,string MetadataJson="{}");
+
+/// <summary>
+/// Industry-neutral relation. RelationKind is durable metadata while
+/// FallbackType keeps existing dependency/readiness logic working.
+/// </summary>
+public sealed record LinkUniversalGraphNodesCommand(
+    Guid ProjectId,Guid SourceNodeId,Guid TargetNodeId,string RelationKind,
+    decimal Weight=50m,bool Critical=false,
+    DevelopmentGraphEdgeType FallbackType=DevelopmentGraphEdgeType.RelatesTo,string MetadataJson="{}");
+
+public sealed record UniversalGraphNodeDto(
+    DevelopmentGraphNodeDto Node,string DomainId,string Kind,string SchemaVersion,string? SourceObjectId);
+public sealed record UniversalGraphEdgeDto(DevelopmentGraphEdgeDto Edge,string RelationKind);
+public sealed record UniversalGraphDto(Guid ProjectId,IReadOnlyList<UniversalGraphNodeDto> Nodes,IReadOnlyList<UniversalGraphEdgeDto> Edges);
+
 public sealed record NormalizedChangedFile(string Path,string Status,int Additions=0,int Deletions=0);
 public sealed record NormalizedReview(string Reviewer,string State,DateTimeOffset? SubmittedAtUtc=null);
 public sealed record NormalizedVersionControlChange(
