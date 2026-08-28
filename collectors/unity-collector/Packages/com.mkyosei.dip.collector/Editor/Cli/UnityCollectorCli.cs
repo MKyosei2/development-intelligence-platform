@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using Dip.UnityCollector.Editor.Analysis;
 using Dip.UnityCollector.Editor.Configuration;
 using Dip.UnityCollector.Editor.Models;
@@ -13,13 +14,15 @@ namespace Dip.UnityCollector.Editor.Cli
 {
     public static class UnityCollectorCli
     {
+        private const string CollectorVersion = "0.4.0";
+
         public static void Run()
         {
             var started = DateTimeOffset.UtcNow;
             var output = GetArg("-dipOutput");
             var report = new CollectorReport
             {
-                collectorVersion = "0.3.0",
+                collectorVersion = CollectorVersion,
                 projectId = GetArg("-dipProjectId"),
                 commitSha = GetArg("-dipCommitSha"),
                 branch = GetArg("-dipBranch"),
@@ -31,9 +34,26 @@ namespace Dip.UnityCollector.Editor.Cli
             {
                 var settings = UnityCollectorSettings.LoadOrCreate();
                 AnalyzeProject(report, settings, GetOptionalArg("-dipRuntimeMetrics"));
-                report.status = report.issues.Exists(issue => string.Equals(issue.severity, "Critical", StringComparison.OrdinalIgnoreCase))
-                    ? "warning"
-                    : "succeeded";
+
+                var qualityGate = NormalizeQualityGate(GetOptionalArg("-dipQualityGate"));
+                AddIssueSummaryMetrics(report);
+                var gateFailed = ShouldFailQualityGate(report, qualityGate);
+                var hasCritical = report.issues.Exists(issue =>
+                    string.Equals(issue.severity, "Critical", StringComparison.OrdinalIgnoreCase));
+
+                report.status = gateFailed
+                    ? "failed"
+                    : hasCritical
+                        ? "warning"
+                        : "succeeded";
+
+                if (gateFailed)
+                {
+                    exitCode = 2;
+                    Debug.LogError(
+                        $"DIP Unity quality gate '{qualityGate}' failed. " +
+                        "See the generated collector report for actionable findings.");
+                }
             }
             catch (Exception ex)
             {
@@ -59,7 +79,10 @@ namespace Dip.UnityCollector.Editor.Cli
                 EditorApplication.Exit(exitCode);
         }
 
-        public static void AnalyzeProject(CollectorReport report, UnityCollectorSettings settings, string runtimeMetricsPath = null)
+        public static void AnalyzeProject(
+            CollectorReport report,
+            UnityCollectorSettings settings,
+            string runtimeMetricsPath = null)
         {
             if (report == null) throw new ArgumentNullException(nameof(report));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
@@ -75,9 +98,62 @@ namespace Dip.UnityCollector.Editor.Cli
             IngestRuntimePerformance(report, settings, runtimeMetricsPath);
         }
 
-        private static void IngestRuntimePerformance(CollectorReport report, UnityCollectorSettings settings, string explicitPath)
+        /// <summary>
+        /// Converts collector findings into a deterministic CI quality gate.
+        /// Modes: off = collect only; critical = fail on Critical; warning = fail on
+        /// Warning or Critical. Invalid modes fail closed instead of silently weakening CI.
+        /// </summary>
+        public static bool ShouldFailQualityGate(CollectorReport report, string qualityGate)
         {
-            var path = string.IsNullOrWhiteSpace(explicitPath) ? settings.runtimePerformanceReportPath : explicitPath;
+            if (report == null) throw new ArgumentNullException(nameof(report));
+            var normalized = NormalizeQualityGate(qualityGate);
+            if (normalized == "off") return false;
+
+            var hasCritical = report.issues.Any(issue =>
+                string.Equals(issue.severity, "Critical", StringComparison.OrdinalIgnoreCase));
+            if (hasCritical) return true;
+
+            return normalized == "warning"
+                && report.issues.Any(issue =>
+                    string.Equals(issue.severity, "Warning", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void AddIssueSummaryMetrics(CollectorReport report)
+        {
+            AddMetric(
+                report,
+                "collector_issue_critical_count",
+                report.issues.Count(issue =>
+                    string.Equals(issue.severity, "Critical", StringComparison.OrdinalIgnoreCase)),
+                "count");
+            AddMetric(
+                report,
+                "collector_issue_warning_count",
+                report.issues.Count(issue =>
+                    string.Equals(issue.severity, "Warning", StringComparison.OrdinalIgnoreCase)),
+                "count");
+        }
+
+        private static string NormalizeQualityGate(string value)
+        {
+            var normalized = string.IsNullOrWhiteSpace(value)
+                ? "critical"
+                : value.Trim().ToLowerInvariant();
+            if (normalized == "off" || normalized == "critical" || normalized == "warning")
+                return normalized;
+
+            throw new ArgumentException(
+                $"Invalid -dipQualityGate value '{value}'. Expected off, critical, or warning.");
+        }
+
+        private static void IngestRuntimePerformance(
+            CollectorReport report,
+            UnityCollectorSettings settings,
+            string explicitPath)
+        {
+            var path = string.IsNullOrWhiteSpace(explicitPath)
+                ? settings.runtimePerformanceReportPath
+                : explicitPath;
             if (string.IsNullOrWhiteSpace(path)) return;
             var fullPath = Path.IsPathRooted(path) ? path : Path.GetFullPath(path);
 
@@ -142,30 +218,51 @@ namespace Dip.UnityCollector.Editor.Cli
 
             if (snapshot.p95FrameMs >= settings.criticalFrameTimeP95Ms)
             {
-                AddPerformanceIssue(report, "Critical", "Critical p95 frame-time regression risk",
-                    $"p95 frame time is {snapshot.p95FrameMs.ToString("0.###", CultureInfo.InvariantCulture)} ms; configured critical threshold is {settings.criticalFrameTimeP95Ms:0.###} ms.", fullPath);
+                AddPerformanceIssue(
+                    report,
+                    "Critical",
+                    "Critical p95 frame-time regression risk",
+                    $"p95 frame time is {snapshot.p95FrameMs.ToString("0.###", CultureInfo.InvariantCulture)} ms; configured critical threshold is {settings.criticalFrameTimeP95Ms:0.###} ms.",
+                    fullPath);
             }
             else if (snapshot.p95FrameMs >= settings.warningFrameTimeP95Ms)
             {
-                AddPerformanceIssue(report, "Warning", "p95 frame time exceeds target",
-                    $"p95 frame time is {snapshot.p95FrameMs.ToString("0.###", CultureInfo.InvariantCulture)} ms; configured warning threshold is {settings.warningFrameTimeP95Ms:0.###} ms.", fullPath);
+                AddPerformanceIssue(
+                    report,
+                    "Warning",
+                    "p95 frame time exceeds target",
+                    $"p95 frame time is {snapshot.p95FrameMs.ToString("0.###", CultureInfo.InvariantCulture)} ms; configured warning threshold is {settings.warningFrameTimeP95Ms:0.###} ms.",
+                    fullPath);
             }
 
             if (snapshot.maxMonoUsedMb >= settings.warningMonoMemoryMb)
             {
-                AddPerformanceIssue(report, "Warning", "Managed memory exceeds configured envelope",
-                    $"Maximum Mono used memory is {snapshot.maxMonoUsedMb:0.##} MB; configured threshold is {settings.warningMonoMemoryMb:0.##} MB.", fullPath);
+                AddPerformanceIssue(
+                    report,
+                    "Warning",
+                    "Managed memory exceeds configured envelope",
+                    $"Maximum Mono used memory is {snapshot.maxMonoUsedMb:0.##} MB; configured threshold is {settings.warningMonoMemoryMb:0.##} MB.",
+                    fullPath);
             }
         }
 
-        private static void AddMetric(CollectorReport report, string name, double value, string unit) => report.metrics.Add(new CollectorMetric
+        private static void AddMetric(
+            CollectorReport report,
+            string name,
+            double value,
+            string unit) => report.metrics.Add(new CollectorMetric
         {
             name = name,
             value = value,
             unit = unit
         });
 
-        private static void AddPerformanceIssue(CollectorReport report, string severity, string title, string description, string source) => report.issues.Add(new CollectorIssue
+        private static void AddPerformanceIssue(
+            CollectorReport report,
+            string severity,
+            string title,
+            string description,
+            string source) => report.issues.Add(new CollectorIssue
         {
             category = "performance",
             severity = severity,
@@ -185,8 +282,10 @@ namespace Dip.UnityCollector.Editor.Cli
         {
             var args = Environment.GetCommandLineArgs();
             for (var i = 0; i < args.Length - 1; i++)
+            {
                 if (args[i] == name)
                     return args[i + 1];
+            }
             return null;
         }
     }

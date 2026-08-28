@@ -84,13 +84,14 @@ $collectorLog = Join-Path $out 'collector-unity.log'
     -dipProjectId '00000000-0000-0000-0000-000000000001' `
     -dipCommitSha 'unity-verification' `
     -dipBranch 'verification' `
+    -dipQualityGate 'off' `
     -dipOutput $report `
     -logFile $collectorLog
 if ($LASTEXITCODE -ne 0) { throw "Unity Collector BatchMode smoke failed with exit code $LASTEXITCODE. See $collectorLog" }
 if (-not (Test-Path -LiteralPath $report)) { throw "Unity Collector report was not generated: $report" }
 
 $json = Get-Content -LiteralPath $report -Raw
-foreach ($metric in @('build_scene_count','animation_clip_count','scene_count_analyzed')) {
+foreach ($metric in @('build_scene_count','animation_clip_count','scene_count_analyzed','collector_issue_critical_count')) {
     if ($json -notmatch [regex]::Escape($metric)) { throw "Unity Collector report is missing expected metric '$metric'." }
 }
 
@@ -100,7 +101,8 @@ $pass = Join-Path $out 'UNITY_COLLECTOR_VERIFICATION_PASS.txt'
     "Timestamp=$([DateTimeOffset]::UtcNow.ToString('u'))",
     "UnityVersion=$unityVersion",
     "TestResults=$testXml",
-    "CollectorReport=$report"
+    "CollectorReport=$report",
+    'QualityGateCapability=critical|warning|off'
 ) | Set-Content -LiteralPath $pass -Encoding UTF8
 Write-Host "Unity Collector verification passed: $pass" -ForegroundColor Green
 

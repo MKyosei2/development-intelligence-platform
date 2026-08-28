@@ -7,13 +7,21 @@ namespace Dip.Application.Features.ProjectTruth;
 /// Produces two deliberately separate progress numbers: what the team reported
 /// and how much of that reported progress is currently backed by evidence.
 /// Status vocabulary is intentionally cross-domain (software/media/construction).
+/// Ambiguous status-only progress is resolved through ProjectTruthPolicy rather
+/// than hidden hard-coded values.
 /// </summary>
 public sealed class ProgressEvaluator
 {
     private readonly ProjectTruthPolicy _policy;
 
-    public ProgressEvaluator():this(ProjectTruthPolicy.Default){}
-    public ProgressEvaluator(ProjectTruthPolicy policy){_policy=(policy??throw new ArgumentNullException(nameof(policy))).Validate();}
+    public ProgressEvaluator() : this(ProjectTruthPolicy.Default)
+    {
+    }
+
+    public ProgressEvaluator(ProjectTruthPolicy policy)
+    {
+        _policy = (policy ?? throw new ArgumentNullException(nameof(policy))).Validate();
+    }
 
     public ProgressAssessment Evaluate(
         IReadOnlyCollection<ProjectClaim> claims,
@@ -54,23 +62,39 @@ public sealed class ProgressEvaluator
         return new(decimal.Round(verifiedValues.Average(), 2), reported);
     }
 
-    private static decimal GetReportedProgress(ProjectClaim claim)
+    private decimal GetReportedProgress(ProjectClaim claim)
     {
         if (claim.ClaimedProgress is { } explicitProgress)
             return explicitProgress;
 
-        var status = claim.ClaimedStatus;
-        if (ContainsAny(status,
-            "complete","completed","done","finished","ready","approved","accepted","passed","delivered","published","rendered","reviewed","inspected",
-            "完了","完成","対応済","終了","承認済","合格","納品済","公開済","レンダー済","レビュー済","検査済"))
+        var status = claim.ClaimedStatus ?? string.Empty;
+
+        if (ContainsAny(
+            status,
+            "complete", "completed", "done", "finished", "ready", "approved", "accepted", "passed", "delivered", "published", "rendered", "reviewed", "inspected",
+            "完了", "完成", "対応済", "終了", "承認済", "合格", "納品済", "公開済", "レンダー済", "レビュー済", "検査済"))
+        {
             return 100m;
-        if (ContainsAny(status, "not started","todo","planned","未着手","未開始","計画"))
+        }
+
+        if (ContainsAny(status, "not started", "todo", "planned", "未着手", "未開始", "計画"))
             return 0m;
-        if (ContainsAny(status, "blocked","rejected","failed","停止","保留","否認","差戻","不合格","失敗"))
-            return 50m;
-        if (ContainsAny(status, "progress","working","started","reviewing","inspecting","rendering","作業中","進行中","着手","レビュー中","検査中","レンダー中"))
-            return 50m;
-        return 50m;
+
+        if (ContainsAny(status, "rejected", "failed", "否認", "差戻", "不合格", "失敗"))
+            return _policy.InferredFailedReportedProgress;
+
+        if (ContainsAny(status, "blocked", "stopped", "on hold", "停止", "保留"))
+            return _policy.InferredBlockedReportedProgress;
+
+        if (ContainsAny(
+            status,
+            "progress", "working", "started", "reviewing", "inspecting", "rendering",
+            "作業中", "進行中", "着手", "レビュー中", "検査中", "レンダー中"))
+        {
+            return _policy.InferredInProgressReportedProgress;
+        }
+
+        return _policy.InferredUnknownReportedProgress;
     }
 
     private static bool ContainsAny(string source, params string[] values) =>

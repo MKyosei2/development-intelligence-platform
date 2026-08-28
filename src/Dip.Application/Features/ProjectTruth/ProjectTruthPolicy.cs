@@ -4,8 +4,8 @@ namespace Dip.Application.Features.ProjectTruth;
 
 /// <summary>
 /// Versionable policy for deterministic Project Truth scoring and risk thresholds.
-/// Defaults intentionally preserve the historical evaluator behavior where possible;
-/// they are a conservative baseline, not a claim of statistical optimality.
+/// Defaults intentionally preserve stable historical semantics where they are
+/// defensible while making previously implicit progress heuristics explicit.
 /// </summary>
 public sealed record ProjectTruthPolicy
 {
@@ -33,15 +33,27 @@ public sealed record ProjectTruthPolicy
     public decimal StaleProgressFactor { get; init; } = 0.25m;
 
     /// <summary>
+    /// Status-only progress inference is deliberately policy-driven instead of
+    /// being hard-coded in the evaluator. A blocked/failed/unknown item without
+    /// an explicit percentage is treated conservatively and never receives an
+    /// arbitrary 50% credit. In-progress retains the historical midpoint fallback
+    /// for integrations that only expose a coarse status vocabulary.
+    /// </summary>
+    public decimal InferredInProgressReportedProgress { get; init; } = 50m;
+    public decimal InferredBlockedReportedProgress { get; init; } = 0m;
+    public decimal InferredFailedReportedProgress { get; init; } = 0m;
+    public decimal InferredUnknownReportedProgress { get; init; } = 0m;
+
+    /// <summary>
     /// Failure kinds that should be treated as project-level critical blockers.
     /// Includes software, media-production and construction verification gates.
     /// </summary>
     public IReadOnlyList<string> CriticalEvidenceKindTokens { get; init; } =
     [
-        "build","runtime","integration","release","pipeline","crash","memory-safety","memory-growth",
-        "undefined-behavior","hang","compile",
-        "inspection","safety","approval","delivery",
-        "render","publish","review"
+        "build", "runtime", "integration", "release", "pipeline", "crash", "memory-safety", "memory-growth",
+        "undefined-behavior", "hang", "compile",
+        "inspection", "safety", "approval", "delivery",
+        "render", "publish", "review"
     ];
 
     public ProjectTruthPolicy Validate()
@@ -59,15 +71,30 @@ public sealed record ProjectTruthPolicy
         RequireNonNegative(HighEvidenceHealthPenalty, nameof(HighEvidenceHealthPenalty));
 
         if (HighRiskContradictionThreshold < 1)
-            throw new ArgumentOutOfRangeException(nameof(HighRiskContradictionThreshold),HighRiskContradictionThreshold,"The high-risk contradiction threshold must be at least 1.");
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(HighRiskContradictionThreshold),
+                HighRiskContradictionThreshold,
+                "The high-risk contradiction threshold must be at least 1.");
+        }
 
         RequirePercentage(MediumRiskProgressGapThreshold, nameof(MediumRiskProgressGapThreshold));
         RequirePercentage(NearCompletionReportedProgressThreshold, nameof(NearCompletionReportedProgressThreshold));
-        RequireFactor(PartiallyConfirmedProgressFactor,nameof(PartiallyConfirmedProgressFactor));
-        RequireFactor(StaleProgressFactor,nameof(StaleProgressFactor));
+        RequireFactor(PartiallyConfirmedProgressFactor, nameof(PartiallyConfirmedProgressFactor));
+        RequireFactor(StaleProgressFactor, nameof(StaleProgressFactor));
+        RequirePercentage(InferredInProgressReportedProgress, nameof(InferredInProgressReportedProgress));
+        RequirePercentage(InferredBlockedReportedProgress, nameof(InferredBlockedReportedProgress));
+        RequirePercentage(InferredFailedReportedProgress, nameof(InferredFailedReportedProgress));
+        RequirePercentage(InferredUnknownReportedProgress, nameof(InferredUnknownReportedProgress));
 
-        if(CriticalEvidenceKindTokens is null||CriticalEvidenceKindTokens.Count==0||CriticalEvidenceKindTokens.Any(string.IsNullOrWhiteSpace))
-            throw new ArgumentException("Critical evidence kind tokens must contain at least one non-empty value.",nameof(CriticalEvidenceKindTokens));
+        if (CriticalEvidenceKindTokens is null
+            || CriticalEvidenceKindTokens.Count == 0
+            || CriticalEvidenceKindTokens.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException(
+                "Critical evidence kind tokens must contain at least one non-empty value.",
+                nameof(CriticalEvidenceKindTokens));
+        }
 
         return this;
     }
@@ -84,9 +111,9 @@ public sealed record ProjectTruthPolicy
             throw new ArgumentOutOfRangeException(name, value, "Percentage thresholds must be between 0 and 100.");
     }
 
-    private static void RequireFactor(decimal value,string name)
+    private static void RequireFactor(decimal value, string name)
     {
-        if(value is <0m or >1m)
-            throw new ArgumentOutOfRangeException(name,value,"Progress factors must be between 0 and 1.");
+        if (value is < 0m or > 1m)
+            throw new ArgumentOutOfRangeException(name, value, "Progress factors must be between 0 and 1.");
     }
 }

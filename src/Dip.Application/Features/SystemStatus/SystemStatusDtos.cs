@@ -13,9 +13,22 @@ public sealed record SystemComponentStatusDto(
     string Name,
     string State,
     string Detail,
-    DateTimeOffset CheckedAtUtc);
+    DateTimeOffset CheckedAtUtc,
+    double? DurationMs = null);
 
 public sealed record SystemStatusDto(
     string Overall,
     DateTimeOffset CheckedAtUtc,
     IReadOnlyList<SystemComponentStatusDto> Components);
+
+public sealed record SystemLivenessDto(
+    bool Live,
+    string State,
+    DateTimeOffset CheckedAtUtc);
+
+public sealed record SystemReadinessDto(
+    bool Ready,
+    string State,
+    DateTimeOffset CheckedAtUtc,
+    IReadOnlyList<string> UnavailableComponents,
+    IReadOnlyList<string> DegradedComponents);

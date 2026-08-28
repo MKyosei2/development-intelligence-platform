@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Dip.Api.Authorization;
 using Dip.Application.Features.SystemStatus;
 using Dip.Infrastructure.Persistence;
@@ -17,10 +18,79 @@ public sealed class SystemStatusController(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration) : ControllerBase
 {
+    private static readonly HashSet<string> CriticalComponentKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "api",
+        "database",
+        "redis",
+        "analysis",
+        "worker",
+        "artifact-store"
+    };
+
+    /// <summary>
+    /// Minimal liveness endpoint for orchestrators. It deliberately does not expose
+    /// dependency details and therefore remains safe to probe without authentication.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("live")]
+    [ProducesResponseType(typeof(SystemLivenessDto), StatusCodes.Status200OK)]
+    public ActionResult<SystemLivenessDto> GetLiveness()
+    {
+        var checkedAt = DateTimeOffset.UtcNow;
+        return Ok(new SystemLivenessDto(true, "Live", checkedAt));
+    }
+
+    /// <summary>
+    /// Dependency-aware readiness endpoint. A critical unavailable dependency returns
+    /// HTTP 503 so Docker/Kubernetes/reverse proxies can stop routing traffic.
+    /// Details are intentionally limited to component keys.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("ready")]
+    [ProducesResponseType(typeof(SystemReadinessDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(SystemReadinessDto), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<SystemReadinessDto>> GetReadiness(
+        CancellationToken cancellationToken)
+    {
+        var status = await BuildStatusAsync(cancellationToken);
+        var critical = status.Components
+            .Where(component => CriticalComponentKeys.Contains(component.Key))
+            .ToArray();
+        var unavailable = critical
+            .Where(component => component.State == SystemComponentStates.Unavailable)
+            .Select(component => component.Key)
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToArray();
+        var degraded = critical
+            .Where(component => component.State == SystemComponentStates.Degraded)
+            .Select(component => component.Key)
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToArray();
+
+        var ready = unavailable.Length == 0;
+        var dto = new SystemReadinessDto(
+            ready,
+            ready ? "Ready" : "NotReady",
+            status.CheckedAtUtc,
+            unavailable,
+            degraded);
+
+        return ready
+            ? Ok(dto)
+            : StatusCode(StatusCodes.Status503ServiceUnavailable, dto);
+    }
+
     [Authorize(Policy = Policies.ProjectRead)]
     [HttpGet("status")]
+    [ProducesResponseType(typeof(SystemStatusDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<SystemStatusDto>> GetStatus(
         CancellationToken cancellationToken)
+    {
+        return Ok(await BuildStatusAsync(cancellationToken));
+    }
+
+    private async Task<SystemStatusDto> BuildStatusAsync(CancellationToken cancellationToken)
     {
         var checkedAt = DateTimeOffset.UtcNow;
         var components = new List<SystemComponentStatusDto>
@@ -28,46 +98,50 @@ public sealed class SystemStatusController(
             Healthy("api", "API", "HTTP pipeline is responding.", checkedAt)
         };
 
-        components.Add(await ProbeAsync(
-            "database",
-            "PostgreSQL",
-            async token => (await db.Database.CanConnectAsync(token))
-                ? (true, "Database connection succeeded.")
-                : (false, "Database connection check returned false."),
-            checkedAt,
-            cancellationToken));
-
-        components.Add(await ProbeAsync(
-            "redis",
-            "Redis",
-            async token =>
-            {
-                token.ThrowIfCancellationRequested();
-                var latency = await redis.GetDatabase().PingAsync();
-                return (true, $"Ping {latency.TotalMilliseconds:0.#} ms.");
-            },
-            checkedAt,
-            cancellationToken));
-
         var analysisBase = configuration["AnalysisService:BaseUrl"]
             ?? "http://127.0.0.1:8100";
-        components.Add(await ProbeHttpAsync(
-            "analysis",
-            "Python Analysis",
-            new Uri(new Uri(EnsureTrailingSlash(analysisBase)), "health"),
-            checkedAt,
-            cancellationToken));
-
         var workerUrl = configuration["SystemStatus:WorkerMetricsUrl"]
             ?? "http://127.0.0.1:9091/metrics";
-        components.Add(await ProbeHttpAsync(
-            "worker",
-            "Worker",
-            new Uri(workerUrl),
-            checkedAt,
-            cancellationToken));
 
-        components.Add(await ProbeArtifactStoreAsync(checkedAt, cancellationToken));
+        // These probes are independent. Running them concurrently bounds readiness
+        // latency to the slowest dependency instead of the sum of all timeouts.
+        var coreProbeTasks = new Task<SystemComponentStatusDto>[]
+        {
+            ProbeAsync(
+                "database",
+                "PostgreSQL",
+                async token => (await db.Database.CanConnectAsync(token))
+                    ? (true, "Database connection succeeded.")
+                    : (false, "Database connection check returned false."),
+                checkedAt,
+                cancellationToken),
+            ProbeAsync(
+                "redis",
+                "Redis",
+                async token =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    var latency = await redis.GetDatabase().PingAsync();
+                    return (true, $"Ping {latency.TotalMilliseconds:0.#} ms.");
+                },
+                checkedAt,
+                cancellationToken),
+            ProbeHttpAsync(
+                "analysis",
+                "Python Analysis",
+                new Uri(new Uri(EnsureTrailingSlash(analysisBase)), "health"),
+                checkedAt,
+                cancellationToken),
+            ProbeHttpAsync(
+                "worker",
+                "Worker",
+                new Uri(workerUrl),
+                checkedAt,
+                cancellationToken),
+            ProbeArtifactStoreAsync(checkedAt, cancellationToken)
+        };
+
+        components.AddRange(await Task.WhenAll(coreProbeTasks));
 
         var sandboxEnabled = configuration.GetValue<bool?>("Qa:SandboxEnabled") ?? true;
         components.Add(new SystemComponentStatusDto(
@@ -136,15 +210,14 @@ public sealed class SystemStatusController(
                     : "GitHub repository access is not configured. Set a read-only GitHub token or GitHub App installation to browse, import and synchronize repositories.",
             checkedAt));
 
-        var core = components.Where(x => x.Key is
-            "api" or "database" or "redis" or "analysis" or "worker" or "artifact-store");
-        var overall = core.Any(x => x.State == SystemComponentStates.Unavailable)
-            ? SystemComponentStates.Degraded
-            : core.Any(x => x.State == SystemComponentStates.Degraded)
+        var core = components.Where(component => CriticalComponentKeys.Contains(component.Key));
+        var overall = core.Any(component => component.State == SystemComponentStates.Unavailable)
+            ? SystemComponentStates.Unavailable
+            : core.Any(component => component.State == SystemComponentStates.Degraded)
                 ? SystemComponentStates.Degraded
                 : SystemComponentStates.Healthy;
 
-        return Ok(new SystemStatusDto(overall, checkedAt, components));
+        return new SystemStatusDto(overall, checkedAt, components);
     }
 
     private async Task<SystemComponentStatusDto> ProbeHttpAsync(
@@ -210,34 +283,54 @@ public sealed class SystemStatusController(
             cancellationToken);
     }
 
-    private static async Task<SystemComponentStatusDto> ProbeAsync(
+    private async Task<SystemComponentStatusDto> ProbeAsync(
         string key,
         string name,
         Func<CancellationToken, Task<(bool Healthy, string Detail)>> probe,
         DateTimeOffset checkedAt,
         CancellationToken cancellationToken)
     {
+        var timeoutSeconds = Math.Clamp(
+            configuration.GetValue<int?>("SystemStatus:ProbeTimeoutSeconds") ?? 4,
+            1,
+            30);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(4));
+        timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+        var stopwatch = Stopwatch.StartNew();
+
         try
         {
             var result = await probe(timeout.Token);
+            stopwatch.Stop();
             return new SystemComponentStatusDto(
                 key,
                 name,
                 result.Healthy ? SystemComponentStates.Healthy : SystemComponentStates.Unavailable,
                 result.Detail,
-                checkedAt);
+                checkedAt,
+                Math.Round(stopwatch.Elapsed.TotalMilliseconds, 2));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            stopwatch.Stop();
             return new SystemComponentStatusDto(
-                key, name, SystemComponentStates.Unavailable, "Health probe timed out.", checkedAt);
+                key,
+                name,
+                SystemComponentStates.Unavailable,
+                $"Health probe timed out after {timeoutSeconds} s.",
+                checkedAt,
+                stopwatch.Elapsed.TotalMilliseconds);
         }
         catch (Exception exception)
         {
+            stopwatch.Stop();
             return new SystemComponentStatusDto(
-                key, name, SystemComponentStates.Unavailable, exception.Message, checkedAt);
+                key,
+                name,
+                SystemComponentStates.Unavailable,
+                exception.Message,
+                checkedAt,
+                stopwatch.Elapsed.TotalMilliseconds);
         }
     }
 
@@ -246,7 +339,7 @@ public sealed class SystemStatusController(
         string name,
         string detail,
         DateTimeOffset checkedAt) =>
-        new(key, name, SystemComponentStates.Healthy, detail, checkedAt);
+        new(key, name, SystemComponentStates.Healthy, detail, checkedAt, 0d);
 
     private static string EnsureTrailingSlash(string value) =>
         value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
