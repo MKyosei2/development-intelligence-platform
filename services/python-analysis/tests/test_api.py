@@ -1,4 +1,8 @@
 from fastapi.testclient import TestClient
+import pytest
+from pydantic import ValidationError
+
+from app.core.config import Settings
 from app.main import app
 
 client = TestClient(app)
@@ -28,3 +32,13 @@ def test_risk_endpoint() -> None:
         },
     )
     assert response.status_code == 200
+
+
+def test_production_requires_api_key() -> None:
+    with pytest.raises(ValidationError):
+        Settings(app_env="production", api_key="")
+
+
+def test_production_accepts_configured_api_key() -> None:
+    settings = Settings(app_env="production", api_key="portfolio-production-key")
+    assert settings.api_key == "portfolio-production-key"

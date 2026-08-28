@@ -13,3 +13,8 @@ python collectors/unreal-collector/collector.py --root ./MyGame --project-id 000
 The produced JSON is submitted to the existing `POST /api/v1/collectors/reports` endpoint. The collector never guesses a PASS when the `.uproject` descriptor is missing; that condition is emitted as Critical and the report status is Failed.
 
 Additional evidence: optional `--automation-report <index.json>` (or automatic `Saved/Automation/Reports/**/index.json` discovery), Saved/Crashes artifact counting, and `--insights-csv` runtime metrics.
+
+
+## Engine-native Automation mode
+
+For deeper Unreal verification, pass `--unreal-editor-cmd <path-to-UnrealEditor-Cmd>` and optionally `--automation-filter <filter>`. The collector launches Unreal unattended, records the engine exit/result metadata, consumes the generated Automation `index.json`, and fails closed when the engine command/report is unavailable. The dependency-free file/log collection path remains available when an Unreal installation is intentionally not present.

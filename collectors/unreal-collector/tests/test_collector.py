@@ -62,6 +62,19 @@ class CollectorTests(unittest.TestCase):
                 )
             )
 
+    def test_builds_engine_native_automation_command(self):
+        command = collector.build_engine_automation_command(
+            Path("/opt/UnrealEditor-Cmd"),
+            Path("/project/Game.uproject"),
+            "Project.Functional",
+            Path("/project/Saved/Automation/Reports/DIP"),
+        )
+        joined = " ".join(str(item) for item in command)
+        self.assertIn("UnrealEditor-Cmd", command[0])
+        self.assertIn("Automation RunTests Project.Functional", joined)
+        self.assertIn("-unattended", command)
+        self.assertIn("-TestExit=Automation Test Queue Empty", command)
+
     def test_missing_uproject_is_critical(self):
         with tempfile.TemporaryDirectory() as td:
             _, issues = collector.collect(Path(td), None)

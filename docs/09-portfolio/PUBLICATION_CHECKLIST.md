@@ -31,6 +31,8 @@ For the SHA that will be published, require successful execution of:
 
 A workflow that fails **before any step starts** is infrastructure-unavailable, not a source PASS. Do not relabel it green.
 
+Source-side hardening cannot manufacture a successful hosted-runner result. The portfolio-critical workflows expose `workflow_dispatch` so the exact revision can be re-run when runner/account capacity is available; publication remains blocked until those real runs succeed.
+
 The tracked `.portfolio-ci-trigger` is included in every path-filtered main verification workflow. Updating it for a portfolio milestone deliberately forces the full matrix to execute even when a subsystem source path did not otherwise change.
 
 ## 3. Visibility change

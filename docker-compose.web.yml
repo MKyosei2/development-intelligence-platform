@@ -21,17 +21,25 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${DIP_REDIS_PASSWORD:?Set DIP_REDIS_PASSWORD in deploy/web.env}
+    command:
+      - sh
+      - -c
+      - 'exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"' 
     volumes:
       - dip-web-redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD-SHELL
+        - 'redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning ping | grep -q PONG' 
       interval: 5s
       timeout: 3s
       retries: 20
     networks: [backend]
 
   python-analysis:
+    image: ${DIP_IMAGE_PREFIX:-ghcr.io/mkyosei2/dip}-analysis:${DIP_IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: infrastructure/docker/analysis.Dockerfile
@@ -39,7 +47,7 @@ services:
     environment:
       APP_ENV: production
       LOG_LEVEL: ${ANALYSIS_LOG_LEVEL:-INFO}
-      API_KEY: ${DIP_ANALYSIS_API_KEY:-}
+      API_KEY: ${DIP_ANALYSIS_API_KEY:?Set DIP_ANALYSIS_API_KEY in deploy/web.env}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=3).read()"]
       interval: 10s
@@ -49,6 +57,7 @@ services:
     networks: [backend]
 
   api:
+    image: ${DIP_IMAGE_PREFIX:-ghcr.io/mkyosei2/dip}-api:${DIP_IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: infrastructure/docker/api.Dockerfile
@@ -58,10 +67,11 @@ services:
       ASPNETCORE_URLS: http://+:8080
       Hosting__UseHttpsRedirection: "false"
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
-      Redis__ConnectionString: redis:6379
+      Redis__ConnectionString: redis:6379,password=${DIP_REDIS_PASSWORD:?Set DIP_REDIS_PASSWORD in deploy/web.env},abortConnect=false
       Redis__InstanceName: "dip:"
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
+      AnalysisService__ApiKey: ${DIP_ANALYSIS_API_KEY:?Set DIP_ANALYSIS_API_KEY in deploy/web.env}
       GitHub__WebhookSecret: ${DIP_GITHUB_WEBHOOK_SECRET:?Set DIP_GITHUB_WEBHOOK_SECRET in deploy/web.env}
       GitHub__Token: ${DIP_GITHUB_TOKEN:-}
       GitHub__AppId: ${DIP_GITHUB_APP_ID:-0}
@@ -73,6 +83,7 @@ services:
       Artifacts__Provider: Local
       Artifacts__LocalRoot: /data/dip-artifacts
       Authentication__RequireAuthenticatedUser: "true"
+      PublicAccess__ReadOnly: ${DIP_PUBLIC_READ_ONLY:-true}
       Authentication__GitHub__ClientId: ${DIP_GITHUB_OAUTH_CLIENT_ID:?Set DIP_GITHUB_OAUTH_CLIENT_ID in deploy/web.env}
       Authentication__GitHub__ClientSecret: ${DIP_GITHUB_OAUTH_CLIENT_SECRET:?Set DIP_GITHUB_OAUTH_CLIENT_SECRET in deploy/web.env}
       Authentication__GitHub__AdminLogins__0: ${DIP_GITHUB_ADMIN_LOGIN:?Set DIP_GITHUB_ADMIN_LOGIN in deploy/web.env}
@@ -122,6 +133,7 @@ services:
     networks: [backend]
 
   worker:
+    image: ${DIP_IMAGE_PREFIX:-ghcr.io/mkyosei2/dip}-worker:${DIP_IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: infrastructure/docker/worker.Dockerfile
@@ -129,10 +141,11 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Production
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
-      Redis__ConnectionString: redis:6379
+      Redis__ConnectionString: redis:6379,password=${DIP_REDIS_PASSWORD:?Set DIP_REDIS_PASSWORD in deploy/web.env},abortConnect=false
       Redis__InstanceName: "dip:"
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
+      AnalysisService__ApiKey: ${DIP_ANALYSIS_API_KEY:?Set DIP_ANALYSIS_API_KEY in deploy/web.env}
       GitHub__Token: ${DIP_GITHUB_TOKEN:-}
       GitHub__AppId: ${DIP_GITHUB_APP_ID:-0}
       GitHub__InstallationId: ${DIP_GITHUB_APP_INSTALLATION_ID:-0}
@@ -170,6 +183,7 @@ services:
     networks: [backend]
 
   web:
+    image: ${DIP_IMAGE_PREFIX:-ghcr.io/mkyosei2/dip}-web:${DIP_IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: infrastructure/docker/web.Dockerfile
@@ -182,6 +196,7 @@ services:
       Ui__PublicWebUrl: https://${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}
       Ui__PublicApiUrl: https://${DIP_PUBLIC_HOST:?Set DIP_PUBLIC_HOST in deploy/web.env}
       Authentication__RequireAuthenticatedUser: "true"
+      PublicAccess__ReadOnly: ${DIP_PUBLIC_READ_ONLY:-true}
     volumes:
       - dip-web-dataprotection:/home/dipuser/.aspnet/DataProtection-Keys
     depends_on:

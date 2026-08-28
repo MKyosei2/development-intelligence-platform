@@ -6,7 +6,8 @@
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:live-github": "playwright test --grep @live-github"
+    "test:live-github": "playwright test --grep @live-github",
+    "test:public": "playwright test tests/public-readonly.spec.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0"

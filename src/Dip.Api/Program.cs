@@ -137,12 +137,16 @@ builder.Services
 
 var requireAuthenticatedUser =
     authenticationOptions.RequireAuthenticatedUser;
+var publicReadOnly =
+    builder.Configuration.GetValue<bool?>("PublicAccess:ReadOnly") ?? false;
 
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(Policies.ProjectRead, policy =>
     {
-        if (requireAuthenticatedUser)
+        // The hosted portfolio may expose the exact same production read model
+        // to anonymous reviewers. No alternate demo backend is used.
+        if (requireAuthenticatedUser && !publicReadOnly)
         {
             policy.RequireAuthenticatedUser();
         }
@@ -154,7 +158,8 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(Policies.ProjectWrite, policy =>
     {
-        if (requireAuthenticatedUser)
+        // Public read-only always fails closed for writes.
+        if (requireAuthenticatedUser || publicReadOnly)
         {
             policy.RequireAuthenticatedUser();
             policy.RequireRole(Roles.Member, Roles.Admin);
@@ -179,8 +184,6 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         | ForwardedHeaders.XForwardedProto
         | ForwardedHeaders.XForwardedHost;
 
-    // docker-compose.web.yml exposes only Caddy publicly.
-    // Accept forwarded headers from the private container network.
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -246,11 +249,6 @@ app.Use(async (context, next) =>
     }
 });
 
-// In the hosted browser-only deployment, TLS is terminated by Caddy.
-// Internal Web -> API traffic intentionally stays HTTP on the private Docker
-// network. Redirecting that traffic to HTTPS would target an API container
-// that does not expose TLS. Keep redirection configurable for other hosting
-// models and disable it in docker-compose.web.yml.
 var useHttpsRedirection =
     builder.Configuration.GetValue(
         "Hosting:UseHttpsRedirection",

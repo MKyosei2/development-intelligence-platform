@@ -6,11 +6,12 @@ import csv
 import datetime as dt
 import json
 import re
+import subprocess
 import sys
 import uuid
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 ASSET_EXTS = {".uasset", ".umap", ".ubulk", ".uexp"}
 SOURCE_EXTS = {".cpp", ".h", ".hpp", ".cs"}
 ERROR_RE = re.compile(r"(?:error:|fatal error|ensure condition failed|assertion failed)", re.I)
@@ -131,6 +132,104 @@ def _collect_automation(report: Path, metrics: list, issues: list):
                 "UNREAL_AUTOMATION_PARSE",
             )
         )
+
+
+def build_engine_automation_command(
+    unreal_editor_cmd: Path,
+    uproject: Path,
+    automation_filter: str,
+    report_output: Path,
+) -> list[str]:
+    """Build a deterministic, unattended Unreal Automation invocation."""
+    return [
+        str(unreal_editor_cmd),
+        str(uproject),
+        "-unattended",
+        "-nop4",
+        "-nosplash",
+        "-nullrhi",
+        f"-ReportOutputPath={report_output}",
+        f"-ExecCmds=Automation RunTests {automation_filter}; Quit",
+        "-TestExit=Automation Test Queue Empty",
+    ]
+
+
+def run_engine_automation(
+    root: Path,
+    unreal_editor_cmd: Path,
+    automation_filter: str,
+    timeout_seconds: int,
+) -> tuple[Path | None, dict, dict | None]:
+    uproject = next(iter(root.glob("*.uproject")), None)
+    if uproject is None:
+        return None, {"attempted": False, "reason": "uproject-missing"}, None
+    if not unreal_editor_cmd.is_file():
+        return None, {"attempted": False, "reason": "editor-command-missing"}, issue(
+            "AutomationTest",
+            "Critical",
+            "UnrealEditor-Cmd executable is unavailable",
+            f"Configured engine command does not exist: {unreal_editor_cmd}",
+            str(unreal_editor_cmd),
+            "UNREAL_EDITOR_CMD_MISSING",
+        )
+
+    report_output = root / "Saved" / "Automation" / "Reports" / "DIP"
+    report_output.mkdir(parents=True, exist_ok=True)
+    command = build_engine_automation_command(
+        unreal_editor_cmd, uproject, automation_filter, report_output
+    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=max(30, min(timeout_seconds, 7200)),
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return None, {
+            "attempted": True,
+            "timedOut": True,
+            "command": command,
+        }, issue(
+            "AutomationTest",
+            "Critical",
+            "Unreal Automation execution timed out",
+            str(exc),
+            str(uproject),
+            "UNREAL_AUTOMATION_TIMEOUT",
+        )
+
+    report = next(iter(report_output.glob("**/index.json")), None)
+    execution = {
+        "attempted": True,
+        "exitCode": completed.returncode,
+        "timedOut": False,
+        "report": str(report) if report else None,
+        "stdoutTail": completed.stdout[-4000:],
+        "stderrTail": completed.stderr[-4000:],
+    }
+    if completed.returncode != 0:
+        return report, execution, issue(
+            "AutomationTest",
+            "Critical",
+            "Unreal Automation command failed",
+            f"UnrealEditor-Cmd exited with code {completed.returncode}.",
+            str(uproject),
+            "UNREAL_AUTOMATION_COMMAND_FAILED",
+            {"exitCode": completed.returncode},
+        )
+    if report is None:
+        return None, execution, issue(
+            "AutomationTest",
+            "Critical",
+            "Unreal Automation report was not produced",
+            "The engine command completed but no index.json report was found.",
+            str(report_output),
+            "UNREAL_AUTOMATION_REPORT_MISSING",
+        )
+    return report, execution, None
 
 
 def collect(root: Path, insights: Path | None, automation: Path | None = None):
@@ -398,6 +497,16 @@ def main(argv=None):
     parser.add_argument("--insights-csv")
     parser.add_argument("--automation-report")
     parser.add_argument(
+        "--unreal-editor-cmd",
+        help="Optional UnrealEditor-Cmd(.exe) path. When set, run Automation Tests before collection.",
+    )
+    parser.add_argument(
+        "--automation-filter",
+        default="Project",
+        help="Automation test filter used with --unreal-editor-cmd (default: Project).",
+    )
+    parser.add_argument("--engine-timeout-seconds", type=int, default=1800)
+    parser.add_argument(
         "--quality-gate",
         choices=("off", "critical", "warning"),
         default="critical",
@@ -408,11 +517,26 @@ def main(argv=None):
 
     root = Path(args.root).resolve()
     started = utcnow()
+    engine_execution = {"attempted": False}
+    engine_issue = None
+    automation_report = Path(args.automation_report).resolve() if args.automation_report else None
+
+    if args.unreal_editor_cmd:
+        automation_report, engine_execution, engine_issue = run_engine_automation(
+            root,
+            Path(args.unreal_editor_cmd).resolve(),
+            args.automation_filter,
+            args.engine_timeout_seconds,
+        )
+
     metrics, issues = collect(
         root,
         Path(args.insights_csv).resolve() if args.insights_csv else None,
-        Path(args.automation_report).resolve() if args.automation_report else None,
+        automation_report,
     )
+    metrics.append(metric("unreal.engine_native_automation_attempted", 1 if engine_execution.get("attempted") else 0, "bool"))
+    if engine_issue:
+        issues.append(engine_issue)
     metrics.extend(
         [
             metric(
@@ -444,6 +568,7 @@ def main(argv=None):
         "startedAt": started,
         "finishedAt": finished,
         "status": status,
+        "engineNativeAutomation": engine_execution,
         "metrics": metrics,
         "issues": issues,
     }

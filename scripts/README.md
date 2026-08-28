@@ -1,10 +1,26 @@
 # Repository automation scripts
 
-The scripts in this directory are for developers, CI, formal verification and evidence collection. They are **not** an end-user startup mechanism.
+The scripts in this directory are for local startup, developers, CI, formal verification and evidence collection.
 
-DIP end users access the hosted service from a web browser and do not run PowerShell, `.cmd` files, Docker Desktop, .NET, Python, or a locally installed DIP application.
+## Standard local runtime
 
-Hosted deployment is documented in [`../docs/WEB_DEPLOYMENT.md`](../docs/WEB_DEPLOYMENT.md).
+- `Start-DIP.ps1`: standard Windows launcher for the same full stack defined by `../docker-compose.yml`. It starts Docker Desktop automatically when installed but stopped, builds/starts PostgreSQL, Redis, Python Analysis, API, Worker and Web, verifies their runtime endpoints, then opens the browser.
+- `Stop-DIP.ps1`: stops the local stack while preserving persistent Docker volumes by default. `-RemoveData` also removes those volumes.
+
+Repository-root `Start-DIP.cmd` and `Stop-DIP.cmd` are double-click wrappers around these PowerShell scripts. There is no separate demo backend or reduced-function runtime.
+
+Useful startup options:
+
+```powershell
+.\scripts\Start-DIP.ps1
+.\scripts\Start-DIP.ps1 -NoBuild
+.\scripts\Start-DIP.ps1 -VerifyGui
+.\scripts\Start-DIP.ps1 -NoBrowser
+```
+
+`-VerifyGui` runs the existing Playwright UI E2E suite after all runtime health checks pass. Node.js/npm is required only for that optional verification flag, not for the normal DIP startup path.
+
+Hosted end users still access DIP from a browser and do not run PowerShell or Docker themselves. Hosted deployment is documented in [`../docs/WEB_DEPLOYMENT.md`](../docs/WEB_DEPLOYMENT.md).
 
 ## Developer / CI scripts
 

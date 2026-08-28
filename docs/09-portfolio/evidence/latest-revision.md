@@ -4,13 +4,12 @@
 
 このファイルは「Sourceが存在する」「過去RevisionがPASSした」「現在Revisionが実際に検証された」を混同しないための境界を定義します。
 
-## Patch preparation baseline
+## Revision anchor
 
 - GitHub repository: `MKyosei2/development-intelligence-platform`
-- source baseline used for this repair package: `77c65ea9e434f90da4f24824af29fff5d95e77d7`
-- baseline date: 2026-08-28
+- current source revision: **generated at verification time from `git rev-parse HEAD` / `GITHUB_SHA`**
 
-> このSHAは**修正Packageを作るために読み取った基準Revision**です。修正を適用してCommitすると新しいSHAになります。その新SHAをこのファイル内へ自己参照的に固定することはしません。
+This tracked document intentionally does not hard-code a mutable "latest" SHA. Exact-revision artifacts record the immutable commit they verified, preventing an old repair-package baseline from being mistaken for the current source revision.
 
 ## Exact revision evidenceの生成方法
 
@@ -47,7 +46,7 @@ artifacts/gui-runtime-verification/<timestamp>/gui-runtime-verification.json
 
 ## GitHub-hosted runnerについて
 
-このPackageの基準Revisionを確認した時点では、最新`main`に対する複数Workflowが`failure`表示でした。一方、Repositoryに残っている履歴ではGitHub-hosted runner / account availabilityの問題により、checkout/build/testへ入る前にJobが終了したケースが確認されています。
+GitHub-hosted runnerの状態を確認する際は、最新`main`に対する複数Workflowが`failure`表示でした。一方、Repositoryに残っている履歴ではGitHub-hosted runner / account availabilityの問題により、checkout/build/testへ入る前にJobが終了したケースが確認されています。
 
 したがって次のどちらも禁止します。
 

@@ -1,5 +1,6 @@
 name: Unreal Collector CI
 on:
+  workflow_dispatch:
   push:
     paths:
       - ".portfolio-ci-trigger"

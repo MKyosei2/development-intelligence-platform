@@ -7,8 +7,8 @@ param(
     [int]$MetricRows = 1000000,
     [int]$BurstRequests = 100,
     [int]$BurstTargetRequestsPerSecond = 100,
-    [int]$SoakSeconds = 60,
-    [int]$SoakTargetRequestsPerSecond = 10,
+    [int]$SoakSeconds = 900,
+    [int]$SoakTargetRequestsPerSecond = 25,
     [double]$MaxSoakErrorRatePercent = 0.1,
     [double]$MaxSoakMemoryGrowthMb = 256,
     [switch]$UpdateDocumentation
@@ -168,7 +168,8 @@ try {
         Pop-Location
     }
 
-    $env:ASPNETCORE_ENVIRONMENT = 'Development'
+    # Dedicated non-Development performance profile. The manifest records that local loopback auth is disabled.
+    $env:ASPNETCORE_ENVIRONMENT = 'Benchmark'
     $env:ASPNETCORE_URLS = $apiBase
     $env:Authentication__RequireAuthenticatedUser = 'false'
     $env:ConnectionStrings__PostgreSql = "Host=127.0.0.1;Port=$pgPort;Database=dipbench;Username=dip;Password=dip-benchmark-password"
@@ -330,6 +331,9 @@ SELECT gen_random_uuid(),'$lastPipeline'::uuid,NULL,'portfolio.metric.'||(g%100)
             machine = $env:COMPUTERNAME
             processorCount = [Environment]::ProcessorCount
             dotnet = (& dotnet --version | Out-String).Trim()
+            aspnetEnvironment = $env:ASPNETCORE_ENVIRONMENT
+            runtimeProfile = 'ProductionLikeBenchmark'
+            loopbackAuthenticationDisabled = $true
         }
         scenarios = [ordered]@{
             projectList = [ordered]@{

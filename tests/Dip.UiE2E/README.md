@@ -1,22 +1,22 @@
 # DIP Playwright GUI E2E
 
-The deterministic suite verifies the GUI without requiring external GitHub credentials:
+The deterministic local suite verifies normal GUI onboarding without requiring external GitHub credentials.
 
-- portfolio loads;
-- GitHub repository picker renders a connected or explicitly disconnected state;
-- a manual project can be created;
-- project selection state follows the active project;
-- Project Overview, Repository, CI and QA routes render;
-- switching back to the portfolio works.
+The hosted public-browser suite verifies the production portfolio URL itself:
 
-The optional `@live-github` test uses `DIP_E2E_GITHUB_REPOSITORY=owner/repo` to verify a real GitHub App installation. It is intentionally separated from normal CI.
+- HTTPS/API health is reachable;
+- the Portfolio page renders without login;
+- the UI clearly identifies the live read-only public view;
+- project reads succeed anonymously;
+- anonymous project creation is rejected with 401/403;
+- a published project can be opened when one exists.
 
-Run against an already-started DIP stack:
+Run the hosted check against an already deployed DIP URL:
 
-```powershell
-cd tests/Dip.UiE2E
-npm install
-npx playwright install chromium
-$env:DIP_WEB_BASE_URL = "http://127.0.0.1:5081"
-npm test
+```bash
+DIP_WEB_BASE_URL=https://your-host.example npm run test:public
 ```
+
+`Live Browser Deployment` runs this suite automatically after deploying the exact Git commit. A failed browser check fails the deployment job and triggers the previous image-set rollback path.
+
+The optional `@live-github` test remains separate because it exercises authenticated GitHub App integration rather than the anonymous reviewer path.

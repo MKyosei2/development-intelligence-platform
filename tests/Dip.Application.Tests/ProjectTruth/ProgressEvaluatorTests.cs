@@ -75,8 +75,7 @@ public sealed class ProgressEvaluatorTests
     [InlineData("On Hold")]
     [InlineData("失敗")]
     [InlineData("保留")]
-    [InlineData("custom-vendor-status")]
-    public void Evaluate_AmbiguousOrFailedStatus_DoesNotReceiveArbitraryMidpointCredit(string status)
+    public void Evaluate_FailedOrBlockedStatus_DoesNotReceiveArbitraryMidpointCredit(string status)
     {
         var claim = new ProjectClaim(
             Guid.NewGuid(), Guid.NewGuid(), "item", status, null,
@@ -89,6 +88,23 @@ public sealed class ProgressEvaluatorTests
         var result = new ProgressEvaluator().Evaluate([claim], assessments);
 
         result.ReportedProgress.Should().Be(0m);
+        result.VerifiedProgress.Should().Be(0m);
+    }
+
+    [Fact]
+    public void Evaluate_UnknownStatus_RemainsUnknownInsteadOfZeroPercent()
+    {
+        var claim = new ProjectClaim(
+            Guid.NewGuid(), Guid.NewGuid(), "item", "custom-vendor-status", null,
+            "reporter", null, DateTimeOffset.UtcNow);
+        var assessments = new Dictionary<Guid, ClaimVerificationAssessment>
+        {
+            [claim.Id] = new(claim.Id, ClaimVerificationStatus.Confirmed, "status observed", [])
+        };
+
+        var result = new ProgressEvaluator().Evaluate([claim], assessments);
+
+        result.ReportedProgress.Should().BeNull();
         result.VerifiedProgress.Should().Be(0m);
     }
 

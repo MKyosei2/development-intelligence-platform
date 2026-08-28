@@ -17,14 +17,18 @@ public sealed class ProjectEventsHub(
 
         var requiresAuthentication =
             configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
+        var publicReadOnly =
+            configuration.GetValue<bool?>("PublicAccess:ReadOnly") ?? false;
 
         if (requiresAuthentication)
         {
             var user = Context.User;
             if (user?.Identity?.IsAuthenticated != true)
-                throw new HubException("Authentication is required.");
-
-            if (!user.IsInRole(Roles.Admin))
+            {
+                if (!publicReadOnly)
+                    throw new HubException("Authentication is required.");
+            }
+            else if (!user.IsInRole(Roles.Admin))
             {
                 var subject = RequestActor.Subject(user);
                 if (!await access.HasAccessAsync(

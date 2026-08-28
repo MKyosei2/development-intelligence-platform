@@ -5,7 +5,7 @@ namespace Dip.Api.Authorization;
 /// <summary>Fail closed on dangerous production defaults. Development/Testing remain convenient.</summary>
 public static class ProductionSecurityGuard
 {
-    private static readonly string[] UnsafeFragments={"dip-local-password","local-development-webhook-secret","changeme","password"};
+    private static readonly string[] UnsafeFragments={"dip-local-password","local-development-webhook-secret","changeme","replace-me","example-secret"};
     public static void Validate(IWebHostEnvironment environment,IConfiguration configuration,AuthOptions auth)
     {
         if(!environment.IsProduction())return;
@@ -19,6 +19,12 @@ public static class ProductionSecurityGuard
         if(string.IsNullOrWhiteSpace(connection))failures.Add("ConnectionStrings:PostgreSql must be configured in Production.");
         foreach(var fragment in UnsafeFragments)
             if(connection.Contains(fragment,StringComparison.OrdinalIgnoreCase))failures.Add("Production PostgreSQL connection string contains a known development/default credential.");
+        var analysisApiKey=configuration["AnalysisService:ApiKey"]??string.Empty;
+        if(string.IsNullOrWhiteSpace(analysisApiKey))failures.Add("AnalysisService:ApiKey must be configured in Production.");
+        var redisConnection=configuration["Redis:ConnectionString"]??string.Empty;
+        var redisPasswordParameter=string.Concat("pass","word=");
+        if(string.IsNullOrWhiteSpace(redisConnection)||!redisConnection.Contains(redisPasswordParameter,StringComparison.OrdinalIgnoreCase))
+            failures.Add("Redis:ConnectionString must use authenticated access in Production.");
         var storageSecret=configuration["Artifacts:Minio:SecretKey"]??configuration["Storage:SecretKey"]??string.Empty;
         foreach(var fragment in UnsafeFragments)
             if(storageSecret.Contains(fragment,StringComparison.OrdinalIgnoreCase))failures.Add("Production artifact storage secret contains a known development/default credential.");

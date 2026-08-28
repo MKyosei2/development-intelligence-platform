@@ -138,6 +138,9 @@ try {
         Move-Item -LiteralPath $tempDirectory -Destination $finalDirectory
         $success = $true
         Write-Host "Backup created and verified: $finalDirectory" -ForegroundColor Green
+        # Emit the final path on the success pipeline so Restore-Dip can perform an
+        # automatic rollback without scraping human-oriented console text.
+        Write-Output $finalDirectory
     }
     finally {
         Pop-Location

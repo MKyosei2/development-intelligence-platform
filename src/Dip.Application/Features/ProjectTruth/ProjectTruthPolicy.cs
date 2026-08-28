@@ -42,7 +42,9 @@ public sealed record ProjectTruthPolicy
     public decimal InferredInProgressReportedProgress { get; init; } = 50m;
     public decimal InferredBlockedReportedProgress { get; init; } = 0m;
     public decimal InferredFailedReportedProgress { get; init; } = 0m;
-    public decimal InferredUnknownReportedProgress { get; init; } = 0m;
+    // null means the source did not provide enough information to infer a percentage.
+    // Integrations that have a documented mapping may opt in to an explicit fallback.
+    public decimal? InferredUnknownReportedProgress { get; init; } = null;
 
     /// <summary>
     /// Failure kinds that should be treated as project-level critical blockers.
@@ -85,7 +87,8 @@ public sealed record ProjectTruthPolicy
         RequirePercentage(InferredInProgressReportedProgress, nameof(InferredInProgressReportedProgress));
         RequirePercentage(InferredBlockedReportedProgress, nameof(InferredBlockedReportedProgress));
         RequirePercentage(InferredFailedReportedProgress, nameof(InferredFailedReportedProgress));
-        RequirePercentage(InferredUnknownReportedProgress, nameof(InferredUnknownReportedProgress));
+        if (InferredUnknownReportedProgress is { } inferredUnknown)
+            RequirePercentage(inferredUnknown, nameof(InferredUnknownReportedProgress));
 
         if (CriticalEvidenceKindTokens is null
             || CriticalEvidenceKindTokens.Count == 0

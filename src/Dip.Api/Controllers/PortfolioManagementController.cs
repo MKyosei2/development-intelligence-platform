@@ -15,11 +15,16 @@ public sealed class PortfolioManagementController(PortfolioManagementService por
     [HttpGet]
     public async Task<PortfolioManagementDto> Get([FromQuery]int horizonWeeks=8,CancellationToken ct=default)
     {
-        IReadOnlySet<Guid>? allowed=null;
-        if((configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser")??false)&&!User.IsInRole(Roles.Admin))
+        var requiresAuthentication=configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser")??false;
+        var publicReadOnly=configuration.GetValue<bool?>("PublicAccess:ReadOnly")??false;
+        var anonymous=User.Identity?.IsAuthenticated!=true;
+
+        IReadOnlySet<Guid>? allowed;
+        if(requiresAuthentication&&!User.IsInRole(Roles.Admin)&&!(publicReadOnly&&anonymous))
             allowed=(await access.AccessibleProjectsAsync(RequestActor.Subject(User),ct)).ToHashSet();
         else
             allowed=(await projects.ListAsync(ct)).Select(x=>x.Id).ToHashSet();
+
         return await portfolio.GetAsync(allowed,horizonWeeks,ct);
     }
 }

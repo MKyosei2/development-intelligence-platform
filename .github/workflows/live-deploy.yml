@@ -1,0 +1,262 @@
+name: Live Browser Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
+      - "src/**"
+      - "services/**"
+      - "infrastructure/docker/**"
+      - "docker-compose.web.yml"
+      - "deploy/**"
+      - "tests/Dip.UiE2E/**"
+      - ".github/workflows/live-deploy.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_PREFIX: ghcr.io/mkyosei2/dip
+
+jobs:
+  verify:
+    name: Verify deployable revision
+    if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Publication safety
+        run: |
+          python tools/verify_publication_safety.py --root . --output /tmp/publication-safety.json
+          python tools/validate_portfolio_readiness.py --root . --output /tmp/portfolio-readiness.json
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore and build
+        run: |
+          dotnet restore DevelopmentIntelligencePlatform.sln
+          dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
+
+      - name: Core unit tests
+        run: |
+          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj --configuration Release --no-build
+          dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj --configuration Release --no-build
+          dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build
+
+  images:
+    name: Publish ${{ matrix.name }} image
+    if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: api, dockerfile: infrastructure/docker/api.Dockerfile }
+          - { name: web, dockerfile: infrastructure/docker/web.Dockerfile }
+          - { name: worker, dockerfile: infrastructure/docker/worker.Dockerfile }
+          - { name: analysis, dockerfile: infrastructure/docker/analysis.Dockerfile }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push exact-revision image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy and verify public browser runtime
+    if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: https://${{ vars.DIP_PUBLIC_HOST }}/
+    env:
+      PUBLIC_HOST: ${{ vars.DIP_PUBLIC_HOST }}
+      DEPLOY_HOST: ${{ secrets.DIP_DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DIP_DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DIP_DEPLOY_PATH }}
+      DEPLOY_HOST_KEY: ${{ secrets.DIP_DEPLOY_HOST_KEY }}
+      DEPLOY_SSH_KEY: ${{ secrets.DIP_DEPLOY_SSH_KEY }}
+      GHCR_USER: ${{ vars.DIP_GHCR_USER }}
+      GHCR_TOKEN: ${{ secrets.DIP_GHCR_TOKEN }}
+      POSTGRES_PASSWORD: ${{ secrets.DIP_POSTGRES_PASSWORD }}
+      OAUTH_CLIENT_ID: ${{ secrets.DIP_GITHUB_OAUTH_CLIENT_ID }}
+      OAUTH_CLIENT_SECRET: ${{ secrets.DIP_GITHUB_OAUTH_CLIENT_SECRET }}
+      ADMIN_LOGIN: ${{ vars.DIP_GITHUB_ADMIN_LOGIN }}
+      JWT_SIGNING_KEY: ${{ secrets.DIP_JWT_SIGNING_KEY }}
+      WEBHOOK_SECRET: ${{ secrets.DIP_GITHUB_WEBHOOK_SECRET }}
+      GITHUB_APP_ID: ${{ vars.DIP_GITHUB_APP_ID }}
+      GITHUB_APP_INSTALLATION_ID: ${{ vars.DIP_GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_SLUG: ${{ vars.DIP_GITHUB_APP_SLUG }}
+      GITHUB_APP_PRIVATE_KEY_BASE64: ${{ secrets.DIP_GITHUB_APP_PRIVATE_KEY_BASE64 }}
+      GITHUB_INTEGRATION_TOKEN: ${{ secrets.DIP_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(PUBLIC_HOST DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_HOST_KEY DEPLOY_SSH_KEY GHCR_USER GHCR_TOKEN POSTGRES_PASSWORD OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET)
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing live deployment setting: $name" >&2
+              exit 2
+            fi
+          done
+          if [[ ! "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+            echo "DIP_DEPLOY_PATH must be an absolute path without spaces or shell metacharacters." >&2
+            exit 2
+          fi
+          if [ "${#JWT_SIGNING_KEY}" -lt 64 ]; then
+            echo "DIP_JWT_SIGNING_KEY must contain at least 64 characters." >&2
+            exit 2
+          fi
+          env_safe=(POSTGRES_PASSWORD OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET GHCR_USER GHCR_TOKEN)
+          for name in "${env_safe[@]}"; do
+            if [[ ! "${!name}" =~ ^[A-Za-z0-9_+=./:@-]+$ ]]; then
+              echo "$name contains characters that are unsafe for the generated Compose env file. Use a token/password made from letters, numbers, _, +, =, ., /, :, @ or -." >&2
+              exit 2
+            fi
+          done
+
+      - name: Configure SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_HOST_KEY" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/known_hosts ~/.ssh/id_ed25519
+
+      - name: Render server environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="deploy/web.env.live"
+          : > "$out"
+          put() { printf '%s=%s\n' "$1" "$2" >> "$out"; }
+          put DIP_PUBLIC_HOST "$PUBLIC_HOST"
+          put DIP_PUBLIC_READ_ONLY "true"
+          put DIP_IMAGE_PREFIX "$IMAGE_PREFIX"
+          put DIP_IMAGE_TAG "$GITHUB_SHA"
+          put POSTGRES_DB "dip"
+          put POSTGRES_USER "dip"
+          put POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+          put DIP_GITHUB_OAUTH_CLIENT_ID "$OAUTH_CLIENT_ID"
+          put DIP_GITHUB_OAUTH_CLIENT_SECRET "$OAUTH_CLIENT_SECRET"
+          put DIP_GITHUB_ADMIN_LOGIN "$ADMIN_LOGIN"
+          put DIP_JWT_SIGNING_KEY "$JWT_SIGNING_KEY"
+          put DIP_JWT_LIFETIME_MINUTES "60"
+          put DIP_GITHUB_WEBHOOK_SECRET "$WEBHOOK_SECRET"
+          put DIP_GITHUB_APP_ID "${GITHUB_APP_ID:-}"
+          put DIP_GITHUB_APP_INSTALLATION_ID "${GITHUB_APP_INSTALLATION_ID:-}"
+          put DIP_GITHUB_APP_SLUG "${GITHUB_APP_SLUG:-}"
+          put DIP_GITHUB_APP_PRIVATE_KEY_BASE64 "${GITHUB_APP_PRIVATE_KEY_BASE64:-}"
+          put DIP_GITHUB_TOKEN "${GITHUB_INTEGRATION_TOKEN:-}"
+          put ANALYSIS_LOG_LEVEL "INFO"
+          put ANALYSIS_TIMEOUT_SECONDS "30"
+
+      - name: Upload deployment definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh "$remote" "mkdir -p '$DEPLOY_PATH/deploy'"
+          scp docker-compose.web.yml "$remote:$DEPLOY_PATH/docker-compose.web.yml"
+          scp deploy/Caddyfile "$remote:$DEPLOY_PATH/deploy/Caddyfile"
+          scp deploy/web.env.live "$remote:$DEPLOY_PATH/deploy/web.env.next"
+
+      - name: Authenticate server to GHCR
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          printf '%s' "$GHCR_TOKEN" | ssh "$remote" "docker login ghcr.io --username '$GHCR_USER' --password-stdin"
+
+      - name: Deploy exact revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh "$remote" "set -e; cd '$DEPLOY_PATH'; if [ -f deploy/web.env ]; then cp deploy/web.env deploy/web.env.previous; fi; mv deploy/web.env.next deploy/web.env; docker compose --env-file deploy/web.env -f docker-compose.web.yml pull; docker compose --env-file deploy/web.env -f docker-compose.web.yml up -d --no-build --remove-orphans; docker compose --env-file deploy/web.env -f docker-compose.web.yml ps"
+
+      - name: Verify public HTTPS and API health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 40 --retry-delay 5 --retry-all-errors "https://$PUBLIC_HOST/healthz"
+          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors "https://$PUBLIC_HOST/" > /dev/null
+          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors "https://$PUBLIC_HOST/api/projects" > /tmp/projects.json
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install public-browser E2E dependencies
+        working-directory: tests/Dip.UiE2E
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Verify deployed public read-only browser experience
+        working-directory: tests/Dip.UiE2E
+        env:
+          DIP_WEB_BASE_URL: https://${{ vars.DIP_PUBLIC_HOST }}
+        run: npm run test:public
+
+      - name: Preserve browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: live-public-browser-${{ github.sha }}
+          path: |
+            tests/Dip.UiE2E/artifacts/playwright-report
+            tests/Dip.UiE2E/artifacts/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Roll back previous image set on deployment failure
+        if: failure()
+        continue-on-error: true
+        shell: bash
+        run: |
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh "$remote" "set -e; cd '$DEPLOY_PATH'; if [ -f deploy/web.env.previous ]; then cp deploy/web.env.previous deploy/web.env; docker compose --env-file deploy/web.env -f docker-compose.web.yml pull; docker compose --env-file deploy/web.env -f docker-compose.web.yml up -d --no-build --remove-orphans; fi"
+
+      - name: Live URL reminder
+        if: success()
+        shell: bash
+        run: |
+          echo "Live DIP: https://$PUBLIC_HOST/"
+          if grep -q 'YOUR_DIP_HOST' README.md; then
+            echo "::warning::Replace https://YOUR_DIP_HOST/ in README.md with https://$PUBLIC_HOST/ before portfolio submission."
+          fi

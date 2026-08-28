@@ -39,12 +39,17 @@ public sealed class ProgressEvaluator
             return new(0m, null);
 
         var reportedValues = latestClaims.Select(GetReportedProgress).ToArray();
-        var reported = decimal.Round(reportedValues.Average(), 2);
+        // An unknown status is missing information, not evidence of 0% progress. If any
+        // current claim is unknown and has no explicit percentage, the aggregate reported
+        // percentage remains unknown rather than manufacturing a number.
+        decimal? reported = reportedValues.Any(value => value is null)
+            ? null
+            : decimal.Round(reportedValues.Select(value => value!.Value).Average(), 2);
 
         var verifiedValues = latestClaims.Select(claim =>
         {
             var reportedValue = GetReportedProgress(claim);
-            if (!assessments.TryGetValue(claim.Id, out var assessment))
+            if (reportedValue is null || !assessments.TryGetValue(claim.Id, out var assessment))
                 return 0m;
 
             var factor = assessment.Status switch
@@ -56,13 +61,13 @@ public sealed class ProgressEvaluator
                 _ => 0m
             };
 
-            return reportedValue * factor;
+            return reportedValue.Value * factor;
         }).ToArray();
 
         return new(decimal.Round(verifiedValues.Average(), 2), reported);
     }
 
-    private decimal GetReportedProgress(ProjectClaim claim)
+    private decimal? GetReportedProgress(ProjectClaim claim)
     {
         if (claim.ClaimedProgress is { } explicitProgress)
             return explicitProgress;

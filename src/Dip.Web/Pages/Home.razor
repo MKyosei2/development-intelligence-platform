@@ -1,6 +1,9 @@
+@using Microsoft.AspNetCore.Components.Authorization
 @page "/"
 @inject ProjectState Projects
 @inject ApiClient Api
+@inject IConfiguration Configuration
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @using Dip.Application.Features.Management
 
 <PageTitle>Portfolio | DIP</PageTitle>
@@ -9,12 +12,22 @@
     <div>
         <div class="eyebrow">Portfolio command center</div>
         <h1>Development Intelligence</h1>
-        <p>Select a project or import a GitHub repository. Evidence, delivery risk, QA and repository health stay scoped to the active project.</p>
+        @if (_viewerReadOnly)
+        {
+            <p>Browse the live hosted portfolio. Evidence, delivery risk, QA and repository health stay scoped to the active project; changes require owner sign-in.</p>
+        }
+        else
+        {
+            <p>Select a project or import a GitHub repository. Evidence, delivery risk, QA and repository health stay scoped to the active project.</p>
+        }
     </div>
-    <div class="heading-actions">
-        <a class="btn btn-outline-secondary" href="/projects/new">Manual project</a>
-        <a class="btn btn-primary" data-testid="import-github-cta" href="/projects/import/github">Import from GitHub</a>
-    </div>
+    @if (!_viewerReadOnly)
+    {
+        <div class="heading-actions">
+            <a class="btn btn-outline-secondary" href="/projects/new">Manual project</a>
+            <a class="btn btn-primary" data-testid="import-github-cta" href="/projects/import/github">Import from GitHub</a>
+        </div>
+    }
 </section>
 
 @if (Projects.IsLoading && Projects.Projects.Count == 0)
@@ -27,13 +40,22 @@ else if (Projects.Error is not null && Projects.Projects.Count == 0)
 }
 else if (Projects.Projects.Count == 0)
 {
-    <EmptyState Icon="⌘"
-                Title="Import your first repository"
-                Description="Connect GitHub, choose a repository, and DIP will create the project and synchronize a QA workspace without asking you to copy repository metadata manually."
-                ActionText="Import from GitHub"
-                ActionHref="/projects/import/github">
-        <a class="btn btn-outline-secondary" href="/projects/new">Or create manually</a>
-    </EmptyState>
+    @if (_viewerReadOnly)
+    {
+        <EmptyState Icon="◫"
+                    Title="No published portfolio project yet"
+                    Description="The hosted DIP stack is online, but this deployment has not been populated with a reviewer-facing project yet." />
+    }
+    else
+    {
+        <EmptyState Icon="⌘"
+                    Title="Import your first repository"
+                    Description="Connect GitHub, choose a repository, and DIP will create the project and synchronize a QA workspace without asking you to copy repository metadata manually."
+                    ActionText="Import from GitHub"
+                    ActionHref="/projects/import/github">
+            <a class="btn btn-outline-secondary" href="/projects/new">Or create manually</a>
+        </EmptyState>
+    }
 }
 else
 {
@@ -106,7 +128,7 @@ else
         @foreach (var project in Projects.Projects)
         {
             <div class="col-12 col-md-6 col-xl-4">
-                <a class="project-card" href="@($"/dashboard/{project.ProjectId}")">
+                <a class="project-card" data-testid="project-card" href="@($"/dashboard/{project.ProjectId}")">
                     <div class="project-card-top">
                         <div class="project-icon">@ProjectInitial(project.Name)</div>
                         <StatusBadge Value="project.TruthStatus" />
@@ -132,9 +154,13 @@ else
 @code {
     private PortfolioManagementDto? _portfolio;
     private string? _portfolioError;
+    private bool _viewerReadOnly;
 
     protected override async Task OnInitializedAsync()
     {
+        var publicReadOnly = Configuration.GetValue<bool?>("PublicAccess:ReadOnly") ?? false;
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _viewerReadOnly = publicReadOnly && authenticationState.User.Identity?.IsAuthenticated != true;
         await LoadPortfolioAsync();
     }
 
@@ -157,6 +183,7 @@ else
             _portfolioError = ex.Message;
         }
     }
+
     private static string ProjectInitial(string value) => string.IsNullOrWhiteSpace(value)
         ? "P"
         : value.Trim()[0].ToString().ToUpperInvariant();

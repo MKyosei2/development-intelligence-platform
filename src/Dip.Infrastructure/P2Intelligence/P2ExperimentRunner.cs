@@ -61,6 +61,8 @@ public sealed class P2ExperimentRunner(
         var fpsSamples=new ConcurrentQueue<(int Second,decimal Fps,decimal? Frame)>();
         var stdout=new StringBuilder();var stderr=new StringBuilder();var sw=Stopwatch.StartNew();
         bool crashed=false,timedOut=false;
+        var observationWindowCompleted=false;
+        var terminatedByHarness=false;
         try
         {
             if(!process.Start())throw new InvalidOperationException("Failed to start soak target.");
@@ -97,16 +99,23 @@ public sealed class P2ExperimentRunner(
 
         if(!process.HasExited)
         {
-            // Reaching the configured soak window is success for the harness, not a timeout.
-            // The target is terminated only because enough sustained evidence has been collected.
-            try{process.Kill(entireProcessTree:true);}catch{}
+            // Reaching the configured soak window is success for the harness, not a target crash.
+            // Record the ownership of termination before Kill so a non-zero OS exit code caused by
+            // the harness cannot be misclassified as an application crash.
+            observationWindowCompleted=sw.Elapsed>=TimeSpan.FromSeconds(duration);
+            if(observationWindowCompleted)
+            {
+                terminatedByHarness=true;
+                try{process.Kill(entireProcessTree:true);}catch{}
+            }
         }
         try{await process.WaitForExitAsync(CancellationToken.None);}catch{}
         try{await Task.WhenAll(outTask,errTask);}catch{}
         sw.Stop();
         await File.WriteAllTextAsync(stdoutPath,stdout.ToString(),CancellationToken.None);
         await File.WriteAllTextAsync(stderrPath,stderr.ToString(),CancellationToken.None);
-        crashed=!timedOut&&process.ExitCode!=0;
+        var exitCode=process.HasExited?process.ExitCode:(int?)null;
+        crashed=!terminatedByHarness&&!timedOut&&exitCode is not null&&exitCode.Value!=0;
 
         var endMemory=samples.Count>0?samples[^1].WorkingSetMb:startMemory;
         var memoryGrowth=startMemory<=0?0m:decimal.Round((decimal)(endMemory-startMemory)/startMemory*100m,2);

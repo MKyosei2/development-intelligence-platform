@@ -7,7 +7,8 @@ param(
     [string]$DatabaseUser = 'dip',
     [switch]$ConfirmRestore,
     [switch]$SkipSafetyBackup,
-    [switch]$AllowCrossRevisionRestore
+    [switch]$AllowCrossRevisionRestore,
+    [switch]$DisableAutomaticRollback
 )
 
 $ErrorActionPreference = 'Stop'
@@ -85,6 +86,8 @@ $validationContainer = $null
 $restoreContainer = $null
 $servicesStopped = $false
 $restoreSucceeded = $false
+$safetyBackupDirectory = $null
+$restoreError = $null
 
 Push-Location $root
 try {
@@ -138,12 +141,16 @@ try {
             throw "Safety backup script is missing: $backupScript"
         }
         Write-Host 'Creating pre-restore safety backup...' -ForegroundColor Yellow
-        & $backupScript `
+        $backupOutput = @(& $backupScript `
             -ComposeProject $ComposeProject `
             -OutputDirectory 'artifacts\pre-restore-backups' `
             -Database $Database `
-            -DatabaseUser $DatabaseUser
-        Write-Host 'Pre-restore safety backup completed.' -ForegroundColor Green
+            -DatabaseUser $DatabaseUser)
+        $safetyBackupDirectory = $backupOutput | Select-Object -Last 1
+        if (-not $safetyBackupDirectory -or -not (Test-Path $safetyBackupDirectory -PathType Container)) {
+            throw 'Pre-restore safety backup completed without returning a usable backup directory.'
+        }
+        Write-Host "Pre-restore safety backup completed: $safetyBackupDirectory" -ForegroundColor Green
     }
 
     & docker compose -p $ComposeProject stop api worker web *> $null
@@ -227,6 +234,9 @@ try {
     $restoreSucceeded = $true
     Write-Host "Restore completed and post-restore checks passed: $backup" -ForegroundColor Green
 }
+catch {
+    $restoreError = $_
+}
 finally {
     if ($validationContainer) {
         try { & docker rm -f $validationContainer *> $null } catch {}
@@ -240,7 +250,7 @@ finally {
     if ($servicesStopped) {
         try {
             & docker compose -p $ComposeProject start api worker web *> $null
-            Write-Warning 'Restore did not complete; application services were restarted. Use the pre-restore safety backup if target data needs to be rolled back.'
+            Write-Warning 'Restore did not complete; application services were restarted before automatic rollback is attempted.'
         }
         catch {
             Write-Warning "Restore failed and application services could not be restarted automatically: $($_.Exception.Message)"
@@ -250,5 +260,27 @@ finally {
 }
 
 if (-not $restoreSucceeded) {
+    if ($safetyBackupDirectory -and -not $DisableAutomaticRollback) {
+        Write-Warning "Primary restore failed. Attempting automatic rollback from $safetyBackupDirectory"
+        try {
+            & $PSCommandPath `
+                -BackupDirectory $safetyBackupDirectory `
+                -ComposeProject $ComposeProject `
+                -Database $Database `
+                -DatabaseUser $DatabaseUser `
+                -ConfirmRestore `
+                -SkipSafetyBackup `
+                -AllowCrossRevisionRestore `
+                -DisableAutomaticRollback
+            Write-Warning 'Automatic rollback completed successfully; the requested restore was not applied.'
+        }
+        catch {
+            $rollbackMessage = $_.Exception.Message
+            $primaryMessage = if ($restoreError) { $restoreError.Exception.Message } else { 'unknown restore failure' }
+            throw "Restore failed ($primaryMessage) and automatic rollback also failed ($rollbackMessage). Manual recovery is required."
+        }
+    }
+
+    if ($restoreError) { throw $restoreError }
     throw 'Restore did not complete successfully.'
 }
