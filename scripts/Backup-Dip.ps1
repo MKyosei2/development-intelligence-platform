@@ -3,7 +3,10 @@ param(
     [string]$ComposeProject = 'dip',
     [string]$OutputDirectory = 'artifacts\backups',
     [string]$Database = 'dip',
-    [string]$DatabaseUser = 'dip'
+    [string]$DatabaseUser = 'dip',
+    [string]$OffsiteDirectory = '',
+    [string]$UtilityImage = '',
+    [switch]$RequireOffsite
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,11 +24,76 @@ function Assert-Command([string]$Name) {
     }
 }
 
+
+function Assert-SeparateOffsiteStorage([string]$LocalDirectory, [string]$OffsiteDirectory) {
+    if (-not $RequireOffsite) { return }
+
+    if ($env:OS -eq 'Windows_NT') {
+        $localRoot = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($LocalDirectory))
+        $offsiteRoot = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($OffsiteDirectory))
+        if ([string]::IsNullOrWhiteSpace($localRoot) -or [string]::IsNullOrWhiteSpace($offsiteRoot)) {
+            throw 'Could not determine local/offsite volume roots.'
+        }
+        if ($localRoot.Equals($offsiteRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'RequireOffsite requires a different Windows volume/share from OutputDirectory.'
+        }
+        return
+    }
+
+    $stat = Get-Command 'stat' -ErrorAction SilentlyContinue
+    if (-not $stat) {
+        throw 'RequireOffsite cannot verify storage separation because stat is unavailable.'
+    }
+    $localDevice = (& $stat.Source -c '%d' $LocalDirectory | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($localDevice)) {
+        throw 'Could not determine OutputDirectory filesystem device.'
+    }
+    $offsiteDevice = (& $stat.Source -c '%d' $OffsiteDirectory | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($offsiteDevice)) {
+        throw 'Could not determine OffsiteDirectory filesystem device.'
+    }
+    if ($localDevice -eq $offsiteDevice) {
+        throw 'RequireOffsite requires OffsiteDirectory to be a separately mounted filesystem device.'
+    }
+}
+
+function Assert-BackupIntegrity([string]$Directory) {
+    $manifestPath = Join-Path $Directory 'backup-manifest.json'
+    $dbDump = Join-Path $Directory 'database.dump'
+    $artifactArchive = Join-Path $Directory 'artifacts.tar.gz'
+    foreach ($path in @($manifestPath, $dbDump, $artifactArchive)) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Backup integrity check is missing: $path"
+        }
+    }
+    $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+    if ((Get-FileHash $dbDump -Algorithm SHA256).Hash -ne $manifest.databaseSha256) {
+        throw "Database SHA-256 mismatch in $Directory"
+    }
+    if ((Get-FileHash $artifactArchive -Algorithm SHA256).Hash -ne $manifest.artifactsSha256) {
+        throw "Artifact SHA-256 mismatch in $Directory"
+    }
+}
+
 Assert-SafeIdentifier $ComposeProject 'ComposeProject'
 Assert-SafeIdentifier $Database 'Database'
 Assert-SafeIdentifier $DatabaseUser 'DatabaseUser'
 Assert-Command 'docker'
 Assert-Command 'git'
+
+if ($RequireOffsite -and [string]::IsNullOrWhiteSpace($OffsiteDirectory)) {
+    throw 'RequireOffsite was specified but OffsiteDirectory is empty.'
+}
+
+if ([string]::IsNullOrWhiteSpace($UtilityImage)) {
+    $UtilityImage = [Environment]::GetEnvironmentVariable('DIP_UTILITY_IMAGE', 'Process')
+}
+if ([string]::IsNullOrWhiteSpace($UtilityImage)) {
+    $UtilityImage = 'alpine:3.22'
+}
+if ($RequireOffsite -and $UtilityImage -notmatch '^[A-Za-z0-9./:_-]+@sha256:[0-9a-f]{64}$') {
+    throw 'RequireOffsite requires UtilityImage (or DIP_UTILITY_IMAGE) to be an immutable repository@sha256:<64 lowercase hex> reference.'
+}
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $out = Join-Path $root $OutputDirectory
@@ -33,8 +101,27 @@ $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
 $backupId = [Guid]::NewGuid().ToString('N')
 $finalDirectory = Join-Path $out $stamp
 $tempDirectory = "$finalDirectory.tmp-$backupId"
+$offsiteRoot = $null
+$offsiteFinal = $null
+$offsiteTemp = $null
+
+if (-not [string]::IsNullOrWhiteSpace($OffsiteDirectory)) {
+    $candidate = if ([IO.Path]::IsPathRooted($OffsiteDirectory)) {
+        [IO.Path]::GetFullPath($OffsiteDirectory)
+    } else {
+        [IO.Path]::GetFullPath((Join-Path $root $OffsiteDirectory))
+    }
+    New-Item -ItemType Directory -Force -Path $candidate | Out-Null
+    $offsiteRoot = (Resolve-Path $candidate).Path
+    if ([IO.Path]::GetFullPath($offsiteRoot).TrimEnd('\','/') -eq [IO.Path]::GetFullPath($out).TrimEnd('\','/')) {
+        throw 'OffsiteDirectory must not be the same directory as OutputDirectory.'
+    }
+    $offsiteFinal = Join-Path $offsiteRoot $stamp
+    $offsiteTemp = "$offsiteFinal.tmp-$backupId"
+}
 
 New-Item -ItemType Directory -Force -Path $out | Out-Null
+if ($offsiteRoot) { Assert-SeparateOffsiteStorage $out $offsiteRoot }
 if (Test-Path $finalDirectory) {
     throw "Backup destination already exists: $finalDirectory"
 }
@@ -61,7 +148,6 @@ try {
             throw 'pg_dump failed.'
         }
 
-        # Validate the custom-format archive before it leaves PostgreSQL.
         & docker exec $pg pg_restore --list /tmp/dip-backup.dump *> $null
         if ($LASTEXITCODE -ne 0) {
             throw 'pg_restore could not read the generated database dump.'
@@ -80,7 +166,7 @@ try {
 
         $artifactArchive = Join-Path $tempDirectory 'artifacts.tar.gz'
         $archiveContainer = "dip-backup-$backupId"
-        & docker create --name $archiveContainer -v "${volume}:/source:ro" alpine:3.22 sh -c 'tar -czf /tmp/artifacts.tar.gz -C /source .' *> $null
+        & docker create --name $archiveContainer -v "${volume}:/source:ro" $UtilityImage sh -c 'tar -czf /tmp/artifacts.tar.gz -C /source .' *> $null
         if ($LASTEXITCODE -ne 0) {
             throw 'Could not create artifact archive helper container.'
         }
@@ -129,17 +215,30 @@ try {
             artifactsBytes = (Get-Item $artifactArchive).Length
             databaseSha256 = (Get-FileHash $dbDump -Algorithm SHA256).Hash
             artifactsSha256 = (Get-FileHash $artifactArchive -Algorithm SHA256).Hash
+            offsiteRequired = [bool]$RequireOffsite
+            offsiteConfigured = [bool]$offsiteRoot
         }
         $manifestPath = Join-Path $tempDirectory 'backup-manifest.json'
         $manifest | ConvertTo-Json -Depth 6 | Set-Content $manifestPath -Encoding UTF8
 
-        # Atomic publication: incomplete backups keep the .tmp suffix and are never
-        # mistaken for a restorable backup set.
+        # Atomic local publication: incomplete backups retain a .tmp suffix.
         Move-Item -LiteralPath $tempDirectory -Destination $finalDirectory
+        Assert-BackupIntegrity $finalDirectory
+
+        if ($offsiteRoot) {
+            if (Test-Path $offsiteFinal) {
+                throw "Offsite backup destination already exists: $offsiteFinal"
+            }
+            New-Item -ItemType Directory -Force -Path $offsiteTemp | Out-Null
+            Copy-Item -Path (Join-Path $finalDirectory '*') -Destination $offsiteTemp -Recurse -Force
+            Assert-BackupIntegrity $offsiteTemp
+            'OFFSITE MIRROR VERIFIED' | Set-Content (Join-Path $offsiteTemp 'OFFSITE_MIRROR_PASS.txt') -Encoding UTF8
+            Move-Item -LiteralPath $offsiteTemp -Destination $offsiteFinal
+            Write-Host "Offsite backup mirror verified: $offsiteFinal" -ForegroundColor Green
+        }
+
         $success = $true
         Write-Host "Backup created and verified: $finalDirectory" -ForegroundColor Green
-        # Emit the final path on the success pipeline so Restore-Dip can perform an
-        # automatic rollback without scraping human-oriented console text.
         Write-Output $finalDirectory
     }
     finally {
@@ -152,5 +251,8 @@ finally {
     }
     if (-not $success -and (Test-Path $tempDirectory)) {
         Remove-Item -LiteralPath $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if ($offsiteTemp -and (Test-Path $offsiteTemp)) {
+        Remove-Item -LiteralPath $offsiteTemp -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

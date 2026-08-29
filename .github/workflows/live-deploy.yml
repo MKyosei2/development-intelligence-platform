@@ -23,6 +23,7 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  actions: read
 
 env:
   IMAGE_PREFIX: ghcr.io/mkyosei2/dip
@@ -32,7 +33,7 @@ jobs:
     name: Verify deployable revision
     if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
 
@@ -59,6 +60,98 @@ jobs:
           dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj --configuration Release --no-build
           dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj --configuration Release --no-build
           dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build
+
+      - name: Require successful exact-SHA portfolio verification workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.parse
+          import urllib.request
+
+          required = [
+              "Commit Message",
+              ".NET CI",
+              "Python CI",
+              "Native Collector CI",
+              "Integration and E2E Tests",
+              "GUI E2E",
+              "Docker Build",
+              "Security Scan",
+              "Universal QA Benchmark",
+              "Unreal Collector CI",
+              "Portfolio Publication Readiness",
+          ]
+          repo = os.environ["REPOSITORY"]
+          sha = os.environ["REVISION"]
+          token = os.environ["GH_TOKEN"]
+          deadline = time.monotonic() + 30 * 60
+
+          def fetch_runs():
+              query = urllib.parse.urlencode({"head_sha": sha, "per_page": 100})
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/actions/runs?{query}",
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "dip-exact-sha-deploy-gate",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  return json.load(response).get("workflow_runs", [])
+
+          while True:
+              runs = fetch_runs()
+              latest = {}
+              for run in runs:
+                  name = run.get("name")
+                  if name not in required:
+                      continue
+                  key = (run.get("created_at") or "", int(run.get("run_attempt") or 0), int(run.get("id") or 0))
+                  previous = latest.get(name)
+                  if previous is None or key > previous[0]:
+                      latest[name] = (key, run)
+
+              missing = [name for name in required if name not in latest]
+              pending = []
+              failed = []
+              for name in required:
+                  if name not in latest:
+                      continue
+                  run = latest[name][1]
+                  status = run.get("status")
+                  conclusion = run.get("conclusion")
+                  if status != "completed":
+                      pending.append(name)
+                  elif conclusion != "success":
+                      failed.append((name, conclusion, run.get("html_url")))
+
+              if failed:
+                  for name, conclusion, url in failed:
+                      print(f"FAILED exact-SHA gate: {name}: {conclusion}: {url}")
+                  raise SystemExit(3)
+
+              if not missing and not pending:
+                  print(f"PASS: all {len(required)} required workflows succeeded for {sha}")
+                  break
+
+              if time.monotonic() >= deadline:
+                  print("Timed out waiting for exact-SHA verification.")
+                  print("Missing:", missing)
+                  print("Pending:", pending)
+                  raise SystemExit(4)
+
+              print("Waiting for exact-SHA verification; missing=", missing, "pending=", pending, flush=True)
+              time.sleep(15)
+          PY
 
   images:
     name: Publish ${{ matrix.name }} image
@@ -100,7 +193,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
     needs: images
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment:
       name: production
       url: https://${{ vars.DIP_PUBLIC_HOST }}/
@@ -126,6 +219,11 @@ jobs:
       GITHUB_APP_SLUG: ${{ vars.DIP_GITHUB_APP_SLUG }}
       GITHUB_APP_PRIVATE_KEY_BASE64: ${{ secrets.DIP_GITHUB_APP_PRIVATE_KEY_BASE64 }}
       GITHUB_INTEGRATION_TOKEN: ${{ secrets.DIP_GITHUB_TOKEN }}
+      POSTGRES_IMAGE: ${{ vars.DIP_POSTGRES_IMAGE }}
+      REDIS_IMAGE: ${{ vars.DIP_REDIS_IMAGE }}
+      CADDY_IMAGE: ${{ vars.DIP_CADDY_IMAGE }}
+      UTILITY_IMAGE: ${{ vars.DIP_UTILITY_IMAGE }}
+      BACKUP_OFFSITE_DIRECTORY: ${{ vars.DIP_BACKUP_OFFSITE_DIRECTORY }}
     steps:
       - uses: actions/checkout@v7
 
@@ -137,6 +235,7 @@ jobs:
             PUBLIC_HOST DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_HOST_KEY DEPLOY_SSH_KEY
             GHCR_USER GHCR_TOKEN POSTGRES_PASSWORD REDIS_PASSWORD ANALYSIS_API_KEY
             OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET
+            POSTGRES_IMAGE REDIS_IMAGE CADDY_IMAGE UTILITY_IMAGE BACKUP_OFFSITE_DIRECTORY
           )
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
@@ -146,6 +245,10 @@ jobs:
           done
           if [[ ! "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
             echo "DIP_DEPLOY_PATH must be an absolute path without spaces or shell metacharacters." >&2
+            exit 2
+          fi
+          if [[ ! "$BACKUP_OFFSITE_DIRECTORY" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+            echo "DIP_BACKUP_OFFSITE_DIRECTORY must be an absolute path without spaces or shell metacharacters." >&2
             exit 2
           fi
           if [[ ! "$PUBLIC_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
@@ -164,6 +267,13 @@ jobs:
             echo "DIP_ANALYSIS_API_KEY must contain at least 32 characters." >&2
             exit 2
           fi
+          for name in POSTGRES_IMAGE REDIS_IMAGE CADDY_IMAGE UTILITY_IMAGE; do
+            value="${!name}"
+            if [[ ! "$value" =~ ^[A-Za-z0-9./:_-]+@sha256:[0-9a-f]{64}$ ]]; then
+              echo "$name must be an immutable repository@sha256:<64 lowercase hex> image reference." >&2
+              exit 2
+            fi
+          done
           env_safe=(
             POSTGRES_PASSWORD REDIS_PASSWORD ANALYSIS_API_KEY OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
             ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET GHCR_USER GHCR_TOKEN
@@ -196,6 +306,11 @@ jobs:
           put DIP_PUBLIC_READ_ONLY "true"
           put DIP_IMAGE_PREFIX "$IMAGE_PREFIX"
           put DIP_IMAGE_TAG "$GITHUB_SHA"
+          put DIP_POSTGRES_IMAGE "$POSTGRES_IMAGE"
+          put DIP_REDIS_IMAGE "$REDIS_IMAGE"
+          put DIP_CADDY_IMAGE "$CADDY_IMAGE"
+          put DIP_UTILITY_IMAGE "$UTILITY_IMAGE"
+          put DIP_BACKUP_OFFSITE_DIRECTORY "$BACKUP_OFFSITE_DIRECTORY"
           put POSTGRES_DB "dip"
           put POSTGRES_USER "dip"
           put POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
@@ -215,23 +330,52 @@ jobs:
           put ANALYSIS_LOG_LEVEL "INFO"
           put ANALYSIS_TIMEOUT_SECONDS "30"
 
-      - name: Create pre-deploy production snapshot
+      - name: Create and mirror pre-deploy production snapshot
         shell: bash
         run: |
           set -euo pipefail
           remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' OFFSITE_DIRECTORY='$BACKUP_OFFSITE_DIRECTORY' UTILITY_IMAGE='$UTILITY_IMAGE' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$DEPLOY_PATH"
-          mkdir -p deploy/backups
+          mkdir -p deploy/backups "$OFFSITE_DIRECTORY"
+
+          # The offsite target must be a separately mounted filesystem. This prevents
+          # a server/root-volume loss from deleting both the deployment and its backup.
+          deploy_device="$(stat -c %d "$DEPLOY_PATH")"
+          offsite_device="$(stat -c %d "$OFFSITE_DIRECTORY")"
+          if [ "$deploy_device" = "$offsite_device" ]; then
+            echo "Offsite backup directory is on the same filesystem device as DIP_DEPLOY_PATH; refusing production deployment." >&2
+            exit 3
+          fi
+
           backup_dir="deploy/backups/predeploy-$RELEASE_SHA"
           rm -rf "$backup_dir"
           mkdir -p "$backup_dir"
           chmod 700 "$backup_dir"
 
-          # First deployment has no state to roll back. Record that explicitly.
+          mirror_snapshot() {
+            local final="$OFFSITE_DIRECTORY/predeploy-$RELEASE_SHA"
+            local temp="$final.tmp-$$"
+            rm -rf "$temp" "$final"
+            mkdir -p "$temp"
+            cp -a "$backup_dir/." "$temp/"
+            if [ -f "$temp/SHA256SUMS" ]; then
+              (cd "$temp" && sha256sum -c SHA256SUMS)
+            fi
+            touch "$temp/OFFSITE_MIRROR_COMPLETE"
+            mv "$temp" "$final"
+            touch "$backup_dir/OFFSITE_MIRRORED"
+          }
+
+          # First deployment has no durable state to roll back. Still mirror an
+          # explicit transaction marker so the offsite mount is verified before use.
           if [ ! -f deploy/web.env ] || [ ! -f docker-compose.web.yml ]; then
             printf 'FIRST_DEPLOYMENT\n' > "$backup_dir/NO_PREVIOUS_DEPLOYMENT"
+            printf '%s\n' "$RELEASE_SHA" > "$backup_dir/target-release-sha.txt"
+            printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$backup_dir/created-at-utc.txt"
+            touch "$backup_dir/SNAPSHOT_COMPLETE"
+            mirror_snapshot
             exit 0
           fi
 
@@ -247,7 +391,7 @@ jobs:
           api="$("${compose[@]}" ps -q api)"
           if [ -z "$pg" ] || [ -z "$api" ]; then
             echo "Existing production env is present but PostgreSQL/API is not running; refusing an unsafe deployment." >&2
-            exit 3
+            exit 4
           fi
 
           # Freeze writers so DB + durable artifact storage represent one deployment boundary.
@@ -265,7 +409,7 @@ jobs:
           db_name="$(docker exec "$pg" printenv POSTGRES_DB)"
           if [ -z "$db_user" ] || [ -z "$db_name" ]; then
             echo "Could not resolve production PostgreSQL identity." >&2
-            exit 4
+            exit 5
           fi
           printf '%s\n' "$db_user" > "$backup_dir/postgres-user.txt"
           printf '%s\n' "$db_name" > "$backup_dir/postgres-database.txt"
@@ -275,13 +419,13 @@ jobs:
           artifact_volume="$(docker inspect "$api" --format '{{range .Mounts}}{{if eq .Destination "/data/dip-artifacts"}}{{.Name}}{{end}}{{end}}')"
           if [ -z "$artifact_volume" ]; then
             echo "Could not resolve production artifact volume." >&2
-            exit 4
+            exit 5
           fi
           printf '%s\n' "$artifact_volume" > "$backup_dir/artifact-volume.txt"
           docker run --rm \
             -v "${artifact_volume}:/source:ro" \
             -v "$(pwd)/$backup_dir:/backup" \
-            alpine:3.22 sh -c 'tar -czf /backup/artifacts.tar.gz -C /source .'
+            "$UTILITY_IMAGE" sh -c 'tar -czf /backup/artifacts.tar.gz -C /source .'
           test -s "$backup_dir/artifacts.tar.gz"
 
           (
@@ -292,6 +436,7 @@ jobs:
           printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$backup_dir/created-at-utc.txt"
           touch "$backup_dir/PREVIOUS_STACK_STOPPED"
           touch "$backup_dir/SNAPSHOT_COMPLETE"
+          mirror_snapshot
           trap - ERR INT TERM
           REMOTE
 
@@ -334,7 +479,6 @@ jobs:
           "${compose[@]}" pull
           "${compose[@]}" up -d --no-build --remove-orphans
           # Bind-mounted Caddy configuration may change without a Compose model change.
-          # A restart guarantees that the exact revision's routing/readiness policy is loaded.
           "${compose[@]}" restart caddy
           "${compose[@]}" ps
           REMOTE
@@ -391,13 +535,19 @@ jobs:
         run: |
           set -euo pipefail
           remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' OFFSITE_DIRECTORY='$BACKUP_OFFSITE_DIRECTORY' UTILITY_IMAGE='$UTILITY_IMAGE' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$DEPLOY_PATH"
           backup_dir="deploy/backups/predeploy-$RELEASE_SHA"
+          offsite_dir="$OFFSITE_DIRECTORY/predeploy-$RELEASE_SHA"
+
+          if [ ! -d "$backup_dir" ] && [ -d "$offsite_dir" ]; then
+            mkdir -p deploy/backups
+            cp -a "$offsite_dir" "$backup_dir"
+          fi
 
           if [ ! -d "$backup_dir" ]; then
-            echo "No pre-deploy snapshot exists; rollback cannot be performed automatically." >&2
+            echo "No local or offsite pre-deploy snapshot exists; rollback cannot be performed automatically." >&2
             exit 10
           fi
 
@@ -485,7 +635,7 @@ jobs:
           docker run --rm \
             -v "${artifact_volume}:/target" \
             -v "$(pwd)/$backup_dir:/backup:ro" \
-            alpine:3.22 sh -c 'set -eu; rm -rf /target/* /target/.[!.]* /target/..?* 2>/dev/null || true; tar -xzf /backup/artifacts.tar.gz -C /target'
+            "$UTILITY_IMAGE" sh -c 'set -eu; rm -rf /target/* /target/.[!.]* /target/..?* 2>/dev/null || true; tar -xzf /backup/artifacts.tar.gz -C /target'
 
           "${compose[@]}" up -d --no-build --remove-orphans
           "${compose[@]}" restart caddy
@@ -507,13 +657,14 @@ jobs:
         run: |
           set -euo pipefail
           remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' OFFSITE_DIRECTORY='$BACKUP_OFFSITE_DIRECTORY' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$DEPLOY_PATH"
           printf '%s\n' "$RELEASE_SHA" > deploy/current-release-sha
           printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > deploy/current-release-at-utc
-          # Keep a bounded number of stateful pre-deploy snapshots.
+          # Keep five fast local rollback points and twenty separately mounted DR copies.
           ls -1dt deploy/backups/predeploy-* 2>/dev/null | tail -n +6 | xargs -r rm -rf
+          ls -1dt "$OFFSITE_DIRECTORY"/predeploy-* 2>/dev/null | tail -n +21 | xargs -r rm -rf
           REMOTE
 
       - name: Live URL reminder

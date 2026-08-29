@@ -55,6 +55,10 @@ public static class RequestActor
 /// <summary>
 /// Action-level project authorization after model binding. It protects route/body
 /// ProjectId values and also enforces the archived/deleted write barrier.
+///
+/// Public portfolio mode is deliberately narrow: only GET/HEAD endpoints carrying
+/// ProjectRead are anonymously reachable. Integration/control surfaces stay private,
+/// and a POST never becomes anonymous merely because an action reused ProjectRead.
 /// </summary>
 public sealed class ProjectScopeAuthorizationFilter(
     ProjectAccessService access,
@@ -62,6 +66,12 @@ public sealed class ProjectScopeAuthorizationFilter(
     IProjectResourceProjectResolver resources,
     IConfiguration configuration) : IAsyncActionFilter
 {
+    private static readonly string[] InternalReadPrefixes =
+    [
+        "/api/v1/integrations/github",
+        "/api/v1/system/status"
+    ];
+
     public async Task OnActionExecutionAsync(
         ActionExecutingContext context,
         ActionExecutionDelegate next)
@@ -74,9 +84,14 @@ public sealed class ProjectScopeAuthorizationFilter(
 
         var requireAuthentication =
             configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
+        var publicReadOnly =
+            configuration.GetValue<bool?>("PublicAccess:ReadOnly") ?? false;
         var user = context.HttpContext.User;
+        var publicReadRequest = IsPublicReadRequest(context, publicReadOnly);
 
-        if (requireAuthentication && user.Identity?.IsAuthenticated != true)
+        if (requireAuthentication
+            && user.Identity?.IsAuthenticated != true
+            && !publicReadRequest)
         {
             context.Result = new UnauthorizedResult();
             return;
@@ -138,7 +153,12 @@ public sealed class ProjectScopeAuthorizationFilter(
             return;
         }
 
-        if (requireAuthentication && !user.IsInRole(Roles.Admin))
+        // Public portfolio GET/HEAD is intentionally the same read model for every
+        // viewer. For every non-public request, authenticated membership is enforced.
+        if (requireAuthentication
+            && !publicReadRequest
+            && user.Identity?.IsAuthenticated == true
+            && !user.IsInRole(Roles.Admin))
         {
             if (!await access.HasAccessAsync(
                     projectId.Value,
@@ -171,6 +191,27 @@ public sealed class ProjectScopeAuthorizationFilter(
         }
 
         await next();
+    }
+
+    private static bool IsPublicReadRequest(ActionExecutingContext context, bool publicReadOnly)
+    {
+        if (!publicReadOnly)
+            return false;
+
+        var method = context.HttpContext.Request.Method;
+        if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method))
+            return false;
+
+        var path = context.HttpContext.Request.Path;
+        if (InternalReadPrefixes.Any(prefix => path.StartsWithSegments(new PathString(prefix), StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        return context.ActionDescriptor.EndpointMetadata
+            .OfType<AuthorizeAttribute>()
+            .Any(attribute => string.Equals(
+                attribute.Policy,
+                Policies.ProjectRead,
+                StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsProjectWrite(ActionExecutingContext context)

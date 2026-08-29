@@ -15,6 +15,8 @@ public static class ProductionSecurityGuard
         if(string.IsNullOrWhiteSpace(auth.GitHub.ClientId)||string.IsNullOrWhiteSpace(auth.GitHub.ClientSecret))failures.Add("Authentication:GitHub ClientId and ClientSecret must be configured in Production.");
         if(auth.GitHub.AdminLogins is null||auth.GitHub.AdminLogins.Length==0)failures.Add("Authentication:GitHub:AdminLogins must include at least one recovery administrator in Production.");
         if(!configuration.GetValue("Qa:SandboxEnabled",true))failures.Add("Qa:SandboxEnabled must be true in Production.");
+        if(!configuration.GetValue("Qa:RequireExternalNetworkIsolation",false))failures.Add("Qa:RequireExternalNetworkIsolation must be true in Production so untrusted QA execution fails closed unless the runtime attests network isolation.");
+        if(!configuration.GetValue("Qa:RequireExternalFilesystemIsolation",false))failures.Add("Qa:RequireExternalFilesystemIsolation must be true in Production so untrusted QA execution fails closed unless the runtime provides a separate filesystem boundary.");
         var connection=configuration.GetConnectionString("PostgreSql")??string.Empty;
         if(string.IsNullOrWhiteSpace(connection))failures.Add("ConnectionStrings:PostgreSql must be configured in Production.");
         foreach(var fragment in UnsafeFragments)

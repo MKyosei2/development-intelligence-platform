@@ -16,4 +16,5 @@ public sealed class QaExecutionOptions
     public int SandboxCpuPercent { get; set; } = 90;
     public bool SanitizeEnvironment { get; set; } = true;
     public bool RequireExternalNetworkIsolation { get; set; } = false;
+    public bool RequireExternalFilesystemIsolation { get; set; } = false;
 }

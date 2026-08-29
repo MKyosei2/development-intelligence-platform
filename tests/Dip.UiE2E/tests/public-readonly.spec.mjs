@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('hosted portfolio is browser-accessible and anonymous writes are blocked', async ({ page, request }) => {
+test('hosted portfolio is browser-accessible, read-only, and keeps internal read surfaces private', async ({ page, request }) => {
   const health = await request.get('/healthz');
   expect(health.ok()).toBeTruthy();
 
@@ -26,6 +26,25 @@ test('hosted portfolio is browser-accessible and anonymous writes are blocked', 
     }
   });
   expect([401, 403]).toContain(writeResponse.status());
+
+  // ProjectRead is public only for GET/HEAD. A read-policy POST must not become
+  // anonymously executable, because it can consume CPU, parse uploads, or touch integrations.
+  if (projects.length > 0) {
+    const analyzeResponse = await request.post(
+      `/api/v1/project-control/projects/${projects[0].id}/management.xlsx/analyze`
+    );
+    expect([401, 403]).toContain(analyzeResponse.status());
+  }
+
+  // Repository credentials/capabilities and detailed infrastructure status are
+  // internal surfaces even when the portfolio read model is public.
+  for (const internalPath of [
+    '/api/v1/integrations/github/status',
+    '/api/v1/system/status'
+  ]) {
+    const internalResponse = await request.get(internalPath);
+    expect([401, 403]).toContain(internalResponse.status());
+  }
 
   const cards = page.getByTestId('project-card');
   if (await cards.count() > 0) {
