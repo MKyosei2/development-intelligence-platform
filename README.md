@@ -1,231 +1,177 @@
-# Development Intelligence Platform
+# Development Intelligence Platform (DIP)
 
-**Development Intelligence Platform（DIP）** は、ゲーム・映像・ソフトウェア制作で分散する **Git / CI / QA / Runtime / Performance / Project data** を、追跡可能な Evidence として同一の Project Context に統合する browser-first の開発基盤です。
+DIP is a development-intelligence platform for game, media and software teams. It connects Git/CI/QA/runtime/performance/project data into traceable evidence inside a shared Project Context, then uses that evidence for Project Truth, quality automation, performance analysis, release readiness and evidence-grounded debugging.
 
-[![.NET CI](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/dotnet-ci.yml)
-[![Integration and E2E](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/integration-test.yml/badge.svg)](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/integration-test.yml)
-[![GUI E2E](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/gui-e2e.yml/badge.svg)](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/gui-e2e.yml)
-[![Security Scan](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/security-scan.yml/badge.svg)](https://github.com/MKyosei2/development-intelligence-platform/actions/workflows/security-scan.yml)
+> **Native-first runtime:** Docker Desktop, Docker Engine and Redis are not required. PostgreSQL is the durable system of record and queue/coordination boundary; .NET and Python services run directly on the host.
 
-<p align="center">
-  <img src="docs/09-portfolio/demo/dip-portfolio-demo.gif" alt="DIP portfolio demo using deterministic sample data" width="920" />
-</p>
+## Engineering principles
 
-> GIF・スクリーンショットは決定論的サンプルデータによるデモです。**Implemented ≠ Tested ≠ Runtime Verified** を原則とし、過去RevisionのPASSを最新RevisionのPASSとして扱いません。
+- **Implemented ≠ Tested ≠ Runtime Verified.** DIP does not promote source presence or historical evidence into a current-revision claim.
+- **Claim and Evidence are separate.** Project Truth can be Confirmed, Partially Confirmed, Unverified, Contradicted or Stale.
+- **AI is not a source of truth.** Autonomous Debugging follows Hypothesis → Candidate → Isolated Verification → Human Review.
+- **Broad capability is intentional.** Game-development infrastructure, QA, project intelligence, performance, management and production operations share one evidence model rather than existing as disconnected tools.
+- **Production operations fail closed.** Authentication, native QA isolation, backup integrity, exact-revision packaging and readiness are explicit gates.
 
-## What problem does DIP solve?
-
-制作現場では、実装状況、GitHub、CI、QA、ゲームエンジン、Runtime、性能、WBS/Spreadsheetが別々に存在します。DIPはそれらをEvidenceへ正規化し、次の問いを同じ画面・同じRevisionで判断できるようにします。
-
-- 報告された進捗のうち、客観的Evidenceで確認できる範囲はどこか
-- 現在RevisionをReleaseしてよいか
-- Regressionが製品側・QA側・Infrastructure側のどこにあるか
-- Failureと変更Commitの関係は何か
-- AIが出した修正候補が隔離検証でも成立するか
-- Unity / Unreal / Native Runtimeの品質・性能EvidenceをどうProject判断へ接続するか
-
-```text
-Development / Production activity
-              ↓
-           Evidence
-              ↓
-Universal Project / Development Graph
-              ↓
-Deterministic evaluation
-              ↓
-Risk / Progress / QA / Regression / Debug hypothesis
-              ↓
-Action → Isolated verification → Human review
-```
-
-## Three core engineering contributions
-
-### 1. Project Truth / Evidence Graph
-
-人が報告した **Claim** と機械的に観測した **Evidence** を分離し、`Confirmed / PartiallyConfirmed / Unverified / Contradicted / Stale` として評価します。
-
-Reported ProgressとEvidence-backed Progressを別々に保持し、未知のStatusは0%へ変換せず `unknown` として残します。ThresholdやPenaltyは `ProjectTruthPolicy` に集約し、Magic NumberをEvaluatorへ散在させません。
-
-### 2. Evidence-grounded QA / Autonomous Debug
-
-QA Finding、Regression baseline、Flaky、Soak、Fuzz、Mutation、Crash、Runtime Event、Root-cause candidateをEvidenceとして関連付けます。Autonomous DebugはAIをTruth Sourceにせず、次の境界を維持します。
-
-```text
-Hypothesis
-  → Candidate change
-  → Isolated verification
-  → Evidence comparison
-  → Human review
-```
-
-Soak harnessは「観測時間完了のためHarnessが終了したプロセス」と「対象自身のCrash」を区別します。
-
-### 3. Game / production evidence ingestion
-
-Unity Collector、Unreal Collector、Native Collector、Spreadsheet / Project Management adapterを既存のCollectorReport/Evidenceモデルへ統合します。
-
-UnityはUPM/Editor/Runtime経路を持ちます。Unrealは依存なしの静的・Log・Insights収集に加え、`--unreal-editor-cmd` 指定時は UnrealEditor-Cmd を直接起動してAutomation Testを実行し、生成されたReportとEngine exitをEvidenceへ含めます。
-
-## Architecture
-
-<p align="center">
-  <img src="docs/09-portfolio/architecture.svg" alt="DIP architecture" width="960" />
-</p>
+## Native architecture
 
 ```text
 Browser
-  ↓
-Dip.Web (Blazor)
-  ↓
-Dip.Api
-  ├─ PostgreSQL       durable source of truth
-  ├─ Redis            authenticated coordination / delivery
-  ├─ Dip.Worker       durable asynchronous jobs
-  └─ Python Analysis  authenticated analysis service
-
-External evidence
-  ├─ GitHub / CI
-  ├─ Unity / Unreal
-  ├─ Maya / Native / Runtime
-  ├─ Spreadsheet
-  └─ Project-management integrations
+  │
+  ├── Dip.Web (.NET / Blazor)        http://127.0.0.1:5081
+  │       │
+  │       └── Dip.Api (.NET)         http://127.0.0.1:5080
+  │               │
+  │               ├── PostgreSQL     durable truth + durable queue
+  │               ├── Python Analysis http://127.0.0.1:8100
+  │               └── filesystem     artifacts / workspaces
+  │
+  └── Dip.Worker (.NET Worker)       metrics :9091
+          │
+          ├── PostgreSQL-backed jobs / queue
+          ├── native QA processes
+          └── Unity / Unreal / C++ / toolchain integrations
 ```
 
-ProductionではPostgreSQLをDurable Source of Truthとし、Redis・Worker・Analysisの一時障害がProject Stateを勝手にTruthへ昇格させない構成です。`/api/v1/system/live` はProcess liveness、`/api/v1/system/ready` はtraffic admissionに必要なcritical dependencyのみを確認し、重いtoolchain/integration診断は認証済み `/status` に分離します。
+Redis is no longer a runtime prerequisite. The generic queue is PostgreSQL-backed, while the existing Durable Job subsystem remains PostgreSQL-backed as well.
 
-詳細: [Architecture Overview](docs/09-portfolio/ARCHITECTURE_OVERVIEW.md)
+## Requirements
 
-## Game-development verification path
+For normal local development:
 
-ゲーム開発基盤としての主要な流れは次です。
+- .NET 8 SDK
+- PostgreSQL 16 or compatible supported PostgreSQL
+- PostgreSQL client tools: `psql`, `pg_isready`, `pg_dump`, `pg_restore`
+- Python 3.12+
+- Git
+
+Node.js 22+ is required only for browser E2E. Unity, Unreal, CMake and native analyzers are required only when exercising their corresponding integrations/QA capabilities.
+
+## First run
+
+Create a PostgreSQL login/database once. Example from a PostgreSQL administrator shell:
+
+```sql
+CREATE ROLE dip LOGIN PASSWORD 'change-me-local-only' CREATEDB;
+CREATE DATABASE dip OWNER dip;
+```
+
+Then from PowerShell:
+
+```powershell
+$env:POSTGRES_HOST = "127.0.0.1"
+$env:POSTGRES_PORT = "5432"
+$env:POSTGRES_DB = "dip"
+$env:POSTGRES_USER = "dip"
+$env:POSTGRES_PASSWORD = "change-me-local-only"
+.\scripts\Start-DIP.ps1
+```
+
+`Start-DIP.ps1` validates PostgreSQL, creates the Python virtual environment, restores/builds the .NET solution, starts Python Analysis/API/Worker/Web as host processes, records their PIDs under `.dip/runtime`, waits for health/readiness, and opens the UI.
+
+Useful variants:
+
+```powershell
+.\scripts\Start-DIP.ps1 -NoBuild -NoBrowser
+.\scripts\Start-DIP.ps1 -VerifyGui
+.\scripts\Stop-DIP.ps1 -KeepData
+```
+
+Stopping DIP never stops PostgreSQL and never removes PostgreSQL data. Runtime/artifact deletion requires an explicit destructive switch.
+
+## Runtime storage
+
+Default local paths:
 
 ```text
-Unity / Unreal / Native runtime
-        ↓
-CollectorReport / Runtime Event
-        ↓
-QA Finding / Performance / Incident
-        ↓
-Regression / Release Readiness
-        ↓
-Project Truth
-        ↓
-Developer / Lead decision
+.dip/runtime/          PID files + native process logs
+.dip/python-venv/      Python analysis virtual environment
+.dip/workspaces/       repository/QA workspaces
+artifacts/durable/     durable local artifacts
+artifacts/backups/     verified backups
 ```
 
-Unreal engine-native example:
+Production should use explicit absolute paths outside the release directory.
 
-```bash
-python collectors/unreal-collector/collector.py \
-  --root ./MyGame \
-  --project-id 00000000-0000-0000-0000-000000000001 \
-  --repository https://github.com/example/game \
-  --commit-sha 0123456789abcdef0123456789abcdef01234567 \
-  --external-run-id unreal-ci-1 \
-  --unreal-editor-cmd "/path/to/UnrealEditor-Cmd" \
-  --automation-filter Project \
-  --output artifacts/unreal-report.json
-```
+## Backup / restore / DR
 
-## Performance / Soak evidence
-
-Portfolio benchmarkはDevelopment環境ではなく専用の `Benchmark` runtime profileを使用し、結果JSONへruntime profile・exact source commit・dirty stateを記録します。標準Soakは **900秒 / 25 req/s** です。Release/Nightly用途では引数でさらに長い時間を指定できます。
+Native backup uses PostgreSQL client tools directly and archives ordinary filesystem artifacts:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Run-PortfolioBenchmarks.ps1 -UpdateDocumentation
+.\scripts\Backup-Dip.ps1
+.\scripts\Restore-Dip.ps1 -BackupDirectory <path> -ConfirmRestore
+.\scripts\Verify-DisasterRecovery.ps1
 ```
 
-**最新Revisionに対して実測していない数値は掲載しません。** 現在Revisionの測定状況は [benchmark-results.md](docs/09-portfolio/benchmark-results.md) を参照してください。
+A backup contains:
 
-### Historical verified baseline
+```text
+database.dump
+artifacts.zip
+backup-manifest.json
+offsite-location.txt    # when an offsite mirror is configured
+```
 
-以下はコミットを固定した過去の検証Evidenceであり、比較用Baselineです。Historical results are **not automatically attributed to newer commits**.
+Hashes are verified before restore. Production deployment requires an offsite directory on a different filesystem from the deployment root.
 
-| Scenario | Historical result |
-|---|---:|
-| Project list p95 | 4.174 ms |
-| Collector p95 | 34.507 ms |
-| 100 req/s error rate | 0.0000% |
-| 1M Metric query p95 | 363.796 ms |
-| QA Bug Zoo | 19 / 19 detected |
-| Clean-control false positives | 0 / 7 |
-| Stable-fingerprint reproduction | 9 / 9 |
-
-Evidence: [verified-baseline](docs/09-portfolio/evidence/verified-baseline/)
-
-## Reliability and production safety
-
-Production deploymentはfail-closedを基本にします。
-
-- Python Analysis: `APP_ENV=production` ではAPI key未設定で起動拒否
-- Redis: production composeでpassword必須
-- PostgreSQL / JWT / GitHub OAuth: ProductionSecurityGuardで危険なdefaultを拒否
-- Durable Worker: lease ownership / heartbeat / stale-result discard
-- Backup: DB dump + artifact archive + SHA-256 + atomic publication
-- Restore: preflight → safety backup → restore → post-check。失敗時はsafety backupへ自動rollback
-- Publication: Secret scan / static readiness / exact-SHA CI gateを通過するまで公開完了としない
-
-## Quick start
-
-ローカル開発用:
+## Database migrations
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Start-DIP.ps1
+.\scripts\Verify-DatabaseMigrations.ps1
 ```
 
-またはDocker Compose:
+The verifier uses a temporary native PostgreSQL database, applies the previous/latest EF migration sequence when applicable, re-applies the latest revision to prove idempotence, checks `__EFMigrationsHistory`, and removes the temporary database.
 
-```bash
-docker compose up --build
-```
+## QA isolation
 
-Hosted/production構成は `deploy/web.env.example` を基に必要Secretを設定し、`docker-compose.web.yml` を使用します。SecretをRepositoryへCommitしないでください。
+DIP executes repository QA as native processes rather than inside Docker. The existing process executor provides executable allowlisting, canonical workspace checks, environment sanitization, timeout/process-tree termination and resource controls. Production remains fail-closed unless external network and filesystem isolation are explicitly attested/configured.
 
-## Verification
+On Windows the intended hard boundary is a dedicated low-privilege account + ACL-scoped temporary workspace + Job Object resource limits + firewall/network isolation. Production secrets are not passed to QA child processes.
 
-Sourceの存在だけでは完成扱いしません。正式なWindows portfolio verification:
+## Benchmarks and soak
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Verify-PortfolioFormal.ps1 \
-  -UnityPath "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
+.\scripts\Run-PortfolioBenchmarks.ps1
 ```
 
-個別確認:
+The benchmark still measures project-list latency, collector ingestion, controlled burst load, large Metric aggregation and paced soak/memory growth. It creates a temporary PostgreSQL benchmark database and removes it afterwards. No Docker/Redis service is started.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Verify-DatabaseMigrations.ps1 -Configuration Release
-powershell -ExecutionPolicy Bypass -File .\scripts\Verify-DisasterRecovery.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\Verify-QaGovernance.ps1 -Configuration Release
-powershell -ExecutionPolicy Bypass -File .\scripts\Run-PortfolioBenchmarks.ps1
-```
+Current-revision numbers must come from a run whose artifact records that exact SHA. Historical benchmark numbers are baselines only and are not inherited by later commits.
 
-GitHub-hosted runnerがstep開始前に失敗したRunは `Infrastructure Blocked` とし、Source FailureにもPASSにも変換しません。Portfolio-critical workflowはmanual dispatch可能ですが、**実際のworkflowが成功するまではGreenと記載しません**。
+## CI and release
 
-最新RevisionのEvidence境界: [Latest revision evidence](docs/09-portfolio/evidence/latest-revision.md)
+The file `.github/workflows/docker-build.yml` is retained as an existing repository path for compatibility, but the workflow itself is now named **Native Package Build** and does not invoke Docker. It publishes:
 
-## Technology
+- Dip.Api
+- Dip.Worker
+- Dip.Web
+- Python Analysis source/runtime requirements
+- deployment/scripts
+- EF migration bundle
+- exact-SHA release manifest + SHA-256 manifest
 
-- **Backend / Worker:** .NET 8, C#, ASP.NET Core
-- **Web:** Blazor
-- **Persistence:** PostgreSQL, EF Core
-- **Coordination:** Redis
-- **Analysis / Collectors:** Python
-- **Game / Native:** Unity, Unreal Engine, C++, CMake
-- **QA / E2E:** xUnit, pytest, Playwright, GitHub Actions
-- **Operations:** Docker Compose, OpenTelemetry, Prometheus, Grafana
+`Live Native Deployment` deploys immutable per-SHA release directories, switches a `current` symlink, restarts user-level systemd services, verifies public readiness/browser behavior, and restores the previous database/artifact/release state on failure.
 
-## Reviewer guide
+Caddy is a normal host reverse proxy using `deploy/Caddyfile` and stable loopback endpoints (`5080`/`5081`).
 
-短時間で確認する場合は次の順序を推奨します。
+## Reviewer-facing capability contract
 
-1. このREADMEのProblem / Core Contributions / Architecture
-2. [Engineering Case Study](docs/09-portfolio/ENGINEERING_CASE_STUDY.md)
-3. [Implementation Status](docs/IMPLEMENTATION_STATUS.md)
-4. [Latest Revision Evidence](docs/09-portfolio/evidence/latest-revision.md)
-5. `ProjectTruth`, `P2ExperimentRunner`, Unity/Unreal Collectorのsource/tests
+- **Project Truth** — evidence-linked claim state with freshness/contradiction handling.
+- **Evidence-Grounded Autonomous Debugging** — hypothesis/candidate generation is subordinate to isolated verification and human review.
+- **Flexible Spreadsheet Intelligence** — spreadsheet ingestion/analysis participates in the same project/evidence model.
+- **Historical PASS ≠ Current Revision PASS** — historical evidence is never silently promoted to a later SHA.
 
-このRepositoryはGameplayそのもののShowcaseではなく、**game-development infrastructure / QA automation / developer productivity / backend-platform / release engineering / TA-TD tooling** を主題としています。
+## Core product areas
 
-## License
+DIP includes Project Truth/Evidence Graph, QA and defect intelligence, evidence-grounded autonomous debugging, development/repository graphs, performance and hardware intelligence, release/readiness evidence, project/management intelligence, spreadsheet intelligence, Unity/Unreal/native collectors, integrations and operational evidence.
 
-See [LICENSE](LICENSE).
+The important architectural constraint is that these capabilities share project scope, evidence provenance and verification state; they are not treated as unrelated feature demos.
+
+## Verification before portfolio publication
+
+Use `docs/09-portfolio/PUBLICATION_CHECKLIST.md`. The exact publication SHA must have real successful workflow execution; a zero-step infrastructure failure is neither a source failure nor a PASS.
+
+The expected workflow set includes `.NET CI`, Python CI, native/unreal collectors, Integration/E2E, GUI E2E, **Native Package Build**, Security Scan, Universal QA Benchmark and Portfolio Publication Readiness.
+
+## Legacy Docker files
+
+Some `docker-compose*.yml` / Dockerfile paths may remain in repository history for compatibility and migration reference. They are **not** the supported/default local, CI, release or production runtime. New operational work should use the Native-first paths above.

@@ -1,71 +1,59 @@
-name: Docker Build
-
+name: Native Package Build
 on:
+  push:
+    branches: [main, develop]
+    paths: [".portfolio-ci-trigger", "src/**", "services/**", "scripts/**", "deploy/**", ".github/workflows/docker-build.yml"]
   pull_request:
     branches: [main, develop]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "src/**"
-      - "services/**"
-      - "collectors/native-collector/**"
-      - "infrastructure/docker/**"
-      - "docker-compose*.yml"
-      - ".github/workflows/docker-build.yml"
-  push:
-    branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
-
-permissions:
-  contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/dip
-
+permissions: { contents: read }
 jobs:
-  build:
-    name: Build ${{ matrix.name }} image
+  native-package:
+    name: Exact-SHA native release package
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {name: api, dockerfile: infrastructure/docker/api.Dockerfile, image: api}
-          - {name: web, dockerfile: infrastructure/docker/web.Dockerfile, image: web}
-          - {name: worker, dockerfile: infrastructure/docker/worker.Dockerfile, image: worker}
-          - {name: analysis, dockerfile: infrastructure/docker/analysis.Dockerfile, image: analysis}
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+      - uses: actions/setup-dotnet@v6
+        with: { dotnet-version: "8.0.x" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Restore and test
+        run: |
+          dotnet restore DevelopmentIntelligencePlatform.sln
+          dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
+          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj -c Release --no-build
+          dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj -c Release --no-build
+          dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj -c Release --no-build
+      - name: Publish native services
+        run: |
+          mkdir -p artifacts/native-release
+          dotnet publish src/Dip.Api/Dip.Api.csproj -c Release -o artifacts/native-release/api --no-restore
+          dotnet publish src/Dip.Worker/Dip.Worker.csproj -c Release -o artifacts/native-release/worker --no-restore
+          dotnet publish src/Dip.Web/Dip.Web.csproj -c Release -o artifacts/native-release/web --no-restore
+          cp -a services/python-analysis artifacts/native-release/python-analysis
+          cp -a deploy artifacts/native-release/deploy
+          cp -a scripts artifacts/native-release/scripts
+      - name: Build migration bundle
+        run: |
+          dotnet tool restore
+          dotnet ef migrations bundle --project src/Dip.Infrastructure --startup-project src/Dip.Api -c Release -o artifacts/native-release/dip-migrate
+          chmod +x artifacts/native-release/dip-migrate
+      - name: Record exact-revision provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/native-release
+          find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          printf '{"schema":"dip-native-release-v1","sourceCommit":"%s","builtAtUtc":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > release-manifest.json
+          tar -czf ../dip-native-${GITHUB_SHA}.tar.gz .
+          cd ..
+          sha256sum dip-native-${GITHUB_SHA}.tar.gz > dip-native-${GITHUB_SHA}.sha256
+      - uses: actions/upload-artifact@v7
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}
-          tags: |
-            type=sha
-            type=ref,event=branch
-            type=ref,event=tag
-
-      - name: Build image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          name: dip-native-${{ github.sha }}
+          path: |
+            artifacts/dip-native-${{ github.sha }}.tar.gz
+            artifacts/dip-native-${{ github.sha }}.sha256
+          if-no-files-found: error
+          retention-days: 30

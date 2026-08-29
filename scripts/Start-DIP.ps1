@@ -1,210 +1,57 @@
+[CmdletBinding()]
 param(
     [switch]$NoBuild,
     [switch]$VerifyGui,
     [switch]$NoBrowser,
-    [int]$DockerTimeoutSeconds = 120,
-    [int]$HealthTimeoutSeconds = 120
+    [int]$HealthTimeoutSeconds = 180,
+    [string]$PostgresHost = $(if($env:POSTGRES_HOST){$env:POSTGRES_HOST}else{'127.0.0.1'}),
+    [int]$PostgresPort = $(if($env:POSTGRES_PORT){[int]$env:POSTGRES_PORT}else{5432}),
+    [string]$PostgresDatabase = $(if($env:POSTGRES_DB){$env:POSTGRES_DB}else{'dip'}),
+    [string]$PostgresUser = $(if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}),
+    [string]$PostgresPassword = $(if($env:POSTGRES_PASSWORD){$env:POSTGRES_PASSWORD}else{'change-me-local-only'})
 )
-
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference='Stop'
+$root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$runtime=Join-Path $root '.dip\runtime';$logs=Join-Path $runtime 'logs';$venv=Join-Path $root '.dip\python-venv'
+$artifacts=Join-Path $root 'artifacts\durable';$workspaces=Join-Path $root '.dip\workspaces'
+New-Item -Force -ItemType Directory $runtime,$logs,$artifacts,$workspaces|Out-Null
 
-$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-Set-Location -LiteralPath $RepoRoot
-
-$WebUrl = "http://127.0.0.1:5081/"
-$ApiHealthUrl = "http://127.0.0.1:5080/health"
-$AnalysisHealthUrl = "http://127.0.0.1:8100/health"
-$WorkerMetricsUrl = "http://127.0.0.1:9091/metrics"
-
-function Write-Step {
-    param([int]$Number, [string]$Message)
-    Write-Host ("[{0}/6] {1}" -f $Number, $Message) -ForegroundColor Cyan
+function Assert-Command([string]$name){if(-not(Get-Command $name -ErrorAction SilentlyContinue)){throw "Required command '$name' was not found in PATH."}}
+function Wait-Http([string]$name,[string]$url,[datetime]$deadline){do{try{$r=Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 4;if($r.StatusCode-ge200-and$r.StatusCode-lt400){Write-Host "[PASS] $name $url" -ForegroundColor Green;return}}catch{};Start-Sleep -Milliseconds 750}while((Get-Date)-lt$deadline);throw "$name did not become healthy: $url"}
+function Start-Tracked([string]$name,[string]$exe,[string[]]$args,[string]$cwd){
+ $pidFile=Join-Path $runtime "$name.pid";if(Test-Path $pidFile){$oldPid=[int](Get-Content $pidFile -Raw);if(Get-Process -Id $oldPid -ErrorAction SilentlyContinue){throw "$name is already running (PID $oldPid). Run scripts/Stop-DIP.ps1 first."};Remove-Item $pidFile -Force}
+ $stdout=Join-Path $logs "$name.out.log";$stderr=Join-Path $logs "$name.err.log";Remove-Item $stdout,$stderr -Force -ErrorAction SilentlyContinue
+ $p=Start-Process -FilePath $exe -ArgumentList $args -WorkingDirectory $cwd -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+ $p.Id|Set-Content $pidFile -Encoding ASCII;return $p
 }
+function Show-Logs(){Get-ChildItem $logs -Filter '*.log' -ErrorAction SilentlyContinue|ForEach-Object{Write-Host "===== $($_.Name) =====" -ForegroundColor Yellow;Get-Content $_.FullName -Tail 100 -ErrorAction SilentlyContinue}}
 
-function Test-DockerDaemon {
-    & docker info --format "{{.ServerVersion}}" 1>$null 2>$null
-    return ($LASTEXITCODE -eq 0)
-}
+try{
+ Assert-Command dotnet;Assert-Command git;Assert-Command psql;Assert-Command pg_isready
+ $python=(Get-Command python -ErrorAction SilentlyContinue);if(-not$python){$python=Get-Command python3 -ErrorAction SilentlyContinue};if(-not$python){throw 'Python 3.12+ was not found.'}
+ $oldPgPassword=$env:PGPASSWORD;$env:PGPASSWORD=$PostgresPassword
+ try{& pg_isready -h $PostgresHost -p $PostgresPort -U $PostgresUser -d $PostgresDatabase|Out-Host;if($LASTEXITCODE -ne 0){throw "PostgreSQL is not ready at ${PostgresHost}:${PostgresPort}/$PostgresDatabase. Install/start PostgreSQL and create the database/user first."}}finally{$env:PGPASSWORD=$oldPgPassword}
 
-function Start-DockerDesktopIfNeeded {
-    if (Test-DockerDaemon) {
-        Write-Host "Docker Engine is already running." -ForegroundColor DarkGray
-        return
-    }
+ $connection="Host=$PostgresHost;Port=$PostgresPort;Database=$PostgresDatabase;Username=$PostgresUser;Password=$PostgresPassword"
+ $env:ConnectionStrings__PostgreSql=$connection;$env:ASPNETCORE_ENVIRONMENT='Development';$env:DOTNET_ENVIRONMENT='Development'
+ $env:Authentication__RequireAuthenticatedUser='false';$env:Qa__WorkspaceRoot=$workspaces;$env:Qa__ArtifactRoot=(Join-Path $root 'artifacts\qa');$env:Qa__SandboxEnabled='true'
+ $env:Artifacts__Provider='Local';$env:Artifacts__LocalRoot=$artifacts;$env:AnalysisService__BaseUrl='http://127.0.0.1:8100';$env:SystemStatus__WorkerMetricsUrl='http://127.0.0.1:9091/metrics';$env:OperationalMetrics__Port='9091'
+ $env:Api__BaseUrl='http://127.0.0.1:5080/';$env:Ui__PublicWebUrl='http://127.0.0.1:5081';$env:Ui__PublicApiUrl='http://127.0.0.1:5080'
 
-    $candidates = @(
-        (Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"),
-        (Join-Path $env:LOCALAPPDATA "Docker\Docker Desktop.exe")
-    )
+ if(-not(Test-Path (Join-Path $venv 'pyvenv.cfg'))){& $python.Source -m venv $venv;if($LASTEXITCODE-ne0){throw 'Python venv creation failed.'}}
+ $venvPython=if($env:OS-eq'Windows_NT'){Join-Path $venv 'Scripts\python.exe'}else{Join-Path $venv 'bin/python'}
+ & $venvPython -m pip install --disable-pip-version-check -r (Join-Path $root 'services\python-analysis\requirements.txt');if($LASTEXITCODE-ne0){throw 'Python analysis dependencies failed to install.'}
+ if(-not$NoBuild){Push-Location $root;try{& dotnet restore DevelopmentIntelligencePlatform.sln;if($LASTEXITCODE-ne0){throw 'dotnet restore failed.'};& dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore;if($LASTEXITCODE-ne0){throw 'Release build failed.'}}finally{Pop-Location}}
 
-    $dockerDesktop = $candidates |
-        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
-        Select-Object -First 1
-
-    if (-not $dockerDesktop) {
-        throw "Docker Engine is not running and Docker Desktop was not found. Install Docker Desktop once, then run Start-DIP.cmd again."
-    }
-
-    Write-Host "Starting Docker Desktop automatically..." -ForegroundColor Yellow
-    Start-Process -FilePath $dockerDesktop | Out-Null
-
-    $deadline = (Get-Date).AddSeconds($DockerTimeoutSeconds)
-    do {
-        Start-Sleep -Seconds 2
-        if (Test-DockerDaemon) {
-            Write-Host "Docker Engine: READY" -ForegroundColor Green
-            return
-        }
-    } while ((Get-Date) -lt $deadline)
-
-    throw "Docker Desktop started, but Docker Engine did not become ready within $DockerTimeoutSeconds seconds."
-}
-
-function Wait-HttpEndpoint {
-    param([string]$Name, [string]$Url, [DateTime]$Deadline)
-
-    do {
-        try {
-            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 4 -ErrorAction Stop
-            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
-                Write-Host ("  [PASS] {0,-18} HTTP {1}" -f $Name, $response.StatusCode) -ForegroundColor Green
-                return
-            }
-        }
-        catch {
-        }
-
-        Start-Sleep -Milliseconds 750
-    } while ((Get-Date) -lt $Deadline)
-
-    throw "$Name did not become healthy: $Url"
-}
-
-function Show-FailureDiagnostics {
-    Write-Host ""
-    Write-Host "===== docker compose ps -a =====" -ForegroundColor Yellow
-    try { & docker compose ps -a } catch {}
-
-    Write-Host ""
-    Write-Host "===== recent compose logs =====" -ForegroundColor Yellow
-    try { & docker compose logs --tail=120 } catch {}
-}
-
-try {
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host " Development Intelligence Platform" -ForegroundColor Cyan
-    Write-Host " Full local runtime launcher" -ForegroundColor Cyan
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    Write-Step 1 "Checking local runtime"
-
-    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-        throw "Docker CLI was not found. Install Docker Desktop once, then run Start-DIP.cmd again."
-    }
-
-    & docker compose version | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker Compose is not available."
-    }
-
-    Start-DockerDesktopIfNeeded
-
-    Write-Step 2 "Preparing standard local configuration"
-
-    $env:DIP_REQUIRE_AUTHENTICATION = "false"
-    $env:ASPNETCORE_ENVIRONMENT = "Development"
-    $env:API_PORT = "5080"
-    $env:WEB_PORT = "5081"
-    $env:ANALYSIS_PORT = "8100"
-    $env:WORKER_METRICS_PORT = "9091"
-
-    & docker compose config --quiet
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker compose configuration validation failed."
-    }
-
-    if ($NoBuild) {
-        Write-Step 3 "Starting DIP services"
-        & docker compose up -d --remove-orphans
-    }
-    else {
-        Write-Step 3 "Building and starting DIP services"
-        & docker compose up -d --build --remove-orphans
-    }
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker compose up failed."
-    }
-
-    Write-Step 4 "Waiting for the full stack"
-
-    $deadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)
-    Wait-HttpEndpoint -Name "Python Analysis" -Url $AnalysisHealthUrl -Deadline $deadline
-    Wait-HttpEndpoint -Name "API" -Url $ApiHealthUrl -Deadline $deadline
-    Wait-HttpEndpoint -Name "Worker Metrics" -Url $WorkerMetricsUrl -Deadline $deadline
-    Wait-HttpEndpoint -Name "Web" -Url $WebUrl -Deadline $deadline
-
-    Write-Step 5 "Verifying runtime status"
-
-    & docker compose ps
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker compose ps failed."
-    }
-
-    if ($VerifyGui) {
-        Write-Host ""
-        Write-Host "Running Playwright GUI E2E against the full stack..." -ForegroundColor Cyan
-
-        if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-            throw "-VerifyGui requires Node.js/npm. The DIP runtime itself is already healthy."
-        }
-
-        $e2e = Join-Path $RepoRoot "tests\Dip.UiE2E"
-        Push-Location -LiteralPath $e2e
-        try {
-            if (Test-Path -LiteralPath "package-lock.json") { & npm ci } else { & npm install }
-            if ($LASTEXITCODE -ne 0) { throw "npm dependency installation failed." }
-
-            & npx playwright install chromium
-            if ($LASTEXITCODE -ne 0) { throw "Playwright Chromium installation failed." }
-
-            $env:DIP_WEB_BASE_URL = $WebUrl.TrimEnd("/")
-            & npm test
-            if ($LASTEXITCODE -ne 0) { throw "Playwright GUI E2E failed." }
-
-            Write-Host "GUI E2E: PASS" -ForegroundColor Green
-        }
-        finally {
-            Pop-Location
-        }
-    }
-
-    Write-Step 6 "Opening DIP"
-
-    Write-Host ""
-    Write-Host "DIP runtime: READY" -ForegroundColor Green
-    Write-Host "Web:             $WebUrl" -ForegroundColor Green
-    Write-Host "API health:      $ApiHealthUrl" -ForegroundColor DarkGray
-    Write-Host "Analysis health: $AnalysisHealthUrl" -ForegroundColor DarkGray
-    Write-Host "Worker metrics:  $WorkerMetricsUrl" -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host "Same PostgreSQL / Redis / Python Analysis / API / Worker / Web stack as docker-compose.yml." -ForegroundColor DarkGray
-    Write-Host ""
-
-    if (-not $NoBrowser) {
-        Start-Process $WebUrl
-    }
-
-    exit 0
-}
-catch {
-    Write-Host ""
-    Write-Host "DIP startup FAILED" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
-    Show-FailureDiagnostics
-    Write-Host ""
-    exit 1
-}
+ $analysisKey=if($env:DIP_ANALYSIS_API_KEY){$env:DIP_ANALYSIS_API_KEY}else{'native-development-analysis-key'};$env:API_KEY=$analysisKey;$env:AnalysisService__ApiKey=$analysisKey
+ $analysis=Start-Tracked 'analysis' $venvPython @('-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8100') (Join-Path $root 'services\python-analysis')
+ $api=Start-Tracked 'api' 'dotnet' @('run','--no-launch-profile','--project',(Join-Path $root 'src\Dip.Api\Dip.Api.csproj'),'-c','Release','--no-build','--no-restore','--urls','http://127.0.0.1:5080') $root
+ $worker=Start-Tracked 'worker' 'dotnet' @('run','--no-launch-profile','--project',(Join-Path $root 'src\Dip.Worker\Dip.Worker.csproj'),'-c','Release','--no-build','--no-restore') $root
+ $web=Start-Tracked 'web' 'dotnet' @('run','--no-launch-profile','--project',(Join-Path $root 'src\Dip.Web\Dip.Web.csproj'),'-c','Release','--no-build','--no-restore','--urls','http://127.0.0.1:5081') $root
+ $deadline=(Get-Date).AddSeconds($HealthTimeoutSeconds);Wait-Http 'Python Analysis' 'http://127.0.0.1:8100/health' $deadline;Wait-Http 'API' 'http://127.0.0.1:5080/health' $deadline;Wait-Http 'Worker' 'http://127.0.0.1:9091/metrics' $deadline;Wait-Http 'Web' 'http://127.0.0.1:5081/' $deadline
+ $ready=Invoke-RestMethod 'http://127.0.0.1:5080/api/v1/system/ready';if(-not$ready.ready){throw "DIP readiness failed: $($ready|ConvertTo-Json -Compress)"}
+ if($VerifyGui){Assert-Command npm;Push-Location (Join-Path $root 'tests\Dip.UiE2E');try{if(Test-Path package-lock.json){& npm ci}else{& npm install};if($LASTEXITCODE-ne0){throw 'npm install failed'};& npx playwright install chromium;if($LASTEXITCODE-ne0){throw 'Playwright install failed'};$env:DIP_WEB_BASE_URL='http://127.0.0.1:5081';& npm test;if($LASTEXITCODE-ne0){throw 'GUI E2E failed'}}finally{Pop-Location}}
+ Write-Host 'DIP native runtime: READY' -ForegroundColor Green;Write-Host 'Web: http://127.0.0.1:5081/';Write-Host 'External runtime dependency: PostgreSQL only.'
+ if(-not$NoBrowser){Start-Process 'http://127.0.0.1:5081/'}
+}catch{Write-Host "DIP startup FAILED: $($_.Exception.Message)" -ForegroundColor Red;Show-Logs;try{& (Join-Path $PSScriptRoot 'Stop-DIP.ps1') -KeepData}catch{};exit 1}

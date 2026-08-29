@@ -1,44 +1,48 @@
-# Repository automation scripts
+# DIP operational scripts — Native-first
 
-The scripts in this directory are for local startup, developers, CI, formal verification and evidence collection.
+The supported runtime is host-native. Docker Desktop/Engine and Redis are not prerequisites.
 
-## Standard local runtime
-
-- `Start-DIP.ps1`: standard Windows launcher for the same full stack defined by `../docker-compose.yml`. It starts Docker Desktop automatically when installed but stopped, builds/starts PostgreSQL, Redis, Python Analysis, API, Worker and Web, verifies their runtime endpoints, then opens the browser.
-- `Stop-DIP.ps1`: stops the local stack while preserving persistent Docker volumes by default. `-RemoveData` also removes those volumes.
-
-Repository-root `Start-DIP.cmd` and `Stop-DIP.cmd` are double-click wrappers around these PowerShell scripts. There is no separate demo backend or reduced-function runtime.
-
-Useful startup options:
+## Start / stop
 
 ```powershell
 .\scripts\Start-DIP.ps1
-.\scripts\Start-DIP.ps1 -NoBuild
-.\scripts\Start-DIP.ps1 -VerifyGui
-.\scripts\Start-DIP.ps1 -NoBrowser
+.\scripts\Stop-DIP.ps1 -KeepData
 ```
 
-`-VerifyGui` runs the existing Playwright UI E2E suite after all runtime health checks pass. Node.js/npm is required only for that optional verification flag, not for the normal DIP startup path.
+`Start-DIP.ps1` checks .NET, Python and PostgreSQL client tools; verifies the configured PostgreSQL database; creates the Python venv; builds; starts Analysis/API/Worker/Web; records PID/log files in `.dip/runtime`; and waits for readiness.
 
-Hosted end users still access DIP from a browser and do not run PowerShell or Docker themselves. Hosted deployment is documented in [`../docs/WEB_DEPLOYMENT.md`](../docs/WEB_DEPLOYMENT.md).
+`Stop-DIP.ps1` only stops PIDs that DIP recorded. It intentionally leaves the PostgreSQL OS service and database running.
 
-## Developer / CI scripts
+## GUI runtime evidence
 
-- `setup-development.ps1`: prepare development tools and Python virtual environment
-- `verify-environment.ps1`: validate developer toolchain and required paths
-- `build-all.ps1`: build C#, Python and C++ components
-- `test-all.ps1`: run .NET, Python, C++ and optional k6 tests
-- `format-all.ps1`: run `dotnet format` and `ruff`
-- `generate-sample-data.ps1`: generate sample data and SHA-256 manifests
-- `package-release.ps1`: package release artifacts
-- `validate-schemas.ps1`: validate sample reports against JSON schemas
-- `Verify-Solution.ps1`: P0/source verification
-- `Verify-GuiRuntime.ps1`: isolated developer GUI runtime verification
-- `Verify-GuiPhase1.ps1`: repository-onboarding GUI E2E verification
-- `Verify-QaGovernance.ps1`: QA governance verification
-- `Verify-P1.ps1` / `Verify-P2.ps1`: platform evidence verification
-- `Run-UniversalQaBenchmark.ps1`: measured native-toolchain QA bootstrap benchmark
+```powershell
+.\scripts\Verify-GuiRuntime.ps1 -RunPlaywright
+```
 
-Run developer scripts from the repository root. Generated evidence belongs under `artifacts/` or `reports/`.
+Evidence is written to `artifacts/gui-runtime-verification/<timestamp>/`.
 
-Windows-specific verification remains only where Windows itself is the subject of the evidence. It is not required to use the hosted DIP website.
+## Backup / restore
+
+```powershell
+.\scripts\Backup-Dip.ps1
+.\scripts\Restore-Dip.ps1 -BackupDirectory <path> -ConfirmRestore
+.\scripts\Verify-DisasterRecovery.ps1
+```
+
+All three use `pg_dump`/`pg_restore`/`psql` directly. Artifact storage is a normal directory. Production may require `DIP_BACKUP_OFFSITE_DIRECTORY`.
+
+## Migration verification
+
+```powershell
+.\scripts\Verify-DatabaseMigrations.ps1
+```
+
+A temporary PostgreSQL database is created and destroyed for the check.
+
+## Performance evidence
+
+```powershell
+.\scripts\Run-PortfolioBenchmarks.ps1
+```
+
+This preserves project-list, collector, burst, Metric-scale and soak/memory scenarios while using a temporary native PostgreSQL database.

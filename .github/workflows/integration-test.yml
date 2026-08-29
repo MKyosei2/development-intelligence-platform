@@ -1,116 +1,63 @@
 name: Integration and E2E Tests
-
 on:
-  pull_request:
-    branches: [main, develop]
-  push:
-    branches: [main, develop]
+  pull_request: { branches: [main, develop] }
+  push: { branches: [main, develop] }
   workflow_dispatch:
-
-permissions:
-  contents: read
-
+permissions: { contents: read }
 concurrency:
   group: integration-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   integration:
-    name: PostgreSQL, Redis, API, Worker and E2E
+    name: Native PostgreSQL, API, Worker and E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: dip_test
-          POSTGRES_USER: dip
-          POSTGRES_PASSWORD: dip-test-password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U dip -d dip_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: dip_test
+      POSTGRES_USER: dip
+      POSTGRES_PASSWORD: dip-test-password
       ConnectionStrings__PostgreSql: Host=127.0.0.1;Port=5432;Database=dip_test;Username=dip;Password=dip-test-password
-      Redis__ConnectionString: 127.0.0.1:6379
       ASPNETCORE_ENVIRONMENT: Testing
       DOTNET_ENVIRONMENT: Testing
       ASPNETCORE_URLS: http://127.0.0.1:7001
+      Authentication__RequireAuthenticatedUser: "false"
       GitHub__WebhookSecret: integration-test-secret
       GitHub__Token: integration-test-token
       DIP_API_URL: http://127.0.0.1:7001
       Qa__WorkspaceRoot: ${{ github.workspace }}
       Qa__ArtifactRoot: ${{ github.workspace }}/artifacts/qa
+      Artifacts__Provider: Local
+      Artifacts__LocalRoot: ${{ github.workspace }}/artifacts/durable
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: "8.0.x"
-          cache: true
-          cache-dependency-path: |
-            **/*.csproj
-            Directory.Packages.props
-
-      - name: Restore
-        run: dotnet restore DevelopmentIntelligencePlatform.sln
-
-      - name: Build
-        run: dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
-
-      - name: API integration tests
-        run: dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj --configuration Release --no-build --logger "trx;LogFileName=integration-tests.trx" --results-directory TestResults
-
-      - name: Start API and Worker without launch profiles
+        with: { dotnet-version: "8.0.x" }
+      - name: Prepare native PostgreSQL
         shell: bash
         run: |
-          dotnet run --no-launch-profile --project src/Dip.Api/Dip.Api.csproj --configuration Release --no-build --no-restore > api.log 2>&1 &
-          echo $! > api.pid
-          dotnet run --no-launch-profile --project src/Dip.Worker/Dip.Worker.csproj --configuration Release --no-build --no-restore > worker.log 2>&1 &
-          echo $! > worker.pid
-
-          for attempt in {1..60}; do
-            if ! kill -0 "$(cat api.pid)" 2>/dev/null; then
-              echo "API process exited before readiness."
-              cat api.log
-              exit 1
-            fi
-
-            if curl --fail --silent http://127.0.0.1:7001/health > /dev/null; then
-              break
-            fi
-
-            if [ "$attempt" -eq 60 ]; then
-              echo "API did not become healthy."
-              cat api.log
-              exit 1
-            fi
-
-            sleep 1
-          done
-
-          sleep 3
-          if ! kill -0 "$(cat worker.pid)" 2>/dev/null; then
-            echo "Worker process exited during startup."
-            cat worker.log
-            exit 1
-          fi
-
+          set -euo pipefail
+          sudo systemctl start postgresql
+          sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='dip'" | grep -q 1 || sudo -u postgres psql -c "CREATE ROLE dip LOGIN PASSWORD 'dip-test-password' CREATEDB;"
+          sudo -u postgres dropdb --if-exists dip_test
+          sudo -u postgres createdb -O dip dip_test
+      - name: Restore and build
+        run: |
+          dotnet restore DevelopmentIntelligencePlatform.sln
+          dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
+      - name: API integration tests
+        run: dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj -c Release --no-build --logger "trx;LogFileName=integration-tests.trx" --results-directory TestResults
+      - name: Start native API and Worker
+        shell: bash
+        run: |
+          dotnet run --no-launch-profile --project src/Dip.Api/Dip.Api.csproj -c Release --no-build --no-restore > api.log 2>&1 & echo $! > api.pid
+          dotnet run --no-launch-profile --project src/Dip.Worker/Dip.Worker.csproj -c Release --no-build --no-restore > worker.log 2>&1 & echo $! > worker.pid
+          for attempt in {1..60}; do curl --fail --silent http://127.0.0.1:7001/health >/dev/null && exit 0; kill -0 "$(cat api.pid)" || { cat api.log; exit 1; }; sleep 1; done
+          cat api.log; exit 1
       - name: Live end-to-end tests
-        run: dotnet test tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj --configuration Release --no-build --logger "trx;LogFileName=e2e-tests.trx" --results-directory TestResults
-
-      - name: Upload results and service logs
+        run: dotnet test tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj -c Release --no-build --logger "trx;LogFileName=e2e-tests.trx" --results-directory TestResults
+      - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -122,10 +69,8 @@ jobs:
             artifacts/qa
           if-no-files-found: warn
           retention-days: 14
-
-      - name: Stop services
+      - name: Stop native processes
         if: always()
-        shell: bash
         run: |
           test -f api.pid && kill $(cat api.pid) || true
           test -f worker.pid && kill $(cat worker.pid) || true

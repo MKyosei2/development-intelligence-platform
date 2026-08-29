@@ -1,25 +1,23 @@
 {$DIP_PUBLIC_HOST} {
     encode zstd gzip
 
-    # Public health is a readiness probe, not mere process liveness. Traffic is
-    # admitted only when DIP's critical database/Redis/analysis/worker/artifact
-    # dependencies are available.
     @health path /healthz
     handle @health {
         rewrite * /api/v1/system/ready
-        reverse_proxy api:8080
+        reverse_proxy 127.0.0.1:5080
     }
 
     @api path /api/* /hubs/*
     handle @api {
-        reverse_proxy api:8080
+        reverse_proxy 127.0.0.1:5080
     }
 
     handle {
-        reverse_proxy web:8080
+        reverse_proxy 127.0.0.1:5081
     }
 
     header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "strict-origin-when-cross-origin"

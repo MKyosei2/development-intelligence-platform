@@ -1,9 +1,9 @@
-# Local Development
+# Local development
+
+DIP uses a Native-first local runtime. Install .NET 8, Python 3.12+, PostgreSQL and PostgreSQL client tools. Create the `dip` database/user once, set `POSTGRES_*` variables (see `.env.example`), then run:
 
 ```powershell
-docker compose up -d postgres redis minio python-analysis
-dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api
-dotnet run --project src/Dip.Api
-dotnet run --project src/Dip.Web
-dotnet run --project src/Dip.Worker
+.\scripts\Start-DIP.ps1
 ```
+
+The launcher creates the Python venv and starts Analysis/API/Worker/Web directly. PID/log state is under `.dip/runtime`. Stop with `scripts/Stop-DIP.ps1 -KeepData`. Docker and Redis are not required.

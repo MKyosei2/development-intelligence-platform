@@ -13,7 +13,7 @@ if ($LASTEXITCODE -ne 0) { throw "Publication safety check failed." }
 python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
 if ($LASTEXITCODE -ne 0) { throw "Portfolio readiness check failed." }
 $sha=(git rev-parse HEAD).Trim()
-$required=@("Commit Message",".NET CI","Python CI","Native Collector CI","Integration and E2E Tests","GUI E2E","Docker Build","Security Scan","Universal QA Benchmark","Unreal Collector CI","Portfolio Publication Readiness")
+$required=@("Commit Message",".NET CI","Python CI","Native Collector CI","Integration and E2E Tests","GUI E2E","Native Package Build","Security Scan","Universal QA Benchmark","Unreal Collector CI","Portfolio Publication Readiness")
 $runs=gh run list --repo $Repository --commit $sha --limit 100 --json name,status,conclusion,url | ConvertFrom-Json
 foreach($name in $required){
     $ok=$runs | Where-Object { $_.name -eq $name -and $_.status -eq "completed" -and $_.conclusion -eq "success" } | Select-Object -First 1

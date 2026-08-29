@@ -1,73 +1,25 @@
 # Latest revision evidence status
 
-## 目的
+## Purpose
 
-このファイルは「Sourceが存在する」「過去RevisionがPASSした」「現在Revisionが実際に検証された」を混同しないための境界を定義します。
+This file keeps **Implemented**, **Tested**, **Runtime Verified**, and **Infrastructure Blocked** separate. It intentionally does not hard-code a mutable latest SHA; generated artifacts record `git rev-parse HEAD` / `GITHUB_SHA`.
 
-## Revision anchor
+## Native-first evidence
 
-- GitHub repository: `MKyosei2/development-intelligence-platform`
-- current source revision: **generated at verification time from `git rev-parse HEAD` / `GITHUB_SHA`**
+Current runtime verification is host-native. Docker/Redis execution is not required evidence. `GUI E2E` writes `artifacts/gui-runtime-verification/<timestamp>/...`; `Native Package Build` creates an exact-SHA release archive/hash; benchmark/DR/migration scripts write their own revision-bound evidence.
 
-This tracked document intentionally does not hard-code a mutable "latest" SHA. Exact-revision artifacts record the immutable commit they verified, preventing an old repair-package baseline from being mistaken for the current source revision.
-
-## Exact revision evidenceの生成方法
-
-Tracked Markdownへ「自分自身を含むCommit SHA」をハードコードすると、ファイル変更によってCommit SHA自体が変わるため循環します。
-
-そのためDIPでは、Exact Revision EvidenceをGitHub Actions実行時に生成します。
-
-`Portfolio Publication Readiness` workflowは実行中の`GITHUB_SHA`を使い、次をArtifactへ出力します。
-
-```text
-artifacts/portfolio-readiness/exact-revision.json
-artifacts/portfolio-readiness/exact-revision.md
-```
-
-`GUI E2E`は以下へRuntime Evidenceを出力します。
-
-```text
-artifacts/gui-runtime-verification/<timestamp>/GUI_RUNTIME_VERIFICATION_PASS.txt
-artifacts/gui-runtime-verification/<timestamp>/gui-runtime-verification.json
-```
-
-このため、README・スクリーンショット・Historical Evidenceだけを見て最新RevisionをVerifiedとは判断しません。
-
-## 現在の判定ルール
-
-| 状態 | 意味 |
-|---|---|
-| Implemented | Source Codeが存在する |
-| Tested | 対象RevisionでTestが実行された |
-| Runtime Verified | 対象Revisionを想定Runtimeで実行しEvidenceが生成された |
-| Infrastructure Blocked | Runner / account / platform都合でVerification自体が開始できていない |
-
-`Infrastructure Blocked`を`Failed Source`にも`PASS`にも変換しません。
-
-## GitHub-hosted runnerについて
-
-GitHub-hosted runnerの状態を確認する際は、最新`main`に対する複数Workflowが`failure`表示でした。一方、Repositoryに残っている履歴ではGitHub-hosted runner / account availabilityの問題により、checkout/build/testへ入る前にJobが終了したケースが確認されています。
-
-したがって次のどちらも禁止します。
-
-- zero-step runを「Sourceが壊れている証拠」と断定する
-- zero-step runを無視して「最新RevisionはGreen」と記載する
-
-Runnerが利用可能になった後、同じ新SHAに対して実Stepが走った結果を採用します。
-
-## 修正適用後に必要なVerification
+## Required verification after a source change
 
 1. `dotnet restore DevelopmentIntelligencePlatform.sln`
 2. `dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore`
 3. Domain / Application / Infrastructure tests
-4. Integration tests
+4. Integration and E2E tests against native PostgreSQL
 5. `scripts/Verify-GuiRuntime.ps1 -RunPlaywright`
-6. `python tools/verify_publication_safety.py --root .`
-7. `python tools/validate_portfolio_readiness.py --root .`
-8. Conventional Commitでpush
-9. 新SHAの`.NET CI / Integration and E2E / Docker Build / Security Scan / GUI E2E / Publication Readiness`が実際にStepを実行したことを確認
-10. 全ての必要Evidenceが揃った後にのみRelease / Portfolio Verifiedとする
+6. `scripts/Verify-DatabaseMigrations.ps1`
+7. `scripts/Verify-DisasterRecovery.ps1`
+8. `python tools/verify_publication_safety.py --root .`
+9. `python tools/validate_portfolio_readiness.py --root .`
+10. Conventional Commit push
+11. Confirm that the new SHA actually executed `.NET CI / Python CI / Native Collector CI / Integration and E2E / GUI E2E / Native Package Build / Security Scan / Universal QA Benchmark / Unreal Collector CI / Publication Readiness`.
 
-## Evidence inheritance policy
-
-Historical Evidenceは比較・回帰確認のBaselineとして利用できます。ただし、新しいCommitへVerification Stateを自動継承しません。
+Historical evidence can be a regression baseline, but verification state is never inherited to a later commit. A zero-step workflow failure is not reclassified as either a source failure or a PASS.

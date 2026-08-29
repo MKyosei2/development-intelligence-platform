@@ -1,199 +1,120 @@
-name: Live Browser Deployment
-
+name: Live Native Deployment
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "src/**"
-      - "services/**"
-      - "infrastructure/docker/**"
-      - "docker-compose.web.yml"
-      - "deploy/**"
-      - "tests/Dip.UiE2E/**"
-      - ".github/workflows/live-deploy.yml"
-
-# A production deployment is a stateful transaction. Never allow two revisions to
-# mutate the same database/artifact volumes concurrently.
+    paths: [".portfolio-ci-trigger", "src/**", "services/**", "scripts/**", "deploy/**", ".github/workflows/live-deploy.yml"]
 concurrency:
   group: dip-production-${{ github.repository }}
   cancel-in-progress: false
-
 permissions:
   contents: read
-  packages: write
   actions: read
-
-env:
-  IMAGE_PREFIX: ghcr.io/mkyosei2/dip
-
 jobs:
   verify:
-    name: Verify deployable revision
+    name: Verify deployable native revision
     if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Publication safety
+        with: { python-version: "3.12" }
+      - uses: actions/setup-dotnet@v6
+        with: { dotnet-version: "8.0.x" }
+      - name: Exact-revision verification
         run: |
+          git log -1 --pretty=%s | python tools/validate_commit_message.py
           python tools/verify_publication_safety.py --root . --output /tmp/publication-safety.json
           python tools/validate_portfolio_readiness.py --root . --output /tmp/portfolio-readiness.json
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Restore and build
-        run: |
           dotnet restore DevelopmentIntelligencePlatform.sln
-          dotnet build DevelopmentIntelligencePlatform.sln --configuration Release --no-restore
-
-      - name: Core unit tests
+          dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
+          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj -c Release --no-build
+          dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj -c Release --no-build
+          dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj -c Release --no-build
+      - name: Python verification
+        working-directory: services/python-analysis
         run: |
-          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj --configuration Release --no-build
-          dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj --configuration Release --no-build
-          dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build
+          python -m pip install -r requirements-dev.txt
+          python -m pytest -q
 
-      - name: Require successful exact-SHA portfolio verification workflows
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          REVISION: ${{ github.sha }}
+  exact-gate:
+    name: Require complete exact-SHA verification matrix
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Wait for required workflows on this SHA
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          import time
-          import urllib.parse
-          import urllib.request
+          required=(
+            "Commit Message" ".NET CI" "Python CI" "Native Collector CI"
+            "Integration and E2E Tests" "GUI E2E" "Native Package Build"
+            "Security Scan" "Universal QA Benchmark" "Unreal Collector CI"
+            "Portfolio Publication Readiness"
+          )
+          deadline=$((SECONDS+1200))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100")"
+            all_green=1
+            for name in "${required[@]}"; do
+              status="$(jq -r --arg n "$name" '[.workflow_runs[] | select(.name==$n)][0].status // "missing"' <<<"$runs")"
+              conclusion="$(jq -r --arg n "$name" '[.workflow_runs[] | select(.name==$n)][0].conclusion // ""' <<<"$runs")"
+              printf '%-34s status=%-12s conclusion=%s\n' "$name" "$status" "${conclusion:-pending}"
+              if [ "$status" = completed ] && [ -n "$conclusion" ] && [ "$conclusion" != success ]; then
+                echo "Required workflow failed for exact SHA: $name ($conclusion)" >&2
+                exit 3
+              fi
+              [ "$conclusion" = success ] || all_green=0
+            done
+            [ "$all_green" -eq 1 ] && { echo "PASS: complete exact-SHA matrix is green."; exit 0; }
+            sleep 15
+          done
+          echo "Timed out waiting for complete exact-SHA workflow matrix." >&2
+          exit 4
 
-          required = [
-              "Commit Message",
-              ".NET CI",
-              "Python CI",
-              "Native Collector CI",
-              "Integration and E2E Tests",
-              "GUI E2E",
-              "Docker Build",
-              "Security Scan",
-              "Universal QA Benchmark",
-              "Unreal Collector CI",
-              "Portfolio Publication Readiness",
-          ]
-          repo = os.environ["REPOSITORY"]
-          sha = os.environ["REVISION"]
-          token = os.environ["GH_TOKEN"]
-          deadline = time.monotonic() + 30 * 60
-
-          def fetch_runs():
-              query = urllib.parse.urlencode({"head_sha": sha, "per_page": 100})
-              request = urllib.request.Request(
-                  f"https://api.github.com/repos/{repo}/actions/runs?{query}",
-                  headers={
-                      "Accept": "application/vnd.github+json",
-                      "Authorization": f"Bearer {token}",
-                      "X-GitHub-Api-Version": "2022-11-28",
-                      "User-Agent": "dip-exact-sha-deploy-gate",
-                  },
-              )
-              with urllib.request.urlopen(request, timeout=20) as response:
-                  return json.load(response).get("workflow_runs", [])
-
-          while True:
-              runs = fetch_runs()
-              latest = {}
-              for run in runs:
-                  name = run.get("name")
-                  if name not in required:
-                      continue
-                  key = (run.get("created_at") or "", int(run.get("run_attempt") or 0), int(run.get("id") or 0))
-                  previous = latest.get(name)
-                  if previous is None or key > previous[0]:
-                      latest[name] = (key, run)
-
-              missing = [name for name in required if name not in latest]
-              pending = []
-              failed = []
-              for name in required:
-                  if name not in latest:
-                      continue
-                  run = latest[name][1]
-                  status = run.get("status")
-                  conclusion = run.get("conclusion")
-                  if status != "completed":
-                      pending.append(name)
-                  elif conclusion != "success":
-                      failed.append((name, conclusion, run.get("html_url")))
-
-              if failed:
-                  for name, conclusion, url in failed:
-                      print(f"FAILED exact-SHA gate: {name}: {conclusion}: {url}")
-                  raise SystemExit(3)
-
-              if not missing and not pending:
-                  print(f"PASS: all {len(required)} required workflows succeeded for {sha}")
-                  break
-
-              if time.monotonic() >= deadline:
-                  print("Timed out waiting for exact-SHA verification.")
-                  print("Missing:", missing)
-                  print("Pending:", pending)
-                  raise SystemExit(4)
-
-              print("Waiting for exact-SHA verification; missing=", missing, "pending=", pending, flush=True)
-              time.sleep(15)
-          PY
-
-  images:
-    name: Publish ${{ matrix.name }} image
-    if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
-    needs: verify
+  package:
+    name: Build exact-SHA native package
+    needs: [verify, exact-gate]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { name: api, dockerfile: infrastructure/docker/api.Dockerfile }
-          - { name: web, dockerfile: infrastructure/docker/web.Dockerfile }
-          - { name: worker, dockerfile: infrastructure/docker/worker.Dockerfile }
-          - { name: analysis, dockerfile: infrastructure/docker/analysis.Dockerfile }
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
+      - uses: actions/setup-dotnet@v6
+        with: { dotnet-version: "8.0.x" }
+      - name: Publish
+        run: |
+          dotnet restore DevelopmentIntelligencePlatform.sln
+          mkdir -p artifacts/native-release
+          dotnet publish src/Dip.Api/Dip.Api.csproj -c Release -o artifacts/native-release/api --no-restore
+          dotnet publish src/Dip.Worker/Dip.Worker.csproj -c Release -o artifacts/native-release/worker --no-restore
+          dotnet publish src/Dip.Web/Dip.Web.csproj -c Release -o artifacts/native-release/web --no-restore
+          cp -a services/python-analysis artifacts/native-release/python-analysis
+          cp -a scripts deploy artifacts/native-release/
+          dotnet tool restore
+          dotnet ef migrations bundle --project src/Dip.Infrastructure --startup-project src/Dip.Api -c Release -o artifacts/native-release/dip-migrate
+          chmod +x artifacts/native-release/dip-migrate
+          (cd artifacts/native-release && find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
+          printf '{"schema":"dip-native-release-v1","sourceCommit":"%s"}\n' "$GITHUB_SHA" > artifacts/native-release/release-manifest.json
+          tar -czf artifacts/dip-native-${GITHUB_SHA}.tar.gz -C artifacts/native-release .
+          sha256sum artifacts/dip-native-${GITHUB_SHA}.tar.gz > artifacts/dip-native-${GITHUB_SHA}.sha256
+      - uses: actions/upload-artifact@v7
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push exact-revision image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          name: dip-native-${{ github.sha }}
+          path: |
+            artifacts/dip-native-${{ github.sha }}.tar.gz
+            artifacts/dip-native-${{ github.sha }}.sha256
+          if-no-files-found: error
+          retention-days: 7
 
   deploy:
-    name: Deploy and verify public browser runtime
-    if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
-    needs: images
+    name: Deploy native runtime and verify browser
+    needs: package
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     environment:
       name: production
       url: https://${{ vars.DIP_PUBLIC_HOST }}/
@@ -204,474 +125,237 @@ jobs:
       DEPLOY_PATH: ${{ vars.DIP_DEPLOY_PATH }}
       DEPLOY_HOST_KEY: ${{ secrets.DIP_DEPLOY_HOST_KEY }}
       DEPLOY_SSH_KEY: ${{ secrets.DIP_DEPLOY_SSH_KEY }}
-      GHCR_USER: ${{ vars.DIP_GHCR_USER }}
-      GHCR_TOKEN: ${{ secrets.DIP_GHCR_TOKEN }}
+      POSTGRES_HOST: ${{ vars.DIP_POSTGRES_HOST }}
+      POSTGRES_PORT: ${{ vars.DIP_POSTGRES_PORT }}
+      POSTGRES_DB: ${{ vars.DIP_POSTGRES_DB }}
+      POSTGRES_USER: ${{ vars.DIP_POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.DIP_POSTGRES_PASSWORD }}
-      REDIS_PASSWORD: ${{ secrets.DIP_REDIS_PASSWORD }}
+      OFFSITE_DIR: ${{ vars.DIP_BACKUP_OFFSITE_DIRECTORY }}
       ANALYSIS_API_KEY: ${{ secrets.DIP_ANALYSIS_API_KEY }}
       OAUTH_CLIENT_ID: ${{ secrets.DIP_GITHUB_OAUTH_CLIENT_ID }}
       OAUTH_CLIENT_SECRET: ${{ secrets.DIP_GITHUB_OAUTH_CLIENT_SECRET }}
       ADMIN_LOGIN: ${{ vars.DIP_GITHUB_ADMIN_LOGIN }}
       JWT_SIGNING_KEY: ${{ secrets.DIP_JWT_SIGNING_KEY }}
       WEBHOOK_SECRET: ${{ secrets.DIP_GITHUB_WEBHOOK_SECRET }}
-      GITHUB_APP_ID: ${{ vars.DIP_GITHUB_APP_ID }}
-      GITHUB_APP_INSTALLATION_ID: ${{ vars.DIP_GITHUB_APP_INSTALLATION_ID }}
-      GITHUB_APP_SLUG: ${{ vars.DIP_GITHUB_APP_SLUG }}
-      GITHUB_APP_PRIVATE_KEY_BASE64: ${{ secrets.DIP_GITHUB_APP_PRIVATE_KEY_BASE64 }}
       GITHUB_INTEGRATION_TOKEN: ${{ secrets.DIP_GITHUB_TOKEN }}
-      POSTGRES_IMAGE: ${{ vars.DIP_POSTGRES_IMAGE }}
-      REDIS_IMAGE: ${{ vars.DIP_REDIS_IMAGE }}
-      CADDY_IMAGE: ${{ vars.DIP_CADDY_IMAGE }}
-      UTILITY_IMAGE: ${{ vars.DIP_UTILITY_IMAGE }}
-      BACKUP_OFFSITE_DIRECTORY: ${{ vars.DIP_BACKUP_OFFSITE_DIRECTORY }}
     steps:
       - uses: actions/checkout@v7
-
+      - uses: actions/download-artifact@v7
+        with:
+          name: dip-native-${{ github.sha }}
+          path: artifacts/deploy
       - name: Validate deployment configuration
         shell: bash
         run: |
           set -euo pipefail
-          required=(
-            PUBLIC_HOST DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_HOST_KEY DEPLOY_SSH_KEY
-            GHCR_USER GHCR_TOKEN POSTGRES_PASSWORD REDIS_PASSWORD ANALYSIS_API_KEY
-            OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET
-            POSTGRES_IMAGE REDIS_IMAGE CADDY_IMAGE UTILITY_IMAGE BACKUP_OFFSITE_DIRECTORY
-          )
-          for name in "${required[@]}"; do
-            if [ -z "${!name:-}" ]; then
-              echo "Missing live deployment setting: $name" >&2
-              exit 2
-            fi
-          done
-          if [[ ! "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
-            echo "DIP_DEPLOY_PATH must be an absolute path without spaces or shell metacharacters." >&2
-            exit 2
-          fi
-          if [[ ! "$BACKUP_OFFSITE_DIRECTORY" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
-            echo "DIP_BACKUP_OFFSITE_DIRECTORY must be an absolute path without spaces or shell metacharacters." >&2
-            exit 2
-          fi
-          if [[ ! "$PUBLIC_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
-            echo "DIP_PUBLIC_HOST must contain only a DNS host name." >&2
-            exit 2
-          fi
-          if [ "${#JWT_SIGNING_KEY}" -lt 64 ]; then
-            echo "DIP_JWT_SIGNING_KEY must contain at least 64 characters." >&2
-            exit 2
-          fi
-          if [ "${#REDIS_PASSWORD}" -lt 24 ]; then
-            echo "DIP_REDIS_PASSWORD must contain at least 24 characters." >&2
-            exit 2
-          fi
-          if [ "${#ANALYSIS_API_KEY}" -lt 32 ]; then
-            echo "DIP_ANALYSIS_API_KEY must contain at least 32 characters." >&2
-            exit 2
-          fi
-          for name in POSTGRES_IMAGE REDIS_IMAGE CADDY_IMAGE UTILITY_IMAGE; do
-            value="${!name}"
-            if [[ ! "$value" =~ ^[A-Za-z0-9./:_-]+@sha256:[0-9a-f]{64}$ ]]; then
-              echo "$name must be an immutable repository@sha256:<64 lowercase hex> image reference." >&2
-              exit 2
-            fi
-          done
-          env_safe=(
-            POSTGRES_PASSWORD REDIS_PASSWORD ANALYSIS_API_KEY OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
-            ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET GHCR_USER GHCR_TOKEN
-          )
-          for name in "${env_safe[@]}"; do
-            if [[ ! "${!name}" =~ ^[A-Za-z0-9_+=./:@-]+$ ]]; then
-              echo "$name contains characters that are unsafe for the generated Compose env file. Use letters, numbers, _, +, =, ., /, :, @ or -." >&2
-              exit 2
-            fi
-          done
-
-      - name: Configure SSH trust
-        shell: bash
+          required=(PUBLIC_HOST DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_HOST_KEY DEPLOY_SSH_KEY POSTGRES_HOST POSTGRES_PORT POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD OFFSITE_DIR ANALYSIS_API_KEY OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET)
+          for n in "${required[@]}"; do [ -n "${!n:-}" ] || { echo "Missing $n" >&2; exit 2; }; done
+          [[ "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || exit 2
+          [[ "$PUBLIC_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || exit 2
+          [ "${#JWT_SIGNING_KEY}" -ge 64 ] && [ "${#ANALYSIS_API_KEY}" -ge 32 ]
+          safe=(POSTGRES_PASSWORD ANALYSIS_API_KEY OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET GITHUB_INTEGRATION_TOKEN)
+          for n in "${safe[@]}"; do [[ "${!n:-}" =~ ^[A-Za-z0-9_+=./:@-]*$ ]] || { echo "$n contains characters unsafe for the SSH environment handoff." >&2; exit 2; }; done
+      - name: Configure SSH
         run: |
-          set -euo pipefail
           install -d -m 700 ~/.ssh
           printf '%s\n' "$DEPLOY_HOST_KEY" > ~/.ssh/known_hosts
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/known_hosts ~/.ssh/id_ed25519
-
-      - name: Render server environment
-        shell: bash
+      - name: Upload exact-SHA package
         run: |
-          set -euo pipefail
-          out="deploy/web.env.live"
-          : > "$out"
-          chmod 600 "$out"
-          put() { printf '%s=%s\n' "$1" "$2" >> "$out"; }
-          put DIP_PUBLIC_HOST "$PUBLIC_HOST"
-          put DIP_PUBLIC_READ_ONLY "true"
-          put DIP_IMAGE_PREFIX "$IMAGE_PREFIX"
-          put DIP_IMAGE_TAG "$GITHUB_SHA"
-          put DIP_POSTGRES_IMAGE "$POSTGRES_IMAGE"
-          put DIP_REDIS_IMAGE "$REDIS_IMAGE"
-          put DIP_CADDY_IMAGE "$CADDY_IMAGE"
-          put DIP_UTILITY_IMAGE "$UTILITY_IMAGE"
-          put DIP_BACKUP_OFFSITE_DIRECTORY "$BACKUP_OFFSITE_DIRECTORY"
-          put POSTGRES_DB "dip"
-          put POSTGRES_USER "dip"
-          put POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
-          put DIP_REDIS_PASSWORD "$REDIS_PASSWORD"
-          put DIP_ANALYSIS_API_KEY "$ANALYSIS_API_KEY"
-          put DIP_GITHUB_OAUTH_CLIENT_ID "$OAUTH_CLIENT_ID"
-          put DIP_GITHUB_OAUTH_CLIENT_SECRET "$OAUTH_CLIENT_SECRET"
-          put DIP_GITHUB_ADMIN_LOGIN "$ADMIN_LOGIN"
-          put DIP_JWT_SIGNING_KEY "$JWT_SIGNING_KEY"
-          put DIP_JWT_LIFETIME_MINUTES "60"
-          put DIP_GITHUB_WEBHOOK_SECRET "$WEBHOOK_SECRET"
-          put DIP_GITHUB_APP_ID "${GITHUB_APP_ID:-}"
-          put DIP_GITHUB_APP_INSTALLATION_ID "${GITHUB_APP_INSTALLATION_ID:-}"
-          put DIP_GITHUB_APP_SLUG "${GITHUB_APP_SLUG:-}"
-          put DIP_GITHUB_APP_PRIVATE_KEY_BASE64 "${GITHUB_APP_PRIVATE_KEY_BASE64:-}"
-          put DIP_GITHUB_TOKEN "${GITHUB_INTEGRATION_TOKEN:-}"
-          put ANALYSIS_LOG_LEVEL "INFO"
-          put ANALYSIS_TIMEOUT_SECONDS "30"
-
-      - name: Create and mirror pre-deploy production snapshot
+          ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/incoming' '$DEPLOY_PATH/releases' '$DEPLOY_PATH/data/artifacts' '$DEPLOY_PATH/data/workspaces' '$DEPLOY_PATH/backups'"
+          scp "artifacts/deploy/dip-native-${GITHUB_SHA}.tar.gz" "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/incoming/"
+          scp "artifacts/deploy/dip-native-${GITHUB_SHA}.sha256" "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/incoming/"
+      - name: Native transactional deployment
         shell: bash
         run: |
           set -euo pipefail
           remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' OFFSITE_DIRECTORY='$BACKUP_OFFSITE_DIRECTORY' UTILITY_IMAGE='$UTILITY_IMAGE' bash -s" <<'REMOTE'
+          {
+            printf 'export PUBLIC_HOST=%q\n' "$PUBLIC_HOST"
+            printf 'export PGHOST=%q\n' "$POSTGRES_HOST"
+            printf 'export PGPORT=%q\n' "$POSTGRES_PORT"
+            printf 'export PGDATABASE=%q\n' "$POSTGRES_DB"
+            printf 'export PGUSER=%q\n' "$POSTGRES_USER"
+            printf 'export PGPASSWORD=%q\n' "$POSTGRES_PASSWORD"
+            printf 'export OFFSITE_DIR=%q\n' "$OFFSITE_DIR"
+            printf 'export ANALYSIS_API_KEY=%q\n' "$ANALYSIS_API_KEY"
+            printf 'export OAUTH_CLIENT_ID=%q\n' "$OAUTH_CLIENT_ID"
+            printf 'export OAUTH_CLIENT_SECRET=%q\n' "$OAUTH_CLIENT_SECRET"
+            printf 'export ADMIN_LOGIN=%q\n' "$ADMIN_LOGIN"
+            printf 'export JWT_SIGNING_KEY=%q\n' "$JWT_SIGNING_KEY"
+            printf 'export WEBHOOK_SECRET=%q\n' "$WEBHOOK_SECRET"
+            printf 'export GITHUB_TOKEN=%q\n' "$GITHUB_INTEGRATION_TOKEN"
+            cat <<'REMOTE'
           set -euo pipefail
+          for c in dotnet python3 psql pg_dump pg_restore tar sha256sum systemctl; do command -v "$c" >/dev/null || { echo "Missing native prerequisite: $c" >&2; exit 2; }; done
           cd "$DEPLOY_PATH"
-          mkdir -p deploy/backups "$OFFSITE_DIRECTORY"
+          release="$DEPLOY_PATH/releases/$RELEASE_SHA"; backup="$DEPLOY_PATH/backups/predeploy-$RELEASE_SHA"; current_before=""
+          [ ! -L current ] || current_before="$(readlink -f current)"
+          rm -rf "$release" "$backup"; mkdir -p "$release" "$backup" "$DEPLOY_PATH/data/artifacts" "$DEPLOY_PATH/data/workspaces" "$OFFSITE_DIR"
+          cd incoming; sha256sum -c "dip-native-${RELEASE_SHA}.sha256"; cd ..
+          tar -xzf "incoming/dip-native-${RELEASE_SHA}.tar.gz" -C "$release"
+          (cd "$release" && sha256sum -c SHA256SUMS.txt)
 
-          # The offsite target must be a separately mounted filesystem. This prevents
-          # a server/root-volume loss from deleting both the deployment and its backup.
-          deploy_device="$(stat -c %d "$DEPLOY_PATH")"
-          offsite_device="$(stat -c %d "$OFFSITE_DIRECTORY")"
-          if [ "$deploy_device" = "$offsite_device" ]; then
-            echo "Offsite backup directory is on the same filesystem device as DIP_DEPLOY_PATH; refusing production deployment." >&2
-            exit 3
-          fi
+          # Off-host/other-filesystem DR is mandatory for live deploy.
+          primary_dev="$(df -P "$DEPLOY_PATH" | tail -1 | awk '{print $1}')"; offsite_dev="$(df -P "$OFFSITE_DIR" | tail -1 | awk '{print $1}')"
+          [ "$primary_dev" != "$offsite_dev" ] || { echo 'Offsite backup must be on a different filesystem.' >&2; exit 3; }
 
-          backup_dir="deploy/backups/predeploy-$RELEASE_SHA"
-          rm -rf "$backup_dir"
-          mkdir -p "$backup_dir"
-          chmod 700 "$backup_dir"
+          if [ -n "$current_before" ]; then printf '%s\n' "$current_before" > "$backup/previous-release.txt"; fi
+          pg_dump -Fc -f "$backup/database.dump"
+          pg_restore --list "$backup/database.dump" >/dev/null
+          tar -czf "$backup/artifacts.tar.gz" -C "$DEPLOY_PATH/data/artifacts" .
+          (cd "$backup" && sha256sum database.dump artifacts.tar.gz > SHA256SUMS)
+          off_tmp="$OFFSITE_DIR/predeploy-${RELEASE_SHA}.tmp"; off_final="$OFFSITE_DIR/predeploy-${RELEASE_SHA}"; rm -rf "$off_tmp" "$off_final"; cp -a "$backup" "$off_tmp"; (cd "$off_tmp" && sha256sum -c SHA256SUMS); mv "$off_tmp" "$off_final"
 
-          mirror_snapshot() {
-            local final="$OFFSITE_DIRECTORY/predeploy-$RELEASE_SHA"
-            local temp="$final.tmp-$$"
-            rm -rf "$temp" "$final"
-            mkdir -p "$temp"
-            cp -a "$backup_dir/." "$temp/"
-            if [ -f "$temp/SHA256SUMS" ]; then
-              (cd "$temp" && sha256sum -c SHA256SUMS)
-            fi
-            touch "$temp/OFFSITE_MIRROR_COMPLETE"
-            mv "$temp" "$final"
-            touch "$backup_dir/OFFSITE_MIRRORED"
-          }
+          python3 -m venv "$release/python-analysis/.venv"
+          "$release/python-analysis/.venv/bin/python" -m pip install --disable-pip-version-check -r "$release/python-analysis/requirements.txt"
+          chmod +x "$release/dip-migrate"
 
-          # First deployment has no durable state to roll back. Still mirror an
-          # explicit transaction marker so the offsite mount is verified before use.
-          if [ ! -f deploy/web.env ] || [ ! -f docker-compose.web.yml ]; then
-            printf 'FIRST_DEPLOYMENT\n' > "$backup_dir/NO_PREVIOUS_DEPLOYMENT"
-            printf '%s\n' "$RELEASE_SHA" > "$backup_dir/target-release-sha.txt"
-            printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$backup_dir/created-at-utc.txt"
-            touch "$backup_dir/SNAPSHOT_COMPLETE"
-            mirror_snapshot
-            exit 0
-          fi
+          envfile="$DEPLOY_PATH/deploy.env"; umask 077
+          cat > "$envfile" <<ENV
+          ASPNETCORE_ENVIRONMENT=Production
+          DOTNET_ENVIRONMENT=Production
+          ConnectionStrings__PostgreSql=Host=$PGHOST;Port=$PGPORT;Database=$PGDATABASE;Username=$PGUSER;Password=$PGPASSWORD
+          Authentication__RequireAuthenticatedUser=true
+          PublicAccess__ReadOnly=true
+          Authentication__GitHub__ClientId=$OAUTH_CLIENT_ID
+          Authentication__GitHub__ClientSecret=$OAUTH_CLIENT_SECRET
+          Authentication__GitHub__AdminLogins__0=$ADMIN_LOGIN
+          Authentication__Jwt__Issuer=development-intelligence-platform
+          Authentication__Jwt__Audience=development-intelligence-platform
+          Authentication__Jwt__SigningKey=$JWT_SIGNING_KEY
+          Authentication__Jwt__LifetimeMinutes=60
+          Authentication__WebCallbackUrl=https://$PUBLIC_HOST/auth/callback
+          GitHub__WebhookSecret=$WEBHOOK_SECRET
+          GitHub__Token=$GITHUB_TOKEN
+          AnalysisService__BaseUrl=http://127.0.0.1:8100
+          AnalysisService__ApiKey=$ANALYSIS_API_KEY
+          AnalysisService__TimeoutSeconds=30
+          API_KEY=$ANALYSIS_API_KEY
+          Qa__WorkspaceRoot=$DEPLOY_PATH/data/workspaces
+          Qa__ArtifactRoot=$DEPLOY_PATH/data/qa
+          Qa__SandboxEnabled=true
+          Qa__RequireExternalNetworkIsolation=true
+          Qa__RequireExternalFilesystemIsolation=true
+          Artifacts__Provider=Local
+          Artifacts__LocalRoot=$DEPLOY_PATH/data/artifacts
+          SystemStatus__WorkerMetricsUrl=http://127.0.0.1:9091/metrics
+          OperationalMetrics__Port=9091
+          Api__BaseUrl=http://127.0.0.1:5080/
+          Api__PublicBaseUrl=https://$PUBLIC_HOST/
+          Ui__PublicWebUrl=https://$PUBLIC_HOST
+          Ui__PublicApiUrl=https://$PUBLIC_HOST
+          ENV
+          "$release/dip-migrate" --connection "Host=$PGHOST;Port=$PGPORT;Database=$PGDATABASE;Username=$PGUSER;Password=$PGPASSWORD"
+          ln -sfn "$release" current
 
-          cp deploy/web.env "$backup_dir/web.env.previous"
-          cp docker-compose.web.yml "$backup_dir/docker-compose.web.yml.previous"
-          if [ -f deploy/Caddyfile ]; then
-            cp deploy/Caddyfile "$backup_dir/Caddyfile.previous"
-          fi
-          chmod 600 "$backup_dir/web.env.previous"
-
-          compose=(docker compose --env-file deploy/web.env -f docker-compose.web.yml)
-          pg="$("${compose[@]}" ps -q postgres)"
-          api="$("${compose[@]}" ps -q api)"
-          if [ -z "$pg" ] || [ -z "$api" ]; then
-            echo "Existing production env is present but PostgreSQL/API is not running; refusing an unsafe deployment." >&2
-            exit 4
-          fi
-
-          # Freeze writers so DB + durable artifact storage represent one deployment boundary.
-          stopped=0
-          restart_previous() {
-            if [ "$stopped" -eq 1 ]; then
-              "${compose[@]}" start api worker web >/dev/null 2>&1 || true
-            fi
-          }
-          trap restart_previous ERR INT TERM
-          "${compose[@]}" stop api worker web >/dev/null
-          stopped=1
-
-          db_user="$(docker exec "$pg" printenv POSTGRES_USER)"
-          db_name="$(docker exec "$pg" printenv POSTGRES_DB)"
-          if [ -z "$db_user" ] || [ -z "$db_name" ]; then
-            echo "Could not resolve production PostgreSQL identity." >&2
-            exit 5
-          fi
-          printf '%s\n' "$db_user" > "$backup_dir/postgres-user.txt"
-          printf '%s\n' "$db_name" > "$backup_dir/postgres-database.txt"
-          docker exec "$pg" pg_dump -U "$db_user" -d "$db_name" -Fc > "$backup_dir/database.dump"
-          test -s "$backup_dir/database.dump"
-
-          artifact_volume="$(docker inspect "$api" --format '{{range .Mounts}}{{if eq .Destination "/data/dip-artifacts"}}{{.Name}}{{end}}{{end}}')"
-          if [ -z "$artifact_volume" ]; then
-            echo "Could not resolve production artifact volume." >&2
-            exit 5
-          fi
-          printf '%s\n' "$artifact_volume" > "$backup_dir/artifact-volume.txt"
-          docker run --rm \
-            -v "${artifact_volume}:/source:ro" \
-            -v "$(pwd)/$backup_dir:/backup" \
-            "$UTILITY_IMAGE" sh -c 'tar -czf /backup/artifacts.tar.gz -C /source .'
-          test -s "$backup_dir/artifacts.tar.gz"
-
-          (
-            cd "$backup_dir"
-            sha256sum database.dump artifacts.tar.gz > SHA256SUMS
-          )
-          printf '%s\n' "$RELEASE_SHA" > "$backup_dir/target-release-sha.txt"
-          printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$backup_dir/created-at-utc.txt"
-          touch "$backup_dir/PREVIOUS_STACK_STOPPED"
-          touch "$backup_dir/SNAPSHOT_COMPLETE"
-          mirror_snapshot
-          trap - ERR INT TERM
+          units="$HOME/.config/systemd/user"; mkdir -p "$units"
+          cat > "$units/dip-api.service" <<UNIT
+          [Unit]
+          Description=DIP API
+          After=network.target
+          [Service]
+          WorkingDirectory=$DEPLOY_PATH/current/api
+          EnvironmentFile=$envfile
+          EnvironmentFile=-$DEPLOY_PATH/host-overrides.env
+          ExecStart=$(command -v dotnet) $DEPLOY_PATH/current/api/Dip.Api.dll --urls http://127.0.0.1:5080
+          Restart=always
+          RestartSec=3
+          NoNewPrivileges=true
+          PrivateTmp=true
+          [Install]
+          WantedBy=default.target
+          UNIT
+          cat > "$units/dip-worker.service" <<UNIT
+          [Unit]
+          Description=DIP Worker
+          After=network.target
+          [Service]
+          WorkingDirectory=$DEPLOY_PATH/current/worker
+          EnvironmentFile=$envfile
+          EnvironmentFile=-$DEPLOY_PATH/host-overrides.env
+          ExecStart=$(command -v dotnet) $DEPLOY_PATH/current/worker/Dip.Worker.dll
+          Restart=always
+          RestartSec=3
+          NoNewPrivileges=true
+          PrivateTmp=true
+          [Install]
+          WantedBy=default.target
+          UNIT
+          cat > "$units/dip-web.service" <<UNIT
+          [Unit]
+          Description=DIP Web
+          After=dip-api.service
+          [Service]
+          WorkingDirectory=$DEPLOY_PATH/current/web
+          EnvironmentFile=$envfile
+          EnvironmentFile=-$DEPLOY_PATH/host-overrides.env
+          ExecStart=$(command -v dotnet) $DEPLOY_PATH/current/web/Dip.Web.dll --urls http://127.0.0.1:5081
+          Restart=always
+          RestartSec=3
+          NoNewPrivileges=true
+          PrivateTmp=true
+          [Install]
+          WantedBy=default.target
+          UNIT
+          cat > "$units/dip-analysis.service" <<UNIT
+          [Unit]
+          Description=DIP Python Analysis
+          After=network.target
+          [Service]
+          WorkingDirectory=$DEPLOY_PATH/current/python-analysis
+          EnvironmentFile=$envfile
+          EnvironmentFile=-$DEPLOY_PATH/host-overrides.env
+          ExecStart=$DEPLOY_PATH/current/python-analysis/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8100
+          Restart=always
+          RestartSec=3
+          NoNewPrivileges=true
+          PrivateTmp=true
+          [Install]
+          WantedBy=default.target
+          UNIT
+          systemctl --user daemon-reload
+          systemctl --user enable dip-analysis dip-api dip-worker dip-web >/dev/null
+          systemctl --user restart dip-analysis dip-api dip-worker dip-web
+          printf '%s\n' "$RELEASE_SHA" > "$DEPLOY_PATH/current-release-sha"
           REMOTE
-
-      - name: Upload deployment definition
-        shell: bash
+          } | ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s"
+      - name: Verify public readiness
         run: |
-          set -euo pipefail
-          remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "mkdir -p '$DEPLOY_PATH/deploy'"
-          scp docker-compose.web.yml "$remote:$DEPLOY_PATH/docker-compose.web.yml.next"
-          scp deploy/Caddyfile "$remote:$DEPLOY_PATH/deploy/Caddyfile.next"
-          scp deploy/web.env.live "$remote:$DEPLOY_PATH/deploy/web.env.next"
-
-      - name: Authenticate server to GHCR
-        shell: bash
-        run: |
-          set -euo pipefail
-          remote="$DEPLOY_USER@$DEPLOY_HOST"
-          printf '%s' "$GHCR_TOKEN" | ssh "$remote" "docker login ghcr.io --username '$GHCR_USER' --password-stdin"
-
-      - name: Deploy exact revision
-        shell: bash
-        run: |
-          set -euo pipefail
-          remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          test -f deploy/web.env.next
-          test -f docker-compose.web.yml.next
-          test -f deploy/Caddyfile.next
-
-          mv docker-compose.web.yml.next docker-compose.web.yml
-          mv deploy/Caddyfile.next deploy/Caddyfile
-          mv deploy/web.env.next deploy/web.env
-          chmod 600 deploy/web.env
-
-          compose=(docker compose --env-file deploy/web.env -f docker-compose.web.yml)
-          "${compose[@]}" config --quiet
-          "${compose[@]}" pull
-          "${compose[@]}" up -d --no-build --remove-orphans
-          # Bind-mounted Caddy configuration may change without a Compose model change.
-          "${compose[@]}" restart caddy
-          "${compose[@]}" ps
-          REMOTE
-
-      - name: Verify dependency-aware production readiness
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --retry 40 --retry-delay 5 --retry-all-errors \
-            "https://$PUBLIC_HOST/healthz" > /tmp/readiness.json
-          python - <<'PY'
-          import json
-          with open('/tmp/readiness.json', encoding='utf-8') as f:
-              data = json.load(f)
-          if data.get('ready') is not True or data.get('state') != 'Ready':
-              raise SystemExit(f"Production readiness check failed: {data}")
-          PY
-          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors \
-            "https://$PUBLIC_HOST/" > /dev/null
-          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors \
-            "https://$PUBLIC_HOST/api/projects" > /tmp/projects.json
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Install public-browser E2E dependencies
+          curl --fail --silent --show-error --retry 40 --retry-delay 5 --retry-all-errors "https://$PUBLIC_HOST/healthz" > /tmp/ready.json
+          python -c 'import json; d=json.load(open("/tmp/ready.json")); assert d["ready"] is True, d'
+          curl --fail --silent --show-error "https://$PUBLIC_HOST/" >/dev/null
+      - uses: actions/setup-node@v7
+        with: { node-version: "22" }
+      - name: Verify public browser
         working-directory: tests/Dip.UiE2E
+        env: { DIP_WEB_BASE_URL: "https://${{ vars.DIP_PUBLIC_HOST }}" }
         run: |
-          npm install
+          npm ci
           npx playwright install --with-deps chromium
-
-      - name: Verify deployed public read-only browser experience
-        working-directory: tests/Dip.UiE2E
-        env:
-          DIP_WEB_BASE_URL: https://${{ vars.DIP_PUBLIC_HOST }}
-        run: npm run test:public
-
-      - name: Preserve browser diagnostics
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: live-public-browser-${{ github.sha }}
-          path: |
-            tests/Dip.UiE2E/artifacts/playwright-report
-            tests/Dip.UiE2E/artifacts/test-results
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: Roll back production state on deployment failure
+          npm run test:public
+      - name: Roll back native deployment on failure
         if: failure()
         continue-on-error: true
         shell: bash
         run: |
+          {
+            printf 'export PGHOST=%q\n' "$POSTGRES_HOST"
+            printf 'export PGPORT=%q\n' "$POSTGRES_PORT"
+            printf 'export PGDATABASE=%q\n' "$POSTGRES_DB"
+            printf 'export PGUSER=%q\n' "$POSTGRES_USER"
+            printf 'export PGPASSWORD=%q\n' "$POSTGRES_PASSWORD"
+            cat <<'REMOTE'
           set -euo pipefail
-          remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' OFFSITE_DIRECTORY='$BACKUP_OFFSITE_DIRECTORY' UTILITY_IMAGE='$UTILITY_IMAGE' bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          backup_dir="deploy/backups/predeploy-$RELEASE_SHA"
-          offsite_dir="$OFFSITE_DIRECTORY/predeploy-$RELEASE_SHA"
-
-          if [ ! -d "$backup_dir" ] && [ -d "$offsite_dir" ]; then
-            mkdir -p deploy/backups
-            cp -a "$offsite_dir" "$backup_dir"
-          fi
-
-          if [ ! -d "$backup_dir" ]; then
-            echo "No local or offsite pre-deploy snapshot exists; rollback cannot be performed automatically." >&2
-            exit 10
-          fi
-
-          if [ -f "$backup_dir/NO_PREVIOUS_DEPLOYMENT" ]; then
-            echo "Failed first deployment: removing the incomplete stack and its newly-created volumes."
-            if [ -f deploy/web.env ] && [ -f docker-compose.web.yml ]; then
-              docker compose --env-file deploy/web.env -f docker-compose.web.yml down -v --remove-orphans || true
-            fi
-            rm -f deploy/web.env deploy/web.env.next docker-compose.web.yml docker-compose.web.yml.next deploy/Caddyfile deploy/Caddyfile.next
-            exit 0
-          fi
-
-          if [ ! -f "$backup_dir/SNAPSHOT_COMPLETE" ]; then
-            echo "Pre-deploy snapshot never completed; durable state was not mutated by a completed deploy transaction." >&2
-            if [ -f "$backup_dir/web.env.previous" ] && [ -f "$backup_dir/docker-compose.web.yml.previous" ]; then
-              cp "$backup_dir/web.env.previous" deploy/web.env
-              cp "$backup_dir/docker-compose.web.yml.previous" docker-compose.web.yml
-              if [ -f "$backup_dir/Caddyfile.previous" ]; then
-                cp "$backup_dir/Caddyfile.previous" deploy/Caddyfile
-              fi
-              docker compose --env-file deploy/web.env -f docker-compose.web.yml up -d --no-build --remove-orphans || true
-            fi
-            exit 0
-          fi
-
-          test -f "$backup_dir/web.env.previous"
-          test -f "$backup_dir/docker-compose.web.yml.previous"
-          test -f "$backup_dir/database.dump"
-          test -f "$backup_dir/artifacts.tar.gz"
-          test -f "$backup_dir/SHA256SUMS"
-          test -f "$backup_dir/postgres-user.txt"
-          test -f "$backup_dir/postgres-database.txt"
-          (
-            cd "$backup_dir"
-            sha256sum -c SHA256SUMS
-          )
-
-          # Stop the failed revision before restoring durable state.
-          if [ -f deploy/web.env ] && [ -f docker-compose.web.yml ]; then
-            docker compose --env-file deploy/web.env -f docker-compose.web.yml stop api worker web caddy || true
-          fi
-
-          cp "$backup_dir/web.env.previous" deploy/web.env
-          cp "$backup_dir/docker-compose.web.yml.previous" docker-compose.web.yml
-          if [ -f "$backup_dir/Caddyfile.previous" ]; then
-            cp "$backup_dir/Caddyfile.previous" deploy/Caddyfile
-          fi
-          chmod 600 deploy/web.env
-
-          compose=(docker compose --env-file deploy/web.env -f docker-compose.web.yml)
-          "${compose[@]}" config --quiet
-          "${compose[@]}" pull
-          "${compose[@]}" up -d postgres redis python-analysis
-
-          pg="$("${compose[@]}" ps -q postgres)"
-          if [ -z "$pg" ]; then
-            echo "Rollback PostgreSQL container is unavailable." >&2
-            exit 11
-          fi
-          db_user="$(cat "$backup_dir/postgres-user.txt")"
-          db_name="$(cat "$backup_dir/postgres-database.txt")"
-          for _ in $(seq 1 60); do
-            if docker exec "$pg" pg_isready -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
-              break
-            fi
-            sleep 1
-          done
-          docker exec "$pg" pg_isready -U "$db_user" -d "$db_name" >/dev/null
-
-          docker cp "$backup_dir/database.dump" "$pg:/tmp/dip-predeploy-rollback.dump"
-          docker exec "$pg" psql -U "$db_user" -d postgres -v ON_ERROR_STOP=1 -v target_db="$db_name" -c \
-            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=:'target_db' AND pid<>pg_backend_pid();" >/dev/null
-          docker exec "$pg" psql -U "$db_user" -d postgres -v ON_ERROR_STOP=1 -v target_db="$db_name" -c \
-            'DROP DATABASE IF EXISTS :"target_db";' >/dev/null
-          docker exec "$pg" psql -U "$db_user" -d postgres -v ON_ERROR_STOP=1 -v target_db="$db_name" -v target_owner="$db_user" -c \
-            'CREATE DATABASE :"target_db" OWNER :"target_owner";' >/dev/null
-          docker exec "$pg" pg_restore -U "$db_user" -d "$db_name" --clean --if-exists --no-owner --no-privileges /tmp/dip-predeploy-rollback.dump
-          docker exec "$pg" rm -f /tmp/dip-predeploy-rollback.dump
-
-          artifact_volume="$(cat "$backup_dir/artifact-volume.txt")"
-          if [ -z "$artifact_volume" ]; then
-            echo "Rollback artifact volume metadata is empty." >&2
-            exit 12
-          fi
-          docker run --rm \
-            -v "${artifact_volume}:/target" \
-            -v "$(pwd)/$backup_dir:/backup:ro" \
-            "$UTILITY_IMAGE" sh -c 'set -eu; rm -rf /target/* /target/.[!.]* /target/..?* 2>/dev/null || true; tar -xzf /backup/artifacts.tar.gz -C /target'
-
-          "${compose[@]}" up -d --no-build --remove-orphans
-          "${compose[@]}" restart caddy
-          "${compose[@]}" ps
+          backup="$DEPLOY_PATH/backups/predeploy-$RELEASE_SHA"; [ -f "$backup/SHA256SUMS" ] || exit 10
+          (cd "$backup" && sha256sum -c SHA256SUMS)
+          systemctl --user stop dip-web dip-worker dip-api dip-analysis || true
+          psql -d postgres -v ON_ERROR_STOP=1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${PGDATABASE}' AND pid<>pg_backend_pid();"
+          psql -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${PGDATABASE}\";"
+          psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${PGDATABASE}\" OWNER \"${PGUSER}\";"
+          pg_restore -d "$PGDATABASE" --clean --if-exists --no-owner --no-privileges "$backup/database.dump"
+          rm -rf "$DEPLOY_PATH/data/artifacts"; mkdir -p "$DEPLOY_PATH/data/artifacts"; tar -xzf "$backup/artifacts.tar.gz" -C "$DEPLOY_PATH/data/artifacts"
+          if [ -f "$backup/previous-release.txt" ]; then ln -sfn "$(cat "$backup/previous-release.txt")" "$DEPLOY_PATH/current"; systemctl --user restart dip-analysis dip-api dip-worker dip-web; fi
           REMOTE
-
-      - name: Verify rollback readiness after a failed deployment
-        if: failure()
-        continue-on-error: true
-        shell: bash
-        run: |
-          curl --fail --silent --show-error --retry 30 --retry-delay 3 --retry-all-errors \
-            "https://$PUBLIC_HOST/healthz" > /tmp/rollback-readiness.json || true
-          cat /tmp/rollback-readiness.json 2>/dev/null || true
-
-      - name: Mark deployment successful
-        if: success()
-        shell: bash
-        run: |
-          set -euo pipefail
-          remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' OFFSITE_DIRECTORY='$BACKUP_OFFSITE_DIRECTORY' bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          printf '%s\n' "$RELEASE_SHA" > deploy/current-release-sha
-          printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > deploy/current-release-at-utc
-          # Keep five fast local rollback points and twenty separately mounted DR copies.
-          ls -1dt deploy/backups/predeploy-* 2>/dev/null | tail -n +6 | xargs -r rm -rf
-          ls -1dt "$OFFSITE_DIRECTORY"/predeploy-* 2>/dev/null | tail -n +21 | xargs -r rm -rf
-          REMOTE
-
-      - name: Live URL reminder
-        if: success()
-        shell: bash
-        run: |
-          echo "Live DIP: https://$PUBLIC_HOST/"
-          if grep -q 'YOUR_DIP_HOST' README.md; then
-            echo "::warning::Replace https://YOUR_DIP_HOST/ in README.md with https://$PUBLIC_HOST/ before portfolio submission."
-          fi
+          } | ssh "$DEPLOY_USER@$DEPLOY_HOST" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s"

@@ -15,7 +15,6 @@ using Dip.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using StackExchange.Redis;
 
 namespace Dip.Infrastructure;
 
@@ -170,18 +169,9 @@ public static class DependencyInjection
         services.AddSingleton<IHardwareCalibrationRunner>(sp => sp.GetRequiredService<HardwareCalibrationService>());
         services.AddSingleton<IPerformanceSimulationRunner>(sp => sp.GetRequiredService<PerformanceSimulationService>());
 
-        services.Configure<RedisQueueOptions>(configuration.GetSection(RedisQueueOptions.SectionName));
-        services.AddSingleton<IConnectionMultiplexer>(_ =>
-        {
-            var redisConnection = configuration["Redis:ConnectionString"]
-                ?? configuration.GetConnectionString("Redis")
-                ?? "localhost:6379";
-            var options = ConfigurationOptions.Parse(redisConnection);
-            options.AbortOnConnectFail = false;
-            options.ConnectRetry = Math.Max(options.ConnectRetry, 3);
-            return ConnectionMultiplexer.Connect(options);
-        });
-        services.AddSingleton<IQueueClient, RedisQueueClient>();
+        // Native-first runtime: PostgreSQL is the durable coordination boundary.
+        // No Redis daemon, container, or Docker Desktop is required.
+        services.AddSingleton<IQueueClient, PostgresQueueClient>();
         return services;
     }
 }

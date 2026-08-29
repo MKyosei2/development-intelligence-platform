@@ -4,20 +4,23 @@ Thank you for contributing to Development Intelligence Platform.
 
 ## Development environment
 
-Required tools:
+Required for the supported Native-first runtime:
 
 - .NET SDK 8.0;
-- Docker Desktop or Docker Engine with Compose V2;
+- PostgreSQL 16+ (or compatible supported PostgreSQL) plus `psql`, `pg_isready`, `pg_dump`, `pg_restore`;
+- Python 3.12+;
 - Git;
 - Visual Studio 2022, Visual Studio Code, or JetBrains Rider.
 
-Start local infrastructure:
+Node.js is required for browser E2E. Unity/Unreal/CMake/native analyzers are required only for the corresponding integration or QA path. Docker and Redis are not required.
 
-```bash
-docker compose up -d
+After creating the local `dip` PostgreSQL database/user, start the complete stack with:
+
+```powershell
+.\scripts\Start-DIP.ps1
 ```
 
-Restore, build, and test:
+Restore, build, and test directly when needed:
 
 ```bash
 dotnet restore DevelopmentIntelligencePlatform.sln
@@ -27,9 +30,7 @@ dotnet test DevelopmentIntelligencePlatform.sln -c Release --no-build
 
 ## Branches
 
-Create a focused branch from the latest default branch.
-
-Recommended names:
+Create a focused branch from the latest default branch. Recommended names:
 
 ```text
 feature/short-description
@@ -46,48 +47,38 @@ Do not combine unrelated refactoring, formatting, behavior changes, and dependen
 - Keep shared transport contracts in `Dip.Shared`.
 - Use UTC for persisted timestamps.
 - Pass `CancellationToken` through asynchronous operations.
-- Avoid blocking calls such as `.Result` and `.Wait()`.
+- Avoid `.Result` / `.Wait()` in asynchronous request paths.
 - Validate external input at the boundary.
 - Keep secrets and production data out of source control and logs.
-- Add or update tests when behavior changes.
-- Keep public APIs and JSON contracts backward compatible unless a breaking change is explicitly documented.
-- Keep implemented-source claims separate from exact-revision runtime verification.
+- Add/update tests when behavior changes.
+- Preserve API/JSON compatibility unless a breaking change is explicitly documented.
+- Keep Implemented, Tested and Runtime Verified claims separate.
+- PostgreSQL is the durable coordination boundary. Do not introduce a second mandatory queue/cache daemon without an explicit architecture decision.
+- Native QA process execution must preserve workspace, environment, resource and isolation boundaries.
 
 ## Commit subjects
 
-Use Conventional Commit-style subjects so reviewers can understand intent directly from history. Generic subjects such as `改善`, `修正`, `update`, or numbered variants do not describe the engineering change and should not be used for new commits.
-
-Examples:
+Use Conventional Commit-style subjects. Examples:
 
 ```text
 feat(qa): add runtime defect evidence
-fix(ci): restore integration test startup
+fix(ci): restore native integration startup
 perf(metrics): reduce million-row query latency
 refactor(web): split management cockpit components
 docs(portfolio): explain exact-revision evidence
 ```
 
-Keep the subject imperative and at most 72 characters. Install the optional local template with:
+Keep the subject imperative and at most 72 characters. Optional template:
 
 ```bash
 git config commit.template .gitmessage
 ```
 
-Pull requests and pushes to protected development branches validate commit subjects automatically.
-
 ## Pull requests
 
-A pull request should contain:
+A pull request should state purpose/scope, implementation, tests, migration/configuration impact, screenshots when relevant, known limitations, and exact-revision evidence for measured/runtime claims.
 
-- purpose and scope;
-- implementation summary;
-- testing performed;
-- migration or configuration impact;
-- screenshots for dashboard changes;
-- known limitations and follow-up work;
-- exact-revision evidence when the PR claims measured/runtime behavior.
-
-Before requesting review, confirm that the applicable checks run locally or in CI:
+Before review, run applicable checks:
 
 ```bash
 dotnet format --verify-no-changes
@@ -95,19 +86,18 @@ dotnet build DevelopmentIntelligencePlatform.sln -c Release
 dotnet test DevelopmentIntelligencePlatform.sln -c Release
 ```
 
-If a required command cannot run, state the reason. Infrastructure-unavailable is not equivalent to PASS.
+For runtime changes also run:
+
+```powershell
+.\scripts\Verify-GuiRuntime.ps1 -RunPlaywright
+.\scripts\Verify-DatabaseMigrations.ps1
+```
+
+If a required command cannot run, state why. Infrastructure-unavailable is not PASS.
 
 ## Database changes
 
-Entity changes that affect persistence require:
-
-- an EF Core configuration update;
-- a migration;
-- rollback consideration;
-- index and uniqueness review;
-- integration-test coverage when practical.
-
-Never edit an already-applied production migration.
+Persistence changes require EF configuration/migration updates, rollback consideration, index/uniqueness review, and integration coverage when practical. Never edit an already-applied production migration.
 
 ## Security
 
