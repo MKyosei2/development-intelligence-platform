@@ -14,6 +14,12 @@ on:
       - "tests/Dip.UiE2E/**"
       - ".github/workflows/live-deploy.yml"
 
+# A production deployment is a stateful transaction. Never allow two revisions to
+# mutate the same database/artifact volumes concurrently.
+concurrency:
+  group: dip-production-${{ github.repository }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   packages: write
@@ -94,7 +100,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || vars.DIP_LIVE_DEPLOY_ENABLED == 'true'
     needs: images
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     environment:
       name: production
       url: https://${{ vars.DIP_PUBLIC_HOST }}/
@@ -108,6 +114,8 @@ jobs:
       GHCR_USER: ${{ vars.DIP_GHCR_USER }}
       GHCR_TOKEN: ${{ secrets.DIP_GHCR_TOKEN }}
       POSTGRES_PASSWORD: ${{ secrets.DIP_POSTGRES_PASSWORD }}
+      REDIS_PASSWORD: ${{ secrets.DIP_REDIS_PASSWORD }}
+      ANALYSIS_API_KEY: ${{ secrets.DIP_ANALYSIS_API_KEY }}
       OAUTH_CLIENT_ID: ${{ secrets.DIP_GITHUB_OAUTH_CLIENT_ID }}
       OAUTH_CLIENT_SECRET: ${{ secrets.DIP_GITHUB_OAUTH_CLIENT_SECRET }}
       ADMIN_LOGIN: ${{ vars.DIP_GITHUB_ADMIN_LOGIN }}
@@ -125,7 +133,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          required=(PUBLIC_HOST DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_HOST_KEY DEPLOY_SSH_KEY GHCR_USER GHCR_TOKEN POSTGRES_PASSWORD OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET)
+          required=(
+            PUBLIC_HOST DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_HOST_KEY DEPLOY_SSH_KEY
+            GHCR_USER GHCR_TOKEN POSTGRES_PASSWORD REDIS_PASSWORD ANALYSIS_API_KEY
+            OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET
+          )
           for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
               echo "Missing live deployment setting: $name" >&2
@@ -136,14 +148,29 @@ jobs:
             echo "DIP_DEPLOY_PATH must be an absolute path without spaces or shell metacharacters." >&2
             exit 2
           fi
+          if [[ ! "$PUBLIC_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "DIP_PUBLIC_HOST must contain only a DNS host name." >&2
+            exit 2
+          fi
           if [ "${#JWT_SIGNING_KEY}" -lt 64 ]; then
             echo "DIP_JWT_SIGNING_KEY must contain at least 64 characters." >&2
             exit 2
           fi
-          env_safe=(POSTGRES_PASSWORD OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET GHCR_USER GHCR_TOKEN)
+          if [ "${#REDIS_PASSWORD}" -lt 24 ]; then
+            echo "DIP_REDIS_PASSWORD must contain at least 24 characters." >&2
+            exit 2
+          fi
+          if [ "${#ANALYSIS_API_KEY}" -lt 32 ]; then
+            echo "DIP_ANALYSIS_API_KEY must contain at least 32 characters." >&2
+            exit 2
+          fi
+          env_safe=(
+            POSTGRES_PASSWORD REDIS_PASSWORD ANALYSIS_API_KEY OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
+            ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET GHCR_USER GHCR_TOKEN
+          )
           for name in "${env_safe[@]}"; do
             if [[ ! "${!name}" =~ ^[A-Za-z0-9_+=./:@-]+$ ]]; then
-              echo "$name contains characters that are unsafe for the generated Compose env file. Use a token/password made from letters, numbers, _, +, =, ., /, :, @ or -." >&2
+              echo "$name contains characters that are unsafe for the generated Compose env file. Use letters, numbers, _, +, =, ., /, :, @ or -." >&2
               exit 2
             fi
           done
@@ -163,6 +190,7 @@ jobs:
           set -euo pipefail
           out="deploy/web.env.live"
           : > "$out"
+          chmod 600 "$out"
           put() { printf '%s=%s\n' "$1" "$2" >> "$out"; }
           put DIP_PUBLIC_HOST "$PUBLIC_HOST"
           put DIP_PUBLIC_READ_ONLY "true"
@@ -171,6 +199,8 @@ jobs:
           put POSTGRES_DB "dip"
           put POSTGRES_USER "dip"
           put POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+          put DIP_REDIS_PASSWORD "$REDIS_PASSWORD"
+          put DIP_ANALYSIS_API_KEY "$ANALYSIS_API_KEY"
           put DIP_GITHUB_OAUTH_CLIENT_ID "$OAUTH_CLIENT_ID"
           put DIP_GITHUB_OAUTH_CLIENT_SECRET "$OAUTH_CLIENT_SECRET"
           put DIP_GITHUB_ADMIN_LOGIN "$ADMIN_LOGIN"
@@ -185,14 +215,94 @@ jobs:
           put ANALYSIS_LOG_LEVEL "INFO"
           put ANALYSIS_TIMEOUT_SECONDS "30"
 
+      - name: Create pre-deploy production snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          mkdir -p deploy/backups
+          backup_dir="deploy/backups/predeploy-$RELEASE_SHA"
+          rm -rf "$backup_dir"
+          mkdir -p "$backup_dir"
+          chmod 700 "$backup_dir"
+
+          # First deployment has no state to roll back. Record that explicitly.
+          if [ ! -f deploy/web.env ] || [ ! -f docker-compose.web.yml ]; then
+            printf 'FIRST_DEPLOYMENT\n' > "$backup_dir/NO_PREVIOUS_DEPLOYMENT"
+            exit 0
+          fi
+
+          cp deploy/web.env "$backup_dir/web.env.previous"
+          cp docker-compose.web.yml "$backup_dir/docker-compose.web.yml.previous"
+          if [ -f deploy/Caddyfile ]; then
+            cp deploy/Caddyfile "$backup_dir/Caddyfile.previous"
+          fi
+          chmod 600 "$backup_dir/web.env.previous"
+
+          compose=(docker compose --env-file deploy/web.env -f docker-compose.web.yml)
+          pg="$("${compose[@]}" ps -q postgres)"
+          api="$("${compose[@]}" ps -q api)"
+          if [ -z "$pg" ] || [ -z "$api" ]; then
+            echo "Existing production env is present but PostgreSQL/API is not running; refusing an unsafe deployment." >&2
+            exit 3
+          fi
+
+          # Freeze writers so DB + durable artifact storage represent one deployment boundary.
+          stopped=0
+          restart_previous() {
+            if [ "$stopped" -eq 1 ]; then
+              "${compose[@]}" start api worker web >/dev/null 2>&1 || true
+            fi
+          }
+          trap restart_previous ERR INT TERM
+          "${compose[@]}" stop api worker web >/dev/null
+          stopped=1
+
+          db_user="$(docker exec "$pg" printenv POSTGRES_USER)"
+          db_name="$(docker exec "$pg" printenv POSTGRES_DB)"
+          if [ -z "$db_user" ] || [ -z "$db_name" ]; then
+            echo "Could not resolve production PostgreSQL identity." >&2
+            exit 4
+          fi
+          printf '%s\n' "$db_user" > "$backup_dir/postgres-user.txt"
+          printf '%s\n' "$db_name" > "$backup_dir/postgres-database.txt"
+          docker exec "$pg" pg_dump -U "$db_user" -d "$db_name" -Fc > "$backup_dir/database.dump"
+          test -s "$backup_dir/database.dump"
+
+          artifact_volume="$(docker inspect "$api" --format '{{range .Mounts}}{{if eq .Destination "/data/dip-artifacts"}}{{.Name}}{{end}}{{end}}')"
+          if [ -z "$artifact_volume" ]; then
+            echo "Could not resolve production artifact volume." >&2
+            exit 4
+          fi
+          printf '%s\n' "$artifact_volume" > "$backup_dir/artifact-volume.txt"
+          docker run --rm \
+            -v "${artifact_volume}:/source:ro" \
+            -v "$(pwd)/$backup_dir:/backup" \
+            alpine:3.22 sh -c 'tar -czf /backup/artifacts.tar.gz -C /source .'
+          test -s "$backup_dir/artifacts.tar.gz"
+
+          (
+            cd "$backup_dir"
+            sha256sum database.dump artifacts.tar.gz > SHA256SUMS
+          )
+          printf '%s\n' "$RELEASE_SHA" > "$backup_dir/target-release-sha.txt"
+          printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$backup_dir/created-at-utc.txt"
+          touch "$backup_dir/PREVIOUS_STACK_STOPPED"
+          touch "$backup_dir/SNAPSHOT_COMPLETE"
+          trap - ERR INT TERM
+          REMOTE
+
       - name: Upload deployment definition
         shell: bash
         run: |
           set -euo pipefail
           remote="$DEPLOY_USER@$DEPLOY_HOST"
           ssh "$remote" "mkdir -p '$DEPLOY_PATH/deploy'"
-          scp docker-compose.web.yml "$remote:$DEPLOY_PATH/docker-compose.web.yml"
-          scp deploy/Caddyfile "$remote:$DEPLOY_PATH/deploy/Caddyfile"
+          scp docker-compose.web.yml "$remote:$DEPLOY_PATH/docker-compose.web.yml.next"
+          scp deploy/Caddyfile "$remote:$DEPLOY_PATH/deploy/Caddyfile.next"
           scp deploy/web.env.live "$remote:$DEPLOY_PATH/deploy/web.env.next"
 
       - name: Authenticate server to GHCR
@@ -207,15 +317,45 @@ jobs:
         run: |
           set -euo pipefail
           remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "set -e; cd '$DEPLOY_PATH'; if [ -f deploy/web.env ]; then cp deploy/web.env deploy/web.env.previous; fi; mv deploy/web.env.next deploy/web.env; docker compose --env-file deploy/web.env -f docker-compose.web.yml pull; docker compose --env-file deploy/web.env -f docker-compose.web.yml up -d --no-build --remove-orphans; docker compose --env-file deploy/web.env -f docker-compose.web.yml ps"
+          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          test -f deploy/web.env.next
+          test -f docker-compose.web.yml.next
+          test -f deploy/Caddyfile.next
 
-      - name: Verify public HTTPS and API health
+          mv docker-compose.web.yml.next docker-compose.web.yml
+          mv deploy/Caddyfile.next deploy/Caddyfile
+          mv deploy/web.env.next deploy/web.env
+          chmod 600 deploy/web.env
+
+          compose=(docker compose --env-file deploy/web.env -f docker-compose.web.yml)
+          "${compose[@]}" config --quiet
+          "${compose[@]}" pull
+          "${compose[@]}" up -d --no-build --remove-orphans
+          # Bind-mounted Caddy configuration may change without a Compose model change.
+          # A restart guarantees that the exact revision's routing/readiness policy is loaded.
+          "${compose[@]}" restart caddy
+          "${compose[@]}" ps
+          REMOTE
+
+      - name: Verify dependency-aware production readiness
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 40 --retry-delay 5 --retry-all-errors "https://$PUBLIC_HOST/healthz"
-          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors "https://$PUBLIC_HOST/" > /dev/null
-          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors "https://$PUBLIC_HOST/api/projects" > /tmp/projects.json
+          curl --fail --silent --show-error --retry 40 --retry-delay 5 --retry-all-errors \
+            "https://$PUBLIC_HOST/healthz" > /tmp/readiness.json
+          python - <<'PY'
+          import json
+          with open('/tmp/readiness.json', encoding='utf-8') as f:
+              data = json.load(f)
+          if data.get('ready') is not True or data.get('state') != 'Ready':
+              raise SystemExit(f"Production readiness check failed: {data}")
+          PY
+          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors \
+            "https://$PUBLIC_HOST/" > /dev/null
+          curl --fail --silent --show-error --retry 20 --retry-delay 3 --retry-all-errors \
+            "https://$PUBLIC_HOST/api/projects" > /tmp/projects.json
 
       - uses: actions/setup-node@v6
         with:
@@ -244,13 +384,137 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Roll back previous image set on deployment failure
+      - name: Roll back production state on deployment failure
         if: failure()
         continue-on-error: true
         shell: bash
         run: |
+          set -euo pipefail
           remote="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh "$remote" "set -e; cd '$DEPLOY_PATH'; if [ -f deploy/web.env.previous ]; then cp deploy/web.env.previous deploy/web.env; docker compose --env-file deploy/web.env -f docker-compose.web.yml pull; docker compose --env-file deploy/web.env -f docker-compose.web.yml up -d --no-build --remove-orphans; fi"
+          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          backup_dir="deploy/backups/predeploy-$RELEASE_SHA"
+
+          if [ ! -d "$backup_dir" ]; then
+            echo "No pre-deploy snapshot exists; rollback cannot be performed automatically." >&2
+            exit 10
+          fi
+
+          if [ -f "$backup_dir/NO_PREVIOUS_DEPLOYMENT" ]; then
+            echo "Failed first deployment: removing the incomplete stack and its newly-created volumes."
+            if [ -f deploy/web.env ] && [ -f docker-compose.web.yml ]; then
+              docker compose --env-file deploy/web.env -f docker-compose.web.yml down -v --remove-orphans || true
+            fi
+            rm -f deploy/web.env deploy/web.env.next docker-compose.web.yml docker-compose.web.yml.next deploy/Caddyfile deploy/Caddyfile.next
+            exit 0
+          fi
+
+          if [ ! -f "$backup_dir/SNAPSHOT_COMPLETE" ]; then
+            echo "Pre-deploy snapshot never completed; durable state was not mutated by a completed deploy transaction." >&2
+            if [ -f "$backup_dir/web.env.previous" ] && [ -f "$backup_dir/docker-compose.web.yml.previous" ]; then
+              cp "$backup_dir/web.env.previous" deploy/web.env
+              cp "$backup_dir/docker-compose.web.yml.previous" docker-compose.web.yml
+              if [ -f "$backup_dir/Caddyfile.previous" ]; then
+                cp "$backup_dir/Caddyfile.previous" deploy/Caddyfile
+              fi
+              docker compose --env-file deploy/web.env -f docker-compose.web.yml up -d --no-build --remove-orphans || true
+            fi
+            exit 0
+          fi
+
+          test -f "$backup_dir/web.env.previous"
+          test -f "$backup_dir/docker-compose.web.yml.previous"
+          test -f "$backup_dir/database.dump"
+          test -f "$backup_dir/artifacts.tar.gz"
+          test -f "$backup_dir/SHA256SUMS"
+          test -f "$backup_dir/postgres-user.txt"
+          test -f "$backup_dir/postgres-database.txt"
+          (
+            cd "$backup_dir"
+            sha256sum -c SHA256SUMS
+          )
+
+          # Stop the failed revision before restoring durable state.
+          if [ -f deploy/web.env ] && [ -f docker-compose.web.yml ]; then
+            docker compose --env-file deploy/web.env -f docker-compose.web.yml stop api worker web caddy || true
+          fi
+
+          cp "$backup_dir/web.env.previous" deploy/web.env
+          cp "$backup_dir/docker-compose.web.yml.previous" docker-compose.web.yml
+          if [ -f "$backup_dir/Caddyfile.previous" ]; then
+            cp "$backup_dir/Caddyfile.previous" deploy/Caddyfile
+          fi
+          chmod 600 deploy/web.env
+
+          compose=(docker compose --env-file deploy/web.env -f docker-compose.web.yml)
+          "${compose[@]}" config --quiet
+          "${compose[@]}" pull
+          "${compose[@]}" up -d postgres redis python-analysis
+
+          pg="$("${compose[@]}" ps -q postgres)"
+          if [ -z "$pg" ]; then
+            echo "Rollback PostgreSQL container is unavailable." >&2
+            exit 11
+          fi
+          db_user="$(cat "$backup_dir/postgres-user.txt")"
+          db_name="$(cat "$backup_dir/postgres-database.txt")"
+          for _ in $(seq 1 60); do
+            if docker exec "$pg" pg_isready -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec "$pg" pg_isready -U "$db_user" -d "$db_name" >/dev/null
+
+          docker cp "$backup_dir/database.dump" "$pg:/tmp/dip-predeploy-rollback.dump"
+          docker exec "$pg" psql -U "$db_user" -d postgres -v ON_ERROR_STOP=1 -v target_db="$db_name" -c \
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=:'target_db' AND pid<>pg_backend_pid();" >/dev/null
+          docker exec "$pg" psql -U "$db_user" -d postgres -v ON_ERROR_STOP=1 -v target_db="$db_name" -c \
+            'DROP DATABASE IF EXISTS :"target_db";' >/dev/null
+          docker exec "$pg" psql -U "$db_user" -d postgres -v ON_ERROR_STOP=1 -v target_db="$db_name" -v target_owner="$db_user" -c \
+            'CREATE DATABASE :"target_db" OWNER :"target_owner";' >/dev/null
+          docker exec "$pg" pg_restore -U "$db_user" -d "$db_name" --clean --if-exists --no-owner --no-privileges /tmp/dip-predeploy-rollback.dump
+          docker exec "$pg" rm -f /tmp/dip-predeploy-rollback.dump
+
+          artifact_volume="$(cat "$backup_dir/artifact-volume.txt")"
+          if [ -z "$artifact_volume" ]; then
+            echo "Rollback artifact volume metadata is empty." >&2
+            exit 12
+          fi
+          docker run --rm \
+            -v "${artifact_volume}:/target" \
+            -v "$(pwd)/$backup_dir:/backup:ro" \
+            alpine:3.22 sh -c 'set -eu; rm -rf /target/* /target/.[!.]* /target/..?* 2>/dev/null || true; tar -xzf /backup/artifacts.tar.gz -C /target'
+
+          "${compose[@]}" up -d --no-build --remove-orphans
+          "${compose[@]}" restart caddy
+          "${compose[@]}" ps
+          REMOTE
+
+      - name: Verify rollback readiness after a failed deployment
+        if: failure()
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --retry 30 --retry-delay 3 --retry-all-errors \
+            "https://$PUBLIC_HOST/healthz" > /tmp/rollback-readiness.json || true
+          cat /tmp/rollback-readiness.json 2>/dev/null || true
+
+      - name: Mark deployment successful
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          printf '%s\n' "$RELEASE_SHA" > deploy/current-release-sha
+          printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > deploy/current-release-at-utc
+          # Keep a bounded number of stateful pre-deploy snapshots.
+          ls -1dt deploy/backups/predeploy-* 2>/dev/null | tail -n +6 | xargs -r rm -rf
+          REMOTE
 
       - name: Live URL reminder
         if: success()
