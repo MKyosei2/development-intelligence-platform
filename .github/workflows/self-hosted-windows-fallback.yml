@@ -1,0 +1,162 @@
+name: Self-Hosted Windows Fallback Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Exact SHA expected for this fallback run"
+        required: true
+        type: string
+      run_gui:
+        description: "Run GUI/Playwright verification"
+        required: true
+        default: true
+        type: boolean
+      run_benchmark:
+        description: "Run the long portfolio benchmark"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-hosted-windows-fallback-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fallback:
+    name: Windows emergency fallback verification
+    runs-on: [self-hosted, Windows, X64, dip-fallback]
+    timeout-minutes: 180
+
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: dip_ci
+      POSTGRES_USER: dip_ci
+      POSTGRES_PASSWORD: ${{ secrets.DIP_SELFHOSTED_POSTGRES_PASSWORD }}
+      ConnectionStrings__PostgreSql: Host=127.0.0.1;Port=5432;Database=dip_ci;Username=dip_ci;Password=${{ secrets.DIP_SELFHOSTED_POSTGRES_PASSWORD }}
+      ASPNETCORE_ENVIRONMENT: Testing
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://127.0.0.1:7001
+      Authentication__RequireAuthenticatedUser: "false"
+      GitHub__WebhookSecret: self-hosted-fallback-secret
+      GitHub__Token: self-hosted-fallback-token
+      DIP_API_URL: http://127.0.0.1:7001
+      Artifacts__Provider: Local
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Verify exact dispatched SHA
+        shell: powershell
+        run: |
+          if ("${{ github.sha }}" -ne "${{ inputs.expected_sha }}") {
+            throw "Exact SHA mismatch. github.sha=${{ github.sha }}, expected=${{ inputs.expected_sha }}"
+          }
+          Write-Host "Exact SHA: ${{ github.sha }}"
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Windows fallback preflight
+        shell: powershell
+        run: ./scripts/Verify-SelfHostedWindowsPreflight.ps1
+
+      - name: Publication safety
+        shell: powershell
+        run: python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
+
+      - name: Portfolio readiness
+        shell: powershell
+        run: python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
+
+      - name: Restore and build
+        shell: powershell
+        run: |
+          dotnet restore DevelopmentIntelligencePlatform.sln
+          if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed." }
+          dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw "dotnet build failed." }
+
+      - name: .NET unit tests
+        shell: powershell
+        run: |
+          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj -c Release --no-build --logger "trx;LogFileName=domain.trx" --results-directory TestResults
+          if ($LASTEXITCODE -ne 0) { throw "Domain tests failed." }
+          dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj -c Release --no-build --logger "trx;LogFileName=application.trx" --results-directory TestResults
+          if ($LASTEXITCODE -ne 0) { throw "Application tests failed." }
+          dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj -c Release --no-build --logger "trx;LogFileName=infrastructure.trx" --results-directory TestResults
+          if ($LASTEXITCODE -ne 0) { throw "Infrastructure tests failed." }
+
+      - name: Python analysis tests
+        shell: powershell
+        working-directory: services/python-analysis
+        run: |
+          python -m pip install -e ".[dev]"
+          if ($LASTEXITCODE -ne 0) { throw "pip install failed." }
+          python -m compileall app tests
+          if ($LASTEXITCODE -ne 0) { throw "compileall failed." }
+          python -m pytest --junitxml=python-test-results.xml
+          if ($LASTEXITCODE -ne 0) { throw "pytest failed." }
+
+      - name: Windows PostgreSQL + Integration + E2E
+        shell: powershell
+        run: ./scripts/Verify-SelfHostedWindowsRuntime.ps1
+
+      - name: GUI / Playwright verification
+        if: ${{ inputs.run_gui }}
+        shell: powershell
+        run: ./scripts/Verify-GuiRuntime.ps1 -RunPlaywright -StartupTimeoutSeconds 900
+
+      - name: Exact-SHA portfolio benchmark
+        if: ${{ inputs.run_benchmark }}
+        shell: powershell
+        run: |
+          ./scripts/Run-PortfolioBenchmarks.ps1 `
+            -DatabaseHost $env:POSTGRES_HOST `
+            -DatabasePort ([int]$env:POSTGRES_PORT) `
+            -DatabaseUser $env:POSTGRES_USER `
+            -DatabasePassword $env:POSTGRES_PASSWORD
+          if ($LASTEXITCODE -ne 0) { throw "Portfolio benchmark failed." }
+
+      - name: Generate fallback evidence
+        if: always()
+        shell: powershell
+        env:
+          DIP_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          DIP_RUN_GUI: ${{ inputs.run_gui }}
+          DIP_RUN_BENCHMARK: ${{ inputs.run_benchmark }}
+          DIP_JOB_STATUS: ${{ job.status }}
+        run: ./scripts/New-SelfHostedFallbackEvidence.ps1
+
+      - name: Upload fallback evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: self-hosted-windows-fallback-${{ github.sha }}
+          path: |
+            artifacts/self-hosted-fallback
+            artifacts/publication-safety
+            artifacts/portfolio-readiness
+            artifacts/portfolio-benchmark
+            TestResults
+            services/python-analysis/python-test-results.xml
+            tests/Dip.UiE2E/artifacts
+          if-no-files-found: warn
+          retention-days: 30
