@@ -1,0 +1,253 @@
+name: Self-Hosted WSL Fallback Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Exact SHA expected for this fallback run"
+        required: true
+        type: string
+      run_gui:
+        description: "Run GUI/Playwright verification"
+        required: true
+        default: true
+        type: boolean
+      run_benchmark:
+        description: "Run long portfolio benchmark"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-hosted-wsl-fallback-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fallback:
+    name: WSL2 Ubuntu emergency fallback verification
+    runs-on: [self-hosted, Linux, X64, dip-fallback-wsl]
+    timeout-minutes: 180
+
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: dip_ci
+      POSTGRES_USER: dip_ci
+      POSTGRES_PASSWORD: ${{ secrets.DIP_SELFHOSTED_POSTGRES_PASSWORD }}
+      ConnectionStrings__PostgreSql: Host=127.0.0.1;Port=5432;Database=dip_ci;Username=dip_ci;Password=${{ secrets.DIP_SELFHOSTED_POSTGRES_PASSWORD }}
+      ASPNETCORE_ENVIRONMENT: Testing
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://127.0.0.1:7001
+      Authentication__RequireAuthenticatedUser: "false"
+      GitHub__WebhookSecret: self-hosted-wsl-fallback-secret
+      GitHub__Token: self-hosted-wsl-fallback-token
+      DIP_API_URL: http://127.0.0.1:7001
+      Artifacts__Provider: Local
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Verify exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SHA" = "${{ inputs.expected_sha }}"
+          echo "Exact SHA: $GITHUB_SHA"
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_OS" = "Linux"
+          test "$RUNNER_NAME" = "DIP-WSL-Fallback"
+          for c in git dotnet python node npm psql pg_isready pwsh; do command -v "$c"; done
+
+          export PGPASSWORD="$POSTGRES_PASSWORD"
+
+          pg_isready \
+            -h "$POSTGRES_HOST" \
+            -p "$POSTGRES_PORT" \
+            -U "$POSTGRES_USER" \
+            -d postgres
+
+          test "$(psql -w -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
+            -U "$POSTGRES_USER" -d postgres -Atqc 'SELECT 1;')" = "1"
+
+      - name: Publication safety
+        shell: bash
+        run: python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
+
+      - name: Portfolio readiness
+        shell: bash
+        run: python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
+
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore DevelopmentIntelligencePlatform.sln
+          dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
+
+      - name: Unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj -c Release --no-build --results-directory TestResults
+          dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj -c Release --no-build --results-directory TestResults
+          dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj -c Release --no-build --results-directory TestResults
+
+      - name: Python tests
+        shell: bash
+        working-directory: services/python-analysis
+        run: |
+          set -euo pipefail
+          python -m pip install -e ".[dev]"
+          python -m compileall app tests
+          python -m pytest --junitxml=python-test-results.xml
+
+      - name: Reset PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$POSTGRES_PASSWORD"
+
+          psql -w -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+            -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='dip_ci' AND pid <> pg_backend_pid();"
+
+          psql -w -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+            -c 'DROP DATABASE IF EXISTS "dip_ci";'
+
+          psql -w -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE "dip_ci" OWNER "dip_ci";'
+
+      - name: Integration tests
+        shell: bash
+        run: dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj -c Release --no-build --results-directory TestResults
+
+      - name: API Worker E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts/self-hosted-fallback/runtime
+
+          dotnet run --no-launch-profile --project src/Dip.Api/Dip.Api.csproj -c Release --no-build --no-restore \
+            > artifacts/self-hosted-fallback/runtime/api.log 2>&1 &
+          API_PID=$!
+
+          dotnet run --no-launch-profile --project src/Dip.Worker/Dip.Worker.csproj -c Release --no-build --no-restore \
+            > artifacts/self-hosted-fallback/runtime/worker.log 2>&1 &
+          WORKER_PID=$!
+
+          cleanup() {
+            kill "$API_PID" 2>/dev/null || true
+            kill "$WORKER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          READY=0
+          for _ in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:7001/health >/dev/null; then
+              READY=1
+              break
+            fi
+
+            kill -0 "$API_PID" 2>/dev/null || {
+              cat artifacts/self-hosted-fallback/runtime/api.log
+              exit 1
+            }
+
+            sleep 2
+          done
+
+          test "$READY" = "1"
+
+          dotnet test tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj -c Release --no-build --results-directory TestResults
+
+      - name: GUI Playwright
+        if: ${{ inputs.run_gui }}
+        shell: pwsh
+        run: ./scripts/Verify-GuiRuntime.ps1 -RunPlaywright -StartupTimeoutSeconds 900
+
+      - name: Benchmark
+        if: ${{ inputs.run_benchmark }}
+        shell: pwsh
+        run: |
+          ./scripts/Run-PortfolioBenchmarks.ps1 `
+            -DatabaseHost $env:POSTGRES_HOST `
+            -DatabasePort ([int]$env:POSTGRES_PORT) `
+            -DatabaseUser $env:POSTGRES_USER `
+            -DatabasePassword $env:POSTGRES_PASSWORD
+
+      - name: Evidence
+        if: always()
+        shell: python
+        env:
+          DIP_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          DIP_JOB_STATUS: ${{ job.status }}
+        run: |
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          out = Path("artifacts/self-hosted-fallback")
+          out.mkdir(parents=True, exist_ok=True)
+
+          payload = {
+              "schema": "dip-self-hosted-wsl-fallback-v1",
+              "verificationMode": "self-hosted-wsl2-ubuntu-fallback",
+              "sourceCommit": os.environ["GITHUB_SHA"],
+              "expectedCommit": os.environ["DIP_EXPECTED_SHA"],
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runner": {
+                  "name": os.environ["RUNNER_NAME"],
+                  "os": os.environ["RUNNER_OS"],
+                  "architecture": os.environ["RUNNER_ARCH"],
+                  "host": "Windows PC / WSL2 Ubuntu",
+              },
+              "jobStatus": os.environ["DIP_JOB_STATUS"],
+              "passed": os.environ["DIP_JOB_STATUS"] == "success",
+              "generatedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "note": "Emergency WSL2 fallback evidence; not a GitHub-hosted claim.",
+          }
+
+          (out / "evidence.json").write_text(
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+
+      - name: Upload evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: self-hosted-wsl-fallback-${{ github.sha }}
+          path: |
+            artifacts/self-hosted-fallback
+            artifacts/publication-safety
+            artifacts/portfolio-readiness
+            artifacts/portfolio-benchmark
+            TestResults
+            services/python-analysis/python-test-results.xml
+            tests/Dip.UiE2E/artifacts
+          if-no-files-found: warn
+          retention-days: 30
