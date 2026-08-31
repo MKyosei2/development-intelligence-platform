@@ -35,9 +35,7 @@ try {
 
     $healthy = $false
     for ($i=0; $i -lt 90; $i++) {
-        if ($api.HasExited) {
-            throw "API exited early. See $apiErr"
-        }
+        if ($api.HasExited) { throw "API exited early. See $apiErr" }
 
         try {
             $r = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:7001/health' -TimeoutSec 3

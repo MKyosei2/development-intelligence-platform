@@ -8,6 +8,9 @@ if (-not (Test-Path "DevelopmentIntelligencePlatform.sln")) {
     throw "Repository root could not be resolved."
 }
 
+Write-Host "Applying DIP first-green fixes..." -ForegroundColor Cyan
+
+# Portfolio readiness requires zero empty Razor files.
 $EmptyRazor = @(
     Get-ChildItem "src\Dip.Web" -Recurse -Filter "*.razor" -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Length -eq 0 }
@@ -21,23 +24,27 @@ foreach ($File in $EmptyRazor) {
 
 Write-Host "Removed zero-byte Razor files: $($EmptyRazor.Count)" -ForegroundColor Cyan
 
-python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
+python tools/verify_publication_safety.py `
+    --root . `
+    --output artifacts/publication-safety/publication-safety.json
 if ($LASTEXITCODE -ne 0) {
     Get-Content artifacts/publication-safety/publication-safety.json -Raw
-    throw "Publication Safety failed. Unknown literal credentials are intentionally not suppressed."
+    throw "Publication Safety still fails. Unknown literal credentials are intentionally not suppressed."
 }
 
-python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
+python tools/validate_portfolio_readiness.py `
+    --root . `
+    --output artifacts/portfolio-readiness/static.json
 if ($LASTEXITCODE -ne 0) {
     Get-Content artifacts/portfolio-readiness/static.json -Raw
-    throw "Portfolio Static Readiness failed."
+    throw "Portfolio Static Readiness still fails."
 }
 
 dotnet restore DevelopmentIntelligencePlatform.sln
 if ($LASTEXITCODE -ne 0) { throw ".NET restore failed." }
 
 dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
-if ($LASTEXITCODE -ne 0) { throw ".NET Release build failed after cleanup." }
+if ($LASTEXITCODE -ne 0) { throw ".NET Release build failed." }
 
 dotnet test tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj -c Release --no-build
 if ($LASTEXITCODE -ne 0) { throw "Domain tests failed." }
@@ -48,4 +55,4 @@ if ($LASTEXITCODE -ne 0) { throw "Application tests failed." }
 dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj -c Release --no-build
 if ($LASTEXITCODE -ne 0) { throw "Infrastructure tests failed." }
 
-Write-Host "PASS: Publication Safety + Portfolio Readiness + .NET regression guard" -ForegroundColor Green
+Write-Host "PASS: Publication + Portfolio + .NET regression guard" -ForegroundColor Green
