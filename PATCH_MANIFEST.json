@@ -1,0 +1,9 @@
+{
+  "base_sha": "2804a319fd572f077bf7ac82f6ffe275ed73c6d8",
+  "purpose": "Overlay patch for existing development-intelligence-platform checkout",
+  "files": [
+    "scripts/Verify-GitHubCiPreflight.ps1",
+    "docs/09-portfolio/GITHUB_CI_LOCAL_PREFLIGHT.md"
+  ],
+  "note": "No speculative application-source changes are included because current GitHub failures occur before runner assignment (steps=[], runner_id=0)."
+}
