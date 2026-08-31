@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Fail-closed pre-publication secret/file scanner for DIP.
 
-Runtime references and explicitly non-production test credentials are not
-reported as leaked production credentials. Unknown literal credentials remain
-hard failures.
+Literal production-like credentials remain hard failures. Runtime references
+(environment variables, PowerShell variables and GitHub Actions secrets),
+explicit placeholders and known non-production verification credentials are
+not treated as published secrets.
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from pathlib import Path
 
 EXCLUDED_PARTS = {
     ".git", "bin", "obj", ".vs", "node_modules", "TestResults",
-    ".pytest_cache", "__pycache__", "artifacts",
+    ".pytest_cache", "__pycache__", "artifacts", ".dip",
 }
 ALLOWED_SECRET_LIKE_NAMES = {".env.example", "appsettings.example.json"}
 FORBIDDEN_SUFFIXES = {".pem", ".p12", ".pfx", ".key", ".jks", ".keystore"}
@@ -71,20 +72,27 @@ def iter_files(root: Path):
 
 
 def normalize(raw: str) -> str:
-    return raw.strip().strip("\"'").strip()
+    value = raw.strip()
+    while len(value) >= 2 and (
+        (value[0] == '"' and value[-1] == '"')
+        or (value[0] == "'" and value[-1] == "'")
+    ):
+        value = value[1:-1].strip()
+    return value
 
 
-def safe_password(raw: str) -> bool:
+def is_safe_runtime_reference(raw: str) -> bool:
     value = normalize(raw)
     if not value:
         return True
     if value in KNOWN_NON_PRODUCTION_PASSWORDS or value in SAFE_PLACEHOLDERS:
         return True
-    lower = value.lower()
-    if lower.startswith(("example", "placeholder", "change_me", "replace_me")):
+    if value.lower().startswith(("example", "placeholder", "change_me", "replace_me")):
         return True
-    if any(rx.fullmatch(value) for rx in DYNAMIC_PATTERNS):
+    if any(pattern.fullmatch(value) for pattern in DYNAMIC_PATTERNS):
         return True
+
+    # Interpolated variable/reference inside a larger shell/YAML string.
     if re.search(
         r"\$(?:env:)?[A-Za-z_][A-Za-z0-9_]*"
         r"|\$\{[^}]+\}"
@@ -95,16 +103,14 @@ def safe_password(raw: str) -> bool:
     return False
 
 
-def add(findings, rule: str, rel: Path, line: int | None, message: str):
-    findings.append(
-        {
-            "severity": "high",
-            "rule": rule,
-            "path": rel.as_posix(),
-            "line": line,
-            "message": message,
-        }
-    )
+def finding(rule: str, rel: Path, line: int | None, message: str):
+    return {
+        "severity": "high",
+        "rule": rule,
+        "path": rel.as_posix(),
+        "line": line,
+        "message": message,
+    }
 
 
 def scan(root: Path):
@@ -118,8 +124,14 @@ def scan(root: Path):
         if (
             name == ".env" or path.suffix.lower() in FORBIDDEN_SUFFIXES
         ) and name not in ALLOWED_SECRET_LIKE_NAMES:
-            add(findings, "secret-file", rel, None,
-                "Secret/private-key file type must not be published.")
+            findings.append(
+                finding(
+                    "secret-file",
+                    rel,
+                    None,
+                    "Secret/private-key file type must not be published.",
+                )
+            )
 
         try:
             if path.stat().st_size > MAX_TEXT_BYTES:
@@ -133,23 +145,25 @@ def scan(root: Path):
 
         for rule, regex in STATIC_PATTERNS:
             for match in regex.finditer(text):
-                add(
-                    findings,
-                    rule,
-                    rel,
-                    text.count("\n", 0, match.start()) + 1,
-                    "Potential credential material detected; remove it and rotate the credential before publication.",
+                findings.append(
+                    finding(
+                        rule,
+                        rel,
+                        text.count("\n", 0, match.start()) + 1,
+                        "Potential credential material detected; remove it and rotate the credential before publication.",
+                    )
                 )
 
         for match in CONNECTION_PASSWORD.finditer(text):
-            if safe_password(match.group("value")):
+            if is_safe_runtime_reference(match.group("value")):
                 continue
-            add(
-                findings,
-                "connection-string-password",
-                rel,
-                text.count("\n", 0, match.start()) + 1,
-                "Literal connection-string password detected. Use a runtime secret/environment reference or an explicitly non-production test credential.",
+            findings.append(
+                finding(
+                    "connection-string-password",
+                    rel,
+                    text.count("\n", 0, match.start()) + 1,
+                    "Literal connection-string password detected. Use a runtime secret/environment reference or an explicitly non-production verification credential.",
+                )
             )
 
     return {
@@ -172,9 +186,9 @@ def main():
     payload = json.dumps(result, indent=2, ensure_ascii=False)
 
     if args.output:
-        out = Path(args.output)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(payload + "\n", encoding="utf-8")
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(payload + "\n", encoding="utf-8")
 
     print(payload)
     return 0 if result["status"] == "PASS" else 2
