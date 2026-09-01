@@ -88,7 +88,10 @@ try {
         Require-Command git
         Require-Command dotnet
         Require-Command python
-        Require-Command pwsh
+
+        if ($PSVersionTable.PSVersion.Major -lt 5) {
+            throw "PowerShell 5.1 or later is required."
+        }
 
         $dotnetVersion = (dotnet --version).Trim()
         if (-not $dotnetVersion.StartsWith('8.')) {
@@ -137,7 +140,8 @@ try {
             'tests/Dip.Application.Tests/Dip.Application.Tests.csproj',
             'tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj'
         )) {
-            Invoke-Phase ".NET test $(Split-Path $test -LeafBase)" {
+            $testName = [System.IO.Path]::GetFileNameWithoutExtension($test)
+            Invoke-Phase ".NET test $testName" {
                 dotnet test $test --configuration Release --no-build --logger "trx" --results-directory artifacts/github-ci-preflight/TestResults
             }
         }

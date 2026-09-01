@@ -42,8 +42,12 @@ STATIC_PATTERNS = [
     ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_-]{30,}\b")),
 ]
 
+# Stop at the connection-string semicolon OR the source-language quote delimiter.
+# The prior pattern consumed a closing JSON/C#/PowerShell quote (for example
+# Password=dip-local-password"), which prevented known non-production values
+# from matching the allow-list and produced false high-severity findings.
 CONNECTION_PASSWORD = re.compile(
-    r"(?i)\b(?:Password|Pwd)[\t ]*=[\t ]*(?P<value>[^;\r\n]+)"
+    r"""(?i)\b(?:Password|Pwd)[\t ]*=[\t ]*(?P<value>[^;'"`\r\n]+)"""
 )
 
 SAFE_PLACEHOLDERS = {
@@ -92,7 +96,6 @@ def is_safe_runtime_reference(raw: str) -> bool:
     if any(pattern.fullmatch(value) for pattern in DYNAMIC_PATTERNS):
         return True
 
-    # Interpolated variable/reference inside a larger shell/YAML string.
     if re.search(
         r"\$(?:env:)?[A-Za-z_][A-Za-z0-9_]*"
         r"|\$\{[^}]+\}"

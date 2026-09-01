@@ -35,21 +35,21 @@ public sealed class ProjectTruthPolicyTests
     public void InvalidPercentageThreshold_FailsFast()
     {
         var invalid = ProjectTruthPolicy.Default with{MediumRiskProgressGapThreshold = 101m};
-        (() => invalid.Validate()).Should().Throw<ArgumentOutOfRangeException>();
+        FluentActions.Invoking(invalid.Validate).Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
     public void InvalidContradictionThreshold_FailsFast()
     {
         var invalid = ProjectTruthPolicy.Default with{HighRiskContradictionThreshold = 0};
-        (() => new ProjectRiskEvaluator(invalid)).Should().Throw<ArgumentOutOfRangeException>();
+        FluentActions.Invoking(() => new ProjectRiskEvaluator(invalid)).Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
     public void InvalidCrossDomainProgressFactor_FailsFast()
     {
         var invalid=ProjectTruthPolicy.Default with{PartiallyConfirmedProgressFactor=1.1m};
-        (()=>invalid.Validate()).Should().Throw<ArgumentOutOfRangeException>();
+        FluentActions.Invoking(invalid.Validate).Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]

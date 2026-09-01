@@ -9,7 +9,7 @@ public sealed class MigrationMetadataTests
     public void FormalMigrationChain_IsDiscoverable_AndModelBuilds()
     {
         var options=new DbContextOptionsBuilder<DipDbContext>()
-            .UseNpgsql("Host=localhost;Port=5432;Database=dip_metadata_test;Username=dip;Password=dip")
+            .UseNpgsql("Host=localhost;Port=5432;Database=dip_metadata_test;Username=dip;Password=dip-test-password")
             .Options;
         using var db=new DipDbContext(options);
 

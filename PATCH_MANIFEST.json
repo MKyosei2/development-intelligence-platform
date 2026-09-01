@@ -1,9 +1,21 @@
 {
   "base_sha": "2804a319fd572f077bf7ac82f6ffe275ed73c6d8",
-  "purpose": "Overlay patch for existing development-intelligence-platform checkout",
   "files": [
-    "scripts/Verify-GitHubCiPreflight.ps1",
-    "docs/09-portfolio/GITHUB_CI_LOCAL_PREFLIGHT.md"
+    "src/Dip.Infrastructure/P2Intelligence/OpenAiCompatibleFixProposalAgent.cs",
+    "src/Dip.Web/Services/ApiClientAdditionalOperations.cs",
+    "tests/Dip.Application.Tests/ProjectTruth/ProjectTruthPolicyTests.cs",
+    "tests/Dip.Application.Tests/ManagementOperationsContractTests.cs",
+    "tests/Dip.Infrastructure.Tests/Persistence/MigrationMetadataTests.cs",
+    "tools/verify_publication_safety.py",
+    "scripts/Verify-GitHubCiPreflight.ps1"
   ],
-  "note": "No speculative application-source changes are included because current GitHub failures occur before runner assignment (steps=[], runner_id=0)."
+  "fixes": [
+    "CS9006/CS1733 raw interpolated string parsing",
+    "CS0023 invalid lambda invocation assertions",
+    "CS8122 expression-tree pattern matching",
+    "CS1061 missing ApiClient spreadsheet/autonomous-debug operations",
+    "publication safety false positives on quoted known non-production passwords",
+    "metadata test credential changed to explicit known non-production test password",
+    "Windows PowerShell 5.1 preflight compatibility and Split-Path -LeafBase removal"
+  ]
 }
