@@ -103,11 +103,6 @@ services:
       WorkItems__Jira__ProjectKey: ${DIP_JIRA_PROJECT_KEY:-}
       WorkItems__Linear__ApiKey: ${DIP_LINEAR_API_KEY:-}
       WorkItems__Linear__TeamId: ${DIP_LINEAR_TEAM_ID:-}
-      P2Intelligence__AiEndpoint: ${DIP_AI_ENDPOINT:-}
-      P2Intelligence__AiApiKey: ${DIP_AI_API_KEY:-}
-      P2Intelligence__AiModel: ${DIP_AI_MODEL:-evidence-grounded-model}
-      P2Intelligence__AllowExternalAi: ${DIP_ALLOW_EXTERNAL_AI:-false}
-      P2Intelligence__AllowFixProposal: ${DIP_ALLOW_FIX_PROPOSAL:-false}
       ProjectIntelligenceSources__Redmine__BaseUrl: ${DIP_REDMINE_BASE_URL:-}
       ProjectIntelligenceSources__Redmine__ApiKey: ${DIP_REDMINE_API_KEY:-}
       ProjectIntelligenceSources__Redmine__ProjectIdentifier: ${DIP_REDMINE_PROJECT_IDENTIFIER:-}

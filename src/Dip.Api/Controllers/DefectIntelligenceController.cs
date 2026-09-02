@@ -16,11 +16,32 @@ public sealed record AutonomousDebugApiRequest(
 public sealed class DefectIntelligenceController(IFixProposalAgent fixAgent,IVerifiedFixService verifier,IIdeDiagnosticNormalizer ide,AutonomousDebugService autonomousDebug):ControllerBase
 {
     [Authorize(Policy=Policies.ProjectWrite)][HttpPost("projects/{projectId:guid}/fix-proposal")]
-    public async Task<IActionResult> Propose(Guid projectId,[FromBody]FixProposalApiRequest r,CancellationToken ct){var x=await fixAgent.ProposeAsync(new(projectId,r.SubjectKey,r.Question,r.EvidenceJson,r.RepositoryContext),ct);return x is null?UnprocessableEntity(new{status="NoGroundedProposal",message="External AI is disabled or did not return an evidence-grounded proposal."}):Ok(x);}
+    public async Task<IActionResult> Propose(Guid projectId,[FromBody]FixProposalApiRequest r,CancellationToken ct)
+    {
+        var x=await fixAgent.ProposeAsync(new(projectId,r.SubjectKey,r.Question,r.EvidenceJson,r.RepositoryContext),ct);
+        return x is null
+            ?UnprocessableEntity(new
+            {
+                status="NoDeterministicProposal",
+                message="DIP Local Intelligence could not prove a safe deterministic patch for the supplied evidence. No external AI fallback exists."
+            })
+            :Ok(x);
+    }
+
     [Authorize(Policy=Policies.ProjectWrite)][HttpPost("projects/{projectId:guid}/verify-fix")]
-    public Task<VerifiedFixResult> Verify(Guid projectId,[FromBody]VerifyFixApiRequest r,CancellationToken ct){var language=LanguageId.TryParse(r.Language,out var l)?l:LanguageId.Auto;return verifier.VerifyAsync(new(projectId,r.WorkspaceRelativePath,r.BaseCommit,r.UnifiedDiff,r.RegressionTests??[],language,r.TimeoutSeconds),ct);}
+    public Task<VerifiedFixResult> Verify(Guid projectId,[FromBody]VerifyFixApiRequest r,CancellationToken ct)
+    {
+        var language=LanguageId.TryParse(r.Language,out var l)?l:LanguageId.Auto;
+        return verifier.VerifyAsync(new(projectId,r.WorkspaceRelativePath,r.BaseCommit,r.UnifiedDiff,r.RegressionTests??[],language,r.TimeoutSeconds),ct);
+    }
+
     [Authorize(Policy=Policies.ProjectWrite)][HttpPost("projects/{projectId:guid}/ide-diagnostics")]
-    public IActionResult Ide(Guid projectId,[FromBody]IdeDiagnosticsApiRequest r){var language=LanguageId.TryParse(r.Language,out var l)?l:LanguageId.Unknown;var findings=ide.Normalize(new(projectId,r.SubjectKey,language,r.WorkspaceRelativePath,r.CommitSha,r.Diagnostics));return Ok(new{schema="dip.finding.v2",count=findings.Count,findings});}
+    public IActionResult Ide(Guid projectId,[FromBody]IdeDiagnosticsApiRequest r)
+    {
+        var language=LanguageId.TryParse(r.Language,out var l)?l:LanguageId.Unknown;
+        var findings=ide.Normalize(new(projectId,r.SubjectKey,language,r.WorkspaceRelativePath,r.CommitSha,r.Diagnostics));
+        return Ok(new{schema="dip.finding.v2",count=findings.Count,findings});
+    }
 
     [Authorize(Policy=Policies.ProjectWrite)][HttpPost("projects/{projectId:guid}/autonomous-debug")]
     public Task<AutonomousDebugSessionDto> RunAutonomousDebug(Guid projectId,[FromBody]AutonomousDebugApiRequest r,CancellationToken ct)
@@ -36,6 +57,7 @@ public sealed class DefectIntelligenceController(IFixProposalAgent fixAgent,IVer
     [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/autonomous-debug/{sessionId:guid}")]
     public async Task<IActionResult> GetAutonomousDebug(Guid projectId,Guid sessionId,CancellationToken ct)
     {
-        var result=await autonomousDebug.GetAsync(projectId,sessionId,ct);return result is null?NotFound():Ok(result);
+        var result=await autonomousDebug.GetAsync(projectId,sessionId,ct);
+        return result is null?NotFound():Ok(result);
     }
 }

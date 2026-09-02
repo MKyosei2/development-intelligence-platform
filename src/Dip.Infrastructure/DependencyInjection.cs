@@ -114,15 +114,12 @@ public static class DependencyInjection
         services.Configure<Dip.Infrastructure.Integrations.JenkinsOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.JenkinsOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,Dip.Infrastructure.Integrations.PerforceVersionControlConnector>();
         services.AddSingleton<Dip.Application.Abstractions.Integrations.IExternalCiConnector,Dip.Infrastructure.Integrations.JenkinsCiConnector>();
-        services.Configure<Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions>(configuration.GetSection(Dip.Infrastructure.P2Intelligence.P2IntelligenceOptions.SectionName));
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IP2ExperimentRunner, Dip.Infrastructure.P2Intelligence.P2ExperimentRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.ITestImpactAnalyzer, Dip.Infrastructure.P2Intelligence.TestImpactAnalyzer>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.INativeSymbolicator, Dip.Infrastructure.P2Intelligence.NativeSymbolicator>();
-        services.AddSingleton<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>();
-        services.AddSingleton<Dip.Application.Features.P2Intelligence.IAiRootCauseClient>(sp => sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleRootCauseClient>());
-        services.AddSingleton<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleFixProposalAgent>();
-        services.AddSingleton<IFixProposalAgent>(sp=>sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.OpenAiCompatibleFixProposalAgent>());
+        services.AddSingleton<Dip.Infrastructure.P2Intelligence.DeterministicLocalDebugAgent>();
+        services.AddSingleton<IFixProposalAgent>(sp=>sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.DeterministicLocalDebugAgent>());
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());
         services.AddSingleton<ISystemClock, SystemClock>();
 
