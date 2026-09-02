@@ -136,6 +136,7 @@ internal sealed class DipScenarioClient : IDisposable
 
     public async Task<QaRunE2EResponse> RunPythonQaAsync(ProjectResponse project)
     {
+        const string fixtureWorkspace = "samples/qa-bug-zoo/python/runtime_type_error";
         var response = await _httpClient.PostAsJsonAsync(
             "/api/v1/qa/runs",
             new
@@ -143,9 +144,9 @@ internal sealed class DipScenarioClient : IDisposable
                 projectId = project.Id,
                 subjectKey = "project",
                 language = "Python",
-                workspaceRelativePath = ".",
+                workspaceRelativePath = fixtureWorkspace,
                 commitSha = (string?)null,
-                runtimeExecutable = "samples/qa-bug-zoo/python/runtime_type_error/app.py",
+                runtimeExecutable = "app.py",
                 runtimeArguments = Array.Empty<string>(),
                 timeoutSeconds = 15,
                 automaticallyReproduce = true,
@@ -219,7 +220,6 @@ internal sealed class DipScenarioClient : IDisposable
         return await response.Content.ReadFromJsonAsync<P2HealthChangeE2EResponse>(JsonOptions)
             ?? throw new InvalidDataException("P2 health-change API returned an empty response.");
     }
-
 
     public async Task<HttpResponseMessage> SendSignedGitHubWebhookAsync(
         string deliveryId,
@@ -379,4 +379,3 @@ internal sealed class P2HealthChangeE2EResponse
     public string Explanation { get; init; } = string.Empty;
     public IReadOnlyList<string> Reasons { get; init; } = Array.Empty<string>();
 }
-

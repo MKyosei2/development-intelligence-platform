@@ -1,21 +1,27 @@
 {
-  "base_sha": "2804a319fd572f077bf7ac82f6ffe275ed73c6d8",
-  "files": [
-    "src/Dip.Infrastructure/P2Intelligence/OpenAiCompatibleFixProposalAgent.cs",
-    "src/Dip.Web/Services/ApiClientAdditionalOperations.cs",
-    "tests/Dip.Application.Tests/ProjectTruth/ProjectTruthPolicyTests.cs",
-    "tests/Dip.Application.Tests/ManagementOperationsContractTests.cs",
-    "tests/Dip.Infrastructure.Tests/Persistence/MigrationMetadataTests.cs",
-    "tools/verify_publication_safety.py",
-    "scripts/Verify-GitHubCiPreflight.ps1"
+  "package_type": "overlay",
+  "repository": "MKyosei2/development-intelligence-platform",
+  "base_branch": "fix/ci-verification-gates-20260901",
+  "base_commit": "06bc810bc19132903bbabd58e251baa8967670c4",
+  "deferred_not_modified": [
+    "tests/Dip.UiE2E/tests/gui-onboarding.spec.mjs (the four unresolved functional failures)",
+    "application feature code implicated only by those unresolved failures"
   ],
-  "fixes": [
-    "CS9006/CS1733 raw interpolated string parsing",
-    "CS0023 invalid lambda invocation assertions",
-    "CS8122 expression-tree pattern matching",
-    "CS1061 missing ApiClient spreadsheet/autonomous-debug operations",
-    "publication safety false positives on quoted known non-production passwords",
-    "metadata test credential changed to explicit known non-production test password",
-    "Windows PowerShell 5.1 preflight compatibility and Split-Path -LeafBase removal"
+  "modified_files": {
+    "scripts/Verify-GuiRuntime.ps1": [
+      "Run only tests/gui-onboarding.spec.mjs in native GUI verification",
+      "Override Playwright retries to 0 for native verification",
+      "Apply the same native-only/retries=0 policy in the Docker fallback"
+    ],
+    ".github/workflows/gui-e2e.yml": [
+      "Reduce job timeout from 45 to 20 minutes",
+      "Reduce startup timeout override from 900 to 420 seconds",
+      "Enable pip caching against services/python-analysis/requirements.txt",
+      "Cache npm download cache (~/.npm) keyed by tests/Dip.UiE2E/package.json"
+    ]
+  },
+  "intentionally_unchanged": [
+    "tests/Dip.UiE2E/tests/public-readonly.spec.mjs remains available for hosted/public verification",
+    "Playwright global configuration is not weakened; retry override applies only to native verification"
   ]
 }

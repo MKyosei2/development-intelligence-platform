@@ -523,8 +523,15 @@ else
             return;
         CopyProjectToForm();
 
-        try { _members = await Api.GetProjectMembershipsAsync(id); }
-        catch { _members = Array.Empty<ProjectMembershipDto>(); }
+        try
+        {
+            _members = await Api.GetProjectMembershipsAsync(id);
+        }
+        catch (Exception exception)
+        {
+            _members = Array.Empty<ProjectMembershipDto>();
+            _memberError = $"Could not load project memberships: {exception.Message}";
+        }
         await LoadAuditAsync();
     }
 
@@ -588,6 +595,8 @@ else
                 : await Api.RestoreProjectAsync(_project.Id, _projectReason);
             _projectMessage = action == "archive" ? "Project archived." : "Project restored.";
             await Projects.RefreshAsync();
+            if (action.Equals("restore", StringComparison.OrdinalIgnoreCase))
+                Projects.Select(_project.Id);
             _projectOptions = await Api.GetProjectRecordsAsync();
             await LoadAuditAsync();
         }

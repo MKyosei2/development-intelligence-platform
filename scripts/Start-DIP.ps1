@@ -3,6 +3,7 @@ param(
     [switch]$NoBuild,
     [switch]$VerifyGui,
     [switch]$NoBrowser,
+    [switch]$NoLogRedirect,
     [int]$HealthTimeoutSeconds = 180,
     [string]$PostgresHost = $(if($env:POSTGRES_HOST){$env:POSTGRES_HOST}else{'127.0.0.1'}),
     [int]$PostgresPort = $(if($env:POSTGRES_PORT){[int]$env:POSTGRES_PORT}else{5432}),
@@ -94,7 +95,7 @@ function Wait-Http([string]$name,[string]$url,[datetime]$deadline) {
     throw "$name did not become healthy: $url"
 }
 
-function Start-Tracked([string]$name,[string]$exe,[string[]]$args,[string]$cwd) {
+function Start-Tracked([string]$name,[string]$exe,[string[]]$arguments,[string]$cwd) {
     $pidFile = Join-Path $runtime "$name.pid"
     if (Test-Path $pidFile) {
         $oldPid = [int](Get-Content $pidFile -Raw)
@@ -108,9 +109,21 @@ function Start-Tracked([string]$name,[string]$exe,[string[]]$args,[string]$cwd) 
     $stderr = Join-Path $logs "$name.err.log"
     Remove-Item $stdout,$stderr -Force -ErrorAction SilentlyContinue
 
-    $p = Start-Process -FilePath $exe -ArgumentList $args -WorkingDirectory $cwd `
-        -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+    $start = @{
+        FilePath = $exe
+        ArgumentList = $arguments
+        WorkingDirectory = $cwd
+        PassThru = $true
+    }
+
+    if (-not $NoLogRedirect) {
+        $start.RedirectStandardOutput = $stdout
+        $start.RedirectStandardError = $stderr
+    }
+
+    $p = Start-Process @start
     $p.Id | Set-Content $pidFile -Encoding ASCII
+    Write-Host "Started $name (PID $($p.Id), redirected=$(-not $NoLogRedirect))."
     return $p
 }
 

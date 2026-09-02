@@ -23,6 +23,15 @@ def run(cmd,cwd,timeout=30):
         return p.returncode,(time.perf_counter()-t)*1000,(p.stdout+p.stderr)[-4000:]
     except subprocess.TimeoutExpired as e:return 124,(time.perf_counter()-t)*1000,"timeout"
 
+def powershell_parse_cmd(file_name):
+    escaped=file_name.replace("'","''")
+    script=(
+      "$errors=$null;$tokens=$null;"
+      f"[System.Management.Automation.Language.Parser]::ParseFile('{escaped}',[ref]$tokens,[ref]$errors)|Out-Null;"
+      "if($errors.Count -gt 0){exit 1};exit 0"
+    )
+    return [which("pwsh"),"-NoProfile","-NonInteractive","-Command",script]
+
 def cases():
     return [
       Case("python","python", "app.py","x=1\nprint(x)\n", "app.py","def broken(:\n pass\n",lambda f:[which("python3") or which("python"),"-m","py_compile",f]),
@@ -39,7 +48,7 @@ def cases():
       Case("c","clang","main.c","int main(void){return 0;}\n","main.c","int main( { return 0; }\n",lambda f:[which("clang"),"-fsyntax-only","-Wall","-Wextra",f]),
       Case("cpp","clang++","main.cpp","int main(){return 0;}\n","main.cpp","int main( { return 0; }\n",lambda f:[which("clang++"),"-fsyntax-only","-Wall","-Wextra",f]),
       Case("lua","luac","app.lua","local x=1\nprint(x)\n","app.lua","function broken(\n",lambda f:[which("luac"),"-p",f]),
-      Case("powershell","pwsh","app.ps1","$x = 1\nWrite-Output $x\n","app.ps1","function Broken( {\n",lambda f:[which("pwsh"),"-NoProfile","-NonInteractive","-Command","$e=$null;$t=$null;[System.Management.Automation.Language.Parser]::ParseFile($args[0],[ref]$t,[ref]$e)|Out-Null;if($e.Count){exit 1}",f]),
+      Case("powershell","pwsh","app.ps1","$x = 1\nWrite-Output $x\n","app.ps1","function Broken( {\n",powershell_parse_cmd),
       Case("csharp","dotnet","Program.cs","class Program { static void Main(){} }\n","Program.cs","class Program { static void Main( { }\n",lambda f:[which("dotnet"),"build","--nologo"],{"bench.csproj":"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework><OutputType>Exe</OutputType></PropertyGroup></Project>"}),
       Case("rust","rustc","main.rs","fn main() {}\n","main.rs","fn main( {\n",lambda f:[which("rustc"),f]),
       Case("sql","sqlfluff","app.sql","SELECT 1;\n","app.sql","SELEC FROM;\n",lambda f:[which("sqlfluff"),"lint",f]),

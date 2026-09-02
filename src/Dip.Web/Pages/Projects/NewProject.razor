@@ -50,7 +50,7 @@
 
                 <div class="form-actions">
                     <a class="btn btn-outline-secondary" href="/">Cancel</a>
-                    <button class="btn btn-primary" data-testid="create-project-submit" type="submit" disabled="@_saving">@(_saving ? "Creating…" : "Create project")</button>
+                    <button class="btn btn-primary" data-testid="create-project-submit" type="submit" disabled="@(_saving || !_interactiveReady)">@(_saving ? "Creating…" : "Create project")</button>
                 </div>
             </EditForm>
         </div>
@@ -71,7 +71,17 @@
 @code {
     private readonly NewProjectModel _model = new();
     private bool _saving;
+    private bool _interactiveReady;
     private string? _error;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender || _interactiveReady)
+            return;
+
+        _interactiveReady = true;
+        StateHasChanged();
+    }
 
     private async Task CreateAsync()
     {

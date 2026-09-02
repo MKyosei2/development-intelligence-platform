@@ -45,7 +45,7 @@ test.describe('DIP GUI onboarding', () => {
       const empty = page.getByText('No repositories found');
       await expect(grid.or(empty)).toBeVisible();
     } else {
-      await expect(page.getByText('Connect a GitHub App installation')).toBeVisible();
+      await expect(disconnected).toContainText('Connect GitHub repository access');
     }
   });
 
@@ -72,7 +72,7 @@ test.describe('DIP GUI onboarding', () => {
 
     await page.goto(`/dashboard/${projectId}/management`);
     await expect(page.getByTestId('management-operations-page')).toBeVisible();
-    await page.getByRole('button', { name: 'Sync & source of truth' }).click();
+    await page.getByRole('tab', { name: 'Sync & source of truth' }).click();
     await expect(page.getByTestId('management-spreadsheet-intelligence')).toBeVisible();
     await expect(page.getByTestId('spreadsheet-analyze')).toBeDisabled();
     await expect(page.getByTestId('spreadsheet-dry-run')).toBeDisabled();
@@ -128,7 +128,7 @@ test.describe('DIP GUI onboarding', () => {
   test('flexible spreadsheet GUI performs analyze, dry-run and apply for a media/VFX workbook', async ({ page, request }) => {
     const { projectId } = await createManualProject(page, 'VFX Spreadsheet');
     await page.goto(`/dashboard/${projectId}/management`);
-    await page.getByRole('button', { name: 'Sync & source of truth' }).click();
+    await page.getByRole('tab', { name: 'Sync & source of truth' }).click();
     await expect(page.getByTestId('management-spreadsheet-intelligence')).toBeVisible();
 
     const before = await getUniversalGraph(request, projectId, 'media.production');

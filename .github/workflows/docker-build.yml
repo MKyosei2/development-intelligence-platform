@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with: { dotnet-version: "8.0.x" }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - name: Restore and test
         run: |
@@ -37,7 +37,7 @@ jobs:
       - name: Build migration bundle
         run: |
           dotnet tool restore
-          dotnet ef migrations bundle --project src/Dip.Infrastructure --startup-project src/Dip.Api -c Release -o artifacts/native-release/dip-migrate
+          dotnet ef migrations bundle --project src/Dip.Infrastructure --startup-project src/Dip.Api --configuration Release --output artifacts/native-release/dip-migrate
           chmod +x artifacts/native-release/dip-migrate
       - name: Record exact-revision provenance
         shell: bash
