@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.Replay;
 using Dip.Application.Features.Release;
@@ -152,6 +154,15 @@ public sealed record QaTrendPointClientDto(
 
 public sealed class ApiClient
 {
+    private static readonly JsonSerializerOptions ApiJsonOptions = CreateApiJsonOptions();
+
+    private static JsonSerializerOptions CreateApiJsonOptions()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter());
+        return options;
+    }
+
     private readonly HttpClient _httpClient;
 
     public ApiClient(HttpClient httpClient)
@@ -650,6 +661,7 @@ public sealed class ApiClient
         CancellationToken ct = default)
         => await _httpClient.GetFromJsonAsync<IReadOnlyList<ProjectMembershipDto>>(
                $"api/v1/projects/{projectId}/memberships",
+               ApiJsonOptions,
                ct)
            ?? Array.Empty<ProjectMembershipDto>();
 
