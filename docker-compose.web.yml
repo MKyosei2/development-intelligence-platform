@@ -18,26 +18,6 @@ services:
       start_period: 10s
     networks: [backend]
 
-  redis:
-    image: ${DIP_REDIS_IMAGE:?Set a digest-pinned Redis image in deploy/web.env}
-    restart: unless-stopped
-    environment:
-      REDIS_PASSWORD: ${DIP_REDIS_PASSWORD:?Set DIP_REDIS_PASSWORD in deploy/web.env}
-    command:
-      - sh
-      - -c
-      - 'exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
-    volumes:
-      - dip-web-redis:/data
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - 'redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning ping | grep -q PONG'
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    networks: [backend]
-
   python-analysis:
     image: ${DIP_IMAGE_PREFIX:-ghcr.io/mkyosei2/dip}-analysis:${DIP_IMAGE_TAG:?Set exact source SHA in deploy/web.env}
     build:
@@ -67,8 +47,6 @@ services:
       ASPNETCORE_URLS: http://+:8080
       Hosting__UseHttpsRedirection: "false"
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
-      Redis__ConnectionString: redis:6379,password=${DIP_REDIS_PASSWORD:?Set DIP_REDIS_PASSWORD in deploy/web.env},abortConnect=false
-      Redis__InstanceName: "dip:"
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
       AnalysisService__ApiKey: ${DIP_ANALYSIS_API_KEY:?Set DIP_ANALYSIS_API_KEY in deploy/web.env}
@@ -117,8 +95,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       python-analysis:
         condition: service_healthy
     healthcheck:
@@ -138,8 +114,6 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Production
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/web.env}
-      Redis__ConnectionString: redis:6379,password=${DIP_REDIS_PASSWORD:?Set DIP_REDIS_PASSWORD in deploy/web.env},abortConnect=false
-      Redis__InstanceName: "dip:"
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
       AnalysisService__ApiKey: ${DIP_ANALYSIS_API_KEY:?Set DIP_ANALYSIS_API_KEY in deploy/web.env}
@@ -179,8 +153,6 @@ services:
       - dip-web-workspaces:/data/dip-workspaces
     depends_on:
       api:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks: [backend]
 
@@ -226,7 +198,6 @@ services:
 
 volumes:
   dip-web-postgres:
-  dip-web-redis:
   dip-web-artifacts:
   dip-web-workspaces:
   dip-api-dataprotection:

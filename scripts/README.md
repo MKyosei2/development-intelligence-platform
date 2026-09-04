@@ -1,6 +1,6 @@
 # DIP operational scripts — Native-first
 
-The supported runtime is host-native. Docker Desktop/Engine and Redis are not prerequisites.
+The supported runtime is host-native. Docker Desktop/Engine and an external queue daemon are not prerequisites.
 
 ## Start / stop
 

@@ -1,0 +1,42 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "PostgreSQL Queue Depth",
+      "datasource": {"type": "prometheus", "uid": "dip-prometheus"},
+      "targets": [{"expr": "max(dip_job_queue_depth)", "refId": "A"}],
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Jobs Started",
+      "datasource": {"type": "prometheus", "uid": "dip-prometheus"},
+      "targets": [{"expr": "sum by (type) (rate(dip_jobs_started_total[5m]))", "legendFormat": "{{type}}", "refId": "A"}],
+      "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Jobs Finished by Status",
+      "datasource": {"type": "prometheus", "uid": "dip-prometheus"},
+      "targets": [{"expr": "sum by (type,status) (rate(dip_jobs_finished_total[5m]))", "legendFormat": "{{type}} / {{status}}", "refId": "A"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Expired Lease Recoveries",
+      "datasource": {"type": "prometheus", "uid": "dip-prometheus"},
+      "targets": [{"expr": "sum(rate(dip_job_lease_recovered_total[5m]))", "legendFormat": "recoveries/s", "refId": "A"}],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    }
+  ],
+  "schemaVersion": 41,
+  "tags": ["dip", "postgresql", "queue"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "DIP PostgreSQL Queue",
+  "uid": "dip-postgresql-queue",
+  "version": 1
+}

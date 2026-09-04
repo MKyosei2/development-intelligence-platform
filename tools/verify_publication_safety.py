@@ -67,10 +67,16 @@ DYNAMIC_PATTERNS = [
 
 def iter_files(root: Path):
     for path in root.rglob("*"):
-        if not path.is_file():
+        try:
+            rel = path.relative_to(root)
+        except (OSError, ValueError):
             continue
-        rel = path.relative_to(root)
         if any(part in EXCLUDED_PARTS for part in rel.parts):
+            continue
+        try:
+            if not path.is_file():
+                continue
+        except OSError:
             continue
         yield path, rel
 

@@ -20,21 +20,6 @@ services:
       start_period: 10s
     networks: [dip-network]
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - dip-redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    networks: [dip-network]
-
   python-analysis:
     build:
       context: .
@@ -69,8 +54,6 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:-dip-local-password}
-      Redis__ConnectionString: redis:6379
-      Redis__InstanceName: "dip:"
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
       GitHub__WebhookSecret: ${DIP_GITHUB_WEBHOOK_SECRET:-local-development-webhook-secret}
@@ -118,8 +101,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       python-analysis:
         condition: service_healthy
     healthcheck:
@@ -138,8 +119,6 @@ services:
     environment:
       DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-dip};Username=${POSTGRES_USER:-dip};Password=${POSTGRES_PASSWORD:-dip-local-password}
-      Redis__ConnectionString: redis:6379
-      Redis__InstanceName: "dip:"
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__TimeoutSeconds: ${ANALYSIS_TIMEOUT_SECONDS:-30}
       GitHub__Token: ${DIP_GITHUB_TOKEN:-}
@@ -168,8 +147,6 @@ services:
       - "${WORKER_METRICS_PORT:-9091}:9091"
     depends_on:
       api:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks: [dip-network]
 
@@ -265,7 +242,6 @@ services:
 
 volumes:
   dip-postgres-data:
-  dip-redis-data:
   dip-minio-data:
   dip-artifact-data:
   dip-workspace-data:

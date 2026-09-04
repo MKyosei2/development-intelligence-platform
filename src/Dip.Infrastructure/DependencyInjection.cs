@@ -158,6 +158,7 @@ public static class DependencyInjection
         services.AddSingleton<Dip.Infrastructure.Observability.DipOperationalMetrics>();
         services.AddSingleton<Dip.Application.Abstractions.Observability.IDipOperationalMetrics>(sp=>sp.GetRequiredService<Dip.Infrastructure.Observability.DipOperationalMetrics>());
         services.Configure<Dip.Application.Features.Jobs.DurableJobQueueOptions>(configuration.GetSection(Dip.Application.Features.Jobs.DurableJobQueueOptions.SectionName));
+        services.Configure<Dip.Infrastructure.Messaging.QueueOptions>(configuration.GetSection(Dip.Infrastructure.Messaging.QueueOptions.SectionName));
 
         services.Configure<QaExecutionOptions>(configuration.GetSection(QaExecutionOptions.SectionName));
         services.AddSingleton<IQaWorkspaceResolver, QaWorkspaceResolver>();
@@ -167,7 +168,7 @@ public static class DependencyInjection
         services.AddSingleton<IPerformanceSimulationRunner>(sp => sp.GetRequiredService<PerformanceSimulationService>());
 
         // Native-first runtime: PostgreSQL is the durable coordination boundary.
-        // No Redis daemon, container, or Docker Desktop is required.
+        // No external coordination daemon, container, or Docker Desktop is required.
         services.AddSingleton<IQueueClient, PostgresQueueClient>();
         return services;
     }

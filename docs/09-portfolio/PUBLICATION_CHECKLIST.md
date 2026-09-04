@@ -48,4 +48,4 @@ Only evidence whose manifest/sourceCommit equals the publication SHA can support
 
 After the gates pass, use the existing portfolio publication scripts to change repository visibility/release state. Review the repository signed out and ensure the README, architecture, implementation-vs-verification boundary, historical/current evidence distinction, source/tests, and release artifacts are reachable.
 
-Accurate metadata topics should include `developer-tools`, `game-development`, `qa-automation`, `dotnet`, `blazor`, `postgresql`, `devops`, `unity`, and `unreal-engine` as applicable. Redis should not be advertised as a current runtime dependency.
+Accurate metadata topics should include `developer-tools`, `game-development`, `qa-automation`, `dotnet`, `blazor`, `postgresql`, `devops`, `unity`, and `unreal-engine` as applicable. PostgreSQL-backed queueing should be described as part of the current runtime architecture.

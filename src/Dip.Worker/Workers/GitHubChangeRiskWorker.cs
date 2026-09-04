@@ -8,9 +8,9 @@ using Microsoft.Extensions.Options;
 namespace Dip.Worker.Workers;
 
 /// <summary>Creates deterministic Change Risk evidence from GitHub push payloads without blocking webhook ingestion.</summary>
-public sealed class GitHubChangeRiskWorker(IServiceScopeFactory scopes,IQueueClient queue,IOptions<RedisQueueOptions> options,ILogger<GitHubChangeRiskWorker> logger):BackgroundService
+public sealed class GitHubChangeRiskWorker(IServiceScopeFactory scopes,IQueueClient queue,IOptions<QueueOptions> options,ILogger<GitHubChangeRiskWorker> logger):BackgroundService
 {
-    private readonly RedisQueueOptions _options=options.Value;
+    private readonly QueueOptions _options=options.Value;
     private readonly string _consumer=$"{Environment.MachineName}-change-risk-{Guid.NewGuid():N}";
     private string Group=>$"{_options.ConsumerGroup}:change-risk";
 

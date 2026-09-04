@@ -12,7 +12,7 @@ Required for the supported Native-first runtime:
 - Git;
 - Visual Studio 2022, Visual Studio Code, or JetBrains Rider.
 
-Node.js is required for browser E2E. Unity/Unreal/CMake/native analyzers are required only for the corresponding integration or QA path. Docker and Redis are not required.
+Node.js is required for browser E2E. Unity/Unreal/CMake/native analyzers are required only for the corresponding integration or QA path. Docker and an external queue daemon are not required.
 
 After creating the local `dip` PostgreSQL database/user, start the complete stack with:
 

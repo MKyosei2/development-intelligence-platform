@@ -62,7 +62,6 @@ if ($LASTEXITCODE -ne 0) { throw 'GUI Phase 1 static validation failed.' }
 
 $ports = [ordered]@{
     POSTGRES_PORT = Get-FreeTcpPort
-    REDIS_PORT = Get-FreeTcpPort
     ANALYSIS_PORT = Get-FreeTcpPort
     API_PORT = Get-FreeTcpPort
     WEB_PORT = Get-FreeTcpPort
@@ -76,7 +75,6 @@ $composeProject = 'dip-gui-phase1-' + ([Guid]::NewGuid().ToString('N').Substring
     'POSTGRES_USER=dip'
     'POSTGRES_PASSWORD=dip-local-password'
     "POSTGRES_PORT=$($ports.POSTGRES_PORT)"
-    "REDIS_PORT=$($ports.REDIS_PORT)"
     "ANALYSIS_PORT=$($ports.ANALYSIS_PORT)"
     "API_PORT=$($ports.API_PORT)"
     "WEB_PORT=$($ports.WEB_PORT)"
@@ -92,7 +90,7 @@ $success = $false
 
 try {
     Write-Host "Building isolated GUI Phase 1 stack ($composeProject)..." -ForegroundColor Cyan
-    & docker compose -p $composeProject --env-file $envFile up -d --build --remove-orphans postgres redis python-analysis api worker web
+    & docker compose -p $composeProject --env-file $envFile up -d --build --remove-orphans postgres python-analysis api worker web
     if ($LASTEXITCODE -ne 0) { throw "docker compose up failed with exit code $LASTEXITCODE." }
 
     $deadline = [DateTimeOffset]::UtcNow.AddSeconds([Math]::Max(120, [Math]::Min(1200, $StartupTimeoutSeconds)))
@@ -102,7 +100,7 @@ try {
     Wait-Http 'Web GUI' "$web/" $deadline
 
     $status = Invoke-RestMethod -Uri "$api/api/v1/system/status" -Method Get -TimeoutSec 15
-    foreach ($key in @('api','database','redis','analysis','worker','artifact-store')) {
+    foreach ($key in @('api','database','coordination','analysis','worker','artifact-store')) {
         $component = @($status.components | Where-Object { $_.key -eq $key }) | Select-Object -First 1
         if ($null -eq $component -or $component.state -ne 'Healthy') {
             throw "System Status core component '$key' is not Healthy."

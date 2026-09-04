@@ -2,7 +2,7 @@
 
 DIP is a development-intelligence platform for game, media and software teams. It connects Git/CI/QA/runtime/performance/project data into traceable evidence inside a shared Project Context, then uses that evidence for Project Truth, quality automation, performance analysis, release readiness and evidence-grounded debugging.
 
-> **Native-first runtime:** Docker Desktop, Docker Engine and Redis are not required. PostgreSQL is the durable system of record and queue/coordination boundary; .NET and Python services run directly on the host.
+> **Native-first runtime:** Docker Desktop, Docker Engine and an external queue daemon are not required. PostgreSQL is the durable system of record and queue/coordination boundary; .NET and Python services run directly on the host.
 
 ## Engineering principles
 
@@ -32,7 +32,7 @@ Browser
           └── Unity / Unreal / C++ / toolchain integrations
 ```
 
-Redis is no longer a runtime prerequisite. The generic queue is PostgreSQL-backed, while the existing Durable Job subsystem remains PostgreSQL-backed as well.
+The generic queue and the existing Durable Job subsystem are PostgreSQL-backed.
 
 ## Requirements
 
@@ -133,7 +133,7 @@ On Windows the intended hard boundary is a dedicated low-privilege account + ACL
 .\scripts\Run-PortfolioBenchmarks.ps1
 ```
 
-The benchmark still measures project-list latency, collector ingestion, controlled burst load, large Metric aggregation and paced soak/memory growth. It creates a temporary PostgreSQL benchmark database and removes it afterwards. No Docker/Redis service is started.
+The benchmark still measures project-list latency, collector ingestion, controlled burst load, large Metric aggregation and paced soak/memory growth. It creates a temporary PostgreSQL benchmark database and removes it afterwards. No Docker or external queue service is started.
 
 Current-revision numbers must come from a run whose artifact records that exact SHA. Historical benchmark numbers are baselines only and are not inherited by later commits.
 

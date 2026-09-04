@@ -8,10 +8,6 @@ services:
         max-file: "3"
     stop_grace_period: 30s
 
-  redis:
-    logging: *dip-logging
-    stop_grace_period: 15s
-
   python-analysis:
     logging: *dip-logging
     stop_grace_period: 30s

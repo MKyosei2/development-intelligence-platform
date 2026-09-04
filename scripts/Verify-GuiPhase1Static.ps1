@@ -28,7 +28,12 @@ foreach ($relative in $required) {
     if ((Get-Item -LiteralPath $path).Length -eq 0) { throw "GUI Phase 1 file is zero bytes: $relative" }
 }
 
-$emptyWeb = Get-ChildItem (Join-Path $root "src/Dip.Web") -File -Recurse | Where-Object Length -eq 0
+$webRoot = Join-Path $root "src/Dip.Web"
+$emptyWeb = Get-ChildItem $webRoot -File -Recurse | Where-Object {
+  $_.Length -eq 0 -and
+  $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and
+  $_.Name -ne '.gitkeep'
+}
 if ($emptyWeb) { throw "Zero-byte Dip.Web source remains: $($emptyWeb.FullName -join ', ')" }
 
 Get-Content (Join-Path $root "src/Dip.Api/appsettings.json") -Raw | ConvertFrom-Json | Out-Null

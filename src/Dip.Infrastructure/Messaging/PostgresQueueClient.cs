@@ -8,8 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Dip.Infrastructure.Messaging;
 
-// File name is retained to keep the patch overlay limited to existing repository files.
-// The runtime implementation is PostgreSQL-backed; Redis is no longer required.
 public sealed class PostgresQueueClient(IServiceScopeFactory scopeFactory) : IQueueClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

@@ -28,16 +28,17 @@ Mitigation:
 - Keep provider-specific payload/artifacts available while promoting only stable, decision-relevant fields into common Evidence.
 - Fail closed on ambiguous cross-source matching instead of silently merging identities.
 
-## 3. Engineering decision: PostgreSQL is truth; Redis is coordination
+## 3. Engineering decision: PostgreSQL is truth and the coordination boundary
 
-DIP separates durable state from delivery mechanics.
+DIP keeps durable business state and durable queue-delivery state in PostgreSQL while preserving delivery mechanics behind a provider-neutral interface.
 
-- PostgreSQL: durable project/evidence/job state.
-- Redis: coordination and delivery acceleration.
+- PostgreSQL: durable project/evidence/job state and queue-delivery state.
+- `IQueueClient`: provider-neutral delivery boundary.
+- `PostgresQueueClient`: lease, acknowledgement, retry and dead-letter implementation.
 - Worker: asynchronous ingestion/analysis execution.
 - Python service: isolated analysis capability.
 
-The design avoids making queue delivery itself the authoritative business state. Jobs can therefore be reasoned about in terms of persisted state, lease/heartbeat/retry/recovery, rather than "the message disappeared so the work must be done".
+Queue messages are not treated as authoritative business state. Delivery records are persisted explicitly, so jobs can be reasoned about in terms of state, lease, acknowledgement, retry and recovery rather than "the message disappeared so the work must be done". Consolidating coordination in PostgreSQL removes a mandatory runtime dependency, at the cost of additional database load that must be measured and capacity-planned.
 
 ## 4. Engineering decision: exact-revision evidence
 

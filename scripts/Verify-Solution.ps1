@@ -3,7 +3,6 @@ param(
     [ValidateSet('Debug','Release')][string]$Configuration='Release',
     [switch]$KeepServicesRunning,
     [int]$PostgreSqlPort=55432,
-    [int]$RedisPort=56379,
     [int]$ApiPort=55080
 )
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
@@ -20,9 +19,9 @@ try{
  Invoke-Checked 'dotnet' @('restore','DevelopmentIntelligencePlatform.sln')
  Invoke-Checked 'dotnet' @('build','DevelopmentIntelligencePlatform.sln','-c',$Configuration,'--no-restore')
  foreach($project in @('tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj','tests/Dip.Application.Tests/Dip.Application.Tests.csproj','tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj')){Invoke-Checked 'dotnet' @('test',$project,'-c',$Configuration,'--no-build')}
- $env:POSTGRES_DB='dip_verification';$env:POSTGRES_USER='dip';$env:POSTGRES_PASSWORD='dip-verification-password';$env:POSTGRES_PORT="$PostgreSqlPort";$env:REDIS_PORT="$RedisPort"
- $env:ConnectionStrings__PostgreSql="Host=127.0.0.1;Port=$PostgreSqlPort;Database=dip_verification;Username=dip;Password=dip-verification-password";$env:Redis__ConnectionString="127.0.0.1:$RedisPort";$env:GitHub__WebhookSecret='integration-test-secret';$env:ASPNETCORE_ENVIRONMENT='Development';$env:DOTNET_ENVIRONMENT='Development'
- Invoke-Checked 'docker' @('compose','--project-name','dip-final-verification','up','-d','postgres','redis');$composeStarted=$true
+ $env:POSTGRES_DB='dip_verification';$env:POSTGRES_USER='dip';$env:POSTGRES_PASSWORD='dip-verification-password';$env:POSTGRES_PORT="$PostgreSqlPort"
+ $env:ConnectionStrings__PostgreSql="Host=127.0.0.1;Port=$PostgreSqlPort;Database=dip_verification;Username=dip;Password=dip-verification-password";$env:GitHub__WebhookSecret='integration-test-secret';$env:ASPNETCORE_ENVIRONMENT='Development';$env:DOTNET_ENVIRONMENT='Development'
+ Invoke-Checked 'docker' @('compose','--project-name','dip-final-verification','up','-d','postgres');$composeStarted=$true
  Start-Sleep -Seconds 5
  Invoke-Checked 'dotnet' @('test','tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj','-c',$Configuration,'--no-build')
  $apiOut=Join-Path $out 'api.stdout.log';$apiErr=Join-Path $out 'api.stderr.log';$workerOut=Join-Path $out 'worker.stdout.log';$workerErr=Join-Path $out 'worker.stderr.log'

@@ -8,13 +8,13 @@ namespace Dip.Worker.Workers;
 public sealed class AnalysisRequestWorker : BackgroundService
 {
     private readonly IQueueClient _queue;
-    private readonly RedisQueueOptions _options;
+    private readonly QueueOptions _options;
     private readonly WorkerOptions _workerOptions;
     private readonly ILogger<AnalysisRequestWorker> _logger;
 
     public AnalysisRequestWorker(
         IQueueClient queue,
-        IOptions<RedisQueueOptions> options,
+        IOptions<QueueOptions> options,
         IOptions<WorkerOptions> workerOptions,
         ILogger<AnalysisRequestWorker> logger)
     {

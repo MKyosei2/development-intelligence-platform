@@ -178,8 +178,8 @@ public sealed class GitHubWebhookProcessor
             await _evidence.AddAsync(evidence, cancellationToken);
         }
 
-        // Publish before recording the delivery as completed. If Redis is
-        // unavailable, GitHub can retry the same delivery instead of the
+        // Publish before recording the delivery as completed. If durable queue
+        // persistence fails, GitHub can retry the same delivery instead of the
         // database permanently classifying an unqueued webhook as duplicate.
         await _queue.PublishAsync(
             "github-webhooks",

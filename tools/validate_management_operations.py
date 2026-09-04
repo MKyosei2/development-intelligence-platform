@@ -5,7 +5,7 @@ This is intentionally not a replacement for `dotnet build` or live connector tes
 It verifies that high-risk integration surfaces remain wired across Domain/Application/API/Web/Worker/config.
 """
 from __future__ import annotations
-import argparse, json, sys
+import argparse, json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -124,7 +124,12 @@ for token in ["Daily Cockpit", "Operational alerts", "Pending approvals", "Risk 
     check("web_" + token.lower().replace(" ", "_").replace("&", "and"), token in page, f"Management Web exposes {token}")
 check("web_full_update_fields", all(x in page for x in ["_riskMitigation", "_decisionStatus", "_actionCompletion", "_changeRequirementKeys", "_allocationRationale"]), "GUI update paths preserve extended management fields")
 check("web_approval_bound_role_select", "CurrentActorRoles" in page and "Select bound role" in page, "Approval response UI only offers management roles bound to the signed-in actor")
-check("web_cockpit_bound_role_filter", "All accessible work" in page and "@foreach(var role in CurrentActorRoles)" in page, "Daily Cockpit My-role filter is selected from roles bound to the signed-in actor")
+check(
+    "web_cockpit_bound_role_filter",
+    "All accessible work" in page
+    and re.search(r"@foreach\s*\(\s*var\s+role\s+in\s+CurrentActorRoles\s*\)", page) is not None,
+    "Daily Cockpit My-role filter is selected from roles bound to the signed-in actor",
+)
 
 # Cross-feature completion checks added after the browser-first lifecycle/evidence pass.
 access = text("src/Dip.Application/Features/Authorization/ProjectAccessService.cs")

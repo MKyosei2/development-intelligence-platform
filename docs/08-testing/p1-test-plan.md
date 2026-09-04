@@ -5,7 +5,7 @@ P1 is complete only when the vertical evidence path is verified, not merely when
 ## Required automated checks
 1. Build `DevelopmentIntelligencePlatform.sln` in Release.
 2. Run Domain, Application, Infrastructure and Integration tests.
-3. Run E2E tests with API/Worker/PostgreSQL/Redis active.
+3. Run E2E tests with API/Worker/PostgreSQL active.
 4. Verify the Python Bug Zoo runtime error is detected and automatically reproduced.
 5. On Windows, build capture-agent, crash-watchdog, hardware-probe and hardware-stress-agent.
 6. On an interactive Windows machine, run a capture smoke and verify MP4/WAV artifact finalization.

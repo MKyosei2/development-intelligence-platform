@@ -1,0 +1,38 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Current Queue Depth",
+      "datasource": {"type": "prometheus", "uid": "dip-prometheus"},
+      "targets": [{"expr": "max(dip_job_queue_depth)", "refId": "A"}],
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Lease Recoveries / 1h",
+      "datasource": {"type": "prometheus", "uid": "dip-prometheus"},
+      "targets": [{"expr": "sum(increase(dip_job_lease_recovered_total[1h]))", "refId": "A"}],
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker Throughput",
+      "datasource": {"type": "prometheus", "uid": "dip-prometheus"},
+      "targets": [
+        {"expr": "sum by (type) (rate(dip_jobs_started_total[5m]))", "legendFormat": "started {{type}}", "refId": "A"},
+        {"expr": "sum by (type,status) (rate(dip_jobs_finished_total[5m]))", "legendFormat": "finished {{type}} / {{status}}", "refId": "B"}
+      ],
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 0}
+    }
+  ],
+  "schemaVersion": 41,
+  "tags": ["dip", "worker"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "DIP Worker Overview",
+  "uid": "dip-worker-overview",
+  "version": 1
+}

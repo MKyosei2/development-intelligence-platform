@@ -75,4 +75,4 @@ Verify Dashboard/API distinguish:
 
 ## Required P2 completion evidence
 
-On a full Windows development machine, `scripts/Verify-P2.ps1` must complete successfully. Live E2E additionally requires PostgreSQL, Redis, API and Worker. CI must remain green after the P2 changeset is committed.
+On a full Windows development machine, `scripts/Verify-P2.ps1` must complete successfully. Live E2E additionally requires PostgreSQL, API and Worker. CI must remain green after the P2 changeset is committed.

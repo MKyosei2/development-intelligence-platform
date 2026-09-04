@@ -47,7 +47,7 @@ public sealed class SystemStatusController(
         var components = (await BuildCriticalComponentsAsync(checkedAt, cancellationToken)).ToList();
         components.Add(new SystemComponentStatusDto(
             "coordination", "Durable Coordination", SystemComponentStates.Healthy,
-            "Queue coordination is PostgreSQL-backed; no Redis daemon is required.", checkedAt));
+            "Queue coordination and delivery state are PostgreSQL-backed.", checkedAt));
 
         var sandboxEnabled = configuration.GetValue<bool?>("Qa:SandboxEnabled") ?? true;
         components.Add(new SystemComponentStatusDto("qa-sandbox", "QA Sandbox",

@@ -2,12 +2,11 @@
 
 ```mermaid
 flowchart TB
- U[Browser] --> N[Nginx]
- N --> W[Web]
- N --> A[API]
+ U[Browser] --> C[Caddy]
+ C --> W[Web]
+ C --> A[API]
  A --> P[(PostgreSQL)]
- A --> R[(Redis)]
- K[Worker] --> R
+ K[Worker] --> P
  K --> PY[Python]
  A --> O[OTel]
  PY --> O

@@ -8,13 +8,13 @@ namespace Dip.Worker.Workers;
 public sealed class NotificationWorker : BackgroundService
 {
     private readonly IQueueClient _queue;
-    private readonly RedisQueueOptions _options;
+    private readonly QueueOptions _options;
     private readonly WorkerOptions _workerOptions;
     private readonly ILogger<NotificationWorker> _logger;
 
     public NotificationWorker(
         IQueueClient queue,
-        IOptions<RedisQueueOptions> options,
+        IOptions<QueueOptions> options,
         IOptions<WorkerOptions> workerOptions,
         ILogger<NotificationWorker> logger)
     {

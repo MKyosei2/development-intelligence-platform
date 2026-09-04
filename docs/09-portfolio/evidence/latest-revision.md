@@ -6,7 +6,7 @@ This file keeps **Implemented**, **Tested**, **Runtime Verified**, and **Infrast
 
 ## Native-first evidence
 
-Current runtime verification is host-native. Docker/Redis execution is not required evidence. `GUI E2E` writes `artifacts/gui-runtime-verification/<timestamp>/...`; `Native Package Build` creates an exact-SHA release archive/hash; benchmark/DR/migration scripts write their own revision-bound evidence.
+Current runtime verification is host-native. Docker and external queue-daemon execution are not required evidence. `GUI E2E` writes `artifacts/gui-runtime-verification/<timestamp>/...`; `Native Package Build` creates an exact-SHA release archive/hash; benchmark/DR/migration scripts write their own revision-bound evidence.
 
 ## Required verification after a source change
 

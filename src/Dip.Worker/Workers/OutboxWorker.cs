@@ -11,12 +11,12 @@ namespace Dip.Worker.Workers;
 public sealed class OutboxWorker(
     IServiceScopeFactory scopes,
     IQueueClient queue,
-    IOptions<RedisQueueOptions> qopt,
+    IOptions<QueueOptions> qopt,
     IOptions<DurableJobQueueOptions> jobOptions,
     IOptions<WorkerOptions> wopt,
     ILogger<OutboxWorker> logger):BackgroundService
 {
-    private readonly RedisQueueOptions _q=qopt.Value;private readonly DurableJobQueueOptions _jobs=jobOptions.Value;private readonly WorkerOptions _w=wopt.Value;
+    private readonly QueueOptions _q=qopt.Value;private readonly DurableJobQueueOptions _jobs=jobOptions.Value;private readonly WorkerOptions _w=wopt.Value;
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
         while(!stop.IsCancellationRequested)

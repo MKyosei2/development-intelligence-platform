@@ -53,7 +53,6 @@ artifacts/**
 reports/generated/
 reports/tmp/
 .pgdata/
-redis-data/
 minio-data/
 *.tmp
 *.temp
