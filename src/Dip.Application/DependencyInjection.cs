@@ -21,6 +21,9 @@ public static class DependencyInjection
         services.AddScoped<ProjectClaimService>();
         services.AddScoped<ProjectTruthService>();
         services.AddScoped<QaOrchestrationService>();
+        services.AddScoped<CommercialQualityOperationsService>();
+        services.AddScoped<BranchQualityOperationsService>();
+        services.AddSingleton<IBranchQaWorkspaceManager,GitBranchQaWorkspaceManager>();
         services.AddScoped<AutonomousDebugService>();
         services.AddScoped<IAutonomousDebugAgent>(sp=>sp.GetRequiredService<IFixProposalAgent>() as IAutonomousDebugAgent??throw new InvalidOperationException("The configured fix proposal agent does not support autonomous debugging."));
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceCoreEngine>();
@@ -76,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.Management.ManagementSpreadsheetService>();
         services.AddScoped<Dip.Application.Features.Management.SpreadsheetSchemaInferenceService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementOperationsService>();
+        services.AddScoped<Dip.Application.Features.Management.ProjectManagementCommandCenterService>();
         services.AddScoped<Dip.Application.Features.Management.ManagementSyncService>();
         services.AddScoped<Dip.Application.Features.Management.PortfolioManagementService>();
         services.AddScoped<Dip.Application.Features.Management.WorkCalendarIntegrationService>();
@@ -95,7 +99,10 @@ public static class DependencyInjection
         services.AddSingleton<ProjectTruthPolicy>(ProjectTruthPolicy.Default);
         services.AddSingleton<ProjectRiskEvaluator>();
         services.AddSingleton<ProjectTruthEvaluator>();
+        services.AddSingleton<AdaptiveProjectRiskEvaluator>();
         services.AddSingleton<PmEvidenceTranslator>();
+        services.AddSingleton(CommercialQaServiceLevelPolicy.Default);
+        services.AddSingleton<ICrossCuttingQaPack,ProductionCapabilityQaPack>();
         return services;
     }
 }

@@ -1,0 +1,212 @@
+@page "/dashboard/{ProjectId:guid}/qa/branches"
+@page "/dashboard/{ProjectId:guid}/branch-quality"
+@inject ApiClient Api
+
+<PageTitle>Branch Quality | DIP</PageTitle>
+
+<section class="branch-page" data-testid="branch-quality-center">
+    <header class="branch-hero">
+        <div>
+            <div class="eyebrow">Branch-aware verification</div>
+            <h1>Branch Quality Center</h1>
+            <p>Verify the exact Git branch revision in an isolated workspace. Git working trees use detached worktrees; GitHub archive workspaces use authenticated per-branch snapshots. The shared project workspace is never checked out or overwritten.</p>
+        </div>
+        <div class="hero-actions">
+            <button class="btn btn-outline-secondary" @onclick="() => LoadAsync(false)" disabled="@_loading">↻ Refresh evidence</button>
+            <button class="btn btn-primary" data-testid="refresh-git-branches" @onclick="() => LoadAsync(true)" disabled="@(_loading || _repository?.Workspace is null)">Refresh branch catalog</button>
+        </div>
+    </header>
+
+    @if (_loading)
+    {
+        <LoadingState Message="Loading branch quality evidence…" />
+    }
+    else if (_error is not null)
+    {
+        <ErrorState Message="@_error" Retry="Reload" />
+    }
+    else if (_repository?.Workspace is null)
+    {
+        <section class="card"><div class="card-body branch-empty"><strong>A synchronized repository workspace is required.</strong><p>Synchronize the repository first. Branch QA uses that repository only as the source for isolated worktrees.</p><a class="btn btn-primary" href="@($"/dashboard/{ProjectId}/repository")">Open Repository</a></div></section>
+    }
+    else if (_data is not null)
+    {
+        @if (!string.IsNullOrWhiteSpace(_data.Warning))
+        {
+            <div class="alert alert-warning"><strong>Branch catalog warning.</strong> @_data.Warning</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(_notice))
+        {
+            <div class="alert alert-info">@_notice</div>
+        }
+
+        <div class="branch-kpis">
+            <article><span>Branches</span><strong>@_data.Branches</strong><small>@_data.RepositoryRefreshStatus refs</small></article>
+            <article><span>Verified</span><strong>@_data.VerifiedBranches</strong><small>branch QA exists</small></article>
+            <article><span>Ready</span><strong>@_data.ReadyBranches</strong><small>fresh + clean</small></article>
+            <article><span>Blocked</span><strong>@_data.BlockedBranches</strong><small>do not promote</small></article>
+            <article><span>Default</span><strong class="branch-name">@_data.DefaultBranch</strong><small>release baseline</small></article>
+        </div>
+
+        <div class="branch-grid">
+            <section class="branch-list-card">
+                <div class="branch-toolbar">
+                    <div>
+                        <div class="eyebrow">Repository branches</div>
+                        <strong>Quality by branch</strong>
+                    </div>
+                    <div class="branch-filters">
+                        <input class="form-control" data-testid="branch-search" placeholder="Search branch…" @bind="_search" @bind:event="oninput" />
+                        <select class="form-select" @bind="_gateFilter">
+                            <option value="All">All gates</option>
+                            <option value="Ready">Ready</option>
+                            <option value="Hold">Hold</option>
+                            <option value="Blocked">Blocked</option>
+                            <option value="Unknown">QA required</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="manual-branch-run" data-testid="manual-branch-run">
+                    <div><strong>Verify any branch</strong><small>Use this when a branch has no open PR/workflow yet. DIP resolves the exact branch head before QA and fails closed if the branch does not exist.</small></div>
+                    <input class="form-control" data-testid="manual-branch-name" placeholder="feature/my-branch or release/1.2" @bind="_manualBranch" />
+                    <button class="btn btn-outline-primary" data-testid="run-manual-branch-qa" disabled="@(_running || string.IsNullOrWhiteSpace(_manualBranch))" @onclick="RunManualAsync">Run branch QA</button>
+                </div>
+
+                <div class="branch-table-wrap">
+                    <table class="branch-table">
+                        <thead><tr><th>Branch</th><th>Revision</th><th>Delta</th><th>Latest QA</th><th>Issues</th><th>Gate</th></tr></thead>
+                        <tbody>
+                        @foreach (var branch in FilteredBranches)
+                        {
+                            <tr class="@(Selected?.Branch == branch.Branch ? "selected" : string.Empty)" @onclick="() => Select(branch)">
+                                <td>
+                                    <div class="branch-title"><strong>@branch.Branch</strong>@if(branch.IsDefault){<span class="default-pill">DEFAULT</span>}</div>
+                                    <small>@(branch.RemoteTracked ? "origin tracked" : branch.Source) · @branch.Freshness</small>
+                                </td>
+                                <td><code>@ShortSha(branch.CommitSha)</code></td>
+                                <td><span class="ahead">+@branch.AheadOfDefault</span> <span class="behind">−@branch.BehindDefault</span></td>
+                                <td>@if(branch.LatestQaRunId is null){<span class="muted">Not run</span>}else{<StatusBadge Value="@(branch.LatestQaStatus ?? "Unknown")" /><small class="d-block">@Age(branch.LatestQaAgeHours)</small>}</td>
+                                <td><span class="issue-critical">@branch.OpenCriticalIssues C</span><span class="issue-warning">@branch.OpenWarningIssues W</span></td>
+                                <td><span class="gate @GateClass(branch.Gate.Status)">@branch.Gate.Label</span></td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <aside class="branch-detail-card">
+                @if (Selected is null)
+                {
+                    <div class="branch-empty"><strong>Select a branch</strong><p>Inspect its exact revision, promotion gate and QA evidence.</p></div>
+                }
+                else
+                {
+                    <div class="detail-head">
+                        <div><div class="eyebrow">@((Selected.IsDefault) ? "Default branch" : "Working branch")</div><h2>@Selected.Branch</h2></div>
+                        <span class="gate large @GateClass(Selected.Gate.Status)">@Selected.Gate.Label</span>
+                    </div>
+                    <div class="revision-box"><span>Revision</span><code>@(Selected.CommitSha ?? "unknown")</code><small>@Selected.Source · @Selected.RefreshStatus</small></div>
+                    <p class="gate-reason">@Selected.Gate.Reason</p>
+                    <div class="detail-metrics">
+                        <div><span>Ahead of default</span><strong>@Selected.AheadOfDefault</strong></div>
+                        <div><span>Behind default</span><strong>@Selected.BehindDefault</strong></div>
+                        <div><span>QA runs</span><strong>@Selected.QaRuns</strong></div>
+                        <div><span>Evidence age</span><strong>@Age(Selected.LatestQaAgeHours)</strong></div>
+                        <div><span>Critical</span><strong>@Selected.OpenCriticalIssues</strong></div>
+                        <div><span>Warnings</span><strong>@Selected.OpenWarningIssues</strong></div>
+                    </div>
+                    <div class="next-action"><span>Required next action</span><strong>@Selected.Gate.NextAction</strong></div>
+                    @if (!string.IsNullOrWhiteSpace(Selected.Warning)) { <div class="small text-warning mt-2">@Selected.Warning</div> }
+                    <div class="detail-actions">
+                        <button class="btn btn-primary" data-testid="run-selected-branch-qa" disabled="@_running" @onclick="RunSelectedAsync">@(_running ? "Running isolated QA…" : "Run QA on this branch")</button>
+                        @if (Selected.LatestQaRunId is { } runId)
+                        {
+                            <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/qa/runs/{runId}")">Open latest evidence</a>
+                        }
+                        <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/quality-operations")">Quality operations</a>
+                    </div>
+                    <div class="isolation-note"><strong>Isolation guarantee</strong><span>DIP never checks out the shared workspace. Git repositories use a detached temporary worktree; GitHub archive workspaces download an authenticated temporary branch snapshot. The exact branch + SHA are stored on the QA PipelineRun, then the temporary workspace is removed.</span></div>
+                }
+            </aside>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private Dip.Application.Features.GitHubIntegration.GitHubProjectRepositoryDto? _repository;
+    private BranchQualityOverviewDto? _data;
+    private BranchQualityStateDto? Selected;
+    private bool _loading=true;
+    private bool _running;
+    private string? _error;
+    private string? _notice;
+    private string _search=string.Empty;
+    private string _gateFilter="All";
+    private string _manualBranch=string.Empty;
+
+    protected override async Task OnParametersSetAsync()=>await LoadAsync(false);
+    private Task Reload()=>LoadAsync(false);
+
+    private async Task LoadAsync(bool refreshRemote)
+    {
+        _loading=true;_error=null;
+        try
+        {
+            _repository=await Api.GetProjectRepositoryAsync(ProjectId);
+            if(_repository.Workspace is not null)
+            {
+                _data=await Api.GetBranchQualityAsync(ProjectId,_repository.Workspace.WorkspaceRelativePath,refreshRemote);
+                if(Selected is not null)Selected=_data.Items.FirstOrDefault(x=>x.Branch.Equals(Selected.Branch,StringComparison.OrdinalIgnoreCase));
+                Selected??=_data.Items.FirstOrDefault(x=>x.IsDefault)??_data.Items.FirstOrDefault();
+            }
+        }
+        catch(Exception ex){_error=ex.Message;}
+        finally{_loading=false;}
+    }
+
+    private IReadOnlyList<BranchQualityStateDto> FilteredBranches
+        =>(_data?.Items??Array.Empty<BranchQualityStateDto>())
+            .Where(x=>string.IsNullOrWhiteSpace(_search)||x.Branch.Contains(_search,StringComparison.OrdinalIgnoreCase))
+            .Where(x=>_gateFilter=="All"||x.Gate.Status.Equals(_gateFilter,StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+    private void Select(BranchQualityStateDto branch)=>Selected=branch;
+
+    private async Task RunManualAsync()
+    {
+        if(_repository?.Workspace is null||string.IsNullOrWhiteSpace(_manualBranch))return;
+        var branch=_manualBranch.Trim();
+        _running=true;_notice=null;_error=null;
+        try
+        {
+            var result=await Api.RunBranchQaAsync(ProjectId,branch,_repository.Workspace.WorkspaceRelativePath,refreshRemote:true);
+            _notice=$"Branch QA finished: {branch} → {result.Status}, {result.FindingCount} finding(s).";
+            _manualBranch=string.Empty;
+            await LoadAsync(false);
+            Selected=_data?.Items.FirstOrDefault(x=>x.Branch.Equals(branch,StringComparison.OrdinalIgnoreCase))??Selected;
+        }
+        catch(Exception ex){_error=ex.Message;}
+        finally{_running=false;}
+    }
+
+    private async Task RunSelectedAsync()
+    {
+        if(Selected is null||_repository?.Workspace is null)return;
+        _running=true;_notice=null;_error=null;
+        try
+        {
+            var result=await Api.RunBranchQaAsync(ProjectId,Selected.Branch,_repository.Workspace.WorkspaceRelativePath,refreshRemote:true);
+            _notice=$"Branch QA finished: {Selected.Branch} @ {ShortSha(Selected.CommitSha)} → {result.Status}, {result.FindingCount} finding(s).";
+            await LoadAsync(false);
+        }
+        catch(Exception ex){_error=ex.Message;}
+        finally{_running=false;}
+    }
+
+    private static string GateClass(string value)=>value.ToLowerInvariant() switch{"ready"=>"ready","blocked"=>"blocked","hold"=>"hold",_=>"unknown"};
+    private static string ShortSha(string? value)=>string.IsNullOrWhiteSpace(value)?"—":value[..Math.Min(10,value.Length)];
+    private static string Age(decimal? hours)=>hours is null?"—":hours<1m?$"{hours*60m:0}m":hours<48m?$"{hours:0.#}h":$"{hours/24m:0.#}d";
+}

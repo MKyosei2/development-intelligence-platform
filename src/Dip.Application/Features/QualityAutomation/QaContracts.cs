@@ -3,7 +3,26 @@ using Dip.Domain.ValueObjects;
 
 namespace Dip.Application.Features.QualityAutomation;
 
-public sealed record QaExecutionCommand(Guid ProjectId,string SubjectKey,LanguageId Language,string WorkspaceRelativePath,string? CommitSha,string? RuntimeExecutable,IReadOnlyList<string>? RuntimeArguments,int TimeoutSeconds=120,bool AutomaticallyReproduce=true,bool RecordScreen=true,bool RecordSystemAudio=true);
+/// <summary>
+/// Universal QA command. BranchName is optional for backward compatibility.
+/// When supplied, DIP prepares an isolated Git worktree and verifies that exact
+/// branch revision without changing the shared synchronized workspace.
+/// </summary>
+public sealed record QaExecutionCommand(
+    Guid ProjectId,
+    string SubjectKey,
+    LanguageId Language,
+    string WorkspaceRelativePath,
+    string? CommitSha,
+    string? RuntimeExecutable,
+    IReadOnlyList<string>? RuntimeArguments,
+    int TimeoutSeconds=120,
+    bool AutomaticallyReproduce=true,
+    bool RecordScreen=true,
+    bool RecordSystemAudio=true,
+    string? BranchName=null,
+    bool RefreshRemoteBranch=false);
+
 public sealed record QaFindingCandidate(string Category,Severity Severity,string Tool,string Title,string Message,string? FilePath=null,int? Line=null,int? Column=null,string? Function=null,string? ExceptionType=null,string? StackTrace=null,string? RuleId=null,string DiagnosticSchemaVersion="dip.finding.v2",string? SourceFormat=null,string? SourceFormatVersion=null);
 public sealed record QaToolExecution(string Tool,bool WasAvailable,bool Succeeded,int? ExitCode,long DurationMs,string StandardOutputPath,string StandardErrorPath,string Summary,string? Executable=null,string? Version=null,string? SandboxJson=null,long CpuTimeMs=0);
 public sealed record QaAdapterResult(LanguageId Language,IReadOnlyList<QaToolExecution> Tools,IReadOnlyList<QaFindingCandidate> Findings,string SummaryJson);

@@ -159,6 +159,7 @@ public sealed class ManagementOperationsContractTests
         analysis.Sheets[0].Columns.Should().Contain(x => x.Field == "Approval");
     }
 
+
     [Fact]
     public void SpreadsheetSchemaInference_PrefersSheetIdentityOverRetakeAttribute()
     {

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Measured cross-platform toolchain benchmark for DIP Universal QA.
 
-This does not replace the .NET Dip.QaBugZooVerifier. It provides reproducible,
-measured bootstrap evidence on machines where the complete .NET/Unity toolchain
-is not available. Unsupported toolchains are reported as skipped, never passed.
+This bootstrap benchmark measures detection/reproduction mechanics without
+pretending to measure root-cause ranking that it does not exercise. Unsupported
+toolchains are reported as skipped, never passed.
 """
 from __future__ import annotations
 import argparse, hashlib, json, os, platform, shutil, subprocess, tempfile, time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import mean
 
 @dataclass
 class Case:
@@ -21,20 +22,17 @@ def run(cmd,cwd,timeout=30):
     try:
         p=subprocess.run(cmd,cwd=cwd,text=True,capture_output=True,timeout=timeout,env={**os.environ,"NO_COLOR":"1"})
         return p.returncode,(time.perf_counter()-t)*1000,(p.stdout+p.stderr)[-4000:]
-    except subprocess.TimeoutExpired as e:return 124,(time.perf_counter()-t)*1000,"timeout"
+    except subprocess.TimeoutExpired:
+        return 124,(time.perf_counter()-t)*1000,"timeout"
 
 def powershell_parse_cmd(file_name):
     escaped=file_name.replace("'","''")
-    script=(
-      "$errors=$null;$tokens=$null;"
-      f"[System.Management.Automation.Language.Parser]::ParseFile('{escaped}',[ref]$tokens,[ref]$errors)|Out-Null;"
-      "if($errors.Count -gt 0){exit 1};exit 0"
-    )
+    script=("$errors=$null;$tokens=$null;"+f"[System.Management.Automation.Language.Parser]::ParseFile('{escaped}',[ref]$tokens,[ref]$errors)|Out-Null;"+"if($errors.Count -gt 0){exit 1};exit 0")
     return [which("pwsh"),"-NoProfile","-NonInteractive","-Command",script]
 
 def cases():
     return [
-      Case("python","python", "app.py","x=1\nprint(x)\n", "app.py","def broken(:\n pass\n",lambda f:[which("python3") or which("python"),"-m","py_compile",f]),
+      Case("python","python","app.py","x=1\nprint(x)\n","app.py","def broken(:\n pass\n",lambda f:[which("python3") or which("python"),"-m","py_compile",f]),
       Case("javascript","node","app.js","const x=1; console.log(x);\n","app.js","function broken( {\n",lambda f:[which("node"),"--check",f]),
       Case("typescript","tsc","app.ts","const x: number = 1;\n","app.ts","const x: number = ;\n",lambda f:[which("tsc"),"--noEmit","--pretty","false","--target","ES2020",f]),
       Case("go","go","main.go","package main\nfunc main(){}\n","main.go","package main\nfunc main( {\n",lambda f:[which("go"),"test","./..."],{"go.mod":"module dipbench\ngo 1.22\n"}),
@@ -66,6 +64,8 @@ def version(tool):
       except Exception:pass
     return exe
 
+def pct(n,d): return round(100*n/d,2) if d else 0.0
+
 def main():
     ap=argparse.ArgumentParser();ap.add_argument("--output",default="artifacts/universal-qa-benchmark");a=ap.parse_args();out=Path(a.output).resolve();out.mkdir(parents=True,exist_ok=True);results=[]
     for c in cases():
@@ -77,13 +77,31 @@ def main():
         td=Path(td)
         for n,v in (c.extras or {}).items():(td/n).write_text(v,encoding="utf-8")
         clean=td/c.clean_name;clean.write_text(c.clean_src,encoding="utf-8")
-        rc0,ms0,log0=run(c.cmd(clean.name),td);clean.unlink();bad=td/c.bad_name;bad.write_text(c.bad_src,encoding="utf-8")
+        rc0,ms0,_=run(c.cmd(clean.name),td);clean.unlink();bad=td/c.bad_name;bad.write_text(c.bad_src,encoding="utf-8")
         rc1,ms1,log1=run(c.cmd(bad.name),td);rc2,ms2,_=run(c.cmd(bad.name),td)
-      row.update(cleanExitCode=rc0,defectExitCode=rc1,cleanPassed=rc0==0,defectDetected=rc1!=0,reproduced=(rc1!=0 and rc2!=0),durationMs=round(ms0+ms1+ms2,2),diagnosticPreview=log1[-800:]);results.append(row)
-    executed=[r for r in results if r["status"]=="executed"];bugs=len(executed);det=sum(r["defectDetected"] for r in executed);fp=sum(not r["cleanPassed"] for r in executed);rep=sum(r["reproduced"] for r in executed)
-    pct=lambda n,d:round(100*n/d,2) if d else 0.0
-    payload={"schemaVersion":"1.0","benchmark":"DIP Universal QA Toolchain Benchmark","evidenceClass":"measured-native-toolchain-bootstrap","generatedAt":datetime.now(timezone.utc).isoformat(),"environment":{"platform":platform.platform(),"python":platform.python_version()},"executedLanguages":[r["language"] for r in executed],"skippedLanguages":[r["language"] for r in results if r["status"]=="skipped"],"cases":bugs,"detectionRecallPercent":pct(det,bugs),"falsePositiveRatePercent":pct(fp,bugs),"reproductionRatePercent":pct(rep,bugs),"formalAdapterBenchmark":False,"note":"Measured native toolchain evidence. Formal DIP adapter evidence remains Dip.QaBugZooVerifier and must run with .NET/engine dependencies for the exact revision.","results":results}
+      row.update(cleanExitCode=rc0,defectExitCode=rc1,cleanPassed=rc0==0,defectDetected=rc1!=0,reproduced=(rc1!=0 and rc2!=0),cleanDurationMs=round(ms0,2),defectDetectionDurationMs=round(ms1,2),reproductionDurationMs=round(ms2,2),durationMs=round(ms0+ms1+ms2,2),diagnosticPreview=log1[-800:]);results.append(row)
+
+    executed=[r for r in results if r["status"]=="executed"]
+    tp=sum(r["defectDetected"] for r in executed); fn=len(executed)-tp
+    fp=sum(not r["cleanPassed"] for r in executed); tn=len(executed)-fp
+    reproduced=sum(r["reproduced"] for r in executed)
+    precision=pct(tp,tp+fp); recall=pct(tp,tp+fn); fpr=pct(fp,fp+tn); fnr=pct(fn,fn+tp)
+    detection_times=[r["defectDetectionDurationMs"] for r in executed]; reproduction_times=[r["reproductionDurationMs"] for r in executed if r["defectDetected"]]
+    slices=[{"language":r["language"],"detected":r["defectDetected"],"cleanPassed":r["cleanPassed"],"reproduced":r["reproduced"],"detectionMs":r["defectDetectionDurationMs"],"reproductionMs":r["reproductionDurationMs"]} for r in executed]
+    payload={
+      "schemaVersion":"2.0","benchmark":"DIP Universal QA Toolchain Benchmark","evidenceClass":"measured-native-toolchain-bootstrap","generatedAt":datetime.now(timezone.utc).isoformat(),
+      "environment":{"platform":platform.platform(),"python":platform.python_version()},
+      "executedLanguages":[r["language"] for r in executed],"skippedLanguages":[r["language"] for r in results if r["status"]=="skipped"],
+      "cases":len(executed),"confusionMatrix":{"truePositive":tp,"falsePositive":fp,"trueNegative":tn,"falseNegative":fn},
+      "precisionPercent":precision,"recallPercent":recall,"falsePositiveRatePercent":fpr,"falseNegativeRatePercent":fnr,
+      "reproductionRatePercent":pct(reproduced,len(executed)),
+      "meanDetectionTimeMs":round(mean(detection_times),2) if detection_times else None,"meanReproductionTimeMs":round(mean(reproduction_times),2) if reproduction_times else None,
+      "rootCauseTop1Accuracy":"not-measured-by-bootstrap","rootCauseTop3Accuracy":"not-measured-by-bootstrap",
+      "formalAdapterBenchmark":False,"note":"Bootstrap measures native-toolchain defect detection/reproduction only. Root-cause ranking requires labeled DIP adapter/diagnostic cases and is intentionally not inferred here.",
+      "domainSlices":slices,"results":results}
     raw=json.dumps(payload,indent=2,ensure_ascii=False);(out/"universal-qa-benchmark-results.json").write_text(raw,encoding="utf-8");sha=hashlib.sha256(raw.encode()).hexdigest();(out/"universal-qa-benchmark-results.sha256").write_text(sha+"  universal-qa-benchmark-results.json\n",encoding="ascii")
-    md=f"# DIP Universal QA Toolchain Benchmark\n\n- Evidence: **measured native toolchain bootstrap**\n- Executed languages: **{len(executed)}** ({', '.join(payload['executedLanguages']) or 'none'})\n- Detection recall: **{payload['detectionRecallPercent']}%**\n- False-positive rate: **{payload['falsePositiveRatePercent']}%**\n- Reproduction rate: **{payload['reproductionRatePercent']}%**\n- Skipped (tool unavailable): {', '.join(payload['skippedLanguages']) or 'none'}\n\nThis file never upgrades skipped toolchains to PASS. Formal adapter verification still requires `Dip.QaBugZooVerifier`.\n";(out/"universal-qa-benchmark-results.md").write_text(md,encoding="utf-8")
-    print(md);return 0 if executed and det==bugs and fp==0 and rep==bugs else 1
+    md=(f"# DIP Universal QA Toolchain Benchmark\n\n- Evidence: **measured native toolchain bootstrap**\n- Executed languages: **{len(executed)}** ({', '.join(payload['executedLanguages']) or 'none'})\n- Precision: **{precision}%**\n- Recall: **{recall}%**\n- False-positive rate: **{fpr}%**\n- False-negative rate: **{fnr}%**\n- Reproduction rate: **{payload['reproductionRatePercent']}%**\n- Mean detection time: **{payload['meanDetectionTimeMs']} ms**\n- Mean reproduction time: **{payload['meanReproductionTimeMs']} ms**\n- Root-cause Top-1 / Top-3: **not measured by this bootstrap**\n- Skipped (tool unavailable): {', '.join(payload['skippedLanguages']) or 'none'}\n\nSkipped toolchains are never upgraded to PASS. Formal adapter/root-cause verification requires labeled DIP cases on the exact revision.\n")
+    (out/"universal-qa-benchmark-results.md").write_text(md,encoding="utf-8");print(md)
+    return 0 if executed and fp==0 and fn==0 and reproduced==len(executed) else 1
+
 if __name__=="__main__":raise SystemExit(main())

@@ -1,35 +1,77 @@
 @using Dip.Application.Features.Management
+@using Dip.Application.Features.ProjectTruth
+@using Dip.Application.Features.QualityAutomation
+@using Dip.Web.Services
+@inject ApiClient Api
 
 <div class="metric-grid mb-4">
     <div class="metric-card"><span>Health</span><strong>@Cockpit.HealthScore.ToString("0.#")</strong><small>@Cockpit.OverallStatus</small></div>
-    <div class="metric-card"><span>Now</span><strong>@Cockpit.Now.Count</strong><small>decision / action items</small></div>
+    <div class="metric-card"><span>Release gate</span><strong>@(_commercial?.ReleaseGate.Status ?? "—")</strong><small>@(_commercial is null ? "quality evidence unavailable" : $"{_commercial.ReleaseGate.Label} · quality {_commercial.ReleaseGate.QualityScore:0}/100")</small></div>
+    <div class="metric-card"><span>P0 QA blockers</span><strong>@(_commercial?.Kpis.P0Blockers ?? 0)</strong><small>@(_commercial?.Kpis.SlaBreaches ?? 0) SLA breach(es)</small></div>
+    <div class="metric-card"><span>Now</span><strong>@DecisionCount</strong><small>top decisions</small></div>
     <div class="metric-card"><span>Approvals</span><strong>@Cockpit.PendingApprovals.Count</strong><small>pending</small></div>
     <div class="metric-card"><span>Sync conflicts</span><strong>@(Sync?.OpenConflicts ?? 0)</strong><small>manual resolution</small></div>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-12 col-xl-7">
-        <div class="card h-100">
-            <div class="card-header"><strong>Do now</strong></div>
+        <div class="card h-100" data-testid="pm-top-decisions">
+            <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <div><strong>What requires my decision today?</strong><small class="text-muted d-block">evidence-backed · max 3</small></div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a class="btn btn-primary btn-sm" data-testid="open-project-control-center" href="@($"/dashboard/{Cockpit.ProjectId}/project-control-center")">Project Control Center</a>
+                    <a class="btn btn-outline-primary btn-sm" href="@($"/dashboard/{Cockpit.ProjectId}/quality-operations")">Open Quality Command Center</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="@($"/dashboard/{Cockpit.ProjectId}/qa/branches")">Branch QA</a>
+                </div>
+            </div>
             <div class="card-body p-0">
-                @if (Cockpit.Now.Count == 0)
+                @if (TopQaDecisions.Count > 0)
                 {
-                    <div class="compact-empty"><span>✓</span><div><strong>No immediate management action</strong><small>There are no current escalations or pending decisions.</small></div></div>
+                    @foreach (var item in TopQaDecisions)
+                    {
+                        <div class="attention-item @(item.Decision.BlocksRelease ? "danger" : "warning")" data-testid="pm-qa-decision">
+                            <span>!</span>
+                            <div class="w-100">
+                                <div class="d-flex justify-content-between gap-2"><strong>@item.Title</strong><span class="badge bg-secondary">@item.Decision.Priority</span></div>
+                                <small>@item.Category · @item.Decision.OwnerRole · seen @item.OccurrenceCount time(s)</small>
+                                <div class="small mt-2"><b>Decision:</b> @item.Decision.Decision</div>
+                                <div class="small mt-1"><b>Why:</b> @item.Decision.Why</div>
+                                <div class="small mt-1"><b>Recommended:</b> @item.Decision.RecommendedAction</div>
+                                <div class="small mt-1"><b>Alternative:</b> @item.Decision.Alternative</div>
+                                <div class="small mt-1"><b>Residual risk:</b> @item.Decision.ResidualRisk</div>
+                                <div class="small text-muted mt-1">Confidence @item.Decision.ConfidencePercent.ToString("0.#")% · last evidence @item.LastSeenAtUtc.ToLocalTime().ToString("g")</div>
+                            </div>
+                        </div>
+                    }
+                    @if (_qaDecisions.Count > TopQaDecisions.Count)
+                    {
+                        <div class="px-3 py-2 small text-muted">@(_qaDecisions.Count - TopQaDecisions.Count) additional QA decision(s) remain in QA details.</div>
+                    }
                 }
-                else
+                else if (PriorityItems.Count > 0)
                 {
-                    @foreach (var item in Cockpit.Now)
+                    @foreach (var item in PriorityItems)
                     {
                         <div class="attention-item @(item.Severity == "Critical" ? "danger" : "warning")">
                             <span>!</span>
-                            <div>
-                                <strong>@item.Title</strong>
+                            <div class="w-100">
+                                <div class="d-flex justify-content-between gap-2"><strong>@item.Title</strong><span class="badge bg-secondary">@Priority(item)</span></div>
                                 <small>@item.Type · @(item.OwnerRole ?? "Unassigned") · @(item.DueAtUtc?.ToLocalTime().ToString("g") ?? "no due date")</small>
-                                <div class="small mt-1">@item.Action</div>
+                                <div class="small mt-2"><b>Why:</b> @Why(item)</div>
+                                <div class="small mt-1"><b>Recommended:</b> @item.Action</div>
+                                <div class="small mt-1"><b>Alternative:</b> @Alternative(item)</div>
+                                <div class="small mt-1"><b>Residual risk:</b> @ResidualRisk(item)</div>
                             </div>
-                            <span class="badge bg-secondary">@item.Severity</span>
                         </div>
                     }
+                    @if (Cockpit.Now.Count > PriorityItems.Count)
+                    {
+                        <div class="px-3 py-2 small text-muted">@(Cockpit.Now.Count - PriorityItems.Count) additional item(s) remain in the detailed management sections.</div>
+                    }
+                }
+                else
+                {
+                    <div class="compact-empty"><span>✓</span><div><strong>No immediate management decision</strong><small>There are no current QA release risks, escalations or pending decisions requiring action.</small></div></div>
                 }
             </div>
         </div>
@@ -61,6 +103,55 @@
     [Parameter] public SyncStateOverviewDto? Sync { get; set; }
     [Parameter] public OperatingCadenceDto? Cadence { get; set; }
     [Parameter] public EventCallback<string> OnCadenceRequested { get; set; }
+
+    private IReadOnlyList<PmQaDecisionItemDto> _qaDecisions = Array.Empty<PmQaDecisionItemDto>();
+    private CommercialQaCommandCenterDto? _commercial;
+    private Guid _loadedProjectId;
+    private DateTimeOffset? _loadedCockpitAt;
+
+    private IReadOnlyList<PmQaDecisionItemDto> TopQaDecisions => _qaDecisions
+        .OrderBy(x => PriorityRank(x.Decision.Priority))
+        .ThenByDescending(x => x.Decision.BlocksRelease)
+        .ThenByDescending(x => x.OccurrenceCount)
+        .ThenByDescending(x => x.LastSeenAtUtc)
+        .Take(3)
+        .ToArray();
+
+    private IReadOnlyList<CockpitDecisionDto> PriorityItems => Cockpit.Now
+        .OrderByDescending(x => SeverityRank(x.Severity))
+        .ThenBy(x => x.DueAtUtc ?? DateTimeOffset.MaxValue)
+        .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+        .Take(3)
+        .ToArray();
+
+    private int DecisionCount => TopQaDecisions.Count > 0 ? TopQaDecisions.Count : PriorityItems.Count;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Cockpit.ProjectId == Guid.Empty) return;
+        if (_loadedProjectId == Cockpit.ProjectId && _loadedCockpitAt == Cockpit.GeneratedAtUtc) return;
+        _loadedProjectId = Cockpit.ProjectId;
+        _loadedCockpitAt = Cockpit.GeneratedAtUtc;
+        try { _qaDecisions = await Api.GetQaPmDecisionsAsync(Cockpit.ProjectId, 10); }
+        catch { _qaDecisions = Array.Empty<PmQaDecisionItemDto>(); }
+        try { _commercial = await Api.GetCommercialQaCommandCenterAsync(Cockpit.ProjectId, 30); }
+        catch { _commercial = null; }
+    }
+
+    private static int PriorityRank(string value) => value.Equals("P0", StringComparison.OrdinalIgnoreCase) ? 0 : value.Equals("P1", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+    private static int SeverityRank(string severity) => severity.Equals("Critical", StringComparison.OrdinalIgnoreCase) ? 3
+        : severity.Equals("High", StringComparison.OrdinalIgnoreCase) ? 2
+        : severity.Equals("Warning", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+    private static string Priority(CockpitDecisionDto item) => SeverityRank(item.Severity) >= 3 ? "P0" : SeverityRank(item.Severity) >= 1 ? "P1" : "P2";
+    private static string Why(CockpitDecisionDto item) => SeverityRank(item.Severity) >= 3
+        ? "Current evidence indicates a release/milestone-level risk until a newer verification clears it."
+        : "This item can change schedule, quality or delivery confidence and needs an explicit owner decision.";
+    private static string Alternative(CockpitDecisionDto item) => SeverityRank(item.Severity) >= 3
+        ? "Reduce or disable affected scope and record explicit risk acceptance with rollback/verification evidence."
+        : "Temporarily accept only with an owner, review date and verification plan.";
+    private static string ResidualRisk(CockpitDecisionDto item) => SeverityRank(item.Severity) >= 3
+        ? "High until objective evidence proves the affected path is clean."
+        : "Moderate until resolved, accepted with evidence, or superseded by a clean run.";
 
     private Task RequestCadence(string mode) => OnCadenceRequested.InvokeAsync(mode);
 }

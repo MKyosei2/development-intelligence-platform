@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dip.local/schemas/production-profile.schema.json",
+  "title": "DIP Production QA Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "domain": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "genres": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      }
+    },
+    "referenceQaConfigured": {
+      "type": "boolean"
+    },
+    "mediaRegression": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "baselinePath",
+          "currentPath"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "Visual",
+              "Video",
+              "Audio"
+            ]
+          },
+          "baselinePath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "currentPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "warningThresholdPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "failureThresholdPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "videoSampleFps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        }
+      }
+    }
+  }
+}
