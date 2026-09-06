@@ -1,12 +1,12 @@
-# k6 load tests
+# k6 負荷テスト
 
-Install:
+## インストール
 
 ```powershell
 winget install --id Grafana.k6 -e
 ```
 
-Run:
+## 実行
 
 ```powershell
 $env:DIP_API_URL = "http://localhost:7001"

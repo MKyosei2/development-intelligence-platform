@@ -1,72 +1,72 @@
-# Project Truth Policy
+# Project Truth Policy（Project Truth方針）
 
-## Purpose
+## 目的
 
-`ProjectTruthEvaluator` and `ProjectRiskEvaluator` are deterministic decision-support components. Their job is to make the relationship between reported progress and observed evidence explicit and explainable.
+`ProjectTruthEvaluator`と`ProjectRiskEvaluator`はdeterministicなdecision-support componentであり、reported progressとobserved Evidenceの関係を明示し、説明可能にする。
 
-The evaluators previously embedded several numeric thresholds and penalties directly in code. Those values are now centralized in `ProjectTruthPolicy` so that the decision rule is visible, reviewable, testable, and replaceable without editing evaluator logic.
+以前は複数のnumeric threshold/penaltyをEvaluator codeへ直接埋め込んでいた。現在は`ProjectTruthPolicy`へ集約し、decision ruleを可視化・review・test・replaceできるようにしている。
 
-## Default policy
+## 既定Policy
 
-The default policy intentionally preserves historical behavior:
+Default policyはhistorical behaviorとの互換性を意図的に維持する。
 
-| Setting | Default | Meaning |
+| Setting | Default | 意味 |
 |---|---:|---|
-| Critical blocker health penalty | 25 | Health-score penalty per critical blocker |
-| Blocker health penalty | 12 | Health-score penalty per blocker |
-| Contradiction health penalty | 10 | Health-score penalty per contradicted claim |
-| Unverified claim penalty | 3 | Per-claim health penalty, capped separately |
-| Max unverified-claim penalty | 12 | Prevents unbounded accumulation |
-| Progress-gap penalty factor | 0.25 | Health points lost per reported-vs-verified percentage point |
-| Max progress-gap penalty | 20 | Caps progress-gap health impact |
-| High-risk contradiction threshold | 2 | Two or more contradictions become High risk |
-| Medium-risk progress gap | 20% | Large reported-vs-verified gap becomes Medium risk |
-| Near-completion reported progress | 80% | Unverified claims are more important near reported completion |
-| Low-confidence risk boundary | Low | Low/Unverified evidence produces at least Medium risk |
+| Critical blocker health penalty | 25 | Critical blocker 1件あたりのHealth Score減点 |
+| Blocker health penalty | 12 | Blocker 1件あたりのHealth Score減点 |
+| Contradiction health penalty | 10 | Contradicted Claim 1件あたりのHealth Score減点 |
+| Unverified claim penalty | 3 | Claimごとの減点。別途上限あり |
+| Max unverified-claim penalty | 12 | 無制限な累積を防ぐ上限 |
+| Progress-gap penalty factor | 0.25 | Reported vs Verifiedの1 percentage point差あたりの減点 |
+| Max progress-gap penalty | 20 | Progress gapによるHealth impact上限 |
+| High-risk contradiction threshold | 2 | Contradiction 2件以上でHigh risk |
+| Medium-risk progress gap | 20% | 大きなReported vs Verified gapでMedium risk |
+| Near-completion reported progress | 80% | Reported completion付近ではUnverified Claimをより重視 |
+| Low-confidence risk boundary | Low | Low/Unverified Evidenceでは最低でもMedium risk |
 
-These are **compatibility defaults**, not a claim that 20%, 25 points, or any other value is universally optimal.
+これらは**compatibility default**であり、20%、25 pointsなどが普遍的に最適だと主張するものではない。
 
-## Why deterministic policy instead of ML?
+## MLではなくDeterministic Policyを使う理由
 
-For the current portfolio scope, deterministic policy has important advantages:
+現在のportfolio scopeではdeterministic policyに次の利点がある。
 
-- every decision can be traced to evidence and a visible rule;
-- behavior is reproducible across runs;
-- there is not enough unbiased labeled production data to justify a learned model;
-- reviewers can inspect boundary behavior directly in unit tests;
-- operators can tune policy without retraining or introducing opaque confidence claims.
+- 各decisionをEvidenceとvisible ruleへtraceできる。
+- Run間で挙動を再現できる。
+- Learned modelを正当化できるだけのbiasedでないlabeled production dataがない。
+- Reviewerがunit testからboundary behaviorを直接確認できる。
+- Retrainingやopaque confidence claimなしにoperatorがpolicyを調整できる。
 
-A learned model could later rank or recommend risk, but should not replace the evidence/provenance boundary unless training data, drift monitoring, and validation are available.
+将来learned modelでriskのrank/recommendを行うことは可能だが、training data、drift monitoring、validationがない状態でEvidence/provenance boundaryを置き換えるべきではない。
 
-## Calibration procedure for real production data
+## Real Production DataでのCalibration Procedure
 
-A production deployment should not simply accept the default values forever. A defensible calibration process is:
+Production deploymentではdefault valueを永久に受け入れるのではなく、次のようなdefensible calibrationを行う。
 
-1. Collect historical release/project snapshots with immutable Evidence and the actual later outcome.
-2. Define labels independently of the policy being tuned, for example `safe`, `review-required`, `release-blocking`.
-3. Split by project and time so near-duplicate revisions do not leak between training/calibration and validation sets.
-4. Evaluate candidate thresholds/penalties with a cost function that weights false negatives more heavily when a missed blocker is more expensive than an unnecessary review.
-5. Report confusion matrix, precision/recall, false-positive rate, and boundary sensitivity rather than only aggregate accuracy.
-6. Select a policy, assign it a version, and record the dataset/evidence revision used for calibration.
-7. Re-evaluate after workflow/tooling changes or meaningful evidence-distribution drift.
+1. Immutable Evidenceと実際の後続outcomeを持つhistorical release/project snapshotを収集。
+2. Tune対象policyから独立したlabel（例: `safe`、`review-required`、`release-blocking`）を定義。
+3. Near-duplicate revisionがcalibrationとvalidationへ漏れないようProject/timeでsplit。
+4. Missed blockerの方がunnecessary reviewより高コストならfalse negativeを重くしたcost functionでcandidate threshold/penaltyを評価。
+5. Aggregate accuracyだけでなくconfusion matrix、precision/recall、false-positive rate、boundary sensitivityを報告。
+6. Policyを選びversionを付与し、calibrationに使ったdataset/evidence revisionを記録。
+7. Workflow/tooling変更や大きなevidence-distribution drift後に再評価。
 
-## Testing boundary
+## Test境界
 
-`ProjectTruthPolicyTests` verifies that:
+`ProjectTruthPolicyTests`では次を検証する。
 
-- the default policy preserves the existing 20% progress-gap boundary;
-- a different threshold changes behavior without modifying evaluator code;
-- contradiction thresholds are configurable;
-- invalid policy values fail fast.
+- default policyが既存20% progress-gap boundaryを維持。
+- 別thresholdでEvaluator codeを変えずにbehaviorが変わる。
+- contradiction thresholdがconfigurable。
+- invalid policy valueがfail fast。
 
-These tests prove implementation behavior. They do **not** prove that the default policy is empirically optimal. That claim would require the calibration process above and a real labeled dataset.
+これらはimplementation behaviorを証明するが、default policyがempirically optimalであることは証明しない。その主張には上記calibration processとreal labeled datasetが必要である。
 
-## Operational rule
+## 運用ルール
 
-Policy changes should be reviewed like code changes:
+Policy changeはcode changeと同様にreviewする。
 
-- describe the reason;
-- attach calibration/validation evidence when available;
-- identify expected false-positive/false-negative impact;
-- preserve the previous policy version for reproducibility;
-- never rewrite historical Evidence to make a new policy appear retrospectively correct.
+- 変更理由を記述。
+- 可能ならcalibration/validation Evidenceを添付。
+- 想定false-positive/false-negative impactを明示。
+- 再現性のためprevious policy versionを保持。
+- 新policyを過去に正しかったよう見せるためhistorical Evidenceを書き換えない。

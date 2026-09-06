@@ -1,4 +1,4 @@
-# Functional Requirements
+# 機能要件
 
 - FR-001 Projectを作成・取得・一覧表示できる
 - FR-002 Collector Report 1.0を受信・検証できる

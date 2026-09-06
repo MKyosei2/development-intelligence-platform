@@ -1,4 +1,4 @@
-# Health Score
+# Health Score（健全性スコア）
 
 Schedule 20%、Build 15%、Test 15%、Performance 15%、Code 10%、Asset 10%、Team Load 10%、Release Readiness 5%。
 

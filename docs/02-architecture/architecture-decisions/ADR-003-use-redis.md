@@ -1,21 +1,21 @@
-# Use Redis
+# Redis採用判断の変更
 
 Status: Superseded
 
-Superseded by the PostgreSQL-backed durable queue decision recorded below.
+この判断は、後述するPostgreSQL-backed durable queueの採用判断によって置き換えられた。
 
-## Historical decision
+## 過去の判断
 
-Redis was originally selected for webhook bursts, queue delivery, caching and deduplication support.
+当初は、Webhook burst、queue delivery、cache、deduplicationを支えるためRedisを採用していた。
 
-## Replacement decision
+## 置き換え後の判断
 
-The supported runtime now stores both durable application state and queue-delivery state in PostgreSQL. Queue semantics remain isolated behind `IQueueClient`; `PostgresQueueClient` implements leasing, acknowledgement, retry and dead-letter delivery.
+現在のsupported runtimeでは、durable application stateとqueue-delivery stateの両方をPostgreSQLへ保存する。Queue semanticsは`IQueueClient`の背後へ分離し、`PostgresQueueClient`がlease、acknowledgement、retry、dead-letter deliveryを実装する。
 
-## Rationale and consequences
+## 理由と影響
 
-- removes Redis as a mandatory runtime and operational dependency;
-- keeps delivery records transactional and inspectable beside application state;
-- retains a provider-neutral boundary so the implementation can change later;
-- increases PostgreSQL workload, so queue latency, connection use and table growth must be monitored;
-- requires schema, recovery and load tests to cover both business and delivery state.
+- Redisを必須runtime・運用dependencyから外せる。
+- Delivery recordをapplication stateの近くでtransactionalかつinspect可能に保てる。
+- Provider-neutralな境界を維持するため、将来implementationを変更できる。
+- PostgreSQL workloadは増えるため、queue latency、connection使用量、table growthを監視する必要がある。
+- Schema、recovery、load testではbusiness stateとdelivery stateの両方を対象にする必要がある。

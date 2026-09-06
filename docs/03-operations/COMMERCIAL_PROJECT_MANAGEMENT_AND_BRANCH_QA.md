@@ -1,181 +1,181 @@
-# Commercial Project Management + Branch QA
+# 商用Project Management + Branch QA
 
-This document defines the operational contract for the DIP Project Control Center and Branch Quality Center.
+この文書では、DIP Project Control CenterとBranch Quality Centerの運用contractを定義する。
 
-## 1. PM is a project manager, not a QA viewer
+## 1. PMはQA閲覧者ではなくProject Manager
 
-The PM surface must allow a project manager to control the complete delivery loop. DIP therefore treats the following as first-class project controls:
+PM向けsurfaceでは、Project Managerがdelivery loop全体を制御できる必要がある。そのためDIPでは次をfirst-classなProject controlとして扱う。
 
-1. Plan and work breakdown: team, workstream, task, estimate, remaining work and ownership.
-2. Schedule: planned dates, forecast finish, delay, slack and critical path.
-3. Milestones: linked task progress, due dates, blocked state and readiness.
-4. Dependencies: predecessor/successor relationships, cross-workstream dependencies and cycle detection.
-5. Blockers: direct and downstream impact, age and required management action.
-6. Risk register: probability, impact, exposure, trigger, mitigation, owner and review date.
-7. Decision log: decision owner, due date, rationale, related work and open follow-up actions.
-8. Action management: priority, owner, due date, completion and overdue state.
-9. Scope control: baseline, included/deferred requirements, scope growth and incomplete high-priority requirements.
-10. Change control: engineering/art/QA effort delta, schedule delta, risk delta and decision linkage.
-11. Capacity and resource allocation: team/workstream load, buffer and explicit reallocation proposals.
-12. RACI: responsible/accountable/consulted/informed roles, including missing-accountable detection.
-13. Approvals: required roles, separation of duties, due date, responses and overdue state.
-14. Quality: project operational QA plus branch-scoped promotion evidence.
+1. Plan / Work Breakdown: Team、Workstream、Task、estimate、remaining work、ownership。
+2. Schedule: planned date、forecast finish、delay、slack、critical path。
+3. Milestone: linked task progress、due date、blocked state、readiness。
+4. Dependency: predecessor/successor、cross-workstream dependency、cycle detection。
+5. Blocker: direct/downstream impact、age、必要なmanagement action。
+6. Risk Register: probability、impact、exposure、trigger、mitigation、owner、review date。
+7. Decision Log: decision owner、due date、rationale、related work、open follow-up action。
+8. Action Management: priority、owner、due date、completion、overdue state。
+9. Scope Control: baseline、included/deferred requirement、scope growth、未完了high-priority requirement。
+10. Change Control: engineering/art/QA effort delta、schedule delta、risk delta、decision linkage。
+11. Capacity / Resource Allocation: team/workstream load、buffer、明示的reallocation proposal。
+12. RACI: Responsible/Accountable/Consulted/Informed roleとmissing-accountable detection。
+13. Approval: required role、separation of duties、due date、response、overdue state。
+14. Quality: Project operational QAとbranch-scoped promotion Evidence。
 
-The Project Control Center is the executive/read-and-decide surface. Durable edits continue through the existing Management Workspace and management APIs so DIP has one source of truth instead of a second dashboard-only project model.
+Project Control Centerはexecutive/read-and-decide surfaceである。Durableな編集は既存Management Workspaceとmanagement APIを通すことで、dashboard専用の第二Project modelを作らず、DIP内のSource of Truthを一つに保つ。
 
-## 2. GUI responsibilities
+## 2. GUIの役割
 
-### Project Control Center
+### Project Control Center（プロジェクト統制画面）
 
-Routes:
+Route:
 
 - `/dashboard/{projectId}/project-control-center`
 - `/dashboard/{projectId}/pm`
 
-The page must answer, without opening a raw JSON artifact:
+Raw JSON artifactを開かなくても、次へ答えられることを要件とする。
 
-- Is the project on plan?
-- What is the forecast finish and current delay?
-- What is on the critical path?
-- Which milestones are at risk or blocked?
-- Where is capacity overloaded?
-- What blockers and risks threaten delivery?
-- What decisions and actions are overdue?
-- What scope changes are awaiting a decision?
-- Is there a dependency cycle?
-- Are RACI/accountability and approvals complete?
-- Is the default branch quality gate safe for promotion?
-- What requires the PM's decision today?
+- Projectは計画どおりか。
+- Forecast finishとcurrent delayはどれくらいか。
+- Critical path上に何があるか。
+- どのMilestoneがrisk/blocked状態か。
+- Capacity overloadはどこか。
+- Deliveryを脅かすBlocker/Riskは何か。
+- OverdueなDecision/Actionは何か。
+- 判断待ちのScope Changeは何か。
+- Dependency cycleは存在するか。
+- RACI/accountabilityとApprovalは揃っているか。
+- Default branch quality gateはpromotion可能か。
+- 今日PMが判断すべき事項は何か。
 
-### Management Workspace
+### Management Workspace（管理Workspace）
 
 Route:
 
 - `/dashboard/{projectId}/management`
 
-This remains the durable command surface for creating/updating teams, workstreams, tasks, dependencies, milestones, blockers, requirements, risks, decisions, actions, resource allocations, scope changes, RACI, role bindings, calendars and approvals.
+Team、Workstream、Task、Dependency、Milestone、Blocker、Requirement、Risk、Decision、Action、Resource Allocation、Scope Change、RACI、Role Binding、Calendar、Approvalを作成・更新するdurable command surfaceとして維持する。
 
-### Branch Quality Center
+### Branch Quality Center（Branch品質画面）
 
-Routes:
+Route:
 
 - `/dashboard/{projectId}/qa/branches`
 - `/dashboard/{projectId}/branch-quality`
 
-The page shows every branch DIP can establish from a Git working tree or from GitHub project provenance. For archive-backed GitHub workspaces it automatically merges the default branch, open pull-request heads, synchronized snapshot and persisted DIP branch/pipeline history. A manual branch field can verify any other valid branch directly, so a branch does not need an open pull request before QA. It displays:
+Git working treeまたはGitHub Project provenanceからDIPが確立できる全Branchを表示する。Archive-backed GitHub workspaceでは、default branch、open pull-request head、同期snapshot、保存済みDIP branch/pipeline historyを自動統合する。Manual branch fieldから他のvalid branchも直接検証できるため、QA前にopen PRを必須としない。表示項目は次のとおり。
 
-- exact branch HEAD SHA;
-- remote/local provenance;
-- ahead/behind relative to the default branch;
-- latest branch QA run and age;
-- open critical/warning issues linked to branch QA evidence;
-- `Ready`, `Hold`, `Blocked` or `QA required` promotion gate;
-- a direct action to run isolated QA on the selected branch.
+- 正確なbranch HEAD SHA
+- remote/local provenance
+- default branchに対するahead/behind
+- 最新branch QA runと経過時間
+- branch QA Evidenceに紐付くopen critical/warning issue
+- `Ready`、`Hold`、`Blocked`、`QA required` promotion gate
+- 選択branchでisolated QAを実行する直接Action
 
-## 3. Branch QA isolation contract
+## 3. Branch QA分離Contract
 
-DIP MUST NOT perform `git checkout` on the shared synchronized project workspace.
+DIPはshared synchronized project workspace上で`git checkout`を**実行してはならない**。
 
-For a branch QA run DIP chooses one of two isolation paths:
+Branch QA runでは、次の2つのisolation pathのいずれかを選ぶ。
 
 **Git working-tree source**
 
-1. validates the branch with Git;
-2. optionally performs a bounded remote refresh;
-3. resolves `origin/<branch>` first, then a local branch;
-4. verifies requested commit ancestry when an explicit commit is supplied;
-5. creates `git worktree add --detach` for the exact revision;
-6. runs QA and removes the detached worktree after completion/failure.
+1. Gitでbranchをvalidate。
+2. 必要に応じてbounded remote refreshを実行。
+3. `origin/<branch>`を優先し、次にlocal branchをresolve。
+4. Explicit commitが指定された場合はrequested commit ancestryを確認。
+5. exact revision向けに`git worktree add --detach`を作成。
+6. QA実行後、成功/失敗に関係なくdetached worktreeを削除。
 
-**GitHub archive-backed source (the standard GitHub repository sync path)**
+**GitHub archive-backed source（標準GitHub repository sync path）**
 
-1. reads `.dip-sync.json` provenance instead of pretending the archive is a Git checkout;
-2. validates the requested branch name with fail-closed portable ref rules;
-3. uses the configured `IGitHubRepositoryCatalog` (GitHub App/token credentials) to download the requested branch into a run-specific temporary workspace;
-4. records the exact branch-head SHA returned by GitHub;
-5. refuses an explicitly requested SHA when it is not that downloaded branch head;
-6. runs all language adapters, cross-cutting packs, media checks and reproduction against that isolated branch snapshot;
-7. removes the snapshot after the run, including failure paths.
+1. ArchiveをGit checkoutとみなさず`.dip-sync.json` provenanceを読む。
+2. Fail-closedなportable ref ruleでrequested branch nameをvalidate。
+3. 構成済み`IGitHubRepositoryCatalog`（GitHub App/token credential）を使い、requested branchをrun固有temporary workspaceへdownload。
+4. GitHubが返すexact branch-head SHAを記録。
+5. 明示的SHA指定がdownload済みbranch headと一致しない場合は拒否。
+6. Isolated branch snapshotに対し、language adapter、cross-cutting pack、media check、reproductionを実行。
+7. Failure pathを含めrun後にsnapshotを削除。
 
-Both paths store the real branch name in `PipelineRun.Branch`, the exact SHA in `PipelineRun.CommitSha`, and branch/ref/isolation provenance in QA summary and `qa-intelligence.json`. The shared synchronized project workspace is never checked out or overwritten.
+両pathとも実branch名を`PipelineRun.Branch`、exact SHAを`PipelineRun.CommitSha`へ保存し、branch/ref/isolation provenanceをQA summaryと`qa-intelligence.json`へ記録する。Shared synchronized project workspaceをcheckout/overwriteしない。
 
-This prevents concurrent QA from changing the developer/shared checkout and prevents evidence for one branch from being mislabeled as evidence for another.
+これにより、並行QAがdeveloper/shared checkoutを変更することや、あるbranchのEvidenceを別branchのEvidenceとして誤labelすることを防ぐ。
 
-## 4. Promotion gate policy
+## 4. Promotion Gate Policy（昇格Gate方針）
 
-Branch promotion is fail-closed:
+Branch promotionはfail-closedとする。
 
-- **QA required**: no branch-scoped evidence exists. Do not promote.
-- **Blocked**: latest branch QA failed/timed out/cancelled, or an open critical issue is linked to the branch. Do not promote.
-- **Hold**: evidence is stale, partial, or warnings remain. Triage/approve before promotion.
-- **Ready**: latest branch QA succeeded, is fresh, and has no open critical/warning issue linked to its branch QA runs.
+- **QA required**: branch-scoped Evidenceなし。Promoteしない。
+- **Blocked**: 最新branch QAがfailed/timed out/cancelled、またはbranchにopen critical issue。Promoteしない。
+- **Hold**: Evidenceがstale/partial、またはwarningあり。Promotion前にtriage/approve。
+- **Ready**: 最新branch QAが成功・freshで、branch QA runに紐付くopen critical/warning issueがない。
 
-`Ready` is technical evidence, not an automatic merge authorization. Human review, approval, scope and release policy still apply.
+`Ready`はtechnical Evidenceであり、自動merge authorizationではない。Human review、approval、scope、release policyは引き続き適用する。
 
-## 5. Default-branch release truth
+## 5. Default BranchのRelease Truth
 
-The commercial release gate is scoped to the project's configured default branch. A P0 on a feature branch stays visible in the project QA operations queue, but it is not silently treated as evidence that the current default-branch revision is broken.
+Commercial release gateはProjectのconfigured default branchへscopeする。Feature branch上のP0はProject QA operations queueに表示し続けるが、current default-branch revisionが壊れているEvidenceとして黙って扱わない。
 
-Conversely, a clean feature branch is not evidence that the default branch is ready. The default branch needs its own branch-scoped QA evidence.
+逆に、clean feature branchもdefault branchがreadyであるEvidenceにはならない。Default branch自身のbranch-scoped QA Evidenceが必要である。
 
-Legacy QA runs stored with branch `qa-workspace` are not automatically promoted to default-branch evidence because their branch provenance is ambiguous.
+Branchが`qa-workspace`として保存されたlegacy QA runはprovenanceが曖昧なため、default-branch Evidenceへ自動昇格しない。
 
-## 6. Remote freshness
+## 6. Remote Freshness（Remote情報の鮮度）
 
-Branch freshness depends on the workspace type and is explicit:
+Branch freshnessはworkspace typeに応じて明示する。
 
-- `Fetched`: Git refs were refreshed from origin for this request.
-- `Cached`: a Git working tree used locally cached refs after no refresh or a failed refresh.
-- `GitHubApi`: archive-backed branch discovery came from authenticated GitHub metadata plus DIP history.
-- `GitHubArchive`: the QA run downloaded a fresh authenticated branch snapshot and exact branch-head SHA.
-- `Unavailable`: branch identity/catalog could not be established.
+- `Fetched`: このrequestでGit refをoriginからrefresh。
+- `Cached`: refreshなし、またはrefresh失敗後にGit working treeのcached refを使用。
+- `GitHubApi`: authenticated GitHub metadata + DIP historyからarchive-backed branchをdiscover。
+- `GitHubArchive`: freshなauthenticated branch snapshotとexact branch-head SHAをdownloadしてQA実行。
+- `Unavailable`: branch identity/catalogを確立できない。
 
-A Git fetch failure is never displayed as fresh remote evidence, and archive-backed QA does not claim ahead/behind counts that it cannot calculate locally.
+Git fetch failureをfresh remote Evidenceとして表示しない。またarchive-backed QAではlocalで計算できないahead/behind countを主張しない。
 
-## 7. Source of truth and AI boundary
+## 7. Source of TruthとAIの境界
 
-- Git commit SHA + branch ref + tool outputs + reproduction artifacts are evidence.
-- PipelineRun is the durable branch/evidence boundary for branch QA.
-- Project management state is stored through the existing Development Graph / management commands.
-- AI/debug hypotheses remain hypotheses until an experiment produces objective evidence.
-- PM recommendation text is decision support, not an approval or a fabricated project fact.
+- Git commit SHA + branch ref + tool output + reproduction artifactがEvidence。
+- `PipelineRun`がbranch QAのdurable branch/evidence boundary。
+- Project management stateは既存Development Graph / management commandから保存。
+- AI/debug hypothesisはexperimentがobjective Evidenceを生成するまでhypothesisのまま。
+- PM recommendation textはdecision supportであり、approvalや作られたProject factではない。
 
-## 8. Operational workflow
+## 8. 運用Workflow
 
-### Feature branch
+### Feature Branch（機能Branch）
 
-1. Developer/QA opens Branch Quality Center.
-2. Select the feature branch and refresh refs when remote currency is required.
-3. Run branch QA.
-4. Triage any P0/P1 findings in Quality Operations / QA Governance.
-5. Re-run the exact branch revision after a fix.
-6. Merge only when branch evidence, code review and required approval policy are satisfied.
+1. Developer/QAがBranch Quality Centerを開く。
+2. Feature branchを選び、remote currencyが必要ならrefをrefresh。
+3. Branch QAを実行。
+4. Quality Operations / QA GovernanceでP0/P1 findingをtriage。
+5. Fix後にexact branch revisionを再実行。
+6. Branch Evidence、code review、required approval policyを満たしてからmerge。
 
-### Release/default branch
+### Release / Default Branch（Release / 既定Branch）
 
-1. PM opens Project Control Center.
-2. Review schedule, critical path, milestones, blockers, risk, decisions, scope, capacity and approvals.
-3. Open Branch Quality Center and verify the default/release branch head.
-4. Resolve or explicitly disposition warnings; P0 remains fail-closed.
-5. Confirm the exact SHA that passed QA is the SHA being promoted.
-6. Record the release/approval decision through the existing approval/decision system.
+1. PMがProject Control Centerを開く。
+2. Schedule、critical path、milestone、blocker、risk、decision、scope、capacity、approvalを確認。
+3. Branch Quality Centerからdefault/release branch headを確認。
+4. Warningをresolveまたは明示的disposition。P0はfail-closedのまま。
+5. QA PASSしたexact SHAとpromotion対象SHAが一致することを確認。
+6. 既存approval/decision systemからrelease/approval decisionを記録。
 
-## 9. Validation
+## 9. 検証
 
-Run:
+実行:
 
 ```powershell
 python tools/validate_pm_branch_qa.py
 ```
 
-Then, on a machine with the .NET SDK and project dependencies:
+.NET SDKとProject dependencyがある環境では続けて:
 
 ```powershell
 dotnet build
 dotnet test
 ```
 
-For GUI verification:
+GUI verification:
 
 ```powershell
 cd tests/Dip.UiE2E

@@ -1,3 +1,3 @@
-# Sample Web Project
+# Sample Web Project（Web向けサンプル）
 
-DIPがUnity専用ではないことを示すWeb Service用Sampleです。
+DIPがUnity専用ではなく、Web Serviceなど異なる種類のProjectにも適用できることを示すためのSampleです。

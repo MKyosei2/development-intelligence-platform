@@ -1,7 +1,7 @@
-# Collector Contract
+# Collector Contract（Collector契約）
 
-## Decision
+## 決定
 全CollectorはVersion付き共通JSON Reportを出力する。
 
-## Consequences
+## 影響
 Contract、Version、Timeout、Migrationを明示的に管理します。

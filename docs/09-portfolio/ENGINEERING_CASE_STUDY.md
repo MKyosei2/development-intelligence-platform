@@ -1,105 +1,105 @@
-# Engineering Case Study
+# Engineering Case Study（エンジニアリング・ケーススタディ）
 
-This document is the short technical reading path for reviewers who want to understand **why DIP is an engineering project**, not only a feature list.
+この文書は、DIPが単なる機能一覧ではなく**Engineering Projectである理由**を技術reviewerが短時間で理解するための読み順である。
 
-## 1. Problem framing
+## 1. 問題設定
 
-Game and software production data is fragmented by nature. Git history, CI, tests, engine/runtime events, performance measurements, incidents, and project-management reports all have different schemas, clocks, failure modes, and trust levels. A dashboard can aggregate those sources visually while still making unsafe decisions if it silently treats every source as equally authoritative.
+Game/software production dataは本質的に分散している。Git history、CI、test、engine/runtime event、performance measurement、incident、project-management reportは、それぞれschema、clock、failure mode、trust levelが異なる。Dashboardへ集約できても、すべてのsourceを同じauthorityとして暗黙に扱えば危険な意思決定につながる。
 
-DIP therefore treats **provenance and verification state as first-class data**. A Claim is what somebody or some system reports. Evidence is an observable result tied to a source/revision/time. The platform evaluates their relationship rather than assigning a score to a person.
+そこでDIPでは、**provenance（出所）とverification stateをfirst-class dataとして扱う**。Claimは人またはsystemが報告した内容、Evidenceはsource/revision/timeへ結び付いた観測可能な結果である。人物へscoreを付けるのではなく、両者の関係を評価する。
 
-## 2. Engineering decision: provider-neutral Evidence
+## 2. 技術判断: Provider-neutral Evidence
 
-The core boundary is not "GitHub data" or "Unity data". It is an Evidence contract that external providers normalize into.
+Core boundaryは「GitHub data」「Unity data」ではなく、external providerが正規化して入るEvidence contractである。
 
-Why:
+理由:
 
-- GitHub, Unity, Unreal, Maya, native runtimes, and CI can be added without teaching the Project Truth domain every provider-specific schema.
-- Provider failures remain distinguishable from product failures.
-- Evidence retains revision/provenance instead of becoming an untraceable dashboard number.
+- GitHub、Unity、Unreal、Maya、native runtime、CIを追加してもProject Truth domainへprovider固有schemaを埋め込まずに済む。
+- Provider failureとProduct failureを分離できる。
+- Evidenceがtrace不能なdashboard数値になるのではなく、revision/provenanceを保持できる。
 
 Trade-off:
 
-- Normalization adds schema and adapter complexity.
-- A provider-neutral model must avoid becoming a lowest-common-denominator abstraction.
+- Normalizationにschema/adapter complexityが増える。
+- Provider-neutral modelがlowest-common-denominator abstractionになる危険がある。
 
 Mitigation:
 
-- Keep provider-specific payload/artifacts available while promoting only stable, decision-relevant fields into common Evidence.
-- Fail closed on ambiguous cross-source matching instead of silently merging identities.
+- Provider固有payload/artifactを保持しつつ、stableかつdecision-relevantなfieldだけをcommon Evidenceへ昇格する。
+- 曖昧なcross-source matchingはsilent mergeせずfail-closedとする。
 
-## 3. Engineering decision: PostgreSQL is truth and the coordination boundary
+## 3. Engineering Decision: PostgreSQLをTruthとCoordination Boundaryにする
 
-DIP keeps durable business state and durable queue-delivery state in PostgreSQL while preserving delivery mechanics behind a provider-neutral interface.
+DIPはdurable business stateとdurable queue-delivery stateをPostgreSQLへ置きつつ、delivery mechanicsはprovider-neutral interfaceの背後に保つ。
 
-- PostgreSQL: durable project/evidence/job state and queue-delivery state.
-- `IQueueClient`: provider-neutral delivery boundary.
-- `PostgresQueueClient`: lease, acknowledgement, retry and dead-letter implementation.
-- Worker: asynchronous ingestion/analysis execution.
-- Python service: isolated analysis capability.
+- PostgreSQL: durable project/evidence/job stateとqueue-delivery state。
+- `IQueueClient`: provider-neutral delivery boundary。
+- `PostgresQueueClient`: lease、acknowledgement、retry、dead-letter実装。
+- Worker: asynchronous ingestion/analysis execution。
+- Python service: 隔離されたanalysis capability。
 
-Queue messages are not treated as authoritative business state. Delivery records are persisted explicitly, so jobs can be reasoned about in terms of state, lease, acknowledgement, retry and recovery rather than "the message disappeared so the work must be done". Consolidating coordination in PostgreSQL removes a mandatory runtime dependency, at the cost of additional database load that must be measured and capacity-planned.
+Queue messageをauthoritative business stateとして扱わない。Delivery recordを明示的に永続化し、「messageが消えたからworkが完了した」と仮定するのではなく、state、lease、acknowledgement、retry、recoveryとしてjobを追えるようにする。CoordinationをPostgreSQLへ集約することで必須runtime dependencyを減らす一方、DB loadは増えるためmeasurement/capacity planningが必要になる。
 
-## 4. Engineering decision: exact-revision evidence
+## 4. 技術判断: Exact-revision Evidence
 
-A common portfolio and CI mistake is to show a historical green badge or benchmark and imply that the current source has the same state. DIP deliberately rejects that assumption.
+Portfolio/CIでは、historical green badgeやbenchmarkを見せてcurrent sourceも同じ状態だと暗示するミスが起きやすい。DIPはこの仮定を明示的に拒否する。
 
-The verification rule is:
+Verification rule:
 
-> A newer revision does not inherit an older revision's PASS.
+> 新しいrevisionは、古いrevisionのPASSを継承しない。
 
-Historical benchmark and QA evidence remains useful as a baseline, but current source must pass its required workflows/runtime checks before it is described as verified. This is also why the README labels sample-data screenshots separately from runtime evidence.
+Historical benchmark/QA Evidenceはbaselineとして有用だが、current sourceをVerifiedと説明するには、そのrevision自身がrequired workflow/runtime checkを通過する必要がある。READMEでsample-data screenshotとruntime Evidenceを分離している理由も同じである。
 
-## 5. Engineering decision: explicit Project Truth policy
+## 5. 技術判断: 明示的なProject Truth Policy
 
-Project Truth uses deterministic heuristics because explainability is more important here than pretending that a small portfolio dataset justifies an ML model. Previous evaluator constants are now centralized in `ProjectTruthPolicy` and injected into the evaluators.
+Project Truthでは、small portfolio datasetに対しMLが最適だと見せかけるより、説明可能性を優先してdeterministic heuristicを使う。以前evaluator内に直接埋め込まれていたconstantは`ProjectTruthPolicy`へ集約し、injectionする。
 
-Benefits:
+利点:
 
-- no scattered magic numbers;
-- defaults preserve backward compatibility;
-- thresholds can be versioned and calibrated without changing evaluator code;
-- tests can exercise boundary behavior directly;
-- future deployments can bind policy changes to evidence and review.
+- 散在するmagic numberをなくせる。
+- Defaultでbackward compatibilityを保てる。
+- Evaluator codeを変更せずthresholdをversion/calibrateできる。
+- Testでboundary behaviorを直接確認できる。
+- 将来deploymentではpolicy changeをEvidence/reviewへ紐付けられる。
 
-Important limitation:
+重要な制約:
 
-The default values are conservative historical defaults, **not statistically proven optimum values**. The correct production process is to calibrate them on labeled historical decisions and keep a hold-out validation set. See `PROJECT_TRUTH_POLICY.md`.
+Default valueは保守的なhistorical defaultであり、**統計的に最適だと証明された値ではない**。Productionではlabeled historical decisionでcalibrateし、hold-out validation setを維持する必要がある。`PROJECT_TRUTH_POLICY.md`参照。
 
-## 6. What the measured baseline demonstrates
+## 6. Measured Baselineが示すもの
 
-Historical evidence currently records, among other values:
+Historical Evidenceには、たとえば次の実測値が記録されている。
 
-- Project list p95: 4.174 ms;
-- Collector p95: 34.507 ms;
-- 100 req/s error rate: 0.0000% over 1,500 requests;
-- 1M Metric query p95: 363.796 ms;
-- QA Bug Zoo recall: 19/19;
-- clean-control false positives: 0/7;
-- reproducibility: 9/9.
+- Project list p95: 4.174 ms
+- Collector p95: 34.507 ms
+- 100 req/s error rate: 1,500 requestsで0.0000%
+- 1M Metric query p95: 363.796 ms
+- QA Bug Zoo recall: 19/19
+- clean-control false positives: 0/7
+- reproducibility: 9/9
 
-Those numbers demonstrate that measurement infrastructure exists and has produced concrete results for a specific verified commit. They do not claim that every later commit has identical results.
+これらは、特定のverified commitについてmeasurement infrastructureが実際に結果を生成したことを示す。以後のすべてのcommitが同じ結果だと主張するものではない。
 
-## 7. Failure model
+## 7. Failure Model（失敗モデル）
 
-The system is designed around explicit failure boundaries:
+Systemはfailure boundaryを明示する。
 
-- ingestion should be idempotent when provider IDs/revisions exist;
-- infrastructure failure must not be relabeled as product failure;
-- unavailable CI runners are not a PASS;
-- AI/Fix Agent suggestions remain advisory until isolated verification succeeds;
-- engine/device claims remain unverified without the corresponding runtime.
+- Provider ID/revisionがあるingestionはidempotentであるべき。
+- Infrastructure failureをProduct failureへlabelし直さない。
+- 利用できないCI runnerをPASSとしない。
+- AI/Fix Agent suggestionはisolated verification成功までadvisory。
+- 対応runtimeなしにengine/device claimをVerifiedとしない。
 
-This distinction is intentionally visible to reviewers because production engineering is primarily about behavior under partial failure, not only the happy path.
+Production Engineeringではhappy pathだけでなくpartial failure時の挙動が重要なため、この区別自体をreviewerへ見せる。
 
-## 8. Portfolio positioning
+## 8. Portfolioとしての位置付け
 
-The strongest fit of DIP is:
+DIPと特に相性がよい領域:
 
-- game development infrastructure / production engineering;
-- backend/platform engineering;
-- QA automation and developer productivity;
-- CI/CD, release engineering, and observability;
-- Technical Artist / Technical Director tooling where engine and DCC evidence matter.
+- Game development infrastructure / production engineering
+- Backend/platform engineering
+- QA automation / developer productivity
+- CI/CD、release engineering、observability
+- Engine/DCC Evidenceを扱うTechnical Artist / Technical Director tooling
 
-It is not presented as a gameplay or rendering showcase. For those roles, DIP should be paired with a project that directly demonstrates gameplay, graphics, or simulation code.
+Gameplay/rendering showcaseとしては位置付けない。該当職種では、gameplay、graphics、simulation codeを直接示すProjectと組み合わせる。

@@ -1,6 +1,6 @@
-# Universal QA Architecture
+# Universal QA アーキテクチャ
 
-DIP QA now uses an extensible `LanguageId` and adapter registry instead of a closed language enum.
+DIP QAは、閉じた言語enumではなく、拡張可能な`LanguageId`とadapter registryを使用する。
 
 ```text
 Repository
@@ -13,11 +13,11 @@ Repository
   -> QaFinding / fingerprint / incident / reproduction / Project Truth
 ```
 
-Built-in adapters cover Python, C#, C++, JavaScript/TypeScript, Go, Java/Kotlin, Rust, Ruby, PHP, Bash, PowerShell, Lua, Swift, Objective-C, C, SQL and GLSL when their toolchains are installed. HLSL and GDScript are auto-detected, but DIP does not guess an HLSL entry point/profile or a project-specific GDScript execution contract; configure `dxc`/`fxc`, Godot headless checks, or proprietary tools in `.dip/qa.json`. `ManifestQaAdapter` also supports additional or proprietary language IDs without changing DIP Domain code.
+Built-in adapterは、対応toolchainが導入されている場合にPython、C#、C++、JavaScript/TypeScript、Go、Java/Kotlin、Rust、Ruby、PHP、Bash、PowerShell、Lua、Swift、Objective-C、C、SQL、GLSLを扱う。HLSLとGDScriptは自動検出するが、DIPがHLSLのentry point/profileやProject固有のGDScript実行契約を推測することはない。`dxc`/`fxc`、Godot headless check、独自toolは`.dip/qa.json`で構成する。`ManifestQaAdapter`により、DIP Domain codeを変更せず追加・独自language IDにも対応できる。
 
-## Custom language
+## 独自言語
 
-`.dip/qa.json` example:
+`.dip/qa.json`の例:
 
 ```json
 {
@@ -37,12 +37,12 @@ Built-in adapters cover Python, C#, C++, JavaScript/TypeScript, Go, Java/Kotlin,
 }
 ```
 
-Commands are executed as an executable plus an argument array; the manifest is never concatenated into a shell command. `{workspace}`, `{artifact}` and `{file}` are explicit substitutions.
+Commandは実行ファイルとargument配列として起動し、manifestをshell command文字列へ連結しない。`{workspace}`、`{artifact}`、`{file}`は明示的な置換値として扱う。
 
-## Detection
+## 検出
 
-Repository detection recognizes source extensions, CMake, MSBuild/.NET, npm, Python packaging, Cargo, Go Modules, Maven, Gradle, Make and Meson. Engine evidence recognizes Unity, Unreal Engine and Godot. Framework hints include common JavaScript and Python frameworks.
+Repository detectionはsource extension、CMake、MSBuild/.NET、npm、Python packaging、Cargo、Go Modules、Maven、Gradle、Make、Mesonを認識する。Engine evidenceはUnity、Unreal Engine、Godotを認識し、framework hintでは一般的なJavaScript/Python frameworkを扱う。
 
-## Diagnostics
+## Diagnostics（診断）
 
-SARIF, JUnit-like XML and JSON are normalized first. Existing compiler/traceback parsing remains as a textual fallback. All adapters therefore feed the existing fingerprint, incident, reproduction, Project Truth and Release Readiness pipelines.
+SARIF、JUnit系XML、JSONを優先して正規化する。既存のcompiler/traceback parsingはtext fallbackとして維持する。そのため、すべてのadapterが既存のfingerprint、incident、reproduction、Project Truth、Release Readiness pipelineへ接続できる。

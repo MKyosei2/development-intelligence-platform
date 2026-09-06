@@ -1,23 +1,22 @@
-# QA Governance Hardening (2026-08-14)
+# QA Governance 強化（2026-08-14）
 
-## Goal
+## 目的
 
-QA Governance is treated as a privileged control plane. A quality result is not enough: the platform must prove which project the caller may operate, who approved exceptions, whether the same evidence was processed once, and whether recovery and release decisions are reproducible.
+QA Governanceは、権限を伴う制御プレーンとして扱う。品質結果だけでは不十分であり、どのプロジェクトを誰が操作できるか、例外を誰が承認したか、同一Evidenceが一度だけ処理されたか、復旧やリリース判断を再現できるかまで証明できる必要がある。
 
-## Project-scoped authorization
+## プロジェクト単位の認可
 
-`ProjectMembership` is the authorization source of truth. Roles are ordered `Viewer < Member < Maintainer < Owner`; global `Admin` is the recovery/operator role. New projects are provisioned atomically with an Owner membership.
+`ProjectMembership`を認可のSource of Truthとする。ロールは`Viewer < Member < Maintainer < Owner`の順で権限が強くなり、グローバル`Admin`は復旧・運用者向けロールとする。新規ProjectはOwner membershipと同一トランザクションで作成する。
 
-`ProjectScopeAuthorizationFilter` evaluates route/body `ProjectId` values after model binding. Indirect identifiers are protected with `RequireProjectResourceAttribute`; QA run, pipeline run, incident, durable job, benchmark run, replay and artifact identifiers are resolved to their owning project before the controller action executes. This prevents authorization from depending on an attacker-supplied project GUID alone.
+`ProjectScopeAuthorizationFilter`はmodel binding後にroute/bodyの`ProjectId`を評価する。間接識別子は`RequireProjectResourceAttribute`で保護し、QA run、pipeline run、incident、durable job、benchmark run、replay、artifactの各IDはController action実行前に所有Projectへ解決する。これにより、攻撃者が指定したProject GUIDだけを認可根拠にすることを防ぐ。
 
-Production fails closed unless authentication, a >=64-character JWT key, GitHub OAuth credentials, at least one recovery Admin login, PostgreSQL and QA sandboxing are configured. Development and Testing remain usable with local authentication disabled.
+Productionは、認証、64文字以上のJWT key、GitHub OAuth資格情報、少なくとも1つの復旧用Admin login、PostgreSQL、QA sandboxが構成されていなければfail-closedとする。DevelopmentとTestingではローカル認証を無効にした状態でも利用できる。
 
+### 既存Projectのmembership初期化
 
-### Existing-project membership bootstrap
+認可migrationは、`ProjectMembership`導入前から存在するProjectのOwnerを推測しない。構成済みのglobal Adminを復旧主体とし、Admin bearer tokenを使って`scripts/Bootstrap-ProjectMemberships.ps1`から対象Projectへ明示的にOwner membershipを付与する（または`-AllProjects`を使用する）。すべての付与は通常のmembership APIを経由するため監査対象になる。これにより、暗黙のロックアウトと危険な自動権限付与の両方を避ける。
 
-The authorization migration intentionally does **not** guess owners for projects that existed before `ProjectMembership`. A configured global Admin is the recovery principal. Use `scripts/Bootstrap-ProjectMemberships.ps1` with an Admin bearer token to grant an explicit Owner membership to selected projects (or `-AllProjects`). Every grant flows through the normal membership API and is therefore audited. This avoids both silent lockout and unsafe automatic privilege assignment.
-
-Example:
+例:
 
 ```powershell
 .\scripts\Bootstrap-ProjectMemberships.ps1 `
@@ -28,40 +27,40 @@ Example:
   -AllProjects
 ```
 
-## Server-derived actors and audit
+## サーバー側で決定するActorと監査
 
-HTTP request DTOs do not accept `Actor` or `ApprovedBy` for governance mutations. Actor identity is derived from the JWT `sub` and `name` claims. Audit entries preserve request/correlation identifiers, reason, subject, and before/after JSON.
+Governance mutation用HTTP request DTOでは`Actor`や`ApprovedBy`を受け取らない。Actor identityはJWTの`sub`と`name` claimから決定する。Audit entryにはrequest/correlation ID、理由、subject、変更前後のJSONを保持する。
 
-Important mutations include finding transitions, membership changes, waiver decisions, policy lifecycle changes, release overrides, re-baselines, ownership/test-impact/retention rule creation and backup verification evidence.
+主なmutationには、finding state遷移、membership変更、waiver判定、policy lifecycle変更、release override、re-baseline、ownership/test-impact/retention rule作成、backup verification evidenceが含まれる。
 
-## Idempotency and concurrency
+## 冪等性と並行実行
 
-Completed QA runs are guarded by `qa_governance_processed_runs.qa_run_id UNIQUE`. Processing uses a PostgreSQL transaction-scoped advisory lock plus `SERIALIZABLE` transaction; a different input hash for the same run ID is rejected. Non-relational tests use a keyed in-process lock.
+完了したQA runは`qa_governance_processed_runs.qa_run_id UNIQUE`で保護する。処理にはPostgreSQLのtransaction-scoped advisory lockと`SERIALIZABLE` transactionを使用し、同じrun IDに異なるinput hashが渡された場合は拒否する。非リレーショナルのテストではkeyed in-process lockを使用する。
 
-Mutable governance aggregates carry optimistic version tokens. Cross-row invariants (membership Owner retention and policy activation) use a project-scoped transaction/advisory lock. The database additionally enforces at most one Active QA policy per project with a deferrable unique constraint over a generated active slot.
+変更可能なGovernance aggregateはoptimistic version tokenを持つ。複数rowにまたがる不変条件（membershipのOwner保持、policy activation）はProject単位のtransaction/advisory lockで保護する。さらにDB側で、生成されたactive slotへのdeferrable unique constraintにより、ProjectごとにActive QA policyを最大1件に制限する。
 
-## Waiver and policy lifecycle
+## WaiverとPolicyのライフサイクル
 
-Waivers use `Requested -> Active / Rejected -> Revoked / Expired`. A requester cannot approve their own waiver. Approved waivers are immutable; changes require a new request.
+Waiverは`Requested -> Active / Rejected -> Revoked / Expired`で遷移する。申請者は自分自身のwaiverを承認できない。承認済みwaiverは不変とし、変更する場合は新しい申請を作成する。
 
-Policies use `Draft -> Approved -> Active -> Superseded / Archived`. Policy updates are new immutable versions, not in-place edits. Activation is an Owner action and supersedes the previous Active policy in the same serialized project mutation.
+Policyは`Draft -> Approved -> Active -> Superseded / Archived`で遷移する。Policy更新はin-place編集ではなく不変な新versionとして作成する。ActivationはOwner操作であり、同じ直列化されたProject mutation内で以前のActive policyをsupersedeする。
 
-## Release gate override
+## Release Gate Override（Release Gateの例外）
 
-A release override is not a global bypass. It is bound to the latest non-GO policy evaluation and an exact commit SHA, has an expiry, requires a requester and a different Owner approver, and supports rejection/revocation. Release Readiness only honors an approved, unexpired override whose evaluation and commit match the candidate release.
+Release overrideは全体を無条件に迂回する仕組みではない。最新のnon-GO policy evaluationと正確なcommit SHAに紐付き、有効期限を持ち、申請者とは異なるOwner承認者を必要とし、reject/revokeにも対応する。Release Readinessは、評価対象とcommitが候補releaseと一致する、承認済みかつ期限内のoverrideだけを認める。
 
-## Observability
+## Observability（可観測性）
 
-Prometheus exports QA run/gate totals, open findings, flaky tests, active waivers, self-health, governance mutation totals and sandbox denials. `DIP QA Governance` is provisioned as a dedicated Grafana dashboard. Prometheus rules alert on degraded QA self-health, sandbox denials and newly observed NO-GO gates.
+PrometheusはQA run/gate total、open finding、flaky test、active waiver、self-health、governance mutation total、sandbox denialを出力する。`DIP QA Governance`を専用Grafana dashboardとして用意する。Prometheus ruleはQA self-health低下、sandbox denial、新規NO-GO gateを通知する。
 
-## Backup, restore and disaster recovery
+## Backup・Restore・Disaster Recovery（災害復旧）
 
-- `scripts/Backup-Dip.ps1`: creates a PostgreSQL custom-format dump, archives the Docker Local artifact volume, hashes both, and emits a manifest.
-- `scripts/Restore-Dip.ps1`: destructive restore that requires `-ConfirmRestore`, verifies hashes, stops API/Worker/Web, restores PostgreSQL and artifacts, then restarts services.
-- `scripts/Verify-DisasterRecovery.ps1`: isolated proof that database and artifact evidence survive backup/restore.
+- `scripts/Backup-Dip.ps1`: PostgreSQL custom-format dumpを作成し、Docker Local artifact volumeをarchiveし、両方をhash化してmanifestを出力する。
+- `scripts/Restore-Dip.ps1`: `-ConfirmRestore`を必須とする破壊的restore。hashを検証し、API/Worker/Webを停止してPostgreSQLとartifactをrestoreし、その後serviceを再起動する。
+- `scripts/Verify-DisasterRecovery.ps1`: databaseとartifact Evidenceがbackup/restoreを越えて保持されることを隔離環境で検証する。
 
-Operational backup/restore targets the Docker Compose `Local` artifact provider. MinIO/S3 deployments should use bucket-versioning/replication or provider-native backup in addition to database backup.
+この文書で説明する運用backup/restoreはDocker Composeの`Local` artifact providerを対象としている。MinIO/S3運用ではdatabase backupに加えてbucket versioning/replicationまたはprovider固有backupを使用する。
 
-## Formal evidence
+## Formal Evidence（正式な証拠）
 
-`Verify-PortfolioFormal.ps1` is fail-closed. On Windows it requires a clean Git revision, .NET, Docker and a real Unity Editor. It runs solution tests, Universal QA, Governance tests, migration fresh/rollback/re-upgrade, DR verification, Governance load/concurrency, Unity verification, Project Control, P2 and portfolio benchmarks. PASS artifacts contain the exact source commit.
+`Verify-PortfolioFormal.ps1`はfail-closedで動作する。WindowsではcleanなGit revision、.NET、Docker、実際のUnity Editorを要求し、solution tests、Universal QA、Governance tests、migration fresh/rollback/re-upgrade、DR verification、Governance load/concurrency、Unity verification、Project Control、P2、portfolio benchmarkを実行する。PASS artifactには正確なsource commitを記録する。

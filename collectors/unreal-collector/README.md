@@ -1,20 +1,32 @@
 # DIP Unreal Engine Collector
 
-Deterministic, dependency-free collector for Unreal projects. It emits the existing DIP `CollectorReport` schema so no Unreal-specific ingestion API is required.
+Unreal Project向けのdeterministicかつdependency-freeなCollectorです。既存のDIP `CollectorReport` Schemaを出力するため、Unreal専用のIngestion APIは必要ありません。
 
-Collected evidence includes `.uproject` metadata, assets/maps/source/config/plugin counts, Saved/Logs errors and warnings, and optional Unreal Insights CSV averages for frame time, GameThread, RenderThread, GPU and memory columns.
+## 収集するEvidence
 
-Example:
+主に次の情報を収集します。
+
+- `.uproject` metadata
+- Asset / Map / Source / Config / Plugin数
+- `Saved/Logs` 内のError / Warning
+- 任意のUnreal Insights CSVから得られるframe time、GameThread、RenderThread、GPU、Memory columnの平均値
+
+## 実行例
 
 ```bash
 python collectors/unreal-collector/collector.py --root ./MyGame --project-id 00000000-0000-0000-0000-000000000001 --repository https://github.com/acme/game --commit-sha 0123456789abcdef --branch main --external-run-id unreal-ci-123 --output artifacts/unreal-report.json
 ```
 
-The produced JSON is submitted to the existing `POST /api/v1/collectors/reports` endpoint. The collector never guesses a PASS when the `.uproject` descriptor is missing; that condition is emitted as Critical and the report status is Failed.
+生成されたJSONは、既存の `POST /api/v1/collectors/reports` Endpointへ送信します。
 
-Additional evidence: optional `--automation-report <index.json>` (or automatic `Saved/Automation/Reports/**/index.json` discovery), Saved/Crashes artifact counting, and `--insights-csv` runtime metrics.
+`.uproject` descriptorが存在しない場合、CollectorはPASSを推測しません。その状態をCriticalとして記録し、Report statusをFailedにする **fail-closed** 動作を採用しています。
 
+追加Evidenceとして、任意の `--automation-report <index.json>`（または `Saved/Automation/Reports/**/index.json` の自動検出）、`Saved/Crashes` Artifact数、`--insights-csv` Runtime Metricを扱えます。
 
-## Engine-native Automation mode
+## Engine-native Automationモード
 
-For deeper Unreal verification, pass `--unreal-editor-cmd <path-to-UnrealEditor-Cmd>` and optionally `--automation-filter <filter>`. The collector launches Unreal unattended, records the engine exit/result metadata, consumes the generated Automation `index.json`, and fails closed when the engine command/report is unavailable. The dependency-free file/log collection path remains available when an Unreal installation is intentionally not present.
+より深いUnreal検証を行う場合は、`--unreal-editor-cmd <path-to-UnrealEditor-Cmd>` を指定し、必要に応じて `--automation-filter <filter>` も追加します。
+
+CollectorはUnrealをunattended modeで起動し、Engineの終了状態・結果Metadataを記録し、生成されたAutomation `index.json` を読み込みます。Engine commandまたはReportを利用できない場合はfail-closedで失敗扱いにします。
+
+Unreal installationを意図的に用意しない環境では、dependency-freeのFile / Log収集Pathを引き続き利用できます。

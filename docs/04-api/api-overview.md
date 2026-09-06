@@ -1,23 +1,22 @@
-# API Overview
+# API概要
 
-## Core project APIs
+## Core Project API（主要Project API）
 
 ```text
 GET  /api/projects
 POST /api/projects
 ```
 
-## Collector / evidence ingestion
+## Collector / Evidence取り込み
 
 ```text
 POST /api/v1/collector-reports
 POST /api/v1/webhooks/github
 ```
 
-Collector and GitHub results are persisted through their existing paths and are
-also converted into `EvidenceRecord` entries for Project Truth evaluation.
+CollectorとGitHub resultは既存pathから永続化し、Project Truth evaluation向け`EvidenceRecord`へも変換する。
 
-## Project Truth / PM dashboard
+## Project Truth / PM Dashboard（PMダッシュボード）
 
 ```text
 GET  /api/v1/dashboard/projects
@@ -27,22 +26,13 @@ GET  /api/v1/projects/{projectId}/claims
 POST /api/v1/projects/{projectId}/claims
 ```
 
-The dashboard API returns PM-first state such as Truth Status, reported and
-evidence-backed progress, Evidence Confidence, Risk, Blockers, Report vs
-Reality, and the Evidence Timeline. Existing Pipeline, Quality Gate, Metric and
-Quality Issue fields remain available as technical evidence.
+Dashboard APIはTruth Status、reported/evidence-backed progress、Evidence Confidence、Risk、Blocker、Report vs Reality、Evidence Timelineなど、PM-firstな状態を返す。既存Pipeline、Quality Gate、Metric、Quality Issue fieldもtechnical evidenceとして利用できる。
 
-A Claim is a project member's report. It is stored separately from machine
-Evidence and is evaluated as `Confirmed`, `PartiallyConfirmed`, `Unverified`,
-`Contradicted`, or `Stale`. These states evaluate the statement only; they are
-not a trust score for the reporter.
+ClaimはProject memberの報告であり、machine Evidenceとは別に保存し、`Confirmed`、`PartiallyConfirmed`、`Unverified`、`Contradicted`、`Stale`で評価する。これらはstatementだけを評価する状態であり、reporterのtrust scoreではない。
 
-## Python analysis service
+## Python Analysis Service（Python分析Service）
 
-The independent FastAPI analysis service continues to expose its analysis
-endpoints. It is an analysis/evidence provider and does not replace the Project
-Truth evaluator.
-
+独立FastAPI analysis serviceは既存analysis endpointを提供し続ける。これはanalysis/evidence providerであり、Project Truth evaluatorを置き換えない。
 
 ## Project Truth P1
 
@@ -60,9 +50,9 @@ POST /api/v1/hardware/simulate
 POST /api/v1/hardware/estimate-minimum
 ```
 
-QA and simulation write technical results as `EvidenceRecord` entries. The Project Truth evaluator remains the final project-level decision layer. Runtime and simulation executable paths are restricted to the configured QA workspace.
+QAとsimulationはtechnical resultを`EvidenceRecord`へ書き込む。Project Truth evaluatorがProject levelの最終decision layerであり続ける。Runtime/simulation executable pathはconfigured QA workspace内へ制限する。
 
-## P2 Decision Intelligence
+## P2 Decision Intelligence（意思決定支援）
 
 ```text
 POST /api/v1/p2/community-hardware
@@ -97,5 +87,4 @@ GET  /api/v1/p2/projects/{projectId}/decision-traces
 GET  /api/v1/p2/projects/{projectId}/intelligence
 ```
 
-Execution endpoints accept only workspace-relative targets inside `Qa:WorkspaceRoot`. Community Hardware upload requires explicit consent. Prediction/AI endpoints produce decision-support context and cannot by themselves create a measured product failure.
-
+Execution endpointは`Qa:WorkspaceRoot`内のworkspace-relative targetだけを受け付ける。Community Hardware uploadには明示的consentが必要。Prediction/AI endpointはdecision-support contextを生成するが、それ単独でmeasured product failureを作成できない。

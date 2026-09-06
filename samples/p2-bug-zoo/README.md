@@ -1,8 +1,8 @@
-# P2 experiment fixtures
+# P2 実験用Fixture
 
-These samples are intentionally abnormal fixtures for local validation. They are not production code.
+このSampleは、Local検証のために意図的に異常状態を作るFixtureです。本番Codeとして使用するものではありません。
 
-- `python/soak_memory_growth/app.py`: retains memory and emits decreasing FPS telemetry.
-- `python/fuzz_target/app.py`: returns non-zero for a known byte pattern so fuzz evidence can be validated.
+- `python/soak_memory_growth/app.py`: Memoryを保持し続け、FPSが低下するTelemetryを出力します。
+- `python/fuzz_target/app.py`: 既知のByte patternに対してnon-zeroを返し、Fuzz Evidenceを検証できるようにします。
 
-Run only in the repository QA workspace. P2 execution APIs intentionally reject paths outside the configured workspace root.
+実行はRepository内のQA workspaceに限定してください。P2 execution APIは、設定されたworkspace root外のPathを意図的に拒否します。

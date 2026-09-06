@@ -1,14 +1,14 @@
-## Purpose
+## 目的
 
-Describe the engineering problem this pull request solves. Avoid feature-list-only descriptions.
+このPull Requestが解決するEngineering上の問題を説明してください。機能一覧だけの説明は避けてください。
 
-## Changes
+## 変更内容
 
 - 
 - 
 - 
 
-## Affected areas
+## 影響範囲
 
 - [ ] Domain
 - [ ] Application
@@ -22,13 +22,13 @@ Describe the engineering problem this pull request solves. Avoid feature-list-on
 - [ ] CI/CD
 - [ ] Documentation / portfolio evidence
 
-## Technical decision
+## 技術的判断
 
-Explain the important trade-off or invariant introduced/changed by this PR. If a threshold, retry count, timeout, score, or performance target changed, explain why.
+このPRで導入・変更した重要なtrade-offまたはinvariantを説明してください。Threshold、retry count、timeout、score、performance targetなどの数値を変更した場合は、その理由も記載してください。
 
-## Verification
+## 検証
 
-List only checks that actually executed for this revision.
+**このRevisionで実際に実行したCheckだけ**を記載してください。
 
 ```text
 Commands/workflows:
@@ -39,30 +39,30 @@ Commands/workflows:
 - Security Scan
 ```
 
-If a runner or dependency was unavailable, record it as unavailable rather than PASS.
+RunnerやDependencyを利用できなかった場合は、PASSとせず「利用不可」と記録してください。
 
-## Quality and risk
+## 品質とRisk
 
-- Expected quality impact:
-- Performance impact:
-- Security impact:
+- 想定する品質への影響:
+- Performanceへの影響:
+- Securityへの影響:
 - Backward compatibility:
-- Database/configuration impact:
-- Rollback method:
+- Database / Configurationへの影響:
+- Rollback方法:
 
-## Evidence
+## Evidence（証拠）
 
-Add screenshots, logs, benchmark results, trace IDs, sample collector reports, or artifact links. State the exact commit/SHA for measured results.
+Screenshot、Log、Benchmark result、Trace ID、Sample Collector Report、Artifact linkなどを追加してください。計測結果には、対象となった正確なcommit / SHAを明記してください。
 
-## Checklist
+## チェックリスト
 
-- [ ] The change has a single clear purpose.
-- [ ] Commit subjects describe intent using the repository's Conventional Commit rules.
-- [ ] Tests were added or updated for behavior changes.
-- [ ] Numeric thresholds/penalties are named, documented, or configurable rather than unexplained magic numbers.
-- [ ] Public contracts and schemas remain backward compatible, or the breaking change is documented.
-- [ ] Secrets and personal information are not included.
-- [ ] Error handling and logging were reviewed.
-- [ ] Documentation was updated when behavior changed.
-- [ ] Generated files and local artifacts are not committed unless they are intentional evidence.
-- [ ] Historical evidence is not presented as proof for a newer revision.
+- [ ] 変更には単一で明確な目的がある。
+- [ ] Commit subjectはRepositoryのConventional Commit ruleに従い、意図を表している。
+- [ ] 挙動変更に対してTestを追加または更新した。
+- [ ] 数値Threshold / Penaltyは、説明のないmagic numberではなく、命名・文書化・設定可能化のいずれかを行った。
+- [ ] Public contractとSchemaはBackward compatibleである。またはbreaking changeを明記した。
+- [ ] Secretや個人情報を含めていない。
+- [ ] Error handlingとLoggingを確認した。
+- [ ] 挙動を変更した場合、Documentationも更新した。
+- [ ] Generated fileやLocal artifactは、意図したEvidenceでない限りCommitしていない。
+- [ ] Historical Evidenceを新しいRevisionの証明として提示していない。

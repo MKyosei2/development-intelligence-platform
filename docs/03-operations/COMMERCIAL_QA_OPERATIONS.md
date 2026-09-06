@@ -1,88 +1,88 @@
-# Commercial QA / PM Quality Operations
+# 商用QA / PM Quality Operations
 
-DIP Quality Operations converts automated QA observations into evidence-backed operational decisions without treating AI or heuristic output as the source of truth.
+DIP Quality Operationsは、自動QAによる観測をEvidenceに基づく運用判断へ変換する。AIやheuristic outputをSource of Truthとしては扱わない。
 
-## Operator entry points
+## Operator Entry Point（運用者の入口）
 
-- `/dashboard/{projectId}/quality-operations` — commercial Quality Operations Command Center.
-- `/dashboard/{projectId}/qa/operations` — QA-oriented alias of the same command center.
-- `/dashboard/{projectId}/qa` — run/detail/debug view.
-- `/dashboard/{projectId}/qa-governance` — lifecycle, waiver, baseline and governance controls.
-- `/dashboard/{projectId}/management` — PM decisions, actions, approvals and source-of-truth operations.
+- `/dashboard/{projectId}/quality-operations` — 商用Quality Operations Command Center。
+- `/dashboard/{projectId}/qa/operations` — 同じcommand centerのQA向けalias。
+- `/dashboard/{projectId}/qa` — run/detail/debug view。
+- `/dashboard/{projectId}/qa-governance` — lifecycle、waiver、baseline、governance control。
+- `/dashboard/{projectId}/management` — PM decision、action、approval、Source of Truth運用。
 
-## Release gate semantics
+## Release Gateの意味
 
 `Blocked / DO NOT PROMOTE`
-: One or more P0 release blockers remain open. A mechanically reproduced P0 increases confidence in the block but does not change the underlying evidence source.
+: 1件以上のP0 release blockerがopen。Mechanically reproducedされたP0はblockへのconfidenceを上げるが、Evidence source自体を置き換えない。
 
 `Hold / HOLD FOR REVIEW`
-: No P0 blocker is open, but verification is stale/non-successful, an SLA is breached, or accumulated P1 risk requires explicit review.
+: P0 blockerはないが、verificationがstale/non-successful、SLA breach、または累積P1 riskに明示的reviewが必要。
 
 `Ready / READY FOR HUMAN APPROVAL`
-: No P0 blocker is open and the latest QA evidence is current and successful. This is not an automatic release approval; the normal human approval process still applies.
+: P0 blockerがなく、最新QA Evidenceがcurrentかつsuccessful。ただし自動release approvalではなく、通常のhuman approval processを継続する。
 
 `Unknown / NO CURRENT VERIFICATION`
-: DIP has no current QA evidence. Unknown is never upgraded to Ready.
+: Current QA Evidenceが存在しない。UnknownをReadyへ昇格させない。
 
-## Default operational response windows
+## 既定の運用Response Window
 
-- P0: 4 hours
-- P1: 24 hours
-- P2: 72 hours
-- Fresh release verification: 24 hours
+- P0: 4時間
+- P1: 24時間
+- P2: 72時間
+- Fresh release verification: 24時間
 
-The defaults are centralized in `CommercialQaServiceLevelPolicy` and can be replaced by host-specific policy registration. They are operational targets, not universal industry standards.
+既定値は`CommercialQaServiceLevelPolicy`へ集約し、host固有policy registrationで置き換えられる。これは運用targetであり、業界共通standardではない。
 
-## Commercial QA evidence chain
+## 商用QA Evidence Chain
 
 `Repository / Game / Plugin / Media / DCC`
 → technology + production capability detection
-→ adapters + cross-cutting production QA
+→ adapter + cross-cutting production QA
 → finding classification
 → optional mechanical reproduction
 → evidence + durable quality issue
 → PM decision translation
 → Project Truth + Quality Operations release gate
 
-A skipped/unavailable tool, absent runtime executable, missing media baseline, stale verification or missing QA run is never represented as PASS.
+Skipped/unavailable tool、runtime executableなし、media baselineなし、stale verification、QA runなしをPASSとして表現しない。
 
-## Production integrity coverage
+## Production Integrity Coverage（本番整合性の検証範囲）
 
-The cross-cutting Production QA Pack includes bounded deterministic checks for:
+Cross-cutting Production QA Packはbounded deterministic checkとして次を含む。
 
-- Unity asset `.meta` presence and duplicate GUID collisions.
-- Unreal `.uplugin` descriptor parsing/integrity.
-- Maya missing and machine-dependent absolute references.
-- zero-byte production assets.
-- image/frame-sequence gaps.
-- configured visual/video/audio regression through the existing media-regression runner.
+- Unity asset `.meta`存在とduplicate GUID collision。
+- Unreal `.uplugin` descriptor parsing/integrity。
+- Mayaのmissing referenceとmachine-dependent absolute reference。
+- zero-byte production asset。
+- image/frame-sequence gap。
+- 既存media-regression runnerを使うconfigured visual/video/audio regression。
 
-`.dip/production.json` extends the production domain, genre/capability hints and media baseline/current comparisons. Runtime/reference checks that are not configured remain explicitly unverified.
+`.dip/production.json`はproduction domain、genre/capability hint、media baseline/current comparisonを拡張する。未構成のruntime/reference checkは明示的unverifiedのまま扱う。
 
-## PM workflow
+## PM Workflow（PM運用手順）
 
-1. Open Quality Operations Command Center.
-2. Read the Release Gate and Decision Brief first.
-3. Resolve P0 and SLA-breached lanes before lower-priority triage.
-4. Use owner role, reproduction status, occurrence count and evidence age when assigning work.
-5. For a blocked release, fix and rerun the same evidence-producing scenario. If scope is removed instead, record explicit approval, rollback and residual risk.
-6. Use QA Governance for waivers/baselines and Management for actions/approvals. The command center does not silently waive or approve risk.
+1. Quality Operations Command Centerを開く。
+2. 最初にRelease GateとDecision Briefを読む。
+3. Low-priority triageよりP0とSLA-breached laneを優先してresolve。
+4. Work assignment時はowner role、reproduction status、occurrence count、evidence ageを使用。
+5. Blocked releaseでは修正後に同じEvidence-producing scenarioをrerun。Scopeを外す場合はexplicit approval、rollback、residual riskを記録。
+6. Waiver/baselineはQA Governance、action/approvalはManagementを使用。Command centerからriskを暗黙waive/approveしない。
 
-## QA workflow
+## QA Workflow（QA運用手順）
 
-1. Run the appropriate QA path from the QA page.
-2. Inspect mechanically reproduced failures before one-off warnings.
-3. Use production-capability findings for game/plugin/media/DCC integrity, not only code diagnostics.
-4. Keep artifacts and Evidence IDs attached to the affected revision.
-5. Rerun after fixes. Older successful evidence does not prove the current revision.
+1. QA画面から適切なQA pathを実行。
+2. One-off warningよりmechanically reproduced failureを先に確認。
+3. Code diagnosticだけでなくgame/plugin/media/DCC integrityにはproduction-capability findingを使用。
+4. ArtifactとEvidence IDを対象revisionへ紐付けたまま保持。
+5. Fix後にrerun。古いsuccessful Evidenceはcurrent revisionの証明にならない。
 
-## Quality score
+## Quality Score（品質スコア）
 
-The `0–100` number on the command center is an operational prioritization score derived from open P0/P1, SLA breaches and recent failed QA runs. It is deliberately subordinate to the categorical Release Gate and must not be presented as a universal measure of product quality.
+Command centerの`0–100`は、open P0/P1、SLA breach、recent failed QA runから作る運用prioritization scoreである。CategoricalなRelease Gateより下位の補助指標であり、Product qualityの普遍的measureとして提示してはならない。
 
-## Validation
+## 検証
 
-Run locally before publishing a revision:
+Revision公開前にlocalで実行:
 
 ```powershell
 python tools/validate_commercial_quality_operations.py
@@ -92,4 +92,4 @@ dotnet build
 dotnet test
 ```
 
-Then execute GUI E2E/Playwright in the normal DIP environment. Toolchains unavailable on the verification host remain skipped and must not be described as passing.
+その後、通常のDIP環境でGUI E2E/Playwrightを実行する。Verification hostに存在しないtoolchainはSkippedのままであり、Passingと説明してはならない。

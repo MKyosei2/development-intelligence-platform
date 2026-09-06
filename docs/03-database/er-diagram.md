@@ -1,4 +1,4 @@
-# ER Diagram
+# ER図
 
 ```mermaid
 erDiagram

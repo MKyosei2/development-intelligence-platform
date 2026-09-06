@@ -1,4 +1,4 @@
-# Migration Policy
+# Migration方針
 
 - MigrationはDip.Infrastructureへ置く
 - 本番起動時に自動適用しない

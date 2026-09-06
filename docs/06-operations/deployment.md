@@ -1,5 +1,5 @@
-# Deployment
+# デプロイ
 
-Production deployment is exact-SHA and Native-first. `.github/workflows/live-deploy.yml` publishes .NET services, Python Analysis and an EF migration bundle into an immutable release directory, verifies hashes, snapshots durable state, updates the `current` symlink and restarts systemd user services.
+Production deploymentはexact-SHAかつNative-firstで行う。`.github/workflows/live-deploy.yml`は.NET service、Python Analysis、EF migration bundleをimmutable release directoryへpublishし、hashを検証し、durable stateをsnapshotし、`current` symlinkを更新してsystemd user serviceを再起動する。
 
-Caddy is host-native and proxies public traffic to `127.0.0.1:5080` (API) and `127.0.0.1:5081` (Web). A separate offsite filesystem is mandatory for automated live deployment rollback evidence.
+Caddyはhost-nativeで動作し、public trafficを`127.0.0.1:5080`（API）と`127.0.0.1:5081`（Web）へproxyする。Automated live deployment rollback Evidenceには、deployment filesystemとは別のoffsite filesystemを必須とする。

@@ -1,4 +1,5 @@
-# DIP JSON Schemas
+# DIP JSON Schema（スキーマ）
+
 Collector、API、Test、Sample Dataの境界を固定します。
 
 - `collector-report.schema.json`: 全Collector共通Report

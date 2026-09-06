@@ -1,53 +1,48 @@
-# Security Policy
+# セキュリティポリシー
 
-## Supported versions
+## サポート対象Version
 
-This project is currently under active development. Security fixes are applied
-to the latest revision of the default branch.
+このProjectは現在Active Development中です。Security FixはDefault BranchのLatest Revisionへ適用します。
 
-| Version | Supported |
+| Version | Support |
 |---|---|
 | Default branch / unreleased | Yes |
 | Older snapshots and forks | No |
 
-## Reporting a vulnerability
+## Vulnerabilityの報告
 
-Do not disclose a suspected vulnerability in a public issue, discussion, pull
-request, log, screenshot, or sample payload.
+疑わしいVulnerabilityをPublic Issue、Discussion、Pull Request、Log、Screenshot、Sample Payloadで公開しないでください。
 
-Use GitHub Private Vulnerability Reporting for this repository when it is
-available. Otherwise, contact the repository owner privately through GitHub
-and provide:
+利用可能な場合は、このRepositoryのGitHub Private Vulnerability Reportingを使用してください。利用できない場合はGitHubを通じてRepository OwnerへPrivateに連絡し、次を提示してください。
 
-- a concise description of the issue;
-- affected component, endpoint, worker, collector, or configuration;
-- reproduction steps or a minimal proof of concept;
-- expected and actual behavior;
-- potential impact;
-- suggested mitigation, when known.
+- Issueの簡潔な説明。
+- 影響を受けるComponent、Endpoint、Worker、Collector、Configuration。
+- Reproduction Stepまたは最小限のProof of Concept。
+- Expected / Actual Behavior。
+- Potential Impact。
+- 分かる場合はSuggested Mitigation。
 
-Do not include live credentials, access tokens, webhook secrets, personal
-information, or production data.
+Live Credential、Access Token、Webhook Secret、Personal Information、Production Dataを含めないでください。
 
-## Response process
+## 対応Process
 
-The maintainer will attempt to:
+Maintainerは次の対応を試みます。
 
-1. acknowledge the report;
-2. reproduce and assess the impact;
-3. prepare a fix and regression test;
-4. coordinate disclosure after users have a reasonable opportunity to update.
+1. Reportを受領したことを確認する。
+2. 再現し、Impactを評価する。
+3. FixとRegression Testを準備する。
+4. UserがUpdateできる合理的な猶予を確保した後、Disclosureを調整する。
 
-Response times are not guaranteed while the project remains unreleased.
+ProjectがUnreleasedである間、Response Timeは保証しません。
 
-## Security expectations
+## セキュリティ上の期待事項
 
-Contributors must:
+Contributorは次を守ってください。
 
-- store secrets in environment variables, user secrets, or a secret manager;
-- never commit `.env`, tokens, passwords, private keys, or production payloads;
-- validate collector and webhook input;
-- preserve webhook and message idempotency;
-- use parameterized database access;
-- keep dependencies and container images patched;
-- avoid logging sensitive request bodies or credentials.
+- SecretをEnvironment Variable、User Secret、またはSecret Managerに保存する。
+- `.env`、Token、Password、Private Key、Production PayloadをCommitしない。
+- Collector / Webhook InputをValidateする。
+- Webhook / Message Idempotencyを維持する。
+- Parameterized Database Accessを使用する。
+- DependencyとContainer ImageをPatchされた状態に保つ。
+- Sensitive Request BodyやCredentialをLogへ出さない。

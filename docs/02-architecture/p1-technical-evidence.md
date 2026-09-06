@@ -1,6 +1,6 @@
-# P1 Technical Evidence Architecture
+# P1 Technical Evidence アーキテクチャ
 
-P1 strengthens Project Truth; it does not replace Project Truth with QA.
+P1はProject Truthを強化するものであり、Project TruthをQAへ置き換えるものではない。
 
 ```text
 Python / C# / C++ deep specialized QA adapters
@@ -22,43 +22,43 @@ EvidenceRecord + Claim
   -> PM-first dashboard
 ```
 
-## Language-specific QA
+## 言語固有QA
 
-The deep `PythonQaEngine`, `CSharpQaEngine`, and `CppQaEngine` implementations remain, but they now implement the shared `IQaAdapter` contract. `QaAdapterRegistry` selects them by extensible `LanguageId`; other languages use generic or manifest adapters.
+深い解析を行う`PythonQaEngine`、`CSharpQaEngine`、`CppQaEngine`は維持しつつ、共通の`IQaAdapter` contractを実装する。`QaAdapterRegistry`は拡張可能な`LanguageId`から選択し、その他の言語ではgenericまたはmanifest adapterを使用する。
 
 ### Python
 - `python -m compileall`
-- Ruff when installed
-- mypy when installed
-- pytest when installed
-- runtime execution with `PYTHONFAULTHANDLER=1`, `PYTHONASYNCIODEBUG=1`, deterministic hash seed
-- Python traceback/source/exception parsing
-- a separate `-X tracemalloc=5` probe for retained-memory growth after a successful Python runtime run
-- asyncio lifecycle warnings such as un-awaited coroutines/pending tasks
+- Ruff（導入済みの場合）
+- mypy（導入済みの場合）
+- pytest（導入済みの場合）
+- `PYTHONFAULTHANDLER=1`、`PYTHONASYNCIODEBUG=1`、deterministic hash seedを用いたruntime execution
+- Python traceback/source/exception解析
+- 正常なPython runtime run後に保持memory増加を調べる別の`-X tracemalloc=5` probe
+- un-awaited coroutine/pending taskなどasyncio lifecycle warning
 
 ### C#
 - `dotnet restore`
 - `dotnet build`
 - `dotnet test`
-- optional `dotnet format analyzers --verify-no-changes`
-- runtime exception and source-frame parsing
-- nullable/async compiler warning parsing
-- timeout/hang evidence; `dotnet-stack` and `dotnet-dump` are collected before termination when available
+- 任意の`dotnet format analyzers --verify-no-changes`
+- runtime exceptionとsource-frame解析
+- nullable/async compiler warning解析
+- timeout/hang Evidence。利用可能であれば終了前に`dotnet-stack`と`dotnet-dump`を収集
 
 ### C++
-- dedicated CMake ASan/UBSan build on clang/gcc
-- MSVC `/W4 /fsanitize=address /Zi` on Windows
+- clang/gccでの専用CMake ASan/UBSan build
+- WindowsでのMSVC `/W4 /fsanitize=address /Zi`
 - CTest
-- clang-tidy / Cppcheck when installed
-- AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer parsing
-- GCC/Clang/MSVC source-location parsing
-- Windows crash watchdog using `DEBUG_ONLY_THIS_PROCESS` + `MiniDumpWriteDump`
+- clang-tidy / Cppcheck（導入済みの場合）
+- AddressSanitizer、UndefinedBehaviorSanitizer、LeakSanitizer解析
+- GCC/Clang/MSVC source-location解析
+- `DEBUG_ONLY_THIS_PROCESS` + `MiniDumpWriteDump`を用いたWindows crash watchdog
 
-## Reproduction evidence
+## 再現Evidence
 
-Critical findings use five attempts; other reproducible runtime/test findings use three. A retry counts as reproduction only when the generated finding fingerprint matches the original finding. A different crash is not accepted as proof.
+Critical findingは5回、それ以外の再現可能なruntime/test findingは3回試行する。Retryを再現成功として数えるのは、生成されたfinding fingerprintが元のfindingと一致した場合だけである。別のcrashは証拠として認めない。
 
-Each attempt can contain:
+各attemptには次のようなartifactを含められる。
 
 ```text
 reproduction/<finding-id>/attempt-001/
@@ -71,35 +71,35 @@ reproduction/<finding-id>/attempt-001/
   result.json
 ```
 
-Microphone recording is not automatic. System loopback audio is the default recording source.
+Microphone録音は自動実行しない。既定の録音元はsystem loopback audioである。
 
-## Capture implementation
+## Capture実装
 
-`collectors/capture-agent` is Windows-only and uses:
-- DXGI Desktop Duplication for screen frames
-- Media Foundation H.264 sink writer for MP4 video
-- WASAPI loopback for system audio WAV evidence
+`collectors/capture-agent`はWindows専用で、次を使用する。
+- DXGI Desktop Duplicationによるscreen frame取得
+- Media Foundation H.264 sink writerによるMP4 video
+- WASAPI loopbackによるsystem audio WAV Evidence
 
-The recorder starts before the target process and finalizes after a stop-file is written.
+Recorderは対象processより前に開始し、stop-fileが書き込まれた後にfinalizeする。
 
-## Hardware model
+## Hardware Model（ハードウェアモデル）
 
-P1 intentionally does not claim to emulate arbitrary physical CPUs/GPUs. A local calibration measures CPU, memory, storage, and optional Direct3D GPU synthetic scores. A target profile is created as a percentage of that measured baseline.
+P1は任意の物理CPU/GPUを完全に再現できるとは主張しない。Local calibrationでCPU、memory、storage、任意のDirect3D GPU synthetic scoreを計測し、その実測baselineに対する割合としてtarget profileを作成する。
 
-On Windows, simulation can apply:
+Windowsでは、次のsimulationを適用できる。
 - Job Object CPU hard cap
 - process memory budget
-- time-varying CPU thermal curve
-- optional D3D11 GPU contention helper
+- 時間変化するCPU thermal curve
+- 任意のD3D11 GPU contention helper
 - synthetic memory-bandwidth contention
 - synthetic storage I/O contention
 
-The resulting confidence is capped below real-device `Verified` evidence. The result JSON always records that the run is simulated and lists limitations.
+得られるconfidenceは実機`Verified` Evidenceより低く制限する。Result JSONにはsimulation runであることと制約事項を常に記録する。
 
-## Minimum hardware estimate
+## 最小Hardware推定
 
-P1 provides a simple boundary search over relative local capability (100/80/60/40 percent plus refinement). The result is explicitly named an estimate and cannot be presented as a certified minimum device specification without real-device evidence.
+P1はlocal capability比率（100/80/60/40%と追加refinement）に対する単純な境界探索を提供する。結果は明示的にestimateとして扱い、実機Evidenceなしに認証済みminimum device specificationとして提示してはならない。
 
-## Security boundary
+## セキュリティ境界
 
-P1 QA is process execution. Therefore API requests may only select a workspace relative to `Qa:WorkspaceRoot`, and runtime/simulation executables must also remain inside that workspace. Artifact download paths are similarly constrained to the QA run's artifact root.
+P1 QAはprocess実行を伴う。そのためAPI requestで選択できるworkspaceは`Qa:WorkspaceRoot`からの相対pathに限定し、runtime/simulation executableもそのworkspace内に留める。Artifact download pathもQA runのartifact root内へ制限する。

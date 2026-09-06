@@ -1,8 +1,8 @@
-# P2 Decision Intelligence architecture
+# P2 Decision Intelligence アーキテクチャ
 
-## Purpose
+## 目的
 
-P2 evolves DIP from current-state visibility into evidence-backed decision support. It does not replace Project Truth and it does not turn QA into the product core.
+P2はDIPを「現在状態の可視化」からEvidenceに基づく意思決定支援へ拡張する。Project Truthを置き換えず、QAをProduct coreへ置き換えるものでもない。
 
 ```text
 Community hardware / experiments / regression / reliability / media checks
@@ -22,66 +22,66 @@ Community hardware / experiments / regression / reliability / media checks
                          PM Dashboard
 ```
 
-Measured failures can become Project Truth evidence. Forecasts, AI candidates, community aggregates and simulations are contextual evidence and are never promoted to measured real-device facts.
+実測FailureはProject Truth Evidenceになり得る。一方、forecast、AI candidate、community aggregate、simulationはcontextual evidenceであり、実測されたreal-device factへ昇格させない。
 
-## Implemented P2 capability groups
+## 実装済みP2機能群
 
-### Hardware intelligence
+### Hardware Intelligence（ハードウェア知識）
 
-- explicit opt-in Community Hardware samples
-- SHA-256 pseudonymous hardware identity; raw key is not persisted
-- sample count, OS/driver diversity, real-device ratio, P10/P50/P90 based confidence
-- community aggregate Hardware Profiles
-- portability analysis across CPU/GPU/memory/storage/thermal dimensions
-- independent CPU/GPU/memory-bandwidth/storage/memory-budget minimum boundary search
-- safety-margin recommended profile distinct from estimated technical minimum
+- 明示的opt-inのCommunity Hardware sample
+- SHA-256 pseudonymous hardware identity。raw keyは保存しない
+- sample count、OS/driver diversity、real-device ratio、P10/P50/P90に基づくconfidence
+- community aggregate Hardware Profile
+- CPU/GPU/memory/storage/thermal dimensionを横断するportability analysis
+- CPU/GPU/memory-bandwidth/storage/memory-budgetごとの独立minimum boundary search
+- estimated technical minimumとは別のsafety-margin recommended profile
 
-### Adaptive verification planning
+### 適応型Verification Planning
 
 - changed-file/tag classification
 - historical failure risk weighting
-- fixed expected QA costs
+- fixed expected QA cost
 - budget-aware plan selection
 - docs-only short path
-- rendering/mobile/audio/network specialisation
+- rendering/mobile/audio/network specialization
 
-This planner chooses existing hardcoded evidence providers. It does not introduce a language-neutral QA adapter.
+このplannerは既存のhardcoded Evidence Providerを選択する。Language-neutral QA adapterを追加するものではない。
 
-### Regression and reliability
+### Regression / Reliability（回帰 / 信頼性）
 
 - repeated flaky-test execution
 - repeated runtime reliability execution
-- soak tests with memory/CPU/FPS/frame-time telemetry
+- memory/CPU/FPS/frame-time telemetry付きsoak test
 - performance drift detection
 - isolated Git worktree regression bisect
-- explicit regression-origin analysis over historical metric points
-- deterministic fuzz seed/boundary corpus with failure corpus, deduplication and bounded minimization
-- mutation testing in an isolated workspace with mandatory passing baseline
-- project-reference/path/token based Test Impact Analysis
+- historical metric pointに対する明示的regression-origin analysis
+- failure corpus、deduplication、bounded minimizationを備えたdeterministic fuzz seed/boundary corpus
+- mandatory passing baselineを持つisolated workspace内mutation testing
+- project-reference/path/tokenに基づくTest Impact Analysis
 - stable-fingerprint QA crash clustering
-- native address symbolication through llvm-symbolizer/addr2line when available
-- game performance/network regression gate with target FPS frame budget
+- 利用可能時のllvm-symbolizer/addr2lineによるnative address symbolication
+- target FPS frame budgetを使うgame performance/network regression gate
 
-### Media regression
+### Media Regression（メディア回帰）
 
-- visual image comparison and generated difference image
-- sampled video comparison with first differing time
+- visual image comparisonとdifference image生成
+- sampled video comparisonと最初の差分時刻
 - audio RMS/silence/clipping/sample-difference analysis
-- ffmpeg/ffprobe dependency failures are InfrastructureFailure, not product failure
+- ffmpeg/ffprobe dependency failureはProduct failureではなくInfrastructureFailure
 
-### Evidence-grounded root cause
+### Evidenceに基づくRoot Cause分析
 
-- deterministic evidence clustering is always available
-- optional external OpenAI-compatible endpoint is disabled by default
-- only the selected Evidence bundle is sent when explicitly enabled
-- AI candidates referencing unknown Evidence IDs are discarded
-- AI output cannot directly create a Project Truth blocker
-- suggested actions are advice for human review; no auto-fix or auto-PR
-- similar-incident lookup uses prior P2 evidence
+- deterministic evidence clusteringは常時利用可能
+- 任意の外部OpenAI-compatible endpointは既定で無効
+- 明示的に有効化した場合のみ、選択したEvidence bundleを送信
+- 未知Evidence IDを参照するAI candidateは破棄
+- AI outputからProject Truth blockerを直接作成しない
+- suggested actionはhuman review向け助言であり、auto-fix/auto-PRは行わない
+- similar-incident lookupでは過去のP2 Evidenceを使用
 
-### PM decision intelligence
+### PM Decision Intelligence（意思決定支援）
 
-- Evidence Freshness and confidence decay
+- Evidence Freshnessとconfidence decay
 - authority-weighted Evidence Conflict Resolution
 - Historical Risk
 - Schedule Risk estimate
@@ -91,18 +91,18 @@ This planner chooses existing hardcoded evidence providers. It does not introduc
 - What Changed Today
 - Why Health Changed
 - ranked PM Decision Brief
-- Decision Trace for Project Truth transitions
+- Project Truth transitionのDecision Trace
 
-## Human-safety principle
+## Human-safety原則
 
-P2 does not calculate employee trustworthiness, lying probability or personal performance scores. Stagnation means that objective Evidence is stale relative to a Claim. Contradiction means the Claim and current Evidence disagree. Neither is an accusation about a person.
+P2はemployee trustworthiness、lying probability、個人performance scoreを計算しない。Stagnationは、Claimに対してobjective Evidenceが古いことを意味する。Contradictionは、Claimとcurrent Evidenceが一致しないことを意味する。どちらも人物への非難ではない。
 
-## Prediction semantics
+## Predictionの意味
 
-A forecast is not a measured fact. P2 stores prediction confidence separately and uses a date range instead of a promised completion date. Simulation and Community Hardware aggregation never receive real-device `Verified` status merely because they have many samples.
+Forecastは実測factではない。P2はprediction confidenceを別に保存し、確約completion dateではなくdate rangeを使用する。SimulationやCommunity Hardware aggregationは、sample数が多くてもreal-device `Verified` statusを得ない。
 
-## Execution safety
+## 実行安全性
 
-Fuzzing, mutation, soak, repeated execution and bisect are restricted to the configured `Qa:WorkspaceRoot`. Executable and media paths must be relative and remain inside that root. Mutation and bisect use isolated Git worktrees where possible so the active developer checkout is not modified.
+Fuzzing、mutation、soak、repeated execution、bisectは構成済み`Qa:WorkspaceRoot`内に制限する。Executable/media pathはrelative pathでなければならず、そのroot内に留める。Mutationとbisectは可能な限りisolated Git worktreeを使用し、developerのactive checkoutを変更しない。
 
-On a shared deployment, authentication must be enabled and ProjectWrite access restricted. P2 execution endpoints must not be exposed anonymously to untrusted networks.
+Shared deploymentではauthenticationを有効にし、ProjectWrite accessを制限する。P2 execution endpointを信頼できないnetworkへanonymous公開してはならない。

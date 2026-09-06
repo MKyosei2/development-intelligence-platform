@@ -1,9 +1,9 @@
-# Local development
+# Local開発
 
-DIP uses a Native-first local runtime. Install .NET 8, Python 3.12+, PostgreSQL and PostgreSQL client tools. Create the `dip` database/user once, set `POSTGRES_*` variables (see `.env.example`), then run:
+DIPはNative-firstなlocal runtimeを使用する。.NET 8、Python 3.12+、PostgreSQL、PostgreSQL client toolをinstallする。`dip` database/userを一度作成し、`POSTGRES_*` variable（`.env.example`参照）を設定して次を実行する。
 
 ```powershell
 .\scripts\Start-DIP.ps1
 ```
 
-The launcher creates the Python venv and starts Analysis/API/Worker/Web directly. PID/log state is under `.dip/runtime`. Stop with `scripts/Stop-DIP.ps1 -KeepData`. Docker and an external queue daemon are not required.
+LauncherはPython venvを作成し、Analysis/API/Worker/Webをhost上で直接起動する。PID/log stateは`.dip/runtime`に保存する。停止は`scripts/Stop-DIP.ps1 -KeepData`。Dockerとexternal queue daemonは不要。

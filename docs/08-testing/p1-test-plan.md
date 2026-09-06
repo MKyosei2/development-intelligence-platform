@@ -1,21 +1,21 @@
-# P1 Verification Plan
+# P1 Verification Plan（P1検証計画）
 
-P1 is complete only when the vertical evidence path is verified, not merely when source files exist.
+P1はsource fileが存在するだけではcompleteではなく、vertical evidence pathまで検証できた場合にcompleteとする。
 
-## Required automated checks
-1. Build `DevelopmentIntelligencePlatform.sln` in Release.
-2. Run Domain, Application, Infrastructure and Integration tests.
-3. Run E2E tests with API/Worker/PostgreSQL active.
-4. Verify the Python Bug Zoo runtime error is detected and automatically reproduced.
-5. On Windows, build capture-agent, crash-watchdog, hardware-probe and hardware-stress-agent.
-6. On an interactive Windows machine, run a capture smoke and verify MP4/WAV artifact finalization.
-7. Verify a hardware calibration can create a relative target profile and that simulated results are marked as non-real-device evidence.
+## 必須Automated Check
+1. `DevelopmentIntelligencePlatform.sln`をReleaseでbuild。
+2. Domain、Application、Infrastructure、Integration testを実行。
+3. API/Worker/PostgreSQLを起動してE2E testを実行。
+4. Python Bug Zoo runtime errorが検出され、自動reproductionされることを確認。
+5. Windowsでcapture-agent、crash-watchdog、hardware-probe、hardware-stress-agentをbuild。
+6. Interactive Windows環境でcapture smokeを実行し、MP4/WAV artifactがfinalizeされることを確認。
+7. Hardware calibrationからrelative target profileを作成でき、simulated resultがnon-real-device Evidenceとして明示されることを確認。
 
-## Bug Zoo
-`samples/qa-bug-zoo` contains intentionally broken Python, C# and C++ examples with `expected-result.json` contracts.
+## Bug Zoo（異常系テスト群）
+`samples/qa-bug-zoo`には、`expected-result.json` contract付きの意図的に壊したPython、C#、C++ sampleを含む。
 
-## Evidence rules
-- A reproduction is successful only when its fingerprint matches the original finding.
-- Simulation confidence must never be promoted to `Verified` only because it passed.
-- Missing optional analyzers are infrastructure/tool-availability information, not a code defect.
-- Microphone capture must not be automatically enabled.
+## Evidence Rule（証拠ルール）
+- Reproduction成功とみなすのは、fingerprintが元findingと一致した場合だけ。
+- Simulationがpassしても、それだけでconfidenceを`Verified`へ昇格させない。
+- Optional analyzer欠損はinfrastructure/tool availability情報であり、code defectではない。
+- Microphone captureを自動有効化しない。

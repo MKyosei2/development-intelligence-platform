@@ -1,4 +1,4 @@
-# System Context
+# システムコンテキスト
 
 ```mermaid
 flowchart LR

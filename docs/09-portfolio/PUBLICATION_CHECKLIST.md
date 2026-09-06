@@ -1,19 +1,19 @@
-# Portfolio publication checklist
+# Portfolio公開Checklist
 
-Publication is staged: **prove safety → prove the exact revision → change visibility → complete reviewer-facing metadata → release**. Keep the repository private if any high-severity secret finding is unresolved.
+公開は段階的に行う: **Safetyを証明 → exact revisionを証明 → visibility変更 → reviewer-facing metadata完成 → release**。High-severity secret findingが未解決ならRepositoryはprivateのままにする。
 
-## Safety
+## 安全性
 
 ```powershell
 python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
 python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
 ```
 
-Also require the GitHub `Security Scan` workflow. Historical output does not replace a current-SHA run.
+GitHub `Security Scan` workflowも必須。Historical outputはcurrent-SHA runの代替ではない。
 
-## Exact-revision CI gate
+## Exact-revision CI Gate（対象Revision固定のCI Gate）
 
-For the publication SHA require successful real execution of:
+Publication SHAについて次のreal execution成功を要求する。
 
 - `Commit Message`
 - `.NET CI`
@@ -27,13 +27,13 @@ For the publication SHA require successful real execution of:
 - `Unreal Collector CI`
 - `Portfolio Publication Readiness`
 
-A job that stops before executing steps due to runner/account/platform availability is infrastructure-blocked: neither source failure nor PASS.
+Runner/account/platform availabilityによりstep実行前に停止したjobはinfrastructure-blockedであり、source failureでもPASSでもない。
 
-The Native Package Build must produce an exact-SHA archive and SHA-256 manifest. Docker image status is not part of the supported publication gate.
+Native Package Buildはexact-SHA archiveとSHA-256 manifestを生成する必要がある。Docker image statusはsupported publication gateに含めない。
 
-## Runtime evidence
+## Runtime Evidence（実行証拠）
 
-Run:
+実行:
 
 ```powershell
 .\scripts\Verify-GuiRuntime.ps1 -RunPlaywright
@@ -42,10 +42,10 @@ Run:
 .\scripts\Verify-DisasterRecovery.ps1
 ```
 
-Only evidence whose manifest/sourceCommit equals the publication SHA can support a current-revision claim.
+Manifest/sourceCommitがpublication SHAと一致するEvidenceだけがcurrent-revision claimを支えられる。
 
-## Visibility and reviewer check
+## 公開状態 / Reviewer確認
 
-After the gates pass, use the existing portfolio publication scripts to change repository visibility/release state. Review the repository signed out and ensure the README, architecture, implementation-vs-verification boundary, historical/current evidence distinction, source/tests, and release artifacts are reachable.
+Gate通過後、既存portfolio publication scriptからrepository visibility/release stateを変更する。Signed-out状態でrepositoryを確認し、README、architecture、implementation-vs-verification boundary、historical/current Evidence区別、source/test、release artifactへ到達できることを確認する。
 
-Accurate metadata topics should include `developer-tools`, `game-development`, `qa-automation`, `dotnet`, `blazor`, `postgresql`, `devops`, `unity`, and `unreal-engine` as applicable. PostgreSQL-backed queueing should be described as part of the current runtime architecture.
+Metadata topicには適用可能な範囲で`developer-tools`、`game-development`、`qa-automation`、`dotnet`、`blazor`、`postgresql`、`devops`、`unity`、`unreal-engine`を含める。PostgreSQL-backed queueingはcurrent runtime architectureの一部として説明する。

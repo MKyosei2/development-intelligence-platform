@@ -1,18 +1,18 @@
 # Development Intelligence Platform (DIP)
 
-DIP is a development-intelligence platform for game, media and software teams. It connects Git/CI/QA/runtime/performance/project data into traceable evidence inside a shared Project Context, then uses that evidence for Project Truth, quality automation, performance analysis, release readiness and evidence-grounded debugging.
+DIPは、ゲーム・メディア・ソフトウェア開発チーム向けのDevelopment Intelligence（開発インテリジェンス）基盤です。Git / CI / QA / Runtime / Performance / Project Dataを共通のProject Contextへ集約し、出所を追跡できるEvidence（検証証拠）として扱います。そのEvidenceを基に、Project Truth、品質自動化、性能分析、リリース準備状況、Evidenceに基づくデバッグを支援します。
 
-> **Native-first runtime:** Docker Desktop, Docker Engine and an external queue daemon are not required. PostgreSQL is the durable system of record and queue/coordination boundary; .NET and Python services run directly on the host.
+> **Native-first runtime:** Docker Desktop、Docker Engine、外部Queue Daemonは必須ではありません。PostgreSQLを永続的なSystem of RecordとQueue / Coordination Boundaryとして使用し、.NETとPythonサービスはホスト上で直接実行します。
 
-## Engineering principles
+## エンジニアリング原則
 
-- **Implemented ≠ Tested ≠ Runtime Verified.** DIP does not promote source presence or historical evidence into a current-revision claim.
-- **Claim and Evidence are separate.** Project Truth can be Confirmed, Partially Confirmed, Unverified, Contradicted or Stale.
-- **AI is not a source of truth.** Autonomous Debugging follows Hypothesis → Candidate → Isolated Verification → Human Review.
-- **Broad capability is intentional.** Game-development infrastructure, QA, project intelligence, performance, management and production operations share one evidence model rather than existing as disconnected tools.
-- **Production operations fail closed.** Authentication, native QA isolation, backup integrity, exact-revision packaging and readiness are explicit gates.
+- **Implemented ≠ Tested ≠ Runtime Verified.** ソースが存在することや過去のEvidenceだけを根拠に、現在のリビジョンを検証済みとは扱いません。
+- **ClaimとEvidenceを分離する。** Project TruthはConfirmed、Partially Confirmed、Unverified、Contradicted、Staleの状態を持ちます。
+- **AIを真実の根拠にしない。** Autonomous Debuggingは `Hypothesis → Candidate → Isolated Verification → Human Review` の順で進めます。
+- **広い機能範囲は意図した設計です。** Game Development Infrastructure、QA、Project Intelligence、Performance、Management、Production Operationsを別々のツールとして分断せず、共通のEvidence Modelで扱います。
+- **Production Operationsはfail-closedを基本とする。** Authentication、Native QA Isolation、Backup Integrity、Exact-Revision Packaging、Readinessを明示的なGateとして扱います。
 
-## Native architecture
+## Nativeアーキテクチャ
 
 ```text
 Browser
@@ -32,30 +32,30 @@ Browser
           └── Unity / Unreal / C++ / toolchain integrations
 ```
 
-The generic queue and the existing Durable Job subsystem are PostgreSQL-backed.
+汎用Queueと既存のDurable Job subsystemはいずれもPostgreSQLを利用します。
 
-## Requirements
+## 必要環境
 
-For normal local development:
+通常のローカル開発に必要なものは次のとおりです。
 
 - .NET 8 SDK
-- PostgreSQL 16 or compatible supported PostgreSQL
+- PostgreSQL 16、または互換性のあるサポート対象PostgreSQL
 - PostgreSQL client tools: `psql`, `pg_isready`, `pg_dump`, `pg_restore`
 - Python 3.12+
 - Git
 
-Node.js 22+ is required only for browser E2E. Unity, Unreal, CMake and native analyzers are required only when exercising their corresponding integrations/QA capabilities.
+Node.js 22+はBrowser E2Eを実行する場合のみ必要です。Unity、Unreal、CMake、Native Analyzerも、対応するIntegration / QA機能を実行する場合のみ必要です。
 
-## First run
+## 初回起動
 
-Create a PostgreSQL login/database once. Example from a PostgreSQL administrator shell:
+PostgreSQLのLogin / Databaseを一度だけ作成します。PostgreSQL管理者Shellでの例:
 
 ```sql
 CREATE ROLE dip LOGIN PASSWORD 'change-me-local-only' CREATEDB;
 CREATE DATABASE dip OWNER dip;
 ```
 
-Then from PowerShell:
+その後、PowerShellから実行します。
 
 ```powershell
 $env:POSTGRES_HOST = "127.0.0.1"
@@ -66,9 +66,9 @@ $env:POSTGRES_PASSWORD = "change-me-local-only"
 .\scripts\Start-DIP.ps1
 ```
 
-`Start-DIP.ps1` validates PostgreSQL, creates the Python virtual environment, restores/builds the .NET solution, starts Python Analysis/API/Worker/Web as host processes, records their PIDs under `.dip/runtime`, waits for health/readiness, and opens the UI.
+`Start-DIP.ps1`はPostgreSQLの確認、Python仮想環境の作成、.NET SolutionのRestore / Build、Python Analysis / API / Worker / Webのホストプロセス起動、`.dip/runtime`へのPID記録、Health / Readiness待機、UI起動までを行います。
 
-Useful variants:
+用途に応じて次のオプションも使用できます。
 
 ```powershell
 .\scripts\Start-DIP.ps1 -NoBuild -NoBrowser
@@ -76,11 +76,11 @@ Useful variants:
 .\scripts\Stop-DIP.ps1 -KeepData
 ```
 
-Stopping DIP never stops PostgreSQL and never removes PostgreSQL data. Runtime/artifact deletion requires an explicit destructive switch.
+DIPを停止してもPostgreSQL自体は停止せず、PostgreSQL Dataも削除しません。Runtime / Artifactの削除には明示的な破壊的Switchが必要です。
 
-## Runtime storage
+## Runtime保存先
 
-Default local paths:
+ローカルでの既定Path:
 
 ```text
 .dip/runtime/          PID files + native process logs
@@ -90,11 +90,11 @@ artifacts/durable/     durable local artifacts
 artifacts/backups/     verified backups
 ```
 
-Production should use explicit absolute paths outside the release directory.
+ProductionではRelease Directory外の明示的なAbsolute Pathを使用してください。
 
-## Backup / restore / DR
+## バックアップ / 復元 / DR
 
-Native backup uses PostgreSQL client tools directly and archives ordinary filesystem artifacts:
+Native BackupはPostgreSQL Client Toolsを直接使用し、通常のFilesystem ArtifactもArchiveします。
 
 ```powershell
 .\scripts\Backup-Dip.ps1
@@ -102,7 +102,7 @@ Native backup uses PostgreSQL client tools directly and archives ordinary filesy
 .\scripts\Verify-DisasterRecovery.ps1
 ```
 
-A backup contains:
+Backupには次を含みます。
 
 ```text
 database.dump
@@ -111,35 +111,35 @@ backup-manifest.json
 offsite-location.txt    # when an offsite mirror is configured
 ```
 
-Hashes are verified before restore. Production deployment requires an offsite directory on a different filesystem from the deployment root.
+Restore前にHashを検証します。Production DeploymentではDeployment Rootとは異なるFilesystem上のOffsite Directoryが必要です。
 
-## Database migrations
+## DBマイグレーション
 
 ```powershell
 .\scripts\Verify-DatabaseMigrations.ps1
 ```
 
-The verifier uses a temporary native PostgreSQL database, applies the previous/latest EF migration sequence when applicable, re-applies the latest revision to prove idempotence, checks `__EFMigrationsHistory`, and removes the temporary database.
+Verifierは一時的なNative PostgreSQL Databaseを使用し、該当する場合はPrevious / Latest EF Migration Sequenceを適用します。さらにLatest Revisionを再適用してIdempotenceを確認し、`__EFMigrationsHistory`を検査した後、一時Databaseを削除します。
 
-## QA isolation
+## QA分離
 
-DIP executes repository QA as native processes rather than inside Docker. The existing process executor provides executable allowlisting, canonical workspace checks, environment sanitization, timeout/process-tree termination and resource controls. Production remains fail-closed unless external network and filesystem isolation are explicitly attested/configured.
+DIPはRepository QAをDocker内ではなくNative Processとして実行します。既存のProcess ExecutorはExecutable Allowlist、Canonical Workspace Check、Environment Sanitization、Timeout / Process-Tree Termination、Resource Controlを提供します。ProductionではExternal Network / Filesystem Isolationが明示的にAttest / Configureされない限りfail-closedを維持します。
 
-On Windows the intended hard boundary is a dedicated low-privilege account + ACL-scoped temporary workspace + Job Object resource limits + firewall/network isolation. Production secrets are not passed to QA child processes.
+Windowsでは、専用Low-Privilege Account + ACLで限定したTemporary Workspace + Job Object Resource Limits + Firewall / Network IsolationをHard Boundaryとして想定しています。Production SecretsはQA Child Processへ渡しません。
 
-## Benchmarks and soak
+## BenchmarkとSoak
 
 ```powershell
 .\scripts\Run-PortfolioBenchmarks.ps1
 ```
 
-The benchmark still measures project-list latency, collector ingestion, controlled burst load, large Metric aggregation and paced soak/memory growth. It creates a temporary PostgreSQL benchmark database and removes it afterwards. No Docker or external queue service is started.
+BenchmarkではProject List Latency、Collector Ingestion、Controlled Burst Load、大規模Metric Aggregation、Paced Soak / Memory Growthを測定します。一時的なPostgreSQL Benchmark Databaseを作成し、終了後に削除します。Dockerや外部Queue Serviceは起動しません。
 
-Current-revision numbers must come from a run whose artifact records that exact SHA. Historical benchmark numbers are baselines only and are not inherited by later commits.
+現在リビジョンの数値として扱えるのは、ArtifactにそのExact SHAが記録された実行結果だけです。過去のBenchmark値はBaselineであり、後続Commitへ継承しません。
 
-## CI and release
+## CIとRelease
 
-The file `.github/workflows/docker-build.yml` is retained as an existing repository path for compatibility, but the workflow itself is now named **Native Package Build** and does not invoke Docker. It publishes:
+`.github/workflows/docker-build.yml` は互換性のため既存Pathを維持していますが、Workflow名は現在 **Native Package Build** であり、Dockerは実行しません。以下をPublishします。
 
 - Dip.Api
 - Dip.Worker
@@ -149,29 +149,29 @@ The file `.github/workflows/docker-build.yml` is retained as an existing reposit
 - EF migration bundle
 - exact-SHA release manifest + SHA-256 manifest
 
-`Live Native Deployment` deploys immutable per-SHA release directories, switches a `current` symlink, restarts user-level systemd services, verifies public readiness/browser behavior, and restores the previous database/artifact/release state on failure.
+`Live Native Deployment`はSHAごとのImmutable Release DirectoryをDeployし、`current` symlinkを切り替え、User-level systemd servicesを再起動します。その後Public Readiness / Browser Behaviorを検証し、失敗時は以前のDatabase / Artifact / Release Stateへ戻します。
 
-Caddy is a normal host reverse proxy using `deploy/Caddyfile` and stable loopback endpoints (`5080`/`5081`).
+Caddyは通常のHost Reverse Proxyとして `deploy/Caddyfile` を使用し、安定したLoopback Endpoint（`5080` / `5081`）へ接続します。
 
-## Reviewer-facing capability contract
+## レビュアー向けCapability Contract
 
-- **Project Truth** — evidence-linked claim state with freshness/contradiction handling.
-- **Evidence-Grounded Autonomous Debugging** — hypothesis/candidate generation is subordinate to isolated verification and human review.
-- **Flexible Spreadsheet Intelligence** — spreadsheet ingestion/analysis participates in the same project/evidence model.
-- **Historical PASS ≠ Current Revision PASS** — historical evidence is never silently promoted to a later SHA.
+- **Project Truth** — Freshness / Contradictionを扱う、Evidenceに紐づいたClaim State。
+- **Evidence-Grounded Autonomous Debugging** — Hypothesis / Candidate生成よりも、Isolated VerificationとHuman Reviewを優先します。
+- **Flexible Spreadsheet Intelligence** — Spreadsheet Ingestion / Analysisも同じProject / Evidence Modelに参加します。
+- **Historical PASS ≠ Current Revision PASS** — 過去Evidenceを後続SHAへ暗黙に昇格させません。
 
-## Core product areas
+## 中核となるProduct Area
 
-DIP includes Project Truth/Evidence Graph, QA and defect intelligence, evidence-grounded autonomous debugging, development/repository graphs, performance and hardware intelligence, release/readiness evidence, project/management intelligence, spreadsheet intelligence, Unity/Unreal/native collectors, integrations and operational evidence.
+DIPにはProject Truth / Evidence Graph、QA / Defect Intelligence、Evidence-Grounded Autonomous Debugging、Development / Repository Graph、Performance / Hardware Intelligence、Release / Readiness Evidence、Project / Management Intelligence、Spreadsheet Intelligence、Unity / Unreal / Native Collector、Integration、Operational Evidenceが含まれます。
 
-The important architectural constraint is that these capabilities share project scope, evidence provenance and verification state; they are not treated as unrelated feature demos.
+重要なアーキテクチャ上の制約は、これらの機能がProject Scope、Evidence Provenance、Verification Stateを共有することです。互いに無関係なFeature Demoとして実装しているわけではありません。
 
-## Verification before portfolio publication
+## ポートフォリオ公開前のVerification
 
-Use `docs/09-portfolio/PUBLICATION_CHECKLIST.md`. The exact publication SHA must have real successful workflow execution; a zero-step infrastructure failure is neither a source failure nor a PASS.
+`docs/09-portfolio/PUBLICATION_CHECKLIST.md` を使用してください。公開対象のExact SHAについて、実際にWorkflowが成功している必要があります。Stepを1つも実行できないInfrastructure Failureは、Source FailureでもPASSでもありません。
 
-The expected workflow set includes `.NET CI`, Python CI, native/unreal collectors, Integration/E2E, GUI E2E, **Native Package Build**, Security Scan, Universal QA Benchmark and Portfolio Publication Readiness.
+想定するWorkflow Setには `.NET CI`、Python CI、Native / Unreal Collector、Integration / E2E、GUI E2E、**Native Package Build**、Security Scan、Universal QA Benchmark、Portfolio Publication Readinessを含みます。
 
-## Legacy Docker files
+## 旧Dockerファイル
 
-Some `docker-compose*.yml` / Dockerfile paths may remain in repository history for compatibility and migration reference. They are **not** the supported/default local, CI, release or production runtime. New operational work should use the Native-first paths above.
+互換性やMigration Referenceのため、一部の `docker-compose*.yml` / Dockerfile PathがRepository Historyに残る場合があります。これらは、サポート対象 / 既定のLocal、CI、Release、Production Runtimeではありません。新しい運用作業では上記のNative-first Pathを使用してください。

@@ -1,40 +1,40 @@
-# P2 — Predictive Development Intelligence
+# P2 — 予測型Development Intelligence
 
-P2 extends Project Truth; it does **not** replace it. QA, hardware, regression, reliability, visual/media comparison, and root-cause analysis are Evidence Providers. Project Truth remains the final status/risk/progress authority.
+P2はProject Truthを拡張するものであり、**置き換えるものではない**。QA、hardware、regression、reliability、visual/media comparison、root-cause analysisはEvidence Providerである。Project Truthは、最終的なstatus/risk/progress判断の基準として維持する。
 
-## P2 capabilities
+## P2の機能
 
-- Opt-in, pseudonymized Community Hardware calibration samples and confidence aggregates.
-- Estimated Minimum Hardware boundary search with explicit safety margin. The P2 search reuses the P1 constrained performance-simulation runner; simulation is never labeled real-device evidence.
-- Adaptive QA planning from changed paths, historical failure evidence, and a time budget.
-- Automated regression origin search over a Git commit range in a disposable detached Git worktree, leaving the original checkout untouched.
-- Flaky/reliability/soak execution with target-process failure-rate, timeout, memory-growth, and emitted FPS/frame-time drift evidence.
-- Visual/video/audio regression artifact comparison and evidence storage. Low-precision binary fallbacks are not promoted to high-confidence evidence.
-- Evidence-grounded root-cause candidates. If the supplied evidence cannot support a conclusion, the result is `Insufficient Evidence`.
-- Release-risk/completion-window forecasts with confidence and rationale. Completion velocity is derived from Project Truth verified-progress history; insufficient history produces no completion date rather than an invented estimate.
-- PM Decision Brief: Situation → Why → Next Action, plus daily changes and Project Truth change drivers.
+- 明示的opt-inとpseudonymizeを行うCommunity Hardware calibration sampleとconfidence aggregate。
+- 明示的safety margin付きのEstimated Minimum Hardware境界探索。P2はP1の制約付きperformance-simulation runnerを再利用し、simulationを実機Evidenceとして扱わない。
+- 変更path、過去のfailure Evidence、時間budgetからAdaptive QA planを作成。
+- Disposableなdetached Git worktree内でGit commit範囲を探索する自動regression origin search。元のcheckoutは変更しない。
+- Target processのfailure rate、timeout、memory growth、出力されたFPS/frame-time drift Evidenceを記録するflaky/reliability/soak execution。
+- Visual/video/audio regression artifact comparisonとEvidence保存。精度の低いbinary fallbackをhigh-confidence Evidenceへ昇格させない。
+- Evidence-grounded root-cause candidate。提供Evidenceで結論を支持できない場合は`Insufficient Evidence`を返す。
+- Confidenceと根拠付きのrelease-risk/completion-window forecast。Completion velocityはProject Truthのverified-progress historyから算出し、履歴不足では架空の日付を作らずcompletion dateを出さない。
+- PM Decision Brief: Situation → Why → Next Actionに加え、daily changeとProject Truth change driverを提示。
 
-## Execution safety
+## 実行安全性
 
-P2 regression and mutation runners use an isolated detached Git worktree. The original checkout is not checked out to historical commits and mutation candidates are not written into the user's active working tree.
+P2 regression/mutation runnerは、隔離されたdetached Git worktreeを使用する。元のcheckoutを過去commitへ切り替えず、mutation candidateを利用者のactive working treeへ書き込まない。
 
-Verification commands are constrained to either:
+Verification commandは次のいずれかに制限する。
 
-- a workspace-relative executable/script that resolves inside the isolated worktree, or
-- an allowlisted development tool (`dotnet`, Python/pytest, CMake/CTest/Ninja/MSBuild, PowerShell, Node package tools).
+- isolated worktree内へ解決されるworkspace-relative executable/script
+- allowlistされたdevelopment tool（`dotnet`、Python/pytest、CMake/CTest/Ninja/MSBuild、PowerShell、Node package tool）
 
-Absolute arbitrary host commands and workspace path traversal are rejected.
+任意のabsolute host commandとworkspace path traversalは拒否する。
 
-## Hardware evidence boundary
+## Hardware Evidenceの境界
 
-Minimum-hardware estimates are produced from bounded synthetic constraints and observed application results. CPU/GPU/memory/storage boundary probes fail closed when the requested constraint is not actually applied or when the target does not report an explicit pass/fail product result.
+Minimum-hardware estimateは、制約付きsynthetic conditionと観測されたapplication resultから生成する。CPU/GPU/memory/storage boundary probeは、要求した制約が実際に適用されなかった場合、またはtargetが明示的pass/fail product resultを報告しない場合にfail-closedとする。
 
-The result remains `simulated=true`, `realDevice=false`; real-device evidence is required before publishing a certified minimum specification.
+Resultは`simulated=true`、`realDevice=false`のままであり、認証済みminimum specificationを公開するには実機Evidenceが必要である。
 
-## Reliability / soak semantics
+## Reliability / Soakの意味
 
-A soak run is an observation window, not a timeout. If the target remains alive through the requested soak duration, DIP records a successful observation and stops the process intentionally. Early exit is treated as a failure. Memory growth is sampled from the **target process**, not from DIP's own managed heap. Performance drift is calculated only when the target emits parseable FPS or frame-time metrics; missing metrics are not replaced with unrelated host measurements.
+Soak runはtimeoutではなく観測windowである。Targetが要求soak時間を通して稼働していれば、DIPは観測成功を記録してprocessを意図的に停止する。途中終了はfailureとして扱う。Memory growthはDIP自身のmanaged heapではなく**対象process**からsampleする。Performance driftは、targetが解析可能なFPSまたはframe-time metricを出力した場合だけ計算し、欠損metricを無関係なhost measurementで置き換えない。
 
-## Safety / governance
+## 安全性 / Governance
 
-P2 never computes a developer or artist trust score. It evaluates claims and evidence. Community hardware submission requires explicit opt-in and stores a one-way pseudonymous source fingerprint rather than the raw consent token. Root-cause suggestions do not automatically modify source code. Predictions are ranges/risks with confidence and supporting evidence.
+P2はdeveloper/artistのtrust scoreを計算しない。評価対象はClaimとEvidenceである。Community Hardware submissionは明示的opt-inを必要とし、生のconsent tokenではなくone-way pseudonymous source fingerprintを保存する。Root-cause suggestionがsource codeを自動変更することはない。Predictionはconfidenceとsupporting evidenceを伴うrange/riskとして扱う。

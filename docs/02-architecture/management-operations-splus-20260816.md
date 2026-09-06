@@ -1,59 +1,59 @@
-# Management Operations S+/S — 2026-08-16
+# Management Operations S+/S（運用管理）— 2026-08-16
 
-## Purpose
+## 目的
 
-This expansion turns existing Development Graph / Management Analytics data into an operational control loop for project managers, producers and discipline leads. It does not replace Evidence/Project Truth. Management decisions, responsibilities, approvals, alerts, calendars and synchronization state are persisted beside the existing graph so technical evidence and management action stay connected.
+この拡張では、既存のDevelopment Graph / Management Analyticsデータを、PM・Producer・各領域Leadが日常運用で使える制御ループへ接続する。Evidence / Project Truthを置き換えるものではない。Management decision、responsibility、approval、alert、calendar、synchronization stateを既存graphと並べて永続化し、技術Evidenceと管理上のActionを切り離さない。
 
-The intended loop is:
+想定する運用ループは次のとおり。
 
 ```text
 Detect -> Prioritize -> Decide -> Assign -> Approve -> Act -> Verify -> Close -> Review
 ```
 
-## Implemented S+ capabilities
+## 実装済みS+機能
 
-### Daily Cockpit / My work
+### Daily Cockpit / My Work（日次作業画面）
 
 `GET /api/v1/management/projects/{projectId}/cockpit`
 
-The cockpit combines current alerts, open actions, pending decisions and approvals. `ownerRole` narrows **alerts, actions, decisions and approval roles** together; it is not only an Action filter. The Web page is `/dashboard/{projectId}/management`.
+Cockpitはcurrent alert、open action、pending decision、approvalを統合する。`ownerRole`は**alert、action、decision、approval roleをまとめて**絞り込むため、Actionだけのfilterではない。Web画面は`/dashboard/{projectId}/management`。
 
-### Browser CRUD for management registers
+### Management RegisterのBrowser CRUD
 
-The Management page can create/update and archive Risks, Decisions, Actions, Scope Changes and Resource Allocations. Update forms preserve the management fields needed for operations rather than replacing existing records with a reduced subset: status, category, triggers, mitigation, related targets, completion, decision links, scope keys and allocation rationale are represented.
+Management画面からRisk、Decision、Action、Scope Change、Resource Allocationを作成・更新・archiveできる。Update formでは、既存recordを縮小subsetで上書きしないよう、status、category、trigger、mitigation、related target、completion、decision link、scope key、allocation rationaleなど、運用に必要なmanagement fieldを維持する。
 
-Archive is non-destructive. `ManagementOperationsService.ArchiveAsync` retains the graph node and adds archive actor/time/reason metadata.
+Archiveは非破壊である。`ManagementOperationsService.ArchiveAsync`はgraph nodeを保持し、archive actor/time/reason metadataを追加する。
 
-### Notification delivery + acknowledgement / snooze / escalation
+### 通知配信 + Acknowledge / Snooze / Escalation
 
-`ManagementNotificationWorker` calculates operational alerts and routes them to configured Slack, Teams and SMTP channels. Delivery is fail-visible in Worker logs and successful delivery level is persisted as `AlertState`.
+`ManagementNotificationWorker`はoperational alertを計算し、構成されたSlack、Teams、SMTP channelへroutingする。Delivery failureはWorker logで確認可能にし、成功したdelivery levelは`AlertState`へ保存する。
 
-Alert state supports:
+Alert stateは次を持つ。
 
 - `Acknowledged`
-- `Snoozed` with `SnoozeUntilUtc`
+- `Snoozed` + `SnoozeUntilUtc`
 - `Resolved`
 - `Open` / reopen
 
-Escalation is based on persisted `FirstSeenAtUtc`; acknowledgement does not reset the age of the incident. Acknowledgement records the currently reached escalation level, suppressing repeated delivery at the same level while still allowing later L2/L3 escalation.
+Escalationは保存済み`FirstSeenAtUtc`を基準にする。Acknowledgementでincident ageはresetしない。Acknowledgement時に到達済みescalation levelを記録し、同じlevelの再通知を抑制しつつ、後続のL2/L3 escalationは許可する。
 
-Default ladder:
+既定ladder:
 
 | Severity | L1 | L2 | L3 |
 |---|---:|---:|---:|
-| Critical | immediately | 30 min | 2 h |
-| High | immediately | 2 h | 1 day |
-| Other | immediately | 2 days | — |
+| Critical | 即時 | 30分 | 2時間 |
+| High | 即時 | 2時間 | 1日 |
+| Other | 即時 | 2日 | — |
 
-`ManagementNotifications:RoleRoutes` maps RACI/owner roles to delivery channel types. `ManagementNotifications:RoleDestinations:<role>` can override the Slack webhook, Teams webhook and email recipients for that specific role (with `*` fallback). When a source item has RACI, Responsible is preferred, then Accountable, then explicit owner metadata, then category fallback.
+`ManagementNotifications:RoleRoutes`はRACI/owner roleをdelivery channel typeへ対応付ける。`ManagementNotifications:RoleDestinations:<role>`ではroleごとにSlack webhook、Teams webhook、email recipientをoverrideでき、`*`をfallbackに使用できる。Source itemにRACIがある場合はResponsibleを最優先し、Accountable、明示的owner metadata、category fallbackの順でroutingする。
 
-### Formal approval workflow
+### 正式な承認Workflow
 
-Approval requests target existing management/release graph nodes and require one or more management roles. A Project Owner binds an authenticated audit identity (`login#subject`) to management roles. Approval response endpoints overwrite the actor with `RequestActor.AuditIdentity(User)`; request bodies cannot choose the authenticated identity.
+Approval requestは既存management/release graph nodeを対象にし、1つ以上のmanagement roleを要求する。Project Ownerはauthenticated audit identity（`login#subject`）をmanagement roleへbindする。Approval response endpointはactorを`RequestActor.AuditIdentity(User)`で上書きするため、request bodyからauthenticated identityを指定できない。
 
-By default `AllowSameActorMultipleRoles=false`, so one person cannot satisfy multiple required roles for the same approval. A rejection closes the approval as Rejected; all required roles approving closes it as Approved.
+既定では`AllowSameActorMultipleRoles=false`であり、同一人物が同一approvalで複数のrequired roleを満たせない。1件でもrejectされるとApprovalはRejected、全required roleがapproveするとApprovedになる。
 
-Sensitive API roles:
+Sensitive API role:
 
 - role binding: Project **Owner**
 - source authority: Project **Owner**
@@ -61,92 +61,92 @@ Sensitive API roles:
 - issue tracker sync / conflict resolution: Project **Maintainer**
 - alert disposition / RACI: Project **Member**
 
-### Conflict-safe external synchronization
+### 競合に安全な外部同期
 
-GitHub, Jira and Linear map external work items to DIP Management Actions. Google Sheets covers the broader editable management workbook.
+GitHub、Jira、Linearはexternal work itemをDIP Management Actionへmappingする。Google Sheetsは、より広いeditable management workbookを対象にする。
 
-Issue tracker synchronization is bidirectional and keeps provider links/revisions. The provider adapters paginate beyond the first 100 records with bounded safety limits. Managed external records are also explicitly project-scoped: GitHub/Linear descriptions carry a `dip-project:<ProjectId>` marker and Jira uses a `dip-project-<ProjectId>` label. Pull requires the same ProjectId, preventing a shared Jira/Linear/GitHub account from mixing Actions between DIP projects. Management metadata written into external descriptions is normalized to a bounded single line before marker/field serialization.
+Issue tracker synchronizationは双方向で、provider link/revisionを保持する。Provider adapterはbounded safety limit付きで100件を超えるpageも取得する。Managed external recordは明示的にProject scopeを持つ。GitHub/Linear descriptionには`dip-project:<ProjectId>` marker、Jiraには`dip-project-<ProjectId>` labelを付ける。Pull時には同じProjectIdを必須とし、1つのJira/Linear/GitHub accountを複数DIP Projectで共有してもActionが混在しないようにする。External descriptionへ書き込むmanagement metadataは、marker/field serialization前にbounded single lineへ正規化する。
 
-Issue tracker synchronization is conflict-safe. A mismatch becomes a durable conflict unless an explicit Source Authority with `ConflictPolicy=PreferAuthority` resolves it. `Manual` never silently overwrites both-sided changes. Conflict resolution transitions:
+Issue tracker synchronizationはconflict-safeである。Mismatchは、明示的Source Authorityが`ConflictPolicy=PreferAuthority`で解決しない限りdurable conflictになる。`Manual`では両側変更を黙って上書きしない。Conflict resolutionは次の遷移を取る。
 
 ```text
 Open -> Resolved(DIP|External) -> next successful synchronization -> Applied
 ```
 
-External-only items are not remotely deleted automatically. Choosing DIP for an external-only conflict means “do not import this unchanged remote item”; choosing External for a local-only conflict archives the local DIP Action instead of inventing a destructive remote delete.
+External-only itemはremote側から自動削除しない。External-only conflictでDIPを選ぶことは「変更のないremote itemをimportしない」という意味であり、local-only conflictでExternalを選んだ場合は、破壊的remote deleteを作るのではなくlocal DIP Actionをarchiveする。
 
-Google Sheets stores per-sheet `(LocalHash, ExternalHash, SyncedAtUtc)` snapshots. If both sides change after the last snapshot, synchronization pauses as a conflict. Snapshot/resolution state is advanced only after the selected pull/push applies successfully.
+Google Sheetsはsheetごとに`(LocalHash, ExternalHash, SyncedAtUtc)` snapshotを保存する。Last snapshot後に両側が変更された場合はconflictとしてsynchronizationを停止する。Snapshot/resolution stateは、選択したpull/pushが成功してから進める。
 
-## Implemented S capabilities
+## 実装済みS機能
 
-### Portfolio / Program Command Center
+### Portfolio / Program Command Center（統括画面）
 
 `GET /api/v1/management/portfolio`
 
-The Home page aggregates accessible projects with project health, schedule delay, peak capacity, critical risk, blockers, pending decisions, overdue actions, approvals and synchronization conflicts. Only projects visible to the authenticated user are returned unless the caller is an Admin/development mode.
+Home画面は、アクセス可能なProjectについてproject health、schedule delay、peak capacity、critical risk、blocker、pending decision、overdue action、approval、synchronization conflictを集約する。CallerがAdmin/development modeでない限り、authenticated userから見えるProjectだけを返す。
 
-### Explicit cross-project resource planning
+### 明示的Cross-project Resource Planning
 
-Cross-project resource planning does **not** infer a shared workforce from equal team names. Each Team can explicitly carry:
+Cross-project resource planningでは、team nameが同じという理由だけでshared workforceを推測**しない**。各Teamは明示的に次を持てる。
 
 - `SharedResourceKey`
 - `SharedPoolCapacityHoursPerWeek`
 
-The Management page can add/remove a Team's membership without rewriting its existing team capacity/name/status. The Teams spreadsheet round-trips both values.
+Management画面は既存team capacity/name/statusを書き換えずにTeam membershipを追加・削除できる。Teams spreadsheetは両値をround-tripする。
 
-Portfolio planning groups only explicitly matching resource keys, sums weekly demand across projects and compares it with the shared pool limit. If projects configure different limits for one key, DIP surfaces a configuration conflict and conservatively uses the lowest limit until the values are aligned.
+Portfolio planningは明示的に一致するresource keyだけをgroup化し、Project横断のweekly demandを合算してshared pool limitと比較する。同じkeyで異なるlimitが構成された場合はconfiguration conflictを表示し、値が揃うまでは保守的に最小limitを使用する。
 
-### RACI / responsibility
+### RACI / 責任分担
 
-RACI assignments target existing graph items and persist Responsible, Accountable, Consulted and Informed roles. RACI also drives operational alert routing, so it affects behavior rather than acting only as documentation.
+RACI assignmentは既存graph itemを対象にし、Responsible、Accountable、Consulted、Informed roleを保存する。RACIはoperational alert routingにも使うため、単なるDocumentationではなく動作へ影響する。
 
-### Daily / Weekly / Release review modes
+### 日次 / 週次 / Release Review Mode
 
 `GET /api/v1/management/projects/{projectId}/cadence/{daily|weekly|release}`
 
-Meeting mode builds a bounded agenda from the same Management Dashboard/Cockpit data. Release review explicitly surfaces schedule gate, blockers, critical risk and pending approvals rather than creating a separate untraceable meeting state.
+Meeting modeは同一のManagement Dashboard/Cockpit dataからbounded agendaを生成する。Release reviewでは、独立して追跡できないmeeting stateを作るのではなく、schedule gate、blocker、critical risk、pending approvalを明示的に表示する。
 
-### Work Calendar / PTO / Holiday / Meeting capacity
+### Work Calendar / PTO / 休日 / Meeting Capacity
 
-Work Calendars are Project-wide or Team-specific and contain:
+Work CalendarはProject-wideまたはTeam-specificで、次を持つ。
 
-- Hours/day and working days
+- Hours/dayとworking days
 - recurring meeting hours/week
 - support/on-call hours/week
-- dated capacity exceptions (PTO, holiday, meeting, support or other)
+- dated capacity exception（PTO、holiday、meeting、support、その他）
 
-Calendar deductions are applied directly to weekly capacity forecasts. Multi-week exceptions are prorated by actual overlap with each week, so a long leave is not deducted in full from every overlapping week.
+Calendar deductionはweekly capacity forecastへ直接適用する。複数weekにまたがるexceptionは各weekとの実際のoverlapで按分し、長期休暇をすべてのoverlap weekへ全量控除しない。
 
-Google Calendar synchronization classifies PTO/leave/holiday/meeting/support events into calendar exceptions. OAuth access tokens are request-only and are not serialized into graph metadata. All-day events use the calendar/event timezone instead of assuming UTC. Multi-day all-day PTO/holiday events are split into configured working-day exceptions, so weekends/non-working days are not accidentally deducted from capacity.
+Google Calendar synchronizationはPTO/leave/holiday/meeting/support eventをcalendar exceptionへ分類する。OAuth access tokenはrequest内のみで扱い、graph metadataへserializeしない。All-day eventはUTC固定ではなくcalendar/event timezoneを使用する。複数日にまたがるall-day PTO/holidayは、構成されたworking dayにだけexceptionとして分割し、週末・非稼働日を誤ってcapacityから引かない。
 
-### Source of Truth / conflict policy
+### Source of Truth / 競合Policy
 
-Source Authority rules are project-scoped and identify `DataType`, `Authority`, `ConflictPolicy` and priority. Supported conflict policies are deliberately limited to:
+Source Authority ruleはProject scopeを持ち、`DataType`、`Authority`、`ConflictPolicy`、priorityを指定する。Supported conflict policyは意図的に次の2つへ限定する。
 
-- `Manual`: do not auto-overwrite a real mismatch
-- `PreferAuthority`: apply the configured authoritative side
+- `Manual`: 実際のmismatchを自動上書きしない
+- `PreferAuthority`: 構成済みauthoritative sideを適用する
 
-This is used by issue tracker and Google Sheets synchronization. Manual merge is performed by editing the chosen side, then resolving to DIP or External; DIP does not store an ambiguous third “Merge” state that cannot be executed deterministically.
+Issue trackerとGoogle Sheets synchronizationでこのpolicyを使用する。Manual mergeは選択した側を編集後、DIPまたはExternalとしてresolveする。DIPは決定的に実行できない曖昧な第三の`Merge` stateを保存しない。
 
-## Security and operational boundaries
+## セキュリティ / 運用境界
 
-- Project-scoped endpoints are protected by existing `ProjectScopeAuthorizationFilter`; route and body ProjectIds are cross-checked.
-- Formal approval identities are derived server-side from authenticated claims.
-- Slack/Teams webhook URLs require HTTPS.
-- Google Calendar and Google Sheets access tokens are not persisted by this layer.
-- Source synchronization does not perform automatic destructive remote deletes.
-- Notification channels are inactive when not configured; no fake delivery success is recorded.
+- Project scope endpointは既存`ProjectScopeAuthorizationFilter`で保護し、route/bodyのProjectIdをcross-checkする。
+- Formal approval identityはauthenticated claimからserver-sideで決定する。
+- Slack/Teams webhook URLはHTTPS必須。
+- Google Calendar/Sheets access tokenはこのlayerで永続化しない。
+- Source synchronizationは破壊的remote deleteを自動実行しない。
+- Notification channelが未構成ならinactiveとし、偽のdelivery successを記録しない。
 
-## Verification
+## 検証
 
-`tools/validate_management_operations.py` statically verifies the integration surfaces across Domain, Application, Infrastructure, API, Worker, Web and configuration. Its PASS is **not** a .NET build or live connector PASS.
+`tools/validate_management_operations.py`はDomain、Application、Infrastructure、API、Worker、Web、configurationを横断してintegration surfaceを静的検証する。このPASSは**.NET buildまたはlive connector PASSではない**。
 
-Exact-revision runtime completion still requires:
+Exact-revision runtime completionには引き続き次が必要である。
 
-1. `dotnet build` and .NET unit/integration tests.
-2. Browser/API smoke test with authentication enabled.
-3. Slack/Teams/SMTP delivery against test destinations.
-4. Jira/Linear/GitHub and Google Sheets/Calendar tests against sandbox accounts.
-5. Worker + PostgreSQL persistence/restart verification.
+1. `dotnet build`と.NET unit/integration tests。
+2. Authentication enabled状態でのBrowser/API smoke test。
+3. Test destinationへのSlack/Teams/SMTP delivery。
+4. Sandbox accountを使ったJira/Linear/GitHubとGoogle Sheets/Calendar test。
+5. Worker + PostgreSQL persistence/restart verification。
 
-Generated validation evidence is stored under `artifacts/management-operations-validation-20260816/`.
+生成されたvalidation Evidenceは`artifacts/management-operations-validation-20260816/`へ保存する。

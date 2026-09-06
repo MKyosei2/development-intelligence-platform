@@ -1,4 +1,4 @@
-# User Stories
+# ユーザーストーリー
 
 ## PM / 制作進行（最優先）
 
@@ -10,7 +10,7 @@
 - PMとして、リリース見込みと、その判断を支えるEvidenceの信頼度を確認したい
 - PMとして、過去の報告・Build・CI・Asset・Qualityの変化をEvidence Timelineとして追跡したい
 
-## Tech Lead / Engineer / TA
+## Tech Lead / Engineer / TA（技術担当）
 
 - Tech Leadとして、品質を悪化させたPRを特定したい
 - Tech Leadとして、PM向けの簡略表示から根拠となった技術Evidenceへドリルダウンしたい
@@ -22,7 +22,7 @@
 
 DIPは人物の信用度や「嘘をついた確率」を算出しない。評価対象は常にClaim（報告内容）とEvidence（観測事実）の一致度である。
 
-## P2 / Decision Intelligence
+## P2 / Decision Intelligence（意思決定支援）
 
 - PMとして、昨日から何が変わり、Healthがなぜ変化したかをEvidence付きで知りたい
 - PMとして、リリース遅延リスクと完成見込みを断定ではなくConfidence付きの範囲として確認したい
@@ -33,4 +33,3 @@ DIPは人物の信用度や「嘘をついた確率」を算出しない。評�
 - TAとして、Visual/Video/Audioの差分をEvidence Artifactとして確認したい
 - 個人利用者として、所有していない全CPU/GPUを用意せず、opt-in Community HardwareとCalibrationからTarget capabilityを評価したい
 - PMとして、AIの推測ではなくEvidence IDで根拠付けされた原因候補と次の確認行動だけを受け取りたい
-

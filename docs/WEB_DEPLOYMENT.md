@@ -1,28 +1,28 @@
-# Web deployment — Native-first
+# Webデプロイ — Native-first
 
-DIP production deployment does not require Docker or a container registry.
+DIPのProduction DeploymentではDockerやContainer Registryは必須ではありません。
 
-## Host prerequisites
+## Host側の前提条件
 
-- Linux host with .NET 8 runtime
+- .NET 8 Runtimeを備えたLinux Host
 - Python 3.12+
-- PostgreSQL server reachable by the deployment account
+- Deployment Accountから到達できるPostgreSQL Server
 - PostgreSQL client tools (`psql`, `pg_dump`, `pg_restore`)
-- `systemd --user` available for the deployment account; enable linger for that account so services survive SSH logout
-- Caddy installed/configured with `deploy/Caddyfile`
-- a durable artifact/workspace directory outside release directories
-- a separately mounted offsite backup filesystem
+- Deployment Accountで `systemd --user` が利用可能であること。SSH Logout後もServiceを維持するため、そのAccountでlingerを有効化すること
+- `deploy/Caddyfile` を使用してCaddyがInstall / Configureされていること
+- Release Directory外にDurable Artifact / Workspace Directoryがあること
+- 別MountのOffsite Backup Filesystemがあること
 
-## Release model
+## Release Model（Release方式）
 
-`Live Native Deployment` creates `releases/<GITHUB_SHA>`, verifies the release SHA-256 manifest, creates a Python venv, applies the EF migration bundle, atomically changes the `current` symlink and restarts four user services: analysis, api, worker and web.
+`Live Native Deployment` は `releases/<GITHUB_SHA>` を作成し、Release SHA-256 Manifestを検証し、Python venvを作成し、EF Migration Bundleを適用します。その後 `current` symlinkをAtomicに変更し、analysis / api / worker / webの4つのUser Serviceを再起動します。
 
-The public reverse proxy always targets loopback `5080`/`5081`, so release switching does not require changing application addresses.
+Public Reverse Proxyは常にLoopback `5080` / `5081` を参照するため、Release切替時にApplication Addressを変更する必要はありません。
 
-## Rollback
+## Rollback（切り戻し）
 
-Before mutation the workflow stores a PostgreSQL custom-format dump plus artifact archive and hashes, mirrors them to a distinct filesystem, and records the previous release. A deployment failure stops the new services, restores database/artifacts, moves `current` back and restarts the previous release.
+変更前にWorkflowはPostgreSQL Custom-format Dump、Artifact Archive、Hashを保存し、それらを別FilesystemへMirrorし、Previous Releaseを記録します。Deployment Failure時はNew Serviceを停止し、Database / ArtifactをRestoreし、`current` をPrevious Releaseへ戻して再起動します。
 
-Production configuration is based on `deploy/web.env.example`. Secrets must be supplied by GitHub environment secrets/host secret management and must never be committed.
+Production Configurationは `deploy/web.env.example` を基にします。SecretはGitHub Environment Secret / Host Secret Managementから供給し、Commitしてはいけません。
 
-Optional integration/notification settings can be kept in `$DIP_DEPLOY_PATH/host-overrides.env`; generated systemd units load it after the core deployment environment without putting those secrets into the release archive.
+Optional Integration / Notification Settingsは `$DIP_DEPLOY_PATH/host-overrides.env` に保持できます。生成されるsystemd unitはCore Deployment Environmentの後にこのFileを読み込み、SecretをRelease Archiveへ含めません。

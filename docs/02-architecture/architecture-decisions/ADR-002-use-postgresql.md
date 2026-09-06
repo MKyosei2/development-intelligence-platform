@@ -1,7 +1,7 @@
-# Use PostgreSQL
+# PostgreSQLを採用する
 
-## Decision
+## 決定
 関係データ、Index、Transactionに適するPostgreSQLを主DBにする。
 
-## Consequences
+## 影響
 Contract、Version、Timeout、Migrationを明示的に管理します。

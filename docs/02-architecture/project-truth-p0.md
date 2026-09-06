@@ -1,4 +1,4 @@
-# Project Truth / Evidence First P0 Architecture
+# Project Truth / Evidence First P0 アーキテクチャ
 
 ## 1. 目的
 
@@ -44,13 +44,13 @@ QAはEvidence Providerの一つであり、Project Truthそのものではない
 
 人物への「truth score」は作らない。
 
-## 4. Evidence Confidence
+## 4. Evidence Confidence（証拠の信頼度）
 
 Evidenceには`Unverified / Low / Medium / High / Verified`を持たせる。
 
 `Verified`は「結果が必ず正しい」という意味ではなく、Evidenceの出所・取得経路が強く検証できていることを示す。例として、HMAC署名検証済みGitHub WebhookはVerified、Collector実行結果はHighとして扱う。
 
-## 5. Progress
+## 5. 進捗
 
 P0では二つのProgressを分離する。
 
@@ -59,7 +59,7 @@ P0では二つのProgressを分離する。
 
 この二つを一つの数字に混ぜない。
 
-## 6. Risk / Blocker
+## 6. Risk / Blocker（リスク / 阻害要因）
 
 RiskはHealth Scoreだけから決めない。
 
@@ -71,7 +71,7 @@ RiskはHealth Scoreだけから決めない。
 
 を理由付きで評価する。
 
-## 7. Dashboard
+## 7. Dashboard（ダッシュボード）
 
 DashboardはPM向け情報を最初に表示する。
 

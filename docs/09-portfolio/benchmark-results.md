@@ -1,14 +1,14 @@
-# Benchmark Results
+# ベンチマーク結果
 
-The previous `TBD` placeholders are replaced by an exact-revision measurement workflow. **No value is claimed for this modified revision until it has been measured on the target Windows machine.**
+以前の`TBD` placeholderはexact-revision measurement workflowへ置き換えられている。**この変更revisionについて、target Windows machineで実測するまでは値を主張しない。**
 
-Run:
+実行:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\Run-PortfolioBenchmarks.ps1 -UpdateDocumentation
 ```
 
-The command writes raw evidence to `artifacts/portfolio-benchmark/portfolio-benchmark-results.json` and, with `-UpdateDocumentation`, rewrites this file with the measured values.
+Commandはraw Evidenceを`artifacts/portfolio-benchmark/portfolio-benchmark-results.json`へ書き出し、`-UpdateDocumentation`指定時は実測値でこのfileを書き換える。
 
 | Scenario | Target | Current exact-revision evidence |
 |---|---:|---|
@@ -17,9 +17,8 @@ The command writes raw evidence to `artifacts/portfolio-benchmark/portfolio-benc
 | 100 req/s error rate | <1% | NOT YET MEASURED |
 | 1M Metric query p95 | <2000 ms | NOT YET MEASURED |
 
-Older benchmark evidence is never presented as evidence for a newer source revision.
+古いbenchmark Evidenceを新しいsource revisionのEvidenceとして提示しない。
 
+## Runtime Profile（実行プロファイル）
 
-## Runtime profile
-
-The runner uses the dedicated `Benchmark` ASP.NET Core environment (`ProductionLikeBenchmark` evidence label) rather than `Development`. Loopback authentication is disabled only inside the isolated benchmark harness and that fact is recorded in the result JSON. The default sustained-load window is 900 seconds at 25 requests/second; callers may explicitly choose a longer release/nightly window. No performance number is published until the exact revision is actually measured.
+Runnerは`Development`ではなく専用`Benchmark` ASP.NET Core environment（Evidence labelは`ProductionLikeBenchmark`）を使用する。Loopback authenticationはisolated benchmark harness内だけで無効化し、その事実をresult JSONへ記録する。Default sustained-load windowは900秒・25 requests/second。Callerはより長いrelease/nightly windowを明示指定できる。Exact revisionを実測するまでperformance numberは公開しない。

@@ -1,5 +1,5 @@
-# Backup and restore
+# BackupとRestore
 
-Use `scripts/Backup-Dip.ps1` and `scripts/Restore-Dip.ps1`. Backups use native PostgreSQL tools and ordinary filesystem artifacts, with SHA-256 validation and atomic publication. Restore requires `-ConfirmRestore`, creates a safety backup by default, validates archive/hash integrity before destructive operations and attempts automatic rollback on failure.
+`scripts/Backup-Dip.ps1`と`scripts/Restore-Dip.ps1`を使用する。Backupはnative PostgreSQL toolと通常filesystem artifactを使用し、SHA-256 validationとatomic publicationを行う。Restoreは`-ConfirmRestore`を必須とし、既定でsafety backupを作成する。破壊的操作の前にarchive/hash integrityを検証し、失敗時にはautomatic rollbackを試みる。
 
-Use `scripts/Verify-DisasterRecovery.ps1` for a disposable database+artifact restore drill.
+Disposable database + artifact restore drillには`scripts/Verify-DisasterRecovery.ps1`を使用する。

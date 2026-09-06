@@ -1,4 +1,4 @@
-# Collector API
+# Collector API（Collector向けAPI）
 
 `POST /api/collectors/reports`
 

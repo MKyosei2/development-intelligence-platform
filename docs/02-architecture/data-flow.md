@@ -1,4 +1,4 @@
-# Data Flow
+# データフロー
 
 ```mermaid
 sequenceDiagram

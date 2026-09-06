@@ -1,4 +1,4 @@
-# Quality Gate Rules
+# Quality Gateルール
 
 | 指標 | Warning | Critical |
 |---|---:|---:|

@@ -1,4 +1,4 @@
-# Component Diagram
+# コンポーネント図
 
 ```mermaid
 flowchart LR

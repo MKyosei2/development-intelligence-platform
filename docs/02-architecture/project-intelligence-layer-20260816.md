@@ -1,26 +1,26 @@
-# Project Intelligence Layer — 2026-08-16
+# Project Intelligence Layer（プロジェクト知識層）— 2026-08-16
 
-## Purpose
+## 目的
 
-DIP does not require a company to replace Excel, Redmine, Slack, Teams, GitHub, CI, or QA tooling. The Project Intelligence Layer reads those existing sources, preserves their provenance, links references that describe the same work item, and shows PMs/leads where the plan, reported state, and machine-observed evidence disagree.
+DIPは、企業にExcel、Redmine、Slack、Teams、GitHub、CI、QA toolの置き換えを要求しない。Project Intelligence Layerは既存sourceを読み取り、provenance（出所）を保持し、同じwork itemを示すreference同士を関連付け、計画・報告状態・機械的に観測されたEvidenceが一致しない場所をPM/Leadへ示す。
 
-The core comparison is intentionally split into four layers:
+中心となる比較は、意図的に次の4layerへ分離する。
 
-1. **Plan** — WBS/Gantt data imported from Excel/CSV.
-2. **Operational report** — Redmine status/progress and collaboration progress claims.
-3. **Engineering evidence** — GitHub/PR/CI/build/test/QA/runtime evidence already stored by DIP.
-4. **Management interpretation** — stale signals, contradictions, evidence readiness, and digest actions.
+1. **Plan** — Excel/CSVからimportしたWBS/Gantt data。
+2. **Operational report** — Redmine status/progressとcollaboration上のprogress Claim。
+3. **Engineering evidence** — DIPに保存済みのGitHub/PR/CI/build/test/QA/runtime Evidence。
+4. **Management interpretation** — stale signal、contradiction、evidence readiness、digest action。
 
-A chat message that says “done” is not promoted to verified completion. A Redmine done ratio is not treated as a build/test result. `EvidenceReadinessPercent` is a work-item evidence heuristic; it is **not an employee skill score or performance rating**.
+Chatで「done」と報告されてもverified completionへ昇格させない。Redmineのdone ratioもbuild/test resultとして扱わない。`EvidenceReadinessPercent`はwork-item単位のEvidence heuristicであり、**従業員のskill scoreやperformance ratingではない**。
 
-## Excel / WBS / Gantt understanding
+## Excel / WBS / Ganttの理解
 
-Supported upload formats are `.xlsx`, `.xlsm`, and `.csv`. Legacy `.xls` must be saved as `.xlsx` or CSV before import.
+Upload対応形式は`.xlsx`、`.xlsm`、`.csv`。Legacy `.xls`はimport前に`.xlsx`またはCSVへ保存する必要がある。
 
-The analyzer scans the first 20 rows of each sheet and detects Japanese/English aliases for:
+Analyzerは各sheetの先頭20行をscanし、次の日本語/英語aliasを検出する。
 
 - WBS key / task ID
-- task or work-item name
+- task / work-item name
 - parent
 - planned start / end / due date
 - declared progress
@@ -29,32 +29,32 @@ The analyzer scans the first 20 rows of each sheet and detects Japanese/English 
 - predecessor/dependency
 - milestone
 
-The browser always exposes a mapping preview before import. Missing WBS hierarchy can be inferred from dotted identifiers such as `1.2.3` or from title indentation. The importer stores each workbook revision as `ProjectPlanImport` + `PlanItem` nodes in the Development Graph. It **does not overwrite canonical Task/Action/Requirement nodes**.
+Browserではimport前に必ずmapping previewを表示する。WBS hierarchyがない場合は`1.2.3`のようなdotted identifierまたはtitle indentationから推定できる。Importerはworkbook revisionごとに`ProjectPlanImport` + `PlanItem` nodeとしてDevelopment Graphへ保存し、**canonical Task/Action/Requirement nodeを上書きしない**。
 
-Safety limits:
+Safety limit:
 
 - upload: 12 MB
-- XLSX package entries: 2,000
-- expanded workbook: 80 MB total / 32 MB per entry
-- plan rows: 20,000 per import revision
+- XLSX package entry: 2,000
+- expanded workbook: 合計80 MB / entryごと32 MB
+- plan row: import revisionあたり20,000
 
-## Cross-source entity resolution
+## Cross-source Entity Resolution（情報源横断のEntity統合）
 
-DIP tries to map source entities such as an Excel WBS row, Redmine issue, Slack observation, GitHub PR, or commit to canonical project entities.
+DIPはExcel WBS row、Redmine issue、Slack observation、GitHub PR、commitなどのsource entityをcanonical project entityへmappingしようとする。
 
-Signals include:
+主なsignal:
 
 - exact logical key
-- an explicit `DIP:` / `TASK:` reference
-- an external URL/reference match
-- target key in a source title
+- 明示的`DIP:` / `TASK:` reference
+- external URL/reference match
+- source title内のtarget key
 - normalized title-token similarity
 
-Automatic persistence is deliberately conservative: exact/very strong matches, or a high score with a clear margin over the next candidate. Lower-confidence matches remain `Suggested` until a Maintainer confirms them. A manual confirmation produces an `EquivalentTo` edge and an auditable `EntityBinding` node.
+Automatic persistenceは意図的に保守的にする。Exact/非常に強いmatch、または高scoreかつ次候補に十分なmarginがある場合だけ自動保存する。Low-confidence matchはMaintainerがconfirmするまで`Suggested`のまま残す。Manual confirmationでは`EquivalentTo` edgeと監査可能な`EntityBinding` nodeを作成する。
 
-## Redmine source
+## Redmine情報源
 
-The Redmine adapter is **read-only** and uses the REST API. It imports:
+Redmine adapterは**read-only**でREST APIを使用し、次をimportする。
 
 - issue ID / subject / description
 - tracker / status / priority
@@ -62,11 +62,11 @@ The Redmine adapter is **read-only** and uses the REST API. It imports:
 - start / due date
 - done ratio
 - fixed version
-- relations
-- attachments
-- custom fields
+- relation
+- attachment
+- custom field
 
-Custom fields are preserved in source metadata because real Redmine deployments frequently encode company-specific WBS or ownership conventions there. Fields whose names contain `DIP`, `Task`, or `WBS` are also considered potential entity references.
+実際のRedmineでは企業固有WBS/ownership conventionをcustom fieldで表すことが多いため、custom fieldはsource metadataとして保持する。Field名に`DIP`、`Task`、`WBS`を含むものはentity reference候補としても扱う。
 
 Configuration:
 
@@ -85,24 +85,24 @@ Configuration:
 }
 ```
 
-Production Redmine URLs must use HTTPS. Project-specific mappings prevent data from different DIP projects from being mixed when one Redmine server hosts many projects.
+Production Redmine URLはHTTPS必須。Project-specific mappingにより、1つのRedmine serverが複数ProjectをhostingしていてもDIP Project間でdataが混ざらないようにする。
 
-## Slack source and signed event ingestion
+## Slack Sourceと署名付きEvent Ingestion
 
-Two paths are available:
+2つの経路を用意する。
 
-- read recent relevant messages with `conversations.history`
-- receive Slack Events API callbacks at `POST /api/v1/project-intelligence/hooks/slack/{projectId}`
+- `conversations.history`で関連するrecent messageを読む
+- `POST /api/v1/project-intelligence/hooks/slack/{projectId}`でSlack Events API callbackを受ける
 
-The history adapter does not ingest every chat message. It keeps messages that contain a task marker, URL, progress percentage, completion/review/test/CI/PR/blocker wording, or file evidence. Project-specific channel allowlists scope collection.
+History adapterはすべてのchat messageを取り込まない。Task marker、URL、progress percentage、completion/review/test/CI/PR/blocker表現、file Evidenceを含むmessageだけを残す。Project-specific channel allowlistでcollection範囲を制限する。
 
-Slack Events requests require `X-Slack-Request-Timestamp` and `X-Slack-Signature`. DIP verifies the official HMAC signature and rejects timestamps outside a five-minute replay window. The event channel must also be allowed for the route’s DIP project.
+Slack Events requestは`X-Slack-Request-Timestamp`と`X-Slack-Signature`を必須とする。DIPは公式HMAC署名を検証し、5分のreplay windowを超えたtimestampを拒否する。Event channelもroute対象DIP Projectで許可されていなければならない。
 
-Required Slack scopes depend on the channel types used. At minimum the bot needs permission to read the configured conversation history. Tokens and signing secrets belong in server-side secret storage, never in the browser bundle.
+必要なSlack scopeは利用channel typeによって異なる。最低限、botには構成されたconversation historyを読む権限が必要である。Tokenとsigning secretはserver-side secret storageへ置き、browser bundleへ含めない。
 
-## Teams evidence bridge
+## Teams Evidence Bridge（Teams証拠連携）
 
-A signed normalized bridge is available at:
+署名付きnormalized bridgeを次で提供する。
 
 `POST /api/v1/project-intelligence/hooks/teams/{projectId}`
 
@@ -125,11 +125,11 @@ Payload:
 }
 ```
 
-Use `ProjectIngestKeys` when one DIP deployment serves multiple projects. The shared `IngestKey` is only a fallback.
+1つのDIP deploymentで複数Projectを扱う場合は`ProjectIngestKeys`を使用する。Shared `IngestKey`はfallbackのみ。
 
-## Source provenance and deduplication
+## Source ProvenanceとDeduplication
 
-Each source observation keeps:
+各source observationでは次を保持する。
 
 - provider
 - external source ID
@@ -137,48 +137,48 @@ Each source observation keeps:
 - observed/updated time
 - source URL
 - raw normalized SHA-256
-- channel/author where applicable
+- 必要に応じてchannel/author
 
-The source node key and revision are used to prevent unchanged polling data from generating duplicate Evidence records. Collaboration messages without a revision use a deterministic SHA over the text and references.
+Source node keyとrevisionを使い、変更のないpolling dataから重複Evidence recordが生成されることを防ぐ。Revisionを持たないcollaboration messageではtextとreferenceからdeterministic SHAを生成する。
 
-## Plan vs Actual / Evidence-backed Progress
+## 計画対実績 / Evidenceに基づく進捗
 
-For each current WBS item DIP exposes independent fields:
+現在のWBS itemごとに、独立したfieldとして次を表示する。
 
-- `PlannedPercent` — declared in the imported plan
-- `OperationalPercent` — most recent canonical task / Redmine / collaboration report
-- `EvidenceReadinessPercent` — heuristic aggregation of independent machine evidence
-- `ReadinessConfidence` — `Unverified`, `Low`, `Medium`, `High`, or `Verified`
+- `PlannedPercent` — imported planで宣言された値
+- `OperationalPercent` — 最新canonical task / Redmine / collaboration report
+- `EvidenceReadinessPercent` — 独立したmachine Evidenceを集約したheuristic
+- `ReadinessConfidence` — `Unverified`、`Low`、`Medium`、`High`、`Verified`
 
-Typical contradictions include:
+典型的なcontradiction:
 
-- WBS says 80%, Redmine says 40%
-- WBS says 100%, but evidence readiness remains low
-- Slack says “complete”, but no PR/CI/QA evidence is linked
-- a high reported percentage conflicts with failing CI
-- a due date has passed without independently verified completion
-- no fresh progress/evidence signal for seven days
+- WBSは80%だがRedmineは40%
+- WBSは100%だがevidence readinessが低い
+- Slackでは「complete」だがPR/CI/QA Evidenceが紐付かない
+- 高いreported percentageとfailing CIが矛盾
+- Due date経過後も独立したverified completionがない
+- 7日間freshなprogress/evidence signalがない
 
-The system explains these as source/evidence gaps; it does not accuse an employee of inaccurate reporting.
+Systemはこれらをsource/evidence gapとして説明し、従業員の報告が不正確だと非難しない。
 
-## Management digest and WBS/Gantt viewer
+## Management DigestとWBS/Gantt Viewer
 
-`/dashboard/{projectId}/sources` provides:
+`/dashboard/{projectId}/sources`では次を提供する。
 
-- source adapter status and dry-run/sync actions
+- source adapter statusとdry-run/sync action
 - Excel mapping preview/import
 - plan-vs-actual table
-- evidence details
-- contradiction/stale reasons
-- WBS/Gantt schedule bars colored by cross-source status
-- unresolved entity suggestions and manual confirmation
-- an executive management digest
+- evidence detail
+- contradiction/stale reason
+- cross-source statusで色分けしたWBS/Gantt schedule bar
+- unresolved entity suggestionとmanual confirmation
+- executive management digest
 
-The Gantt view is a read/understand surface for an imported company plan. The original Excel remains usable as the planning tool.
+Gantt viewはimportした企業planを読む・理解するためのsurfaceである。元のExcelはそのままplanning toolとして使用できる。
 
-## API surface
+## API公開面
 
-Authenticated project routes:
+Authenticated project route:
 
 - `GET /api/v1/project-intelligence/projects/{projectId}/overview`
 - `GET /api/v1/project-intelligence/projects/{projectId}/gantt`
@@ -191,20 +191,20 @@ Authenticated project routes:
 - `POST /api/v1/project-intelligence/projects/{projectId}/collaboration/ingest`
 - `POST /api/v1/project-intelligence/projects/{projectId}/entity-bindings`
 
-Signed public webhook routes:
+Signed public webhook route:
 
 - `POST /api/v1/project-intelligence/hooks/slack/{projectId}`
 - `POST /api/v1/project-intelligence/hooks/teams/{projectId}`
 
-Read routes require Viewer membership. Pull/import/binding routes require Maintainer. Authenticated normalized collaboration ingestion requires Member. Public webhook routes do not use a browser/JWT identity because they are independently authenticated by Slack HMAC or a project-specific bridge key.
+Read routeはViewer membershipを要求する。Pull/import/binding routeはMaintainer、authenticated normalized collaboration ingestionはMemberを要求する。Public webhook routeはbrowser/JWT identityを使わず、Slack HMACまたはProject固有bridge keyで独立認証する。
 
-## Non-goals
+## 対象外
 
-The Project Intelligence Layer deliberately does not:
+Project Intelligence Layerは意図的に次を行わない。
 
-- replace Excel, Redmine, Slack, Teams, or GitHub
-- infer an individual developer’s skill score
-- treat chat messages as machine-verifiable truth
-- overwrite canonical task data during WBS import
-- silently force low-confidence entity matches
-- scan unrelated Slack conversations outside configured project channels
+- Excel、Redmine、Slack、Teams、GitHubの置き換え
+- 個人developerのskill score推定
+- chat messageをmachine-verifiable truthとして扱うこと
+- WBS import時のcanonical task data上書き
+- low-confidence entity matchの強制確定
+- 構成Project channel外の無関係なSlack conversation scan

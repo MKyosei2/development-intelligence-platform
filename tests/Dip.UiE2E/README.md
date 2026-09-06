@@ -1,22 +1,22 @@
 # DIP Playwright GUI E2E
 
-The deterministic local suite verifies normal GUI onboarding without requiring external GitHub credentials.
+DeterministicなLocal Test Suiteでは、外部GitHub credentialを必要とせず、通常のGUI onboardingを検証します。
 
-The hosted public-browser suite verifies the production portfolio URL itself:
+Hosted Public Browser Suiteでは、実際に公開されたPortfolio URLそのものを検証します。
 
-- HTTPS/API health is reachable;
-- the Portfolio page renders without login;
-- the UI clearly identifies the live read-only public view;
-- project reads succeed anonymously;
-- anonymous project creation is rejected with 401/403;
-- a published project can be opened when one exists.
+- HTTPS / API healthへ到達できる
+- Portfolio pageがLoginなしで描画される
+- UI上で「live read-only public view」であることを明確に示す
+- Project readが匿名で成功する
+- 匿名でのProject作成が401 / 403で拒否される
+- 公開済みProjectが存在する場合、そのProjectを開ける
 
-Run the hosted check against an already deployed DIP URL:
+すでにDeploy済みのDIP URLに対してHosted checkを実行する例:
 
 ```bash
 DIP_WEB_BASE_URL=https://your-host.example npm run test:public
 ```
 
-`Live Browser Deployment` runs this suite automatically after deploying the exact Git commit. A failed browser check fails the deployment job and triggers the previous image-set rollback path.
+`Live Browser Deployment` は、対象となる正確なGit commitをDeployした後、このSuiteを自動実行します。Browser checkが失敗した場合はDeployment jobも失敗し、直前のimage-setへ戻すRollback Pathを起動します。
 
-The optional `@live-github` test remains separate because it exercises authenticated GitHub App integration rather than the anonymous reviewer path.
+任意の `@live-github` Testは別扱いです。これは匿名Reviewer Pathではなく、認証済みGitHub App Integrationを検証するためです。

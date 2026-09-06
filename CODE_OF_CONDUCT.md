@@ -1,53 +1,41 @@
-# Code of Conduct
+# 行動規範
 
-## Our commitment
+## 私たちの約束
 
-We are committed to providing a respectful, safe, and inclusive environment
-for everyone participating in this project, regardless of experience,
-background, identity, disability, appearance, nationality, ethnicity,
-religion, or other personal characteristic.
+このプロジェクトに参加するすべての人に対して、経験、背景、アイデンティティ、障害、外見、国籍、民族、宗教、その他の個人的特性に関係なく、互いを尊重できる安全で包摂的な環境を提供することを目指します。
 
-## Expected behavior
+## 期待される行動
 
-Examples of positive behavior include:
+望ましい行動の例:
 
-- communicating with empathy and technical clarity;
-- giving actionable, evidence-based feedback;
-- respecting differing viewpoints and levels of experience;
-- accepting responsibility and correcting mistakes;
-- focusing criticism on code, design, behavior, or process rather than people;
-- protecting private information and security reports.
+- 共感と技術的な明確さを持ってコミュニケーションする。
+- 実行可能でEvidenceに基づいたFeedbackを行う。
+- 異なる視点や経験レベルを尊重する。
+- 責任を受け入れ、誤りを修正する。
+- 人ではなくCode、Design、Behavior、Processを対象に批評する。
+- Private InformationとSecurity Reportを保護する。
 
-## Unacceptable behavior
+## 許容されない行動
 
-Unacceptable behavior includes:
+以下の行動は認めません。
 
-- harassment, threats, intimidation, or discriminatory language;
-- personal attacks, insults, trolling, or sustained disruption;
-- publishing another person's private information without permission;
-- sexualized language or unwanted attention;
-- deliberately exposing credentials, vulnerabilities, or confidential data;
-- any conduct that would reasonably be considered inappropriate in a
-  professional environment.
+- Harassment、Threat、Intimidation、Discriminatory Language。
+- Personal Attack、Insult、Trolling、継続的な妨害。
+- 本人の許可なく他者のPrivate Informationを公開する行為。
+- Sexualized Languageや望まれないAttention。
+- Credential、Vulnerability、Confidential Dataを意図的に露出する行為。
+- Professional Environmentで不適切と合理的に判断されるその他の行為。
 
-## Enforcement
+## 適用方針
 
-Project maintainers may edit, remove, reject, or lock contributions and
-communications that violate this policy. Repeated or serious violations may
-result in a temporary or permanent ban from project spaces.
+Project Maintainerは、このPolicyに違反するContributionやCommunicationを編集、削除、却下、Lockできます。反復または重大な違反については、Project Spaceから一時的または恒久的に参加を禁止する場合があります。
 
-## Reporting
+## 報告
 
-Report conduct concerns privately to the repository owner through GitHub.
-Security vulnerabilities must follow `SECURITY.md` and must not be disclosed
-through a public conduct report.
+Conduct ConcernはGitHubを通じてRepository OwnerへPrivateに報告してください。Security Vulnerabilityは `SECURITY.md` に従い、Public Conduct Reportで公開しないでください。
 
-Reports will be reviewed as confidentially and impartially as reasonably
-possible. Retaliation against a reporter or participant in an investigation is
-not permitted.
+Reportは、合理的に可能な範囲でConfidentialかつImpartialに確認します。ReporterやInvestigation Participantへの報復は認めません。
 
-## Scope
+## 適用範囲
 
-This policy applies in repository issues, pull requests, discussions, reviews,
-commits, project communication channels, and public situations where a person
-is representing the project.
+このPolicyはRepositoryのIssue、Pull Request、Discussion、Review、Commit、Project Communication Channel、およびProjectを代表して参加するPublic Situationに適用します。

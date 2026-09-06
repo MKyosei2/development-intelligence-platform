@@ -1,4 +1,4 @@
-# PR Risk Score
+# PR Risk Score（PRリスクスコア）
 
 入力は変更量、Build、Test、FPS、Memory、Critical Issue、Review待ちです。
 

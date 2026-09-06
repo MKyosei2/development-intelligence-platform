@@ -1,16 +1,16 @@
-# DIP QA Bug Zoo Results
+# DIP QA Bug Zoo結果
 
-- Languages exercised: **7**
-- Injected bugs: **19**
-- Detected: **19/19 (100%)**
-- Clean controls: **7**
-- False positives: **0/7 (0%)**
+- 実行言語数: **7**
+- 注入Bug: **19**
+- 検出: **19/19 (100%)**
+- Clean control: **7**
+- False positive: **0/7 (0%)**
 - Reproduced: **9/9 (100%)**
-- Infrastructure failures: **0**
-- Platform-skipped cases: **0**
+- Infrastructure failure: **0**
+- Platform-skipped case: **0**
 - Median case duration: **1867 ms**
 
-| Language | Case | Expected | Detected | Reproduced | Infrastructure | Duration ms |
+| 言語 | Case | 期待結果 | 検出 | 再現 | Infrastructure | 実行時間 ms |
 |---|---|---|---:|---:|---:|---:|
 | cpp | buffer_overflow | memory-safety | yes | yes | ok | 10299 |
 | cpp | clean | clean | yes | n/a | ok | 1873 |

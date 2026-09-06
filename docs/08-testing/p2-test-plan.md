@@ -1,78 +1,78 @@
-# P2 test plan
+# P2 Test Plan（P2テスト計画）
 
-P2 is complete only when source implementation and execution evidence both exist.
+P2はsource implementationとexecution Evidenceの両方が存在する場合にのみcompleteとする。
 
-## Automated .NET tests
+## 自動.NET Test
 
-- Domain validation for Community Hardware consent/privacy and P2 records
+- Community Hardware consent/privacyとP2 recordのDomain validation
 - Evidence Freshness decay
-- Evidence Conflict authority rules
+- Evidence Conflict authority rule
 - Adaptive QA planning
-- P0/P1 regression tests remain green
+- P0/P1 regression testがgreenのままであること
 - E2E: Collector Evidence -> Project Truth -> Daily Change -> Decision Brief -> Health Change
 
-## Local functional tests
+## Local Functional Test（ローカル機能検証）
 
-### Reliability
+### Reliability（信頼性）
 
-Run a deterministic pass/fail target repeatedly and confirm pass/fail counts, rate and confidence.
+Deterministicなpass/fail targetを繰り返し実行し、pass/fail count、rate、confidenceを確認する。
 
-### Soak / drift
+### Soak / Drift（長時間 / 漂移）
 
-Use `samples/p2-bug-zoo/python/soak_memory_growth/app.py`. The sample prints `DIP_METRIC` telemetry while retaining memory. Verify memory growth and performance drift are visible in the resulting P2 record.
+`samples/p2-bug-zoo/python/soak_memory_growth/app.py`を使用する。このsampleはmemoryを保持しながら`DIP_METRIC` telemetryを出力する。Resulting P2 recordでmemory growthとperformance driftを確認する。
 
-### Fuzz
+### Fuzz Test（ファズテスト）
 
-Use `samples/p2-bug-zoo/python/fuzz_target/app.py` through a safe repository wrapper/executable appropriate to the host. Confirm the magic crashing input is retained as an artifact and fingerprinted.
+Hostに適したsafe repository wrapper/executableを介して`samples/p2-bug-zoo/python/fuzz_target/app.py`を使用する。Crashを起こすmagic inputがartifactとして保持され、fingerprint化されることを確認する。
 
-### Regression bisect
+### Regression Bisect（回帰点特定）
 
-Use a disposable test repository or dedicated fixture branch with one known good and one known bad revision. Verify DIP performs evaluation in detached worktrees and reports the first bad commit without changing the active checkout.
+Known good revisionとknown bad revisionを持つdisposable test repositoryまたは専用fixture branchを使用する。DIPがdetached worktreeでevaluationを実行し、active checkoutを変更せずfirst bad commitを報告することを確認する。
 
-### Mutation
+### Mutation Test（変異テスト）
 
-Use a mutation fixture where one mutation is killed and one deliberately survives. Confirm mutation score and per-case detail.
+1つのmutationがkillされ、1つが意図的にsurviveするfixtureを使用する。Mutation scoreと各case detailを確認する。
 
-### Media regression
+### Media Regression（メディア回帰）
 
-Generate known baseline/current image, video and audio pairs. Verify:
+Known baseline/currentのimage、video、audio pairを生成し、次を確認する。
 
 - identical files -> Passed
-- small difference -> Warning according to configured threshold
+- small difference -> configured thresholdに従いWarning
 - large difference -> Failed
-- missing ffmpeg/ffprobe -> InfrastructureFailure, never product Failed
+- ffmpeg/ffprobe欠損 -> InfrastructureFailure。Product Failedにはしない
 
-## Hardware intelligence
+## Hardware Intelligence（ハードウェア知識）
 
-- Community submission without consent must fail
-- raw hardware key must not be persisted
-- <3 community samples cannot create a community aggregate profile
-- profile confidence must increase with representative sample count/diversity and remain bounded
-- portability blockers must identify the limiting capability dimensions
-- minimum hardware search must label its result simulated/non-real-device
-- recommended minimum must include safety margin and remain separate from technical minimum
+- ConsentなしのCommunity submissionはfail
+- Raw hardware keyを永続化しない
+- Community sampleが3未満の場合aggregate profileを作らない
+- Profile confidenceはrepresentative sample count/diversityとともに増えるが上限を持つ
+- Portability blockerがlimiting capability dimensionを特定する
+- Minimum hardware search resultがsimulated/non-real-deviceと明示される
+- Recommended minimumにsafety marginを含め、technical minimumとは分離する
 
-## AI grounding
+## AI Grounding（AI根拠付け）
 
-External AI is optional and disabled by default. When enabled:
+External AIはoptionalで既定無効。有効化時は次を守る。
 
-- send only the evidence bundle assembled for the requested subject
-- drop AI candidates that contain no valid supplied Evidence ID
-- never create a Failed Evidence solely from AI output
-- never auto-modify source or open a PR
+- Requested subject向けにassembleしたEvidence bundleだけを送信
+- Valid supplied Evidence IDを1件も含まないAI candidateを破棄
+- AI outputだけからFailed Evidenceを作らない
+- Sourceを自動変更せずPRを自動作成しない
 
-## PM semantics
+## PM Semantics（PM意味論）
 
-Verify Dashboard/API distinguish:
+Dashboard/APIが次を区別できることを確認する。
 
 - Claim vs Evidence
 - measured vs simulated/predicted
 - current vs stale evidence
-- current authoritative evidence vs historical conflicts
+- current authoritative evidence vs historical conflict
 - schedule risk estimate vs promised schedule
 - completion range vs exact date
 - evidence stagnation vs employee misconduct
 
-## Required P2 completion evidence
+## 必須P2 Completion Evidence
 
-On a full Windows development machine, `scripts/Verify-P2.ps1` must complete successfully. Live E2E additionally requires PostgreSQL, API and Worker. CI must remain green after the P2 changeset is committed.
+Full Windows development machine上で`scripts/Verify-P2.ps1`が成功完了する必要がある。Live E2EにはさらにPostgreSQL、API、Workerが必要。P2 changeset commit後もCIをgreenに保つ必要がある。

@@ -1,4 +1,6 @@
-# Error Format
+# Error Format（エラー形式）
+
+API errorは次のJSON形式で返します。
 
 ```json
 {

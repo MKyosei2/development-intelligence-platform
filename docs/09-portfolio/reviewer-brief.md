@@ -1,4 +1,4 @@
-# Reviewer Brief
+# Reviewer向け概要
 
 DIPはC# Backend/Web/Worker、Python分析、C++ Collector、CI/CD、PostgreSQL-backed durable queueを一つのDevelopment Intelligence製品として統合しています。
 

@@ -1,23 +1,23 @@
-# Architecture Overview
+# アーキテクチャ概要
 
-DIP is a browser-first evidence platform. The architecture keeps **durable truth**, **delivery/coordination**, **analysis**, and **external evidence providers** separate so a failure in one adapter does not redefine project truth.
+DIPはbrowser-firstのEvidence platformである。**durable truth**、**delivery/coordination**、**analysis**、**external Evidence Provider**を分離し、1つのadapter障害がProject Truthの定義そのものを変えないよう設計している。
 
-## Boundaries
+## 境界
 
-1. **Presentation** — `Dip.Web` (Blazor) presents PM/Lead views and never stores secrets in the browser.
-2. **API / application** — `Dip.Api` exposes authenticated project-scoped operations; `Dip.Application` contains use cases and decision logic.
-3. **Domain** — `Dip.Domain` owns evidence, project-truth and lifecycle invariants without depending on infrastructure.
-4. **Infrastructure** — PostgreSQL is the durable source of truth and durable queue/coordination store. Delivery semantics remain behind `IQueueClient`, with `PostgresQueueClient` as the current implementation.
-5. **Async execution** — `Dip.Worker` consumes durable jobs and normalizes external/runtime evidence.
-6. **Evidence providers** — GitHub/CI, Unity, Unreal, Maya, native/runtime collectors and management integrations map into provider-neutral contracts.
-7. **Verification** — tests, QA Bug Zoo, security scans and benchmark runners emit commit-bound evidence. A newer revision does not inherit an older PASS automatically.
+1. **Presentation** — `Dip.Web`（Blazor）がPM/Lead向けviewを提供し、browserへsecretを保存しない。
+2. **API / Application** — `Dip.Api`がauthenticatedかつProject-scopedなoperationを公開し、`Dip.Application`がuse caseとdecision logicを持つ。
+3. **Domain** — `Dip.Domain`がinfrastructureへ依存せずEvidence、Project Truth、lifecycle invariantを管理する。
+4. **Infrastructure** — PostgreSQLをdurable Source of Truthかつdurable queue/coordination storeとする。Delivery semanticsは`IQueueClient`の背後へ分離し、現在は`PostgresQueueClient`が実装する。
+5. **Async Execution** — `Dip.Worker`がdurable jobをconsumeし、external/runtime Evidenceを正規化する。
+6. **Evidence Provider** — GitHub/CI、Unity、Unreal、Maya、native/runtime collector、management integrationをprovider-neutral contractへmapする。
+7. **Verification** — Test、QA Bug Zoo、security scan、benchmark runnerがcommit-bound Evidenceを生成する。新しいrevisionは古いPASSを自動継承しない。
 
-## Failure and trust model
+## Failure / Trust Model（失敗 / 信頼モデル）
 
-- ingestion is idempotent where external IDs/revisions are available;
-- ambiguous cross-source matches require explicit confirmation instead of silent merge;
-- secrets remain server-side and production configuration fails closed when required values are blank;
-- AI/Fix Agent output is advisory until a disposable worktree re-runs build/test/QA and produces verification evidence;
-- personnel are not assigned a truthfulness or skill score; DIP evaluates the relationship between a work claim and technical evidence.
+- External ID/revisionがあるingestionは可能な限りidempotentにする。
+- 曖昧なcross-source matchはsilent mergeせずexplicit confirmationを要求する。
+- Secretはserver-sideに保持し、必須値が空のProduction configurationはfail-closedとする。
+- AI/Fix Agent outputはadvisoryに留め、disposable worktreeでbuild/test/QAを再実行してverification Evidenceが得られるまで確定扱いしない。
+- 人物へtruthfulness/skill scoreを付与せず、work Claimとtechnical Evidenceの関係だけを評価する。
 
-See `docs/02-architecture/` for subsystem-specific design documents.
+Subsystem固有設計は`docs/02-architecture/`を参照。

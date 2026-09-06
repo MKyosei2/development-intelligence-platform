@@ -1,24 +1,24 @@
-# Formal Runtime Verification
+# 正式なRuntime検証
 
-Formal evidence for a revision is generated only by a fail-closed run on the target Windows machine:
+RevisionのFormal Evidenceは、target Windows machine上でfail-closed runを実行した場合にのみ生成する。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\Verify-PortfolioFormal.ps1 -UnityPath "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 ```
 
-The runner requires a clean Git working tree, Windows, .NET, Docker, a real Unity Editor, full solution verification, Universal QA Bug Zoo, Project Control/P2 checks and portfolio benchmarks. It records the exact source commit. Old P0/Unity/benchmark evidence is never promoted to a new revision.
+Runnerはclean Git working tree、Windows、.NET、Docker、実Unity Editor、full solution verification、Universal QA Bug Zoo、Project Control/P2 check、portfolio benchmarkを要求し、exact source commitを記録する。古いP0/Unity/benchmark Evidenceを新revisionへ昇格させない。
 
-QA Governance alone can be verified with:
+QA Governance単体は次で検証できる。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\Verify-QaGovernance.ps1
 ```
 
-The formal portfolio runner invokes this verification and will not create its PASS artifact when governance domain/persistence/diagnostic checks fail.
+Formal portfolio runnerはこのverificationを呼び出し、governance domain/persistence/diagnostic checkが失敗した場合はPASS artifactを作らない。
 
-## Governance hardening formal checks
+## Governance Hardening正式検証
 
-Run these from a clean Git checkout on Windows with .NET 8 and Docker available:
+Clean Git checkout、Windows、.NET 8、Dockerがある環境で実行:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\Verify-DatabaseMigrations.ps1 -Configuration Release
@@ -27,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Run-GovernanceLoadTest.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\Verify-QaGovernance.ps1 -Configuration Release
 ```
 
-For the full exact-revision proof, including a real Unity Editor and the portfolio benchmark:
+実Unity Editorとportfolio benchmarkを含むfull exact-revision proof:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\Verify-PortfolioFormal.ps1 -UnityPath "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"

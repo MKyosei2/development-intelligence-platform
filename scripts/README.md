@@ -1,27 +1,31 @@
-# DIP operational scripts — Native-first
+# DIP 運用スクリプト — Native-first
 
-The supported runtime is host-native. Docker Desktop/Engine and an external queue daemon are not prerequisites.
+DIP が正式にサポートする実行方式は、ホストOS上で直接動作させる **native-first** 構成です。Docker Desktop / Docker Engine や外部Queue daemonは必須ではありません。
 
-## Start / stop
+## 起動 / 停止
 
 ```powershell
 .\scripts\Start-DIP.ps1
 .\scripts\Stop-DIP.ps1 -KeepData
 ```
 
-`Start-DIP.ps1` checks .NET, Python and PostgreSQL client tools; verifies the configured PostgreSQL database; creates the Python venv; builds; starts Analysis/API/Worker/Web; records PID/log files in `.dip/runtime`; and waits for readiness.
+`Start-DIP.ps1` は .NET、Python、PostgreSQL client tools を確認し、設定済みPostgreSQL databaseへの接続を検証します。その後、Python venvの作成、Build、Analysis / API / Worker / Webの起動、`.dip/runtime` へのPID・Log記録を行い、各Serviceがreadyになるまで待機します。
 
-`Stop-DIP.ps1` only stops PIDs that DIP recorded. It intentionally leaves the PostgreSQL OS service and database running.
+`Stop-DIP.ps1` が停止するのは、DIP自身が記録したPIDだけです。PostgreSQLのOS ServiceおよびDatabaseは意図的に停止しません。
 
-## GUI runtime evidence
+## GUI Runtime Evidence（実行証拠）
 
 ```powershell
 .\scripts\Verify-GuiRuntime.ps1 -RunPlaywright
 ```
 
-Evidence is written to `artifacts/gui-runtime-verification/<timestamp>/`.
+Evidenceは次の場所へ出力されます。
 
-## Backup / restore
+```text
+artifacts/gui-runtime-verification/<timestamp>/
+```
+
+## バックアップ / 復元
 
 ```powershell
 .\scripts\Backup-Dip.ps1
@@ -29,20 +33,20 @@ Evidence is written to `artifacts/gui-runtime-verification/<timestamp>/`.
 .\scripts\Verify-DisasterRecovery.ps1
 ```
 
-All three use `pg_dump`/`pg_restore`/`psql` directly. Artifact storage is a normal directory. Production may require `DIP_BACKUP_OFFSITE_DIRECTORY`.
+3つのScriptはいずれも `pg_dump` / `pg_restore` / `psql` を直接使用します。Artifact storageは通常のDirectoryです。本番環境では `DIP_BACKUP_OFFSITE_DIRECTORY` の設定が必要になる場合があります。
 
-## Migration verification
+## Migration検証
 
 ```powershell
 .\scripts\Verify-DatabaseMigrations.ps1
 ```
 
-A temporary PostgreSQL database is created and destroyed for the check.
+検証時には一時PostgreSQL databaseを作成し、終了後に削除します。
 
-## Performance evidence
+## Performance Evidence（性能証拠）
 
 ```powershell
 .\scripts\Run-PortfolioBenchmarks.ps1
 ```
 
-This preserves project-list, collector, burst, Metric-scale and soak/memory scenarios while using a temporary native PostgreSQL database.
+一時的なnative PostgreSQL databaseを利用しつつ、Project list、Collector、burst、Metric-scale、soak / memoryの各Scenarioを実行します。

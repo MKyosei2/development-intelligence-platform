@@ -1,7 +1,7 @@
-# Portfolio demo assets
+# ポートフォリオ用Demo Asset
 
-The checked-in screenshots/GIF are **deterministic sample-data previews** generated from `portfolio-preview.html`. They are meant to let a reviewer understand the product without credentials and are deliberately labeled `SAMPLE PORTFOLIO DATA`.
+Repositoryに含まれるscreenshot/GIFは、`portfolio-preview.html`から生成した**deterministic sample-data preview**です。CredentialなしでもreviewerがProductを理解できるようにする目的で、意図的に`SAMPLE PORTFOLIO DATA`と表示しています。
 
-They are not runtime-verification evidence. Exact-commit build/test/benchmark evidence lives under `../evidence/`.
+これらはruntime-verification Evidenceではありません。Exact-commitのbuild/test/benchmark Evidenceは`../evidence/`にあります。
 
-To replace the preview with a real deployed capture, start the full DIP stack, load an intentionally non-sensitive sample project, capture the Project Intelligence / QA / Management pages, and keep the sample-data label. Never capture repository secrets, employee information, production URLs or access tokens.
+Previewをreal deployed captureへ置き換える場合は、full DIP stackを起動し、機密性のないsample Projectを読み込み、Project Intelligence / QA / Management画面をcaptureしてsample-data labelを維持してください。Repository secret、従業員情報、production URL、access tokenをcaptureしないでください。

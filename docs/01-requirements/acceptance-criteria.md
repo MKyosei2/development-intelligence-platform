@@ -1,4 +1,4 @@
-# Acceptance Criteria
+# 受け入れ基準
 
 1. Projectを登録できる
 2. Collector Reportを送信できる

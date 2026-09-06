@@ -1,6 +1,6 @@
-# Defect Intelligence / Universal QA expansion — 2026-08-16
+# Defect Intelligence / Universal QA 拡張 — 2026-08-16
 
-## Pipeline
+## パイプライン
 
 ```text
 RepositoryTechnologyDetector
@@ -17,30 +17,30 @@ RepositoryTechnologyDetector
  -> Verified Fix (only after evidence passes)
 ```
 
-## Language policy
+## 言語対応方針
 
-Python, C# and C++ retain deep specialized adapters. Unity remains engine-aware. The Deep Language Pack adds native capability probes for common languages. Unknown/proprietary languages use `.dip/qa.json`; the manifest invokes an executable plus an argument array and never concatenates a shell command. Fuzz/property/race tools therefore extend to proprietary languages without adding a Domain enum.
+Python、C#、C++は深い専用adapterを維持し、UnityもEngine固有の知識を利用する。Deep Language Packは一般的な言語向けnative capability probeを追加する。未知・独自言語は`.dip/qa.json`を使用し、manifestは実行ファイルとargument配列を指定する方式で、shell commandの文字列連結は行わない。このため、DIP Domainのenumを増やさずに、独自言語へfuzz/property/race toolを拡張できる。
 
-## Universal semantic layer
+## Universal Semantic Layer（共通意味層）
 
-`UniversalSyntaxTree` is a dependency-free structural fallback, not a replacement for a compiler AST. `UniversalSemanticAnalyzer` performs bounded high-signal checks such as local source-to-dangerous-sink flows, hard-coded secrets, dynamic SQL construction, empty catches and sync-over-async/nested-lock warnings. Findings record rule IDs and source coordinates.
+`UniversalSyntaxTree`は依存関係を持たない構造解析fallbackであり、compiler ASTの代替ではない。`UniversalSemanticAnalyzer`は、local sourceから危険なsinkへのflow、hard-coded secret、動的SQL生成、空catch、sync-over-async、nested-lock warningなど、範囲を限定した高シグナル検査を行う。Findingにはrule IDとsource coordinateを記録する。
 
-## Runtime and external events
+## Runtimeと外部Event
 
-Sentry and OpenTelemetry payloads are normalized into `RuntimeDefectObservation`; crash/memory/timeout/race/deadlock signals receive a stable fingerprint and feed the existing Incident layer. The anonymous ingest endpoint is disabled until an ingest key is configured and compares the key in fixed time.
+SentryとOpenTelemetryのpayloadは`RuntimeDefectObservation`へ正規化する。Crash、memory、timeout、race、deadlock signalには安定fingerprintを付与し、既存Incident layerへ接続する。Anonymous ingest endpointはingest keyが構成されるまで無効であり、key比較はfixed-timeで行う。
 
-## Verified fix boundary
+## Verified Fixの境界
 
-The fix agent is disabled by default. It must cite supplied Evidence GUIDs. A proposal does not edit the source workspace. `VerifiedFixService` creates an isolated Git worktree/copy, applies a standard unified diff, writes bounded regression-test drafts, detects the project technology and runs QA adapters. Only a successful executable validation with no Critical finding becomes `Verified`.
+Fix agentは既定で無効とする。提案時には提供されたEvidence GUIDを引用しなければならない。Proposalがsource workspaceを直接編集することはない。`VerifiedFixService`は隔離されたGit worktree/copyを作り、標準unified diffを適用し、範囲を限定したregression-test draftを書き出し、Project技術を検出してQA adapterを実行する。実行可能な検証が成功し、Critical findingが0件の場合にのみ`Verified`となる。
 
-## Game QA
+## ゲームQA
 
-Unity: serialized GUID/reference checks, Addressables presence, shader diagnostics, Update allocation heuristics and save-version review alongside existing Build/Animation/Scene/Performance evidence. Unreal: project/asset/automation/crash evidence plus Blueprint, packaging, shader/RHI and network log classifications.
+Unityでは、既存のBuild/Animation/Scene/Performance Evidenceに加え、serialized GUID/reference check、Addressables存在確認、shader diagnostic、Update allocation heuristic、save-version reviewを扱う。UnrealではProject/Asset/Automation/Crash Evidenceに加え、Blueprint、packaging、shader/RHI、network logを分類する。
 
-## API / DB / distributed system QA
+## API / DB / 分散システムQA
 
-`.dip/system-qa.json` is opt-in. HTTP probes require localhost or an explicit host allowlist. Database credentials are referenced by environment-variable name; the built-in PostgreSQL probe accepts only `SELECT`. This avoids committing secrets or turning repository configuration into a generic network scanner.
+`.dip/system-qa.json`はopt-inである。HTTP probeはlocalhostまたは明示的host allowlistだけを許可する。Database credentialは環境変数名で参照し、built-in PostgreSQL probeは`SELECT`のみ受け付ける。これによりsecretのcommitや、Repository構成を汎用network scannerとして悪用することを防ぐ。
 
-## CI and measurement
+## CIと計測
 
-`universal-qa-benchmark.yml` and `tools/universal_qa_benchmark.py` provide measured native-toolchain bootstrap evidence. Skipped toolchains remain skipped. Formal exact-revision .NET/Unity evidence still requires the existing verification scripts and a runner containing those SDKs.
+`universal-qa-benchmark.yml`と`tools/universal_qa_benchmark.py`は、native toolchainのbootstrapを実測したEvidenceを生成する。利用できないtoolchainはSkippedのまま扱う。正式なexact-revision .NET/Unity Evidenceには、引き続き既存verification scriptと対象SDKを備えたrunnerが必要である。
