@@ -1,0 +1,48 @@
+@{
+    var definition = Resolve(Concept);
+}
+<details class="concept-help" data-testid="@($"concept-help-{Concept.ToLowerInvariant()}")">
+    <summary aria-label="Explain @definition.Title" title="Explain @definition.Title">?</summary>
+    <div class="concept-help-popover" role="note">
+        <strong>@definition.Title</strong>
+        <p>@definition.Description</p>
+    </div>
+</details>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Concept { get; set; } = string.Empty;
+
+    private static readonly IReadOnlyDictionary<string, ConceptDefinition> Definitions =
+        new Dictionary<string, ConceptDefinition>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ProjectTruth"] = new(
+                "Project Truth",
+                "DIP's evidence-backed project state. It keeps reported claims separate from what repository, CI, QA and other evidence actually verify."),
+            ["Evidence"] = new(
+                "Evidence",
+                "A persisted observation with source, outcome, time and confidence. Evidence supports decisions; an AI-generated statement is not evidence by itself."),
+            ["EvidenceConfidence"] = new(
+                "Evidence Confidence",
+                "How strongly the current Project Truth is supported by independent, relevant evidence. Missing or stale sources reduce confidence rather than being treated as PASS."),
+            ["Contradiction"] = new(
+                "Contradiction",
+                "A mismatch between a project claim and available evidence, or between competing evidence sources. It requires review rather than silent resolution."),
+            ["Stale"] = new(
+                "Stale evidence",
+                "Evidence that no longer matches the latest synchronized revision or expected freshness window. Stale evidence is not promoted to current verification."),
+            ["QualityGate"] = new(
+                "Quality Gate",
+                "A policy decision based on recorded QA evidence and governance rules. Unavailable tests or evidence gaps are not represented as a passing gate."),
+            ["EvidenceBackedProgress"] = new(
+                "Evidence-backed progress",
+                "Progress supported by current evidence, shown separately from manually reported progress so implementation claims are not mistaken for verification.")
+        };
+
+    private static ConceptDefinition Resolve(string concept)
+        => Definitions.TryGetValue(concept ?? string.Empty, out var definition)
+            ? definition
+            : new ConceptDefinition(concept, "Contextual help is not available for this concept yet.");
+
+    private sealed record ConceptDefinition(string Title, string Description);
+}
