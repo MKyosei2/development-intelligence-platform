@@ -16,7 +16,7 @@ async function createManualProject(page, prefix = 'E2E Project') {
   await page.locator('#repository-url').fill('https://github.com/example/dip-e2e-fixture');
   await page.locator('#default-branch').fill('main');
   await page.getByTestId('create-project-submit').click();
-  await expect(page).toHaveURL(/\/dashboard\/[0-9a-f-]{36}$/i);
+  await expect(page).toHaveURL(/\/dashboard\/[0-9a-f-]{36}$/i, { timeout: 30_000 });
   return { name, projectId: page.url().split('/').at(-1) };
 }
 

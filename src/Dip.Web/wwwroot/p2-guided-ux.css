@@ -1,0 +1,28 @@
+/* P2 guided UX. UI-only state must remain separate from project Evidence / Project Truth. */
+
+.tour-welcome-prompt{
+  position:fixed;right:22px;bottom:22px;z-index:1300;width:min(390px,calc(100vw - 32px));
+  padding:18px;border:1px solid #c7d7fe;border-radius:14px;background:#fff;box-shadow:0 18px 48px rgba(16,24,40,.18);pointer-events:none
+}
+.tour-welcome-prompt .btn,.tour-welcome-prompt .tour-close{pointer-events:auto}
+.tour-welcome-prompt h2{font-size:1.2rem;margin:4px 28px 7px 0}.tour-welcome-prompt p{color:var(--muted);margin-bottom:14px}
+.tour-welcome-actions{display:flex;justify-content:flex-end;gap:8px}.tour-close{position:absolute;right:11px;top:9px;border:0;background:transparent;color:#667085;font-size:20px;cursor:pointer}
+.tour-overlay{position:fixed;inset:0;z-index:1400;display:grid;place-items:center;padding:24px;background:rgba(16,24,40,.45);backdrop-filter:blur(2px)}
+.tour-panel{position:relative;width:min(720px,96vw);max-height:88vh;overflow:auto;padding:22px;border-radius:16px;background:#fff;box-shadow:0 24px 80px rgba(16,24,40,.3)}
+.tour-panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.tour-panel-header h2{margin:3px 30px 0 0;font-size:1.45rem}
+.tour-progress{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin:20px 0 10px}.tour-progress span{height:5px;border-radius:999px;background:#eaecf0}.tour-progress span.current{background:#6172f3}.tour-progress span.complete{background:#12b76a}
+.tour-step-count{font-size:11px;font-weight:800;color:#667085;text-transform:uppercase;letter-spacing:.05em}.tour-step-body{margin:9px 0 12px;color:#344054;font-size:15px;line-height:1.6}
+.tour-step-bullets{margin:0 0 16px;padding-left:20px;color:#475467}.tour-step-bullets li+li{margin-top:6px}
+.tour-route-preview{padding:11px 12px;border:1px solid #e0e7ff;border-radius:10px;background:#f5f8ff}.tour-route-preview span,.tour-route-preview strong{display:block}.tour-route-preview span{font-size:10px;color:#667085;text-transform:uppercase;font-weight:800}.tour-route-preview strong{margin-top:2px;color:#3538cd}
+.tour-panel-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}
+
+.concept-label{display:inline-flex;align-items:center;gap:5px}.concept-help{position:relative;display:inline-block;vertical-align:middle}.concept-help summary{list-style:none;width:17px;height:17px;display:grid;place-items:center;border:1px solid #d0d5dd;border-radius:999px;background:#fff;color:#667085;font-size:10px;font-weight:900;cursor:pointer}.concept-help summary::-webkit-details-marker{display:none}
+.concept-help-popover{position:absolute;left:0;top:24px;z-index:80;width:min(320px,76vw);padding:12px;border:1px solid #d0d5dd;border-radius:10px;background:#fff;box-shadow:0 12px 30px rgba(16,24,40,.14);text-transform:none;letter-spacing:normal}.concept-help-popover strong{display:block!important;font-size:12px!important;color:#101828!important}.concept-help-popover p{margin:5px 0 0!important;color:#475467!important;font-size:11px!important;line-height:1.45!important}
+
+.actionable-empty-state{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:flex-start;padding:20px;border:1px solid #d0d5dd;border-radius:12px;background:#fcfcfd;text-align:left}.actionable-empty-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:#eef4ff;color:#3538cd;font-weight:900;font-size:19px}.actionable-empty-copy h3{margin:3px 0 5px;font-size:1rem}.actionable-empty-copy>p{margin:0;color:var(--muted)}
+.actionable-enables{margin-top:12px}.actionable-enables>span{display:block;margin-bottom:5px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#667085}.actionable-enables ul{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:0}.actionable-enables li{padding:4px 8px;border-radius:999px;background:#eef4ff;color:#3538cd;font-size:10px;font-weight:700}.actionable-empty-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+.reviewer-guide{margin-bottom:22px;padding:18px;border:1px solid #d6bbfb;border-radius:var(--radius);background:linear-gradient(135deg,#fff 0%,#fcfaff 100%);box-shadow:var(--shadow)}.reviewer-guide-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:14px}.reviewer-guide h2{margin:3px 0 5px;font-size:1.2rem}.reviewer-guide p{margin:0;color:var(--muted)}.reviewer-path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.reviewer-path a{display:block;padding:11px;border:1px solid #e9d7fe;border-radius:10px;background:#fff;color:#344054}.reviewer-path a:hover{border-color:#b692f6;color:#42307d}.reviewer-path span,.reviewer-path strong,.reviewer-path small{display:block}.reviewer-path span{color:#7f56d9;font-size:10px;font-weight:900}.reviewer-path strong{margin:2px 0;font-size:12px}.reviewer-path small{color:var(--muted);font-size:10px}
+
+@media (max-width:900px){.reviewer-guide-top{flex-direction:column}.reviewer-path{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.tour-overlay{padding:10px}.tour-panel{padding:18px}.tour-panel-actions{justify-content:stretch}.tour-panel-actions .btn{flex:1 1 100%}.reviewer-path{grid-template-columns:1fr}.actionable-empty-state{grid-template-columns:1fr}.tour-progress{grid-template-columns:repeat(4,minmax(0,1fr))}}
