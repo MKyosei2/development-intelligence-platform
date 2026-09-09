@@ -1,0 +1,46 @@
+<section class="actionable-empty-state" data-testid="@TestId">
+    <div class="actionable-empty-icon" aria-hidden="true">@Icon</div>
+    <div class="actionable-empty-copy">
+        <div class="eyebrow">Next step</div>
+        <h3>@Title</h3>
+        <p>@Why</p>
+        @if (Enables is { Count: > 0 })
+        {
+            <div class="actionable-enables">
+                <span>This enables</span>
+                <ul>
+                    @foreach (var item in Enables)
+                    {
+                        <li>@item</li>
+                    }
+                </ul>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(ActionText))
+        {
+            <div class="actionable-empty-actions">
+                @if (OnAction.HasDelegate)
+                {
+                    <button class="btn btn-primary" type="button" @onclick="OnAction">@ActionText</button>
+                }
+                else if (!string.IsNullOrWhiteSpace(ActionHref))
+                {
+                    <a class="btn btn-primary" href="@ActionHref">@ActionText</a>
+                }
+                @ChildContent
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "→";
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Why { get; set; } = string.Empty;
+    [Parameter] public string? ActionText { get; set; }
+    [Parameter] public string? ActionHref { get; set; }
+    [Parameter] public EventCallback OnAction { get; set; }
+    [Parameter] public IReadOnlyList<string>? Enables { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string TestId { get; set; } = "actionable-empty-state";
+}

@@ -1,0 +1,253 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ProjectState Projects
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<HeadContent>
+    <link rel="stylesheet" href="p2-guided-ux.css" />
+</HeadContent>
+
+@if (_state?.IsOpen == true)
+{
+    @if (_state.ShowWelcome)
+    {
+        <section class="tour-welcome-prompt" data-testid="guided-tour-welcome" role="dialog" aria-labelledby="tour-welcome-title">
+            <button class="tour-close" type="button" title="Skip onboarding" aria-label="Skip onboarding" @onclick="SkipAsync">×</button>
+            <div class="eyebrow">@(_state.Mode == GuidedTourMode.Reviewer ? "Reviewer guide" : "Welcome")</div>
+            <h2 id="tour-welcome-title">@(_state.Mode == GuidedTourMode.Reviewer ? "Review DIP in about 5 minutes" : "Welcome to DIP")</h2>
+            <p>@(_state.Mode == GuidedTourMode.Reviewer
+                ? "Follow the evidence chain from Project Truth to QA, Intelligence and Platform Operations without changing project state."
+                : "DIP turns Git, CI, QA and runtime observations into Evidence, then uses that Evidence to explain Project Truth and the next action.")</p>
+            <div class="tour-welcome-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="SkipAsync">Skip</button>
+                <button class="btn btn-primary btn-sm" data-testid="guided-tour-start" type="button" @onclick="BeginTour">Start tour</button>
+            </div>
+        </section>
+    }
+    else
+    {
+        var steps = CurrentSteps;
+        var step = steps[Math.Clamp(_state.StepIndex, 0, steps.Count - 1)];
+        <div class="tour-overlay" data-testid="guided-tour-overlay">
+            <section class="tour-panel" role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
+                <div class="tour-panel-header">
+                    <div>
+                        <div class="eyebrow">@(_state.Mode == GuidedTourMode.Reviewer ? "5-minute reviewer tour" : "Guided tour")</div>
+                        <h2 id="guided-tour-title">@step.Title</h2>
+                    </div>
+                    <button class="tour-close" type="button" title="Close tour" aria-label="Close tour" @onclick="SkipAsync">×</button>
+                </div>
+
+                <div class="tour-progress" aria-label="Tour progress">
+                    @for (var index = 0; index < steps.Count; index++)
+                    {
+                        var status = index < _state.StepIndex ? "complete" : index == _state.StepIndex ? "current" : "pending";
+                        <span class="@status" title="Step @(index + 1)"></span>
+                    }
+                </div>
+
+                <div class="tour-step-count">Step @(_state.StepIndex + 1) of @steps.Count</div>
+                <p class="tour-step-body">@step.Body</p>
+                @if (step.Bullets.Count > 0)
+                {
+                    <ul class="tour-step-bullets">
+                        @foreach (var bullet in step.Bullets)
+                        {
+                            <li>@bullet</li>
+                        }
+                    </ul>
+                }
+
+                <div class="tour-route-preview">
+                    <span>Recommended surface</span>
+                    <strong>@step.Surface</strong>
+                </div>
+
+                <div class="tour-panel-actions">
+                    <button class="btn btn-outline-secondary" type="button" @onclick="PreviousStep" disabled="@(_state.StepIndex == 0)">Previous</button>
+                    <button class="btn btn-outline-primary" data-testid="guided-tour-open-surface" type="button" @onclick="() => OpenSurface(step.Href)">Open this section</button>
+                    @if (_state.StepIndex < steps.Count - 1)
+                    {
+                        <button class="btn btn-primary" data-testid="guided-tour-next" type="button" @onclick="NextStep">Next</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" data-testid="guided-tour-finish" type="button" @onclick="FinishAsync">Finish</button>
+                    }
+                </div>
+            </section>
+        </div>
+    }
+}
+
+@code {
+    private OnboardingStateService? _state;
+    private bool _disposed;
+
+    public void StartProductTour()
+    {
+        _state?.Start(GuidedTourMode.Product);
+    }
+
+    public void StartReviewerTour()
+    {
+        _state?.Start(GuidedTourMode.Reviewer);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        _state = new OnboardingStateService(JS);
+        _state.Changed += OnStateChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+
+        var defaultMode = await ResolveDefaultModeAsync();
+        await _state.InitializeAsync(defaultMode);
+        ApplyTourQuery(Navigation.Uri);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task<GuidedTourMode> ResolveDefaultModeAsync()
+    {
+        var publicReadOnly = Configuration.GetValue<bool?>("PublicAccess:ReadOnly") ?? false;
+        if (!publicReadOnly)
+            return GuidedTourMode.Product;
+
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return auth.User.Identity?.IsAuthenticated == true
+            ? GuidedTourMode.Product
+            : GuidedTourMode.Reviewer;
+    }
+
+    private IReadOnlyList<TourStep> CurrentSteps
+        => _state?.Mode == GuidedTourMode.Reviewer ? ReviewerSteps() : ProductSteps();
+
+    private IReadOnlyList<TourStep> ProductSteps()
+    {
+        var projectId = Projects.CurrentProjectId ?? Projects.Projects.FirstOrDefault()?.ProjectId;
+        var dashboard = projectId is { } id ? $"/dashboard/{id}" : "/";
+        var repository = projectId is { } repositoryId ? $"/dashboard/{repositoryId}/repository" : "/projects/import/github";
+        var qa = projectId is { } qaId ? $"/dashboard/{qaId}/qa" : "/projects/import/github";
+        var intelligence = projectId is { } intelligenceId ? $"/dashboard/{intelligenceId}/intelligence" : "/";
+
+        return
+        [
+            new("1. Understand DIP", "DIP is an evidence-oriented development intelligence platform, not a dashboard that treats reported status as truth.", "Portfolio", "/",
+                ["Implemented, tested and runtime-verified are different states.", "AI can propose hypotheses, but Evidence remains the source for verification."]),
+            new("2. Connect sources", "Start with a project and repository so DIP can identify the revision that later evidence belongs to.", "Repository / GitHub import", repository,
+                ["Repository metadata and workspace revision stay explicit.", "Connection failures remain visible instead of silently degrading to sample data."]),
+            new("3. Follow the lifecycle", "The Project Operation Flow tells you the current state, why DIP reached it, and one primary next action.", "Project Operation Flow", dashboard + "#operation-flow",
+                ["CONNECT → COLLECT → VERIFY → UNDERSTAND → DECIDE → MONITOR", "The resolver is deterministic and driven by current project state."]),
+            new("4. Inspect QA and Evidence", "QA converts the synchronized revision into durable findings and evidence that can be reviewed later.", "QA / Evidence", qa,
+                ["Unavailable adapters are not upgraded to PASS.", "Evidence remains linked to the revision and run that produced it."]),
+            new("5. Read Project Truth", "Use Intelligence and the project overview to compare claims, evidence confidence, contradictions, blockers and recommended actions.", "Development Intelligence", intelligence,
+                ["Reported progress remains separate from evidence-backed progress.", "Contradictions are surfaced for review rather than silently reconciled."]),
+            new("6. Operate the platform", "Platform Operations separates live runtime health from the 24/7 production design target.", "Platform Operations", "/system",
+                ["Live probes describe the current running instance.", "Production architecture is clearly labeled as a design target, not an uptime claim."])
+        ];
+    }
+
+    private IReadOnlyList<TourStep> ReviewerSteps()
+    {
+        var projectId = Projects.CurrentProjectId ?? Projects.Projects.FirstOrDefault()?.ProjectId;
+        var dashboard = projectId is { } id ? $"/dashboard/{id}" : "/";
+        var qa = projectId is { } qaId ? $"/dashboard/{qaId}/qa" : dashboard;
+        var intelligence = projectId is { } intelligenceId ? $"/dashboard/{intelligenceId}/intelligence" : dashboard;
+
+        return
+        [
+            new("1. Project Overview", "Start with the evidence-backed project state and the Project Operation Flow. This is the fastest place to understand what needs attention and why.", "Project Overview", dashboard,
+                ["Look at Project Truth, evidence confidence and risk.", "Use Current State → Why → Next Action as the review spine."]),
+            new("2. QA Evidence", "Open QA to see whether the repository revision has durable quality evidence, findings and reproducible verification history.", "QA / Evidence", qa,
+                ["Check the revision and run timestamps.", "A missing run is shown as missing evidence, not as success."]),
+            new("3. Intelligence", "Inspect contradictions, decision signals and evidence-backed reasoning instead of relying on manually reported status alone.", "Development Intelligence", intelligence,
+                ["Claims and evidence stay separate.", "Decision support remains reviewable by a human."]),
+            new("4. Platform Operations", "Finish with the platform view to understand how Web, API, PostgreSQL, Worker and Python Analysis are intended to operate continuously.", "Platform Operations", "/system",
+                ["Current runtime observations and production design are shown separately.", "No 24/7 uptime claim is made for the portfolio demonstration."])
+        ];
+    }
+
+    private void BeginTour() => _state?.Begin();
+    private void PreviousStep() => _state?.Previous();
+    private void NextStep() => _state?.Next(CurrentSteps.Count);
+
+    private void OpenSurface(string href)
+    {
+        if (!string.IsNullOrWhiteSpace(href))
+            Navigation.NavigateTo(href);
+    }
+
+    private async Task FinishAsync()
+    {
+        if (_state is not null)
+            await _state.CloseAsync(markCompleted: true);
+    }
+
+    private async Task SkipAsync()
+    {
+        if (_state is not null)
+            await _state.CloseAsync(markCompleted: true);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+        => _ = InvokeAsync(() =>
+        {
+            ApplyTourQuery(args.Location);
+            StateHasChanged();
+        });
+
+    private void ApplyTourQuery(string uriText)
+    {
+        if (_state is null)
+            return;
+
+        var uri = Navigation.ToAbsoluteUri(uriText);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (!query.TryGetValue("tour", out var value))
+            return;
+
+        var mode = value.ToString();
+        var started = false;
+        if (mode.Equals("review", StringComparison.OrdinalIgnoreCase))
+        {
+            _state.Start(GuidedTourMode.Reviewer);
+            started = true;
+        }
+        else if (mode.Equals("product", StringComparison.OrdinalIgnoreCase))
+        {
+            _state.Start(GuidedTourMode.Product);
+            started = true;
+        }
+
+        if (started && query.Count == 1 && uri.AbsolutePath == Navigation.ToAbsoluteUri("/").AbsolutePath)
+            Navigation.NavigateTo("/", replace: true);
+    }
+
+    private void OnStateChanged()
+    {
+        if (!_disposed)
+            _ = InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Navigation.LocationChanged -= OnLocationChanged;
+        if (_state is null)
+            return;
+        _state.Changed -= OnStateChanged;
+        await _state.DisposeAsync();
+    }
+
+    private sealed record TourStep(
+        string Title,
+        string Body,
+        string Surface,
+        string Href,
+        IReadOnlyList<string> Bullets);
+}
