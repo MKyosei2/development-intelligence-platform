@@ -3,6 +3,7 @@ param(
     [switch]$NoBuild,
     [switch]$VerifyGui,
     [switch]$NoBrowser,
+    [switch]$NoLogRedirect,
     [int]$HealthTimeoutSeconds = 420,
     [string]$PostgresHost = $(if ($env:POSTGRES_HOST) { $env:POSTGRES_HOST } else { '127.0.0.1' }),
     [int]$PostgresPort = $(if ($env:POSTGRES_PORT) { [int]$env:POSTGRES_PORT } else { 5432 }),
@@ -159,13 +160,19 @@ function Start-Tracked([string]$name,[string]$exe,[string[]]$arguments,[string]$
     $stderr = Join-Path $logs "$name.err.log"
     Remove-Item $stdout,$stderr -Force -ErrorAction SilentlyContinue
 
-    $p = Start-Process `
-        -FilePath $exe `
-        -ArgumentList $arguments `
-        -WorkingDirectory $cwd `
-        -RedirectStandardOutput $stdout `
-        -RedirectStandardError $stderr `
-        -PassThru
+    $startProcess = @{
+        FilePath = $exe
+        ArgumentList = $arguments
+        WorkingDirectory = $cwd
+        PassThru = $true
+    }
+
+    if (-not $NoLogRedirect) {
+        $startProcess.RedirectStandardOutput = $stdout
+        $startProcess.RedirectStandardError = $stderr
+    }
+
+    $p = Start-Process @startProcess
 
     $p.Id | Set-Content $pidFile -Encoding ASCII
     Write-Host "Started $name (PID $($p.Id))."

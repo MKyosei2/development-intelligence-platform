@@ -1,0 +1,228 @@
+/* P1 Platform Operations.
+   Runtime evidence and production design are deliberately styled as separate concepts. */
+
+.runtime-context-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.runtime-context-card{
+  min-height:180px;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:var(--surface);
+  box-shadow:var(--shadow);
+}
+.runtime-context-card h2{margin:3px 0 7px;font-size:1.2rem}
+.runtime-context-card p{margin:0 0 14px;color:var(--muted)}
+.runtime-context-card.current-runtime{border-left:4px solid #6172f3}
+.runtime-context-card.production-target{
+  border-left:4px solid #7f56d9;
+  background:linear-gradient(135deg,#fff 0%,#f9f5ff 100%);
+}
+.runtime-context-meta{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.runtime-context-meta span{
+  padding:9px 10px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#fcfcfd;
+}
+.runtime-context-meta small,.runtime-context-meta strong{display:block}
+.runtime-context-meta small{color:var(--muted);font-size:10px}
+.runtime-context-meta strong{margin-top:2px;color:#101828;font-size:12px}
+
+.platform-section{margin-top:24px}
+.platform-section-heading{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:12px;
+}
+.platform-section-heading h2{margin:2px 0 0}
+.platform-section-heading p{
+  max-width:640px;
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  text-align:right;
+}
+.probe-duration{
+  display:block;
+  margin-top:10px;
+  color:var(--muted);
+  font-size:10px;
+}
+
+.operations-metric-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:10px;
+}
+.operations-metric{
+  min-height:112px;
+  padding:13px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface);
+  box-shadow:var(--shadow);
+}
+.operations-metric span,.operations-metric small{display:block}
+.operations-metric span{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.operations-metric strong{
+  display:block;
+  margin:6px 0 4px;
+  color:#101828;
+  font-size:14px;
+  overflow-wrap:anywhere;
+}
+.operations-metric small{color:var(--muted);font-size:10px}
+
+.queue-telemetry-card{
+  margin-top:12px;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:#fcfcfd;
+}
+.queue-telemetry-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:12px;
+}
+.queue-telemetry-header h3{margin:2px 0 0}
+.queue-telemetry-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+}
+.queue-telemetry-grid>div{
+  padding:10px 11px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#fff;
+}
+.queue-telemetry-grid span,.queue-telemetry-grid strong{display:block}
+.queue-telemetry-grid span{color:var(--muted);font-size:10px}
+.queue-telemetry-grid strong{margin-top:3px;font-size:13px;color:#101828;overflow-wrap:anywhere}
+.queue-telemetry-detail{margin:10px 0 0;color:var(--muted);font-size:11px}
+
+.production-design-section{
+  padding:18px;
+  border:1px solid #e9d7fe;
+  border-radius:var(--radius);
+  background:linear-gradient(135deg,#fff 0%,#fcfaff 100%);
+  box-shadow:var(--shadow);
+  scroll-margin-top:90px;
+}
+.production-design-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);
+  gap:18px;
+  align-items:start;
+}
+.architecture-flow{
+  padding:18px;
+  border:1px solid #e9d7fe;
+  border-radius:12px;
+  background:#fff;
+}
+.architecture-row{
+  display:grid;
+  grid-template-columns:minmax(0,420px);
+  justify-content:center;
+  gap:10px;
+}
+.architecture-two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.architecture-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.architecture-node{
+  min-height:74px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:10px;
+  border:1px solid #d6bbfb;
+  border-radius:10px;
+  background:#fcfaff;
+  text-align:center;
+}
+.architecture-node small{color:#6941c6;font-size:10px}
+.architecture-node strong{margin-top:3px;color:#42307d}
+.architecture-node.edge-node{background:#f4f3ff;border-color:#c7d7fe}
+.architecture-node.worker-node{background:#eef4ff;border-color:#c7d7fe}
+.architecture-node.terminal-node{min-height:56px;background:#f9fafb;border-color:var(--line)}
+.architecture-arrow{
+  height:30px;
+  display:grid;
+  place-items:center;
+  color:#7f56d9;
+  font-size:18px;
+  font-weight:900;
+}
+
+.production-characteristics{
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+}
+.production-characteristics ul{list-style:none;padding:0;margin:12px 0 0}
+.production-characteristics li{
+  display:grid;
+  grid-template-columns:24px 1fr;
+  gap:9px;
+  padding:9px 0;
+  border-bottom:1px solid var(--line);
+}
+.production-characteristics li:last-child{border-bottom:0}
+.production-characteristics li>span{
+  width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#ecfdf3;
+  color:#067647;
+  font-size:11px;
+  font-weight:900;
+}
+.production-characteristics li strong,.production-characteristics li small{display:block}
+.production-characteristics li strong{font-size:12px}
+.production-characteristics li small{margin-top:2px;color:var(--muted);font-size:10px;line-height:1.4}
+.design-boundary-note{
+  margin-top:12px;
+  padding:11px 12px;
+  border:1px solid #b2ddff;
+  border-radius:9px;
+  background:#eff8ff;
+  color:#1849a9;
+}
+.design-boundary-note p{margin:3px 0 0;font-size:11px}
+
+@media (max-width:1250px){
+  .operations-metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .queue-telemetry-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .production-design-layout{grid-template-columns:1fr}
+}
+@media (max-width:900px){
+  .runtime-context-grid{grid-template-columns:1fr}
+  .platform-section-heading{align-items:flex-start;flex-direction:column}
+  .platform-section-heading p{text-align:left}
+}
+@media (max-width:680px){
+  .runtime-context-meta,.operations-metric-grid,.queue-telemetry-grid,.architecture-two,.architecture-three{grid-template-columns:1fr}
+}

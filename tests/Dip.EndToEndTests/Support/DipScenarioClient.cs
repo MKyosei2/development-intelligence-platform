@@ -16,7 +16,7 @@ internal sealed class DipScenarioClient : IDisposable
 
     private readonly HttpClient _httpClient;
 
-    public DipScenarioClient()
+    public DipScenarioClient(TimeSpan? timeout = null)
     {
         var baseUrl = Environment.GetEnvironmentVariable("DIP_API_URL")
             ?? "http://127.0.0.1:7001";
@@ -24,7 +24,7 @@ internal sealed class DipScenarioClient : IDisposable
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri(baseUrl, UriKind.Absolute),
-            Timeout = TimeSpan.FromSeconds(15)
+            Timeout = timeout ?? TimeSpan.FromSeconds(15)
         };
     }
 
@@ -343,6 +343,7 @@ internal sealed record ForecastE2EResponse(
     DateTimeOffset? EarliestCompletionUtc,
     DateTimeOffset? LatestCompletionUtc,
     IReadOnlyList<string> Reasons);
+
 internal sealed class P2DailyChangeE2EResponse
 {
     public int NewEvidence { get; init; }

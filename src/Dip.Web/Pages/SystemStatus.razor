@@ -2,16 +2,40 @@
 @using Dip.Application.Features.SystemStatus
 @inject ApiClient Api
 @inject IConfiguration Configuration
+@inject RealtimeUpdateService Realtime
+@inject IHostEnvironment HostEnvironment
 
-<PageTitle>System Status | DIP</PageTitle>
+<PageTitle>Platform Operations | DIP</PageTitle>
 
-<section class="page-heading">
+<HeadContent>
+    <link rel="stylesheet" href="p1-platform-operations.css" />
+</HeadContent>
+
+<section class="page-heading" data-testid="platform-operations-page">
     <div>
         <div class="eyebrow">Platform operations</div>
-        <h1>System Status</h1>
-        <p>Separate DIP infrastructure failures from problems in the product being verified.</p>
+        <h1>Platform Operations</h1>
+        <p>Live system health, durable operational telemetry and the production deployment design are shown separately so runtime evidence is never confused with an architectural target.</p>
     </div>
     <button class="btn btn-outline-primary" @onclick="RefreshAsync" disabled="@_loading">@(_loading ? "Checking…" : "Refresh")</button>
+</section>
+
+<section class="runtime-context-grid mb-4" data-testid="current-runtime-context">
+    <div class="runtime-context-card current-runtime">
+        <div class="eyebrow">Current Runtime</div>
+        <h2>Observed deployment instance</h2>
+        <p>Health and telemetry below are measured from this running DIP instance. This panel does not assert 24/7 public uptime.</p>
+        <div class="runtime-context-meta">
+            <span><small>ASP.NET environment</small><strong>@HostEnvironment.EnvironmentName</strong></span>
+            <span><small>Realtime channel</small><strong>@Realtime.State</strong></span>
+        </div>
+    </div>
+    <div class="runtime-context-card production-target">
+        <div class="eyebrow">Production Design Target</div>
+        <h2>24/7 always-on development intelligence</h2>
+        <p>Native services, durable PostgreSQL state, background workers, readiness checks, backup/restore and rollback are the intended production operating model.</p>
+        <a class="btn btn-outline-primary btn-sm" href="#production-design">View production design</a>
+    </div>
 </section>
 
 @if (_error is not null)
@@ -29,25 +53,185 @@ else
         <small>Checked @_status.CheckedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</small>
     </div>
 
-    <div class="status-grid">
-        @foreach (var component in _status.Components)
+    <section class="platform-section" aria-labelledby="component-health-title">
+        <div class="platform-section-heading">
+            <div>
+                <div class="eyebrow">Live probes</div>
+                <h2 id="component-health-title">Component health</h2>
+            </div>
+            <p>API-produced observations from the current runtime.</p>
+        </div>
+        <div class="status-grid">
+            @foreach (var component in _status.Components)
+            {
+                <div class="status-card">
+                    <div class="status-card-head">
+                        <span class="status-dot @StateClass(component.State)"></span>
+                        <span>@component.Name</span>
+                        <strong>@component.State</strong>
+                    </div>
+                    <p>@component.Detail</p>
+                    @if (component.DurationMs is { } duration)
+                    {
+                        <small class="probe-duration">Probe @duration.ToString("0.##") ms</small>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="platform-section" data-testid="continuous-operations" aria-labelledby="continuous-operations-title">
+        <div class="platform-section-heading">
+            <div>
+                <div class="eyebrow">Durable runtime evidence</div>
+                <h2 id="continuous-operations-title">Continuous operations</h2>
+            </div>
+            <p>Values are read from persisted state. Missing measurements remain unavailable rather than being replaced with sample numbers.</p>
+        </div>
+
+        @if (_status.Operations is null)
         {
-            <div class="status-card">
-                <div class="status-card-head"><span class="status-dot @StateClass(component.State)"></span><span>@component.Name</span><strong>@component.State</strong></div>
-                <p>@component.Detail</p>
+            <div class="alert alert-light">This server does not expose continuous-operations telemetry yet.</div>
+        }
+        else if (!_status.Operations.Available)
+        {
+            <div class="alert alert-warning">
+                <strong>Operational telemetry unavailable.</strong>
+                <div>@_status.Operations.Detail</div>
             </div>
         }
-    </div>
+        else
+        {
+            <div class="operations-metric-grid">
+                <div class="operations-metric">
+                    <span>Latest Evidence</span>
+                    <strong>@FormatOperationalTime(_status.Operations.LatestEvidenceAtUtc)</strong>
+                    <small>Latest persisted observation</small>
+                </div>
+                <div class="operations-metric">
+                    <span>Latest Project Truth</span>
+                    <strong>@FormatOperationalTime(_status.Operations.LatestTruthEvaluationAtUtc)</strong>
+                    <small>Latest evidence-backed evaluation</small>
+                </div>
+                <div class="operations-metric">
+                    <span>Backup verification</span>
+                    <strong>@FormatOperationalTime(_status.Operations.LatestBackupVerificationAtUtc)</strong>
+                    <small>Not a backup claim when no verification exists</small>
+                </div>
+                <div class="operations-metric">
+                    <span>Queued jobs</span>
+                    <strong>@FormatCount(_status.Operations.QueuedJobCount)</strong>
+                    <small>Durable jobs waiting</small>
+                </div>
+                <div class="operations-metric">
+                    <span>Running jobs</span>
+                    <strong>@FormatCount(_status.Operations.RunningJobCount)</strong>
+                    <small>Durable jobs in progress</small>
+                </div>
+                <div class="operations-metric">
+                    <span>Failed / timed out</span>
+                    <strong>@FormatCount(_status.Operations.FailedOrTimedOutJobCount)</strong>
+                    <small>Persisted terminal failures</small>
+                </div>
+            </div>
 
-    <div class="card mt-4">
-        <div class="card-header"><strong>Runtime endpoints</strong><span>Local one-click defaults</span></div>
+            <div class="queue-telemetry-card" data-testid="queue-telemetry">
+                <div class="queue-telemetry-header">
+                    <div>
+                        <div class="eyebrow">PostgreSQL queue transport</div>
+                        <h3>Queue telemetry</h3>
+                    </div>
+                    <span class="badge @(_status.Operations.Queue.Available ? "text-bg-success" : "text-bg-secondary")">
+                        @(_status.Operations.Queue.Available ? "Measured" : "Unavailable")
+                    </span>
+                </div>
+
+                @if (_status.Operations.Queue.Available)
+                {
+                    <div class="queue-telemetry-grid">
+                        <div><span>Stored envelopes</span><strong>@FormatCount(_status.Operations.Queue.StoredEnvelopeCount)</strong></div>
+                        <div><span>Active leases</span><strong>@FormatCount(_status.Operations.Queue.ActiveLeaseCount)</strong></div>
+                        <div><span>Retry envelopes</span><strong>@FormatCount(_status.Operations.Queue.RetryEnvelopeCount)</strong></div>
+                        <div><span>Dead-letter envelopes</span><strong>@FormatCount(_status.Operations.Queue.DeadLetterEnvelopeCount)</strong></div>
+                        <div><span>Latest queue activity</span><strong>@FormatOperationalTime(_status.Operations.Queue.LatestActivityAtUtc)</strong></div>
+                    </div>
+                }
+                <p class="queue-telemetry-detail">@_status.Operations.Queue.Detail</p>
+            </div>
+        }
+    </section>
+
+    <section class="platform-section production-design-section"
+             id="production-design"
+             data-testid="production-design-target"
+             aria-labelledby="production-design-title">
+        <div class="platform-section-heading">
+            <div>
+                <div class="eyebrow">Production Design Target</div>
+                <h2 id="production-design-title">24/7 native service architecture</h2>
+            </div>
+            <p>This is an architectural target, not evidence that the portfolio demonstration is currently operated 24/7.</p>
+        </div>
+
+        <div class="production-design-layout">
+            <div class="architecture-flow" data-testid="production-architecture">
+                <div class="architecture-row">
+                    <div class="architecture-node edge-node">
+                        <small>Public edge</small>
+                        <strong>Caddy / HTTPS</strong>
+                    </div>
+                </div>
+                <div class="architecture-arrow">↓</div>
+                <div class="architecture-row architecture-two">
+                    <div class="architecture-node"><small>UI</small><strong>Dip.Web</strong></div>
+                    <div class="architecture-node"><small>Application API</small><strong>Dip.Api</strong></div>
+                </div>
+                <div class="architecture-arrow">↓</div>
+                <div class="architecture-row architecture-three">
+                    <div class="architecture-node"><small>Durable truth + queue</small><strong>PostgreSQL</strong></div>
+                    <div class="architecture-node"><small>Analysis service</small><strong>Python Analysis</strong></div>
+                    <div class="architecture-node"><small>Evidence artifacts</small><strong>Artifact Storage</strong></div>
+                </div>
+                <div class="architecture-arrow">↓</div>
+                <div class="architecture-row">
+                    <div class="architecture-node worker-node"><small>Background execution</small><strong>Dip.Worker</strong></div>
+                </div>
+                <div class="architecture-arrow">↓</div>
+                <div class="architecture-row architecture-three">
+                    <div class="architecture-node terminal-node"><strong>QA</strong></div>
+                    <div class="architecture-node terminal-node"><strong>Collectors</strong></div>
+                    <div class="architecture-node terminal-node"><strong>Analysis jobs</strong></div>
+                </div>
+            </div>
+
+            <div class="production-characteristics">
+                <div class="eyebrow">Designed operating characteristics</div>
+                <ul>
+                    <li><span>✓</span><div><strong>Exact-SHA immutable releases</strong><small>Deploy a release directory tied to an exact revision before switching the active release.</small></div></li>
+                    <li><span>✓</span><div><strong>Caddy + loopback services</strong><small>Public traffic terminates at the host proxy while Web/API services remain loopback-bound.</small></div></li>
+                    <li><span>✓</span><div><strong>systemd user services</strong><small>Native long-running service supervision for Web, API, Worker and Analysis.</small></div></li>
+                    <li><span>✓</span><div><strong>PostgreSQL durable state</strong><small>Project truth and coordination survive process restarts instead of living only in memory.</small></div></li>
+                    <li><span>✓</span><div><strong>Liveness + readiness</strong><small>Deployment verification can distinguish a live process from a ready service.</small></div></li>
+                    <li><span>✓</span><div><strong>Backup / restore</strong><small>PostgreSQL and durable artifacts are covered by native backup and restore tooling.</small></div></li>
+                    <li><span>✓</span><div><strong>Rollback path</strong><small>Failed deployment verification is designed to restore the previous release and durable state.</small></div></li>
+                </ul>
+                <div class="design-boundary-note">
+                    <strong>Evidence boundary</strong>
+                    <p>These items describe repository-backed production design. Current runtime health is reported only by the live probe and telemetry sections above.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-4" data-testid="runtime-endpoints">
+        <div class="card-header"><strong>Runtime endpoints</strong><span>Configured public / local addresses</span></div>
         <div class="card-body endpoint-list">
             <div><span>GUI</span><code>@PublicWeb</code></div>
             <div><span>API / Swagger</span><code>@(PublicApi + "/swagger")</code></div>
             <div><span>Python Analysis</span><code>@(PublicAnalysis + "/health")</code></div>
             <div><span>Worker metrics</span><code>@(PublicWorker + "/metrics")</code></div>
         </div>
-    </div>
+    </section>
 }
 
 @code {
@@ -66,9 +250,18 @@ else
     {
         _loading = true;
         _error = null;
-        try { _status = await Api.GetSystemStatusAsync(); }
-        catch (Exception exception) { _error = exception.Message; }
-        finally { _loading = false; }
+        try
+        {
+            _status = await Api.GetSystemStatusAsync();
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private static string StateClass(string state) => state switch
@@ -78,4 +271,10 @@ else
         SystemComponentStates.Degraded => "warning",
         _ => "danger"
     };
+
+    private static string FormatOperationalTime(DateTimeOffset? value)
+        => value is null ? "Not measured" : value.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    private static string FormatCount(long? value)
+        => value is null ? "Not measured" : value.Value.ToString("N0");
 }
