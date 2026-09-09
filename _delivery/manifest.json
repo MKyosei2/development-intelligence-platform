@@ -1,0 +1,31 @@
+{
+  "repository": "MKyosei2/development-intelligence-platform",
+  "baseRevision": "f962d4614ad9d247463c01659c47afdc01798c78",
+  "deliveryType": "revision-overlay",
+  "reason": "The connected GitHub interface exposes repository text/file APIs but not a binary clone/archive export. These are complete replacement files at their existing repository paths plus new files. Overlay onto the exact base revision or review/apply with Git.",
+  "changedPaths": [
+    "README.md",
+    "docs/09-portfolio/ENGINEERING_CASE_STUDY.md",
+    "docs/09-portfolio/reviewer-brief.md",
+    "docs/09-portfolio/demo-script.md",
+    "scripts/Verify-PortfolioFormal.ps1",
+    "scripts/Verify-Solution.ps1",
+    "scripts/Verify-GuiPhase1.ps1",
+    "docs/09-portfolio/runtime-verification.md",
+    "docs/00-overview/goals-and-non-goals.md",
+    "docs/09-portfolio/benchmark-results.md",
+    "docs/09-portfolio/GAME_DEVELOPMENT_SCENARIO.md",
+    "tests/Dip.EndToEndTests/Scenarios/GameDevelopmentEvidenceScenario.cs",
+    "scripts/Run-GovernanceLoadTest.ps1",
+    "scripts/Verify-GuiPhase1Static.ps1",
+    "docs/01-requirements/acceptance-criteria.md",
+    "docs/02-architecture/qa-governance-hardening.md"
+  ],
+  "notes": [
+    "Additional dependency files were updated only where required to make the requested Native-first formal verification internally consistent.",
+    "No GitHub Actions workflow file is changed by this bundle.",
+    "The new E2E scenario reuses the existing DipScenarioClient API path and adds no external runner dependency."
+  ],
+  "hostedCiExecuted": false,
+  "validation": "_delivery/validation.json"
+}

@@ -7,4 +7,5 @@
 5. DashboardにProjectが表示される
 6. Risk APIがScoreとContributionを返す
 7. CIでUnitとIntegration Testが通る
-8. Docker Composeで主要Serviceが起動する
+8. Native-first runtimeでPostgreSQL / Python Analysis / API / Worker / Webが起動し、health / readinessを検証できる
+9. Docker / external queue daemonがなくてもformal Native verificationの主要経路を実行できる

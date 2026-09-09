@@ -1,14 +1,17 @@
 # ベンチマーク結果
 
-以前の`TBD` placeholderはexact-revision measurement workflowへ置き換えられている。**この変更revisionについて、target Windows machineで実測するまでは値を主張しない。**
+この文書では、**Historical baseline**と**公開対象final SHAのexact-revision measurement**を分離します。Sourceを変更しただけでは過去のperformance値を新revisionへ継承しません。
 
-実行:
+## 公開ルール
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Run-PortfolioBenchmarks.ps1 -UpdateDocumentation
-```
+公開対象revisionのperformance値として掲載できるのは、次をすべて満たすartifactだけです。
 
-Commandはraw Evidenceを`artifacts/portfolio-benchmark/portfolio-benchmark-results.json`へ書き出し、`-UpdateDocumentation`指定時は実測値でこのfileを書き換える。
+1. `artifacts/portfolio-benchmark/portfolio-benchmark-results.json`が実測runnerから生成されている。
+2. artifactの`sourceCommit`が公開対象Git SHAと完全一致する。
+3. 必須scenarioが完了し、失敗・未実行・infrastructure blockedをPASSへ読み替えていない。
+4. 文書へ転記する値がraw artifactと一致する。
+
+この4条件を満たさない場合、表は`NOT YET MEASURED`のままにします。
 
 | Scenario | Target | Current exact-revision evidence |
 |---|---:|---|
@@ -17,8 +20,14 @@ Commandはraw Evidenceを`artifacts/portfolio-benchmark/portfolio-benchmark-resu
 | 100 req/s error rate | <1% | NOT YET MEASURED |
 | 1M Metric query p95 | <2000 ms | NOT YET MEASURED |
 
-古いbenchmark Evidenceを新しいsource revisionのEvidenceとして提示しない。
+## Historical baseline
+
+`docs/09-portfolio/evidence/verified-baseline/`に保存されたbenchmarkは、measurement infrastructureが特定commitで実測を完了したことを示すbaselineです。Current revisionの値として再ラベルしません。
 
 ## Runtime Profile（実行プロファイル）
 
-Runnerは`Development`ではなく専用`Benchmark` ASP.NET Core environment（Evidence labelは`ProductionLikeBenchmark`）を使用する。Loopback authenticationはisolated benchmark harness内だけで無効化し、その事実をresult JSONへ記録する。Default sustained-load windowは900秒・25 requests/second。Callerはより長いrelease/nightly windowを明示指定できる。Exact revisionを実測するまでperformance numberは公開しない。
+Runnerは専用`Benchmark` ASP.NET Core environment（Evidence labelは`ProductionLikeBenchmark`）を使用します。Loopback authenticationをisolated benchmark harness内で無効化した場合は、その事実をresult JSONへ記録します。Default sustained-load windowは900秒・25 requests/secondです。Release / nightlyではより長いwindowを明示できます。
+
+## Final SHAの扱い
+
+Portfolio公開直前にsourceをfreezeし、そのfinal SHAでbenchmarkを再実行します。測定後にsourceを1行でも変更した場合、そのartifactはhistorical Evidenceへ戻し、新しいSHAでは再度`NOT YET MEASURED`から扱います。これにより「測定後の修正だけを行い、古い数値をcurrentとして残す」状態を防ぎます。

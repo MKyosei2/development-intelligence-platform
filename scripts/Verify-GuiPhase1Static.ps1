@@ -48,4 +48,4 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "GUI Phase 1 static validation passed." -ForegroundColor Green
-Write-Host "Run scripts/Verify-GuiPhase1.ps1 on a machine with Docker + Node to prove runtime E2E." -ForegroundColor Yellow
+Write-Host "Run scripts/Verify-GuiPhase1.ps1 with native PostgreSQL + Node to prove runtime E2E." -ForegroundColor Yellow

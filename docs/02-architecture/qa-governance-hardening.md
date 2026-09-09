@@ -16,17 +16,6 @@ Productionは、認証、64文字以上のJWT key、GitHub OAuth資格情報、�
 
 認可migrationは、`ProjectMembership`導入前から存在するProjectのOwnerを推測しない。構成済みのglobal Adminを復旧主体とし、Admin bearer tokenを使って`scripts/Bootstrap-ProjectMemberships.ps1`から対象Projectへ明示的にOwner membershipを付与する（または`-AllProjects`を使用する）。すべての付与は通常のmembership APIを経由するため監査対象になる。これにより、暗黙のロックアウトと危険な自動権限付与の両方を避ける。
 
-例:
-
-```powershell
-.\scripts\Bootstrap-ProjectMemberships.ps1 `
-  -BaseUrl http://localhost:8080 `
-  -AdminBearerToken $env:DIP_ADMIN_TOKEN `
-  -SubjectId "github:123456" `
-  -Login "owner-login" `
-  -AllProjects
-```
-
 ## サーバー側で決定するActorと監査
 
 Governance mutation用HTTP request DTOでは`Actor`や`ApprovedBy`を受け取らない。Actor identityはJWTの`sub`と`name` claimから決定する。Audit entryにはrequest/correlation ID、理由、subject、変更前後のJSONを保持する。
@@ -55,12 +44,12 @@ PrometheusはQA run/gate total、open finding、flaky test、active waiver、sel
 
 ## Backup・Restore・Disaster Recovery（災害復旧）
 
-- `scripts/Backup-Dip.ps1`: PostgreSQL custom-format dumpを作成し、Docker Local artifact volumeをarchiveし、両方をhash化してmanifestを出力する。
-- `scripts/Restore-Dip.ps1`: `-ConfirmRestore`を必須とする破壊的restore。hashを検証し、API/Worker/Webを停止してPostgreSQLとartifactをrestoreし、その後serviceを再起動する。
-- `scripts/Verify-DisasterRecovery.ps1`: databaseとartifact Evidenceがbackup/restoreを越えて保持されることを隔離環境で検証する。
+- `scripts/Backup-Dip.ps1`: PostgreSQL custom-format dumpを作成し、filesystem artifact directoryをarchiveし、両方をhash化してmanifestを出力する。
+- `scripts/Restore-Dip.ps1`: `-ConfirmRestore`を必須とする破壊的restore。hashを検証し、対象runtimeを停止してPostgreSQLとartifactをrestoreし、その後runtimeを再開する。
+- `scripts/Verify-DisasterRecovery.ps1`: databaseとartifact Evidenceがbackup/restoreを越えて保持されることを隔離環境で検証する。Formal pathではnative PostgreSQL client toolsを使用する。
 
-この文書で説明する運用backup/restoreはDocker Composeの`Local` artifact providerを対象としている。MinIO/S3運用ではdatabase backupに加えてbucket versioning/replicationまたはprovider固有backupを使用する。
+正式なNative-first運用では、database backupとfilesystem artifact backupを分離して検証し、offsite mirrorを構成した場合はhash一致も確認する。S3等のexternal artifact providerを使う場合は、database backupに加えてprovider固有のversioning / replication / backup policyを使用する。
 
 ## Formal Evidence（正式な証拠）
 
-`Verify-PortfolioFormal.ps1`はfail-closedで動作する。WindowsではcleanなGit revision、.NET、Docker、実際のUnity Editorを要求し、solution tests、Universal QA、Governance tests、migration fresh/rollback/re-upgrade、DR verification、Governance load/concurrency、Unity verification、Project Control、P2、portfolio benchmarkを実行する。PASS artifactには正確なsource commitを記録する。
+`Verify-PortfolioFormal.ps1`はfail-closedで動作する。WindowsではcleanなGit revision、.NET、Node/npm、native PostgreSQL server + client tools、実Unity Editorを要求し、solution tests、Universal QA、Governance tests、migration、DR verification、**native PostgreSQL Governance load/concurrency**、Unity verification、Project Control、P2、portfolio benchmarkを実行する。Dockerはformal PASSの必須条件ではない。PASS artifactには正確なsource commitを記録する。

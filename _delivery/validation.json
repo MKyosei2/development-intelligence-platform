@@ -1,0 +1,308 @@
+{
+  "schema": "dip-ci-safe-overlay-validation-v1",
+  "baseRevision": "f962d4614ad9d247463c01659c47afdc01798c78",
+  "hostedCiExecuted": false,
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "readme-size",
+      "status": "PASS",
+      "detail": "7552 bytes"
+    },
+    {
+      "name": "readme-contract-project-truth",
+      "status": "PASS",
+      "detail": "Project Truth"
+    },
+    {
+      "name": "readme-contract-evidence-grounded-autonomous-debugging",
+      "status": "PASS",
+      "detail": "Evidence-Grounded Autonomous Debugging"
+    },
+    {
+      "name": "readme-contract-flexible-spreadsheet-intelligence",
+      "status": "PASS",
+      "detail": "Flexible Spreadsheet Intelligence"
+    },
+    {
+      "name": "readme-contract-historical-pass-current-revision-pass",
+      "status": "PASS",
+      "detail": "Historical PASS ≠ Current Revision PASS"
+    },
+    {
+      "name": "readme-demo-gif",
+      "status": "PASS",
+      "detail": "existing demo path referenced"
+    },
+    {
+      "name": "game-scenario-doc",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "game-e2e-source",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "path-README.md",
+      "status": "PASS",
+      "detail": "README.md"
+    },
+    {
+      "name": "path-docs/09-portfolio/ENGINEERING_CASE_STUDY.md",
+      "status": "PASS",
+      "detail": "docs/09-portfolio/ENGINEERING_CASE_STUDY.md"
+    },
+    {
+      "name": "path-docs/09-portfolio/reviewer-brief.md",
+      "status": "PASS",
+      "detail": "docs/09-portfolio/reviewer-brief.md"
+    },
+    {
+      "name": "path-docs/09-portfolio/demo-script.md",
+      "status": "PASS",
+      "detail": "docs/09-portfolio/demo-script.md"
+    },
+    {
+      "name": "path-scripts/Verify-PortfolioFormal.ps1",
+      "status": "PASS",
+      "detail": "scripts/Verify-PortfolioFormal.ps1"
+    },
+    {
+      "name": "path-scripts/Verify-Solution.ps1",
+      "status": "PASS",
+      "detail": "scripts/Verify-Solution.ps1"
+    },
+    {
+      "name": "path-scripts/Verify-GuiPhase1.ps1",
+      "status": "PASS",
+      "detail": "scripts/Verify-GuiPhase1.ps1"
+    },
+    {
+      "name": "path-docs/09-portfolio/runtime-verification.md",
+      "status": "PASS",
+      "detail": "docs/09-portfolio/runtime-verification.md"
+    },
+    {
+      "name": "path-docs/00-overview/goals-and-non-goals.md",
+      "status": "PASS",
+      "detail": "docs/00-overview/goals-and-non-goals.md"
+    },
+    {
+      "name": "path-docs/09-portfolio/benchmark-results.md",
+      "status": "PASS",
+      "detail": "docs/09-portfolio/benchmark-results.md"
+    },
+    {
+      "name": "path-docs/09-portfolio/GAME_DEVELOPMENT_SCENARIO.md",
+      "status": "PASS",
+      "detail": "docs/09-portfolio/GAME_DEVELOPMENT_SCENARIO.md"
+    },
+    {
+      "name": "path-tests/Dip.EndToEndTests/Scenarios/GameDevelopmentEvidenceScenario.cs",
+      "status": "PASS",
+      "detail": "tests/Dip.EndToEndTests/Scenarios/GameDevelopmentEvidenceScenario.cs"
+    },
+    {
+      "name": "path-scripts/Run-GovernanceLoadTest.ps1",
+      "status": "PASS",
+      "detail": "scripts/Run-GovernanceLoadTest.ps1"
+    },
+    {
+      "name": "path-scripts/Verify-GuiPhase1Static.ps1",
+      "status": "PASS",
+      "detail": "scripts/Verify-GuiPhase1Static.ps1"
+    },
+    {
+      "name": "path-docs/01-requirements/acceptance-criteria.md",
+      "status": "PASS",
+      "detail": "docs/01-requirements/acceptance-criteria.md"
+    },
+    {
+      "name": "path-docs/02-architecture/qa-governance-hardening.md",
+      "status": "PASS",
+      "detail": "docs/02-architecture/qa-governance-hardening.md"
+    },
+    {
+      "name": "no-workflow-modifications",
+      "status": "PASS",
+      "detail": "workflow YAML intentionally untouched"
+    },
+    {
+      "name": "scripts/Verify-PortfolioFormal.ps1-no-docker-compose",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Verify-PortfolioFormal.ps1-no-docker-command-requirement",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Verify-PortfolioFormal.ps1-brace-balance",
+      "status": "PASS",
+      "detail": "27/27"
+    },
+    {
+      "name": "scripts/Verify-PortfolioFormal.ps1-paren-balance",
+      "status": "PASS",
+      "detail": "62/62"
+    },
+    {
+      "name": "scripts/Verify-Solution.ps1-no-docker-compose",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Verify-Solution.ps1-no-docker-command-requirement",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Verify-Solution.ps1-brace-balance",
+      "status": "PASS",
+      "detail": "44/44"
+    },
+    {
+      "name": "scripts/Verify-Solution.ps1-paren-balance",
+      "status": "PASS",
+      "detail": "64/64"
+    },
+    {
+      "name": "scripts/Verify-GuiPhase1.ps1-no-docker-compose",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Verify-GuiPhase1.ps1-no-docker-command-requirement",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Verify-GuiPhase1.ps1-brace-balance",
+      "status": "PASS",
+      "detail": "10/10"
+    },
+    {
+      "name": "scripts/Verify-GuiPhase1.ps1-paren-balance",
+      "status": "PASS",
+      "detail": "23/23"
+    },
+    {
+      "name": "scripts/Run-GovernanceLoadTest.ps1-no-docker-compose",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Run-GovernanceLoadTest.ps1-no-docker-command-requirement",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "scripts/Run-GovernanceLoadTest.ps1-brace-balance",
+      "status": "PASS",
+      "detail": "69/69"
+    },
+    {
+      "name": "scripts/Run-GovernanceLoadTest.ps1-paren-balance",
+      "status": "PASS",
+      "detail": "131/131"
+    },
+    {
+      "name": "formal-native-client-psql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "formal-native-client-pg_dump",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "formal-native-client-pg_restore",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "formal-consistent-postgres-env",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "governance-native-db",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "gui-delegates-known-green-native-verifier",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "gui-keeps-static-contract",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "e2e-createprojectasync",
+      "status": "PASS",
+      "detail": "CreateProjectAsync"
+    },
+    {
+      "name": "e2e-submitreportasync",
+      "status": "PASS",
+      "detail": "SubmitReportAsync"
+    },
+    {
+      "name": "e2e-waitfordashboardasync",
+      "status": "PASS",
+      "detail": "WaitForDashboardAsync"
+    },
+    {
+      "name": "e2e-submitclaimasync",
+      "status": "PASS",
+      "detail": "SubmitClaimAsync"
+    },
+    {
+      "name": "e2e-getdashboardasync",
+      "status": "PASS",
+      "detail": "GetDashboardAsync"
+    },
+    {
+      "name": "e2e-verificationstatus-should-be-contradicted",
+      "status": "PASS",
+      "detail": "VerificationStatus.Should().Be(\"Contradicted\")"
+    },
+    {
+      "name": "e2e-truthstatus-should-beoneof-atrisk-blocked",
+      "status": "PASS",
+      "detail": "TruthStatus.Should().BeOneOf(\"AtRisk\", \"Blocked\")"
+    },
+    {
+      "name": "e2e-csharp-braces",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "benchmark-does-not-fabricate-current-values",
+      "status": "PASS",
+      "detail": "current SHA remains unmeasured until real run"
+    },
+    {
+      "name": "benchmark-sourcecommit-rule",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "publication-static-secret-scan",
+      "status": "PASS",
+      "detail": "[]"
+    },
+    {
+      "name": "no-runtime-pass-artifacts",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}
