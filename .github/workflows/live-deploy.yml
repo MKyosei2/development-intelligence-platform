@@ -115,7 +115,7 @@ jobs:
           cp -a services/python-analysis artifacts/native-release/python-analysis
           cp -a scripts deploy artifacts/native-release/
           dotnet tool restore
-          dotnet ef migrations bundle --project src/Dip.Infrastructure --startup-project src/Dip.Api -c Release -o artifacts/native-release/dip-migrate
+          dotnet ef migrations bundle --project src/Dip.Infrastructure --startup-project src/Dip.Api --configuration Release --output artifacts/native-release/dip-migrate
           chmod +x artifacts/native-release/dip-migrate
           (cd artifacts/native-release && find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
           printf '{"schema":"dip-native-release-v1","sourceCommit":"%s"}\n' "$GITHUB_SHA" > artifacts/native-release/release-manifest.json
@@ -232,22 +232,17 @@ jobs:
           cd incoming; sha256sum -c "dip-native-${RELEASE_SHA}.sha256"; cd ..
           tar -xzf "incoming/dip-native-${RELEASE_SHA}.tar.gz" -C "$release"
           (cd "$release" && sha256sum -c SHA256SUMS.txt)
-
-          # Off-host/other-filesystem DR is mandatory for live deploy.
           primary_dev="$(df -P "$DEPLOY_PATH" | tail -1 | awk '{print $1}')"; offsite_dev="$(df -P "$OFFSITE_DIR" | tail -1 | awk '{print $1}')"
           [ "$primary_dev" != "$offsite_dev" ] || { echo 'Offsite backup must be on a different filesystem.' >&2; exit 3; }
-
           if [ -n "$current_before" ]; then printf '%s\n' "$current_before" > "$backup/previous-release.txt"; fi
           pg_dump -Fc -f "$backup/database.dump"
           pg_restore --list "$backup/database.dump" >/dev/null
           tar -czf "$backup/artifacts.tar.gz" -C "$DEPLOY_PATH/data/artifacts" .
           (cd "$backup" && sha256sum database.dump artifacts.tar.gz > SHA256SUMS)
           off_tmp="$OFFSITE_DIR/predeploy-${RELEASE_SHA}.tmp"; off_final="$OFFSITE_DIR/predeploy-${RELEASE_SHA}"; rm -rf "$off_tmp" "$off_final"; cp -a "$backup" "$off_tmp"; (cd "$off_tmp" && sha256sum -c SHA256SUMS); mv "$off_tmp" "$off_final"
-
           python3 -m venv "$release/python-analysis/.venv"
           "$release/python-analysis/.venv/bin/python" -m pip install --disable-pip-version-check -r "$release/python-analysis/requirements.txt"
           chmod +x "$release/dip-migrate"
-
           envfile="$DEPLOY_PATH/deploy.env"; umask 077
           cat > "$envfile" <<ENV
           ASPNETCORE_ENVIRONMENT=Production
@@ -285,7 +280,6 @@ jobs:
           ENV
           "$release/dip-migrate" --connection "Host=$PGHOST;Port=$PGPORT;Database=$PGDATABASE;Username=$PGUSER;Password=$PGPASSWORD"
           ln -sfn "$release" current
-
           units="$HOME/.config/systemd/user"; mkdir -p "$units"
           cat > "$units/dip-api.service" <<UNIT
           [Unit]
