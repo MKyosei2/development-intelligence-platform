@@ -16,10 +16,33 @@ public sealed record SystemComponentStatusDto(
     DateTimeOffset CheckedAtUtc,
     double? DurationMs = null);
 
+public sealed record QueueTransportTelemetryDto(
+    bool Available,
+    long? StoredEnvelopeCount,
+    long? ActiveLeaseCount,
+    long? RetryEnvelopeCount,
+    long? DeadLetterEnvelopeCount,
+    DateTimeOffset? LatestActivityAtUtc,
+    string Detail);
+
+public sealed record ContinuousOperationsDto(
+    bool Available,
+    DateTimeOffset? LatestEvidenceAtUtc,
+    DateTimeOffset? LatestTruthEvaluationAtUtc,
+    DateTimeOffset? LatestBackupVerificationAtUtc,
+    long? QueuedJobCount,
+    long? RunningJobCount,
+    long? FailedOrTimedOutJobCount,
+    QueueTransportTelemetryDto Queue,
+    string Detail);
+
 public sealed record SystemStatusDto(
     string Overall,
     DateTimeOffset CheckedAtUtc,
-    IReadOnlyList<SystemComponentStatusDto> Components);
+    IReadOnlyList<SystemComponentStatusDto> Components)
+{
+    public ContinuousOperationsDto? Operations { get; init; }
+}
 
 public sealed record SystemLivenessDto(
     bool Live,

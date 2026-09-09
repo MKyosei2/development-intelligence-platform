@@ -4,6 +4,8 @@
 @inject ProjectState Projects
 @inject RealtimeUpdateService Realtime
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@(_dashboard?.Name ?? "Project") | DIP</PageTitle>
 
@@ -34,24 +36,33 @@ else if (_dashboard is not null)
         </div>
         <div class="heading-actions">
             <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">↻ Refresh</button>
-            <a class="btn btn-primary" href="@($"/dashboard/{ProjectId}/qa?autorun=true")">Run QA</a>
+            @if (_viewerReadOnly)
+            {
+                <a class="btn btn-primary" data-testid="reviewer-primary-action" href="@($"/dashboard/{ProjectId}/qa")">Review QA Evidence</a>
+            }
+            else
+            {
+                <a class="btn btn-primary" href="@($"/dashboard/{ProjectId}/qa?autorun=true")">Run QA</a>
+            }
         </div>
     </section>
+
+    <ProjectOperationFlow Model="OperationFlow" ReadOnly="_viewerReadOnly" />
 
     <div class="project-health-banner @TruthTone(_dashboard.TruthStatus)">
         <div class="health-main">
             <span class="health-orb"></span>
-            <div><span>Project state</span><strong>@_dashboard.TruthStatus</strong><small>@_dashboard.TruthSummary</small></div>
+            <div><span class="concept-label">Project state <ConceptHelp Concept="ProjectTruth" /></span><strong>@_dashboard.TruthStatus</strong><small>@_dashboard.TruthSummary</small></div>
         </div>
         <div class="health-meta">
-            <span><small>Evidence confidence</small><strong>@_dashboard.EvidenceConfidence</strong></span>
+            <span><small class="concept-label">Evidence confidence <ConceptHelp Concept="EvidenceConfidence" /></small><strong>@_dashboard.EvidenceConfidence</strong></span>
             <span><small>Last evaluated</small><strong>@FormatDate(_dashboard.TruthEvaluatedAtUtc)</strong></span>
         </div>
     </div>
 
     <div class="overview-metrics mb-4">
         <div class="overview-metric primary-metric">
-            <span>Evidence-backed progress</span>
+            <span class="concept-label">Evidence-backed progress <ConceptHelp Concept="EvidenceBackedProgress" /></span>
             <strong>@_dashboard.VerifiedProgress.ToString("0.#")%</strong>
             <div class="progress-track"><div class="progress-fill" style="width:@Clamp(_dashboard.VerifiedProgress)%"></div></div>
             <small>Reported: @FormatProgress(_dashboard.ReportedProgress)</small>
@@ -64,10 +75,10 @@ else if (_dashboard is not null)
         <div class="overview-metric">
             <span>Needs attention</span>
             <strong>@(_dashboard.BlockerCount + _dashboard.ContradictionCount)</strong>
-            <small>@_dashboard.BlockerCount blocker(s) · @_dashboard.ContradictionCount mismatch(es)</small>
+            <small class="concept-label">@_dashboard.BlockerCount blocker(s) · @_dashboard.ContradictionCount mismatch(es) <ConceptHelp Concept="Contradiction" /></small>
         </div>
         <div class="overview-metric">
-            <span>Quality gate</span>
+            <span class="concept-label">Quality gate <ConceptHelp Concept="QualityGate" /></span>
             <strong>@(_dashboard.QualityGateStatus ?? "Not evaluated")</strong>
             <small>@_dashboard.CriticalIssueCount critical · @_dashboard.WarningIssueCount warning</small>
         </div>
@@ -75,7 +86,7 @@ else if (_dashboard is not null)
 
     <div class="overview-layout">
         <div class="overview-main">
-            <section class="card mb-4">
+            <section class="card mb-4" id="needs-attention">
                 <div class="card-header">
                     <div><div class="eyebrow">Priority</div><strong>Needs attention now</strong></div>
                     <span>@_dashboard.TopActions.Count action(s)</span>
@@ -136,7 +147,15 @@ else if (_dashboard is not null)
                 <div class="card-body p-0">
                     @if (_dashboard.Timeline.Count == 0)
                     {
-                        <div class="compact-empty"><span class="status-dot neutral"></span><div><strong>No evidence timeline yet</strong><small>CI, QA, claims and integrations will populate this feed.</small></div></div>
+                        <div class="card-body">
+                            <ActionableEmptyState Icon="◇"
+                                                  TestId="dashboard-no-evidence"
+                                                  Title="No evidence timeline yet"
+                                                  Why="DIP has no durable activity to explain for this project yet. Create revision-scoped QA evidence before treating the project as verified."
+                                                  ActionText="Open QA"
+                                                  ActionHref="@($"/dashboard/{ProjectId}/qa")"
+                                                  Enables="EvidenceTimelineCapabilities" />
+                        </div>
                     }
                     else
                     {
@@ -168,7 +187,7 @@ else if (_dashboard is not null)
             </section>
 
             <section class="card">
-                <div class="card-header"><strong>Evidence snapshot</strong></div>
+                <div class="card-header"><strong class="concept-label">Evidence snapshot <ConceptHelp Concept="Evidence" /></strong></div>
                 <div class="card-body evidence-snapshot">
                     <div><span>Supporting QA runs</span><strong>@_dashboard.RecentQaRuns.Count</strong></div>
                     <div><span>Unverified claims</span><strong>@_dashboard.UnverifiedClaimCount</strong></div>
@@ -188,10 +207,26 @@ else if (_dashboard is not null)
     private bool _loading = true;
     private bool _notFound;
     private string? _error;
+    private string? _repositoryError;
     private string? _importWarning;
+    private bool _viewerReadOnly;
+
+    private static readonly IReadOnlyList<string> EvidenceTimelineCapabilities =
+    [
+        "Revision-scoped QA evidence",
+        "Project Truth refresh",
+        "Evidence-backed activity history"
+    ];
+
+    private ProjectOperationFlowModel? OperationFlow => _dashboard is null
+        ? null
+        : ProjectOperationFlowResolver.Resolve(ProjectId, _dashboard, _repository, _repositoryError);
 
     protected override async Task OnInitializedAsync()
     {
+        var publicReadOnly = Configuration.GetValue<bool?>("PublicAccess:ReadOnly") ?? false;
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _viewerReadOnly = publicReadOnly && authenticationState.User.Identity?.IsAuthenticated != true;
         Realtime.ProjectEvent += OnRealtimeEvent;
         Projects.Select(ProjectId);
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
@@ -213,14 +248,22 @@ else if (_dashboard is not null)
         _loading = true;
         _notFound = false;
         _error = null;
+        _repositoryError = null;
         try
         {
             var dashboardTask = Api.GetProjectAsync(ProjectId);
             var repositoryTask = Api.GetProjectRepositoryAsync(ProjectId);
             _dashboard = await dashboardTask;
             _notFound = _dashboard is null;
-            try { _repository = await repositoryTask; }
-            catch { _repository = null; }
+            try
+            {
+                _repository = await repositoryTask;
+            }
+            catch (Exception repositoryException)
+            {
+                _repository = null;
+                _repositoryError = repositoryException.Message;
+            }
         }
         catch (Exception exception)
         {

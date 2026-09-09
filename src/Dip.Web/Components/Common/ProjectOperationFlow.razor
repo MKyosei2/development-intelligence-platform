@@ -1,0 +1,112 @@
+@if (Model is not null)
+{
+    <section class="operation-flow-shell"
+             id="operation-flow"
+             data-testid="operation-flow"
+             aria-labelledby="operation-flow-title">
+        <div class="operation-flow-header">
+            <div>
+                <div class="eyebrow">Project operation flow</div>
+                <h2 id="operation-flow-title">Current project lifecycle</h2>
+                <p>DIP derives this flow from repository, QA and Project Truth state. The next action is deterministic and evidence-backed.</p>
+            </div>
+            <span class="operation-flow-stage concept-label">
+                @Model.StageKey
+                @if (Model.CurrentState.Contains("refresh", StringComparison.OrdinalIgnoreCase))
+                {
+                    <ConceptHelp Concept="Stale" />
+                }
+            </span>
+        </div>
+
+        <ol class="operation-steps" aria-label="Project operation lifecycle">
+            @foreach (var step in Model.Steps)
+            {
+                <li class="operation-step @StepClass(step.State)"
+                    data-testid="@($"operation-step-{step.Key}")"
+                    aria-current="@(step.State is ProjectOperationStepState.Current or ProjectOperationStepState.Attention ? "step" : null)">
+                    <div class="operation-step-marker" aria-hidden="true">@StepMarker(step.State)</div>
+                    <div class="operation-step-copy">
+                        <span>@step.Number. @step.Title</span>
+                        <strong>@StepLabel(step.State)</strong>
+                        <small>@step.Description</small>
+                    </div>
+                </li>
+            }
+        </ol>
+
+        <div class="operation-decision @(Model.AttentionRequired ? "attention" : "normal")">
+            <div class="operation-decision-copy">
+                <div>
+                    <span>Current State</span>
+                    <strong data-testid="operation-flow-current-state">@Model.CurrentState</strong>
+                </div>
+                <div>
+                    <span>Why</span>
+                    <p data-testid="operation-flow-why">@Model.Why</p>
+                </div>
+            </div>
+            <div class="operation-next-action">
+                <span>Next Action</span>
+                <a class="btn @(Model.AttentionRequired ? "btn-warning" : "btn-primary")"
+                   data-testid="operation-flow-next-action"
+                   href="@ActionHref">
+                    @ActionLabel
+                </a>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ProjectOperationFlowModel? Model { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    private string ActionHref => ReadOnly
+        ? (Model?.NextActionHref.Replace("?autorun=true", string.Empty, StringComparison.OrdinalIgnoreCase) ?? "#")
+        : (Model?.NextActionHref ?? "#");
+
+    private string ActionLabel
+    {
+        get
+        {
+            if (!ReadOnly || Model is null)
+                return Model?.NextActionLabel ?? "Open";
+
+            var href = Model.NextActionHref;
+            if (href.Contains("/qa", StringComparison.OrdinalIgnoreCase))
+                return "Inspect QA evidence";
+            if (href.Contains("/repository", StringComparison.OrdinalIgnoreCase))
+                return "Inspect repository state";
+            if (href.Contains("/intelligence", StringComparison.OrdinalIgnoreCase))
+                return "Inspect intelligence";
+            if (href.Contains("/ci", StringComparison.OrdinalIgnoreCase))
+                return "Inspect CI / builds";
+            return "Inspect current evidence";
+        }
+    }
+
+    private static string StepClass(ProjectOperationStepState state)
+        => state.ToString().ToLowerInvariant();
+
+    private static string StepMarker(ProjectOperationStepState state) => state switch
+    {
+        ProjectOperationStepState.Completed => "✓",
+        ProjectOperationStepState.Current => "●",
+        ProjectOperationStepState.Attention => "!",
+        ProjectOperationStepState.Pending => "○",
+        _ => "—"
+    };
+
+    private static string StepLabel(ProjectOperationStepState state) => state switch
+    {
+        ProjectOperationStepState.Completed => "Completed",
+        ProjectOperationStepState.Current => "Current",
+        ProjectOperationStepState.Attention => "Attention",
+        ProjectOperationStepState.Pending => "Pending",
+        _ => "Unavailable"
+    };
+}

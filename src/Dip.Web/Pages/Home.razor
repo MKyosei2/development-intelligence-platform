@@ -30,6 +30,84 @@
     }
 </section>
 
+<section class="dip-intro-card" data-testid="how-dip-works">
+    <div class="dip-intro-top">
+        <div>
+            <div class="eyebrow">How DIP works</div>
+            <h2>From repository signals to evidence-backed decisions</h2>
+            <p>DIP continuously turns source, CI, QA and runtime observations into evidence, then uses that evidence to explain Project Truth, delivery risk and the next action.</p>
+        </div>
+        <div class="dip-intro-actions">
+            @if (PrimaryProjectHref is { } projectHref)
+            {
+                <a class="btn btn-primary" data-testid="open-primary-project" href="@projectHref">
+                    @(_viewerReadOnly ? "Review project" : "Open project")
+                </a>
+            }
+            else if (!_viewerReadOnly)
+            {
+                <a class="btn btn-primary" href="/projects/import/github">Connect first repository</a>
+                <a class="btn btn-outline-secondary" href="/projects/new">Create manually</a>
+            }
+        </div>
+    </div>
+
+    <div class="runtime-mode-strip" aria-label="Runtime context">
+        <div class="runtime-mode">
+            <span>Current Runtime</span>
+            <strong>Portfolio / local runtime</strong>
+            <small>This page describes the environment being viewed now; it does not claim continuous public uptime.</small>
+        </div>
+        <div class="runtime-mode">
+            <span>Production Design Target</span>
+            <strong>24/7 always-on development intelligence</strong>
+            <small>Source changes are intended to feed continuous evidence collection and verification in production deployment.</small>
+        </div>
+    </div>
+
+    <div class="how-dip-works">
+        <div class="how-dip-works-head">
+            <div>
+                <div class="eyebrow">Operation model</div>
+                <h3>Six steps, one evidence chain</h3>
+            </div>
+            <p>The project dashboard highlights the current step and one primary next action.</p>
+        </div>
+        <ol class="how-dip-steps">
+            <li class="how-dip-step" data-testid="home-flow-connect">
+                <div class="how-dip-step-number">01</div>
+                <strong>Connect</strong>
+                <small>Attach the project and source repository.</small>
+            </li>
+            <li class="how-dip-step" data-testid="home-flow-collect">
+                <div class="how-dip-step-number">02</div>
+                <strong>Collect</strong>
+                <small>Gather source, CI, QA and runtime evidence.</small>
+            </li>
+            <li class="how-dip-step" data-testid="home-flow-verify">
+                <div class="how-dip-step-number">03</div>
+                <strong>Verify</strong>
+                <small>Run QA against the synchronized workspace.</small>
+            </li>
+            <li class="how-dip-step" data-testid="home-flow-understand">
+                <div class="how-dip-step-number">04</div>
+                <strong>Understand</strong>
+                <small>Evaluate Project Truth from available evidence.</small>
+            </li>
+            <li class="how-dip-step" data-testid="home-flow-decide">
+                <div class="how-dip-step-number">05</div>
+                <strong>Decide</strong>
+                <small>Review blockers, contradictions and gates.</small>
+            </li>
+            <li class="how-dip-step" data-testid="home-flow-monitor">
+                <div class="how-dip-step-number">06</div>
+                <strong>Monitor</strong>
+                <small>Keep evidence current as the project changes.</small>
+            </li>
+        </ol>
+    </div>
+</section>
+
 @if (Projects.IsLoading && Projects.Projects.Count == 0)
 {
     <LoadingState Message="Loading portfolio…" />
@@ -48,17 +126,41 @@ else if (Projects.Projects.Count == 0)
     }
     else
     {
-        <EmptyState Icon="⌘"
-                    Title="Import your first repository"
-                    Description="Connect GitHub, choose a repository, and DIP will create the project and synchronize a QA workspace without asking you to copy repository metadata manually."
-                    ActionText="Import from GitHub"
-                    ActionHref="/projects/import/github">
-            <a class="btn btn-outline-secondary" href="/projects/new">Or create manually</a>
-        </EmptyState>
+        <ActionableEmptyState Icon="⌘"
+                              TestId="portfolio-first-project"
+                              Title="Connect your first repository"
+                              Why="DIP needs a project and source revision before it can collect QA evidence or evaluate Project Truth."
+                              ActionText="Import from GitHub"
+                              ActionHref="/projects/import/github"
+                              Enables="FirstProjectCapabilities">
+            <a class="btn btn-outline-secondary" href="/projects/new">Create manually</a>
+        </ActionableEmptyState>
     }
 }
 else
 {
+    @if (ReviewProjectId is { } reviewProjectId)
+    {
+        <section class="reviewer-guide" data-testid="reviewer-guide">
+            <div class="reviewer-guide-top">
+                <div>
+                    <div class="eyebrow">For reviewers</div>
+                    <h2>DIPを5分で確認</h2>
+                    <p>@(_viewerReadOnly
+                        ? "変更操作を行わず、Project Truth → QA Evidence → Intelligence → Platform Operationsの順に確認できます。"
+                        : "選考・レビュー時に見せる順番を、そのままReviewer Tourで確認できます。")</p>
+                </div>
+                <a class="btn btn-primary" data-testid="start-reviewer-tour" href="/?tour=review">Start 5-minute review</a>
+            </div>
+            <div class="reviewer-path">
+                <a href="@($"/dashboard/{reviewProjectId}")"><span>01</span><strong>Project Overview</strong><small>Project Truth / Operation Flow</small></a>
+                <a href="@($"/dashboard/{reviewProjectId}/qa")"><span>02</span><strong>QA Evidence</strong><small>revision / findings / evidence</small></a>
+                <a href="@($"/dashboard/{reviewProjectId}/intelligence")"><span>03</span><strong>Intelligence</strong><small>contradictions / decisions</small></a>
+                <a href="/system"><span>04</span><strong>Platform Operations</strong><small>runtime / 24-7 design target</small></a>
+            </div>
+        </section>
+    }
+
     <div class="metric-grid mb-4">
         <div class="metric-card"><span>Projects</span><strong>@Projects.Projects.Count</strong><small>registered</small></div>
         <div class="metric-card"><span>At risk</span><strong>@Projects.Projects.Count(x => x.RiskLevel is "High" or "Critical")</strong><small>high / critical</small></div>
@@ -155,6 +257,25 @@ else
     private PortfolioManagementDto? _portfolio;
     private string? _portfolioError;
     private bool _viewerReadOnly;
+
+    private static readonly IReadOnlyList<string> FirstProjectCapabilities =
+    [
+        "Repository synchronization",
+        "QA evidence collection",
+        "Project Truth evaluation"
+    ];
+
+    private Guid? ReviewProjectId =>
+        Projects.CurrentProjectId ?? Projects.Projects.FirstOrDefault()?.ProjectId;
+
+    private string? PrimaryProjectHref
+    {
+        get
+        {
+            var project = Projects.CurrentProject ?? Projects.Projects.FirstOrDefault();
+            return project is null ? null : $"/dashboard/{project.ProjectId}";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
