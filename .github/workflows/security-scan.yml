@@ -1,13 +1,11 @@
 name: Security Scan
 
 on:
-  pull_request:
-    branches: [main, develop]
-  push:
-    branches: [main, develop]
-  schedule:
-    - cron: "0 3 * * 1"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 
 permissions:
   contents: read
@@ -18,19 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - name: GitHub dependency review
-        if: github.event_name == 'pull_request' && vars.DEPENDENCY_REVIEW_ENABLED == 'true'
-        uses: actions/dependency-review-action@v4
-
-      - name: Set up .NET fallback audit
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
+      - name: Set up .NET audit
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-
-      - name: Review NuGet dependencies (fallback)
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
+      - name: Review NuGet dependencies
         shell: pwsh
         run: |
           dotnet restore DevelopmentIntelligencePlatform.sln
@@ -39,17 +29,13 @@ jobs:
           $output | Write-Host
           if ($LASTEXITCODE -ne 0) { throw "NuGet dependency review failed." }
           if ($output -match "has the following vulnerable packages") { throw "Vulnerable NuGet package(s) detected." }
-
-      - name: Set up Python fallback audit
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
+      - name: Set up Python audit
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: services/python-analysis/requirements.txt
-
-      - name: Review Python dependencies (fallback)
-        if: github.event_name != 'pull_request' || vars.DEPENDENCY_REVIEW_ENABLED != 'true'
+      - name: Review Python dependencies
         working-directory: services/python-analysis
         run: |
           python -m pip install --upgrade pip pip-audit
@@ -119,46 +105,38 @@ jobs:
         language: [csharp, python, cpp]
     steps:
       - uses: actions/checkout@v7
-
       - name: Initialize CodeQL
         if: vars.CODEQL_ENABLED == 'true'
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-
       - name: CodeQL autobuild
         if: vars.CODEQL_ENABLED == 'true'
         uses: github/codeql-action/autobuild@v4
-
       - name: Analyze with CodeQL
         if: vars.CODEQL_ENABLED == 'true'
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
-
       - name: Set up .NET fallback
         if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'csharp'
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-
       - name: C# static-analysis fallback
         if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'csharp'
         run: |
           dotnet restore DevelopmentIntelligencePlatform.sln
           dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore
-
       - name: Set up Python fallback
         if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'python'
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-
       - name: Python static-analysis fallback
         if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'python'
         run: |
-          python -m compileall -q services/python-analysis/app collectors/unreal-collector
-
+          python -m compileall -q services/python-analysis/app collectors/unreal-collector collectors/maya-collector/dip_maya_collector
       - name: C++ static-analysis fallback
         if: vars.CODEQL_ENABLED != 'true' && matrix.language == 'cpp'
         run: |
