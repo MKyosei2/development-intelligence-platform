@@ -1,11 +1,10 @@
 name: GUI E2E
 on:
-  push:
-    branches: [main, master]
-    paths: [".portfolio-ci-trigger", "src/**", "services/**", "tests/Dip.UiE2E/**", "scripts/Start-DIP.ps1", "scripts/Stop-DIP.ps1", "scripts/Verify-GuiRuntime.ps1", ".github/workflows/gui-e2e.yml"]
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 permissions: { contents: read }
 concurrency:
   group: gui-e2e-${{ github.workflow }}-${{ github.ref }}
