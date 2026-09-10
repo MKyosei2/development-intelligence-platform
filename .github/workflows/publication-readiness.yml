@@ -37,6 +37,36 @@ jobs:
       - name: Validate three-stage Actions policy
         run: python tools/verify_actions_policy.py
 
+      - name: Parse critical PowerShell scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(
+            'scripts/Invoke-ManualCI.ps1',
+            'scripts/Request-FinalVerification.ps1',
+            'scripts/Complete-PortfolioRelease.ps1',
+            'scripts/Run-PortfolioBenchmarks.ps1',
+            'scripts/Run-GovernanceLoadTest.ps1',
+            'scripts/Verify-UnityCollector.ps1'
+          )
+          foreach ($file in $files) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw "Required PowerShell script is missing: $file"
+            }
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path -LiteralPath $file).Path,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $detail = ($errors | ForEach-Object { "line $($_.Extent.StartLineNumber): $($_.Message)" }) -join '; '
+              throw "PowerShell parser failure in ${file}: $detail"
+            }
+            Write-Host "PARSER PASS: $file"
+          }
+
       - name: Validate final-evidence tooling exists and compiles
         shell: python
         run: |
