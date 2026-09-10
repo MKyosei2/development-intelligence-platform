@@ -135,7 +135,7 @@ public sealed class ManagementOperationsContractTests
         analysis.Sheets.Should().ContainSingle();
         analysis.Sheets[0].ObjectKind.Should().Be("media.shot");
         analysis.Sheets[0].Columns.Should().Contain(x => x.Header == "ショット" && x.Field == "Title");
-        analysis.Sheets[0].Columns.Should().Contain(x => x.Header == "備考" && x.Field is null);
+        analysis.Sheets[0].Columns.Should().Contain(x => x.Header == "備考" && x.Field == null);
     }
 
     [Fact]

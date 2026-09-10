@@ -1071,6 +1071,106 @@ public sealed class ApiClient
     public Task BindProjectEntityAsync(Guid projectId, BindProjectEntityCommand command, CancellationToken ct = default)
         => PostNoContentAsync($"api/v1/project-intelligence/projects/{projectId}/entity-bindings", command, ct);
 
+
+    public async Task<SpreadsheetSchemaAnalysisDto> AnalyzeManagementSpreadsheetAsync(
+        Guid projectId,
+        string fileName,
+        byte[] content,
+        CancellationToken cancellationToken = default)
+    {
+        using var form = CreateManagementWorkbookForm(fileName, content);
+        using var response = await _httpClient.PostAsync(
+            $"api/v1/project-control/projects/{projectId}/management.xlsx/analyze",
+            form,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<SpreadsheetSchemaAnalysisDto>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidDataException("Spreadsheet analysis API returned an empty response.");
+    }
+
+    public async Task<FlexibleSpreadsheetImportResult> ImportFlexibleManagementSpreadsheetAsync(
+        Guid projectId,
+        string fileName,
+        byte[] content,
+        bool dryRun,
+        string? domainId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = $"dryRun={dryRun.ToString().ToLowerInvariant()}";
+        if (!string.IsNullOrWhiteSpace(domainId))
+            query += "&domainId=" + Uri.EscapeDataString(domainId.Trim());
+
+        using var form = CreateManagementWorkbookForm(fileName, content);
+        using var response = await _httpClient.PostAsync(
+            $"api/v1/project-control/projects/{projectId}/management.xlsx/import-flexible?{query}",
+            form,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<FlexibleSpreadsheetImportResult>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidDataException("Flexible spreadsheet import API returned an empty response.");
+    }
+
+    public async Task<AutonomousDebugSessionDto> RunAutonomousDebugAsync(
+        Guid projectId,
+        string subjectKey,
+        string question,
+        string evidenceJson,
+        string workspaceRelativePath,
+        string? repositoryContext = null,
+        string? baseCommit = null,
+        string? language = null,
+        string domainId = "software",
+        AutonomousDebugBudget? budget = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            $"api/v1/defect-intelligence/projects/{projectId}/autonomous-debug",
+            new
+            {
+                subjectKey,
+                question,
+                evidenceJson,
+                workspaceRelativePath,
+                repositoryContext,
+                baseCommit,
+                language,
+                domainId,
+                budget
+            },
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<AutonomousDebugSessionDto>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidDataException("Autonomous debug API returned an empty response.");
+    }
+
+    public async Task<IReadOnlyList<AutonomousDebugSessionDto>> GetAutonomousDebugSessionsAsync(
+        Guid projectId,
+        int take = 20,
+        CancellationToken cancellationToken = default)
+        => await _httpClient.GetFromJsonAsync<IReadOnlyList<AutonomousDebugSessionDto>>(
+               $"api/v1/defect-intelligence/projects/{projectId}/autonomous-debug?take={Math.Clamp(take, 1, 200)}",
+               cancellationToken)
+           ?? Array.Empty<AutonomousDebugSessionDto>();
+
+    private static MultipartFormDataContent CreateManagementWorkbookForm(
+        string fileName,
+        byte[] content)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("Workbook file name is required.", nameof(fileName));
+        ArgumentNullException.ThrowIfNull(content);
+
+        var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(content);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        form.Add(file, "file", fileName);
+        return form;
+    }
+
     private async Task<T> UploadPlanAsync<T>(
         string uri,
         string fileName,
