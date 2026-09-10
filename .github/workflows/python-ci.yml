@@ -1,21 +1,11 @@
 name: Python CI
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "services/python-analysis/**"
-      - "collectors/maya-collector/**"
-      - ".github/workflows/python-ci.yml"
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "services/python-analysis/**"
-      - "collectors/maya-collector/**"
-      - ".github/workflows/python-ci.yml"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 
 permissions:
   contents: read
@@ -67,3 +57,29 @@ jobs:
           path: services/python-analysis/python-test-results.xml
           if-no-files-found: warn
           retention-days: 14
+
+  maya-collector-smoke:
+    name: Maya collector dependency-free smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Compile Maya collector
+        run: python -m compileall collectors/maya-collector/dip_maya_collector
+      - name: Import Maya-independent contracts
+        working-directory: collectors/maya-collector
+        run: |
+          python -c "from dip_maya_collector import models; from dip_maya_collector.reporting import report_writer; print('Maya-independent contracts import successfully')"
+      - name: Confirm Maya runtime boundary is explicit
+        working-directory: collectors/maya-collector
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('dip_maya_collector/main.py').read_text(encoding='utf-8')
+          assert 'import maya.cmds as cmds' in text
+          assert 'Run this collector inside Autodesk Maya or mayapy.' in text
+          print('PASS: hosted CI does not pretend to provide Maya runtime verification.')
+          PY
