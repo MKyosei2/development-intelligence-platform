@@ -1,11 +1,11 @@
 name: Portfolio Publication Readiness
 
 on:
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
   push:
     branches: [main]
-  workflow_dispatch:
+    paths:
+      - ".portfolio-ci-trigger"
 
 permissions:
   contents: read
@@ -41,14 +41,14 @@ jobs:
           text = Path("README.md").read_text(encoding="utf-8")
           required = [
               "Project Truth",
-              "Evidence-Grounded Autonomous Debugging",
-              "Flexible Spreadsheet Intelligence",
+              "Game Development QA",
+              "Verification / Release Operations",
               "Historical PASS ≠ Current Revision PASS",
           ]
           missing = [value for value in required if value not in text]
           if missing:
               raise SystemExit("README capability/verification contract is incomplete: " + ", ".join(missing))
-          print("PASS: reviewer-facing capability and verification boundaries are present.")
+          print("PASS: reviewer-facing three-pillar capability and verification boundaries are present.")
 
       - name: Generate exact-revision evidence artifact
         shell: python
@@ -77,7 +77,7 @@ jobs:
               "publicationSafety": "PASS",
               "portfolioStaticReadiness": "PASS",
               "runtimeVerified": False,
-              "note": "Runtime verification is tracked separately by GUI/Integration workflows for this exact SHA.",
+              "note": "Runtime verification is tracked separately by exact-SHA GUI/Integration and engine evidence.",
           }
           (out / "exact-revision.json").write_text(
               json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
@@ -91,7 +91,7 @@ jobs:
               f"- Publication safety: **PASS**\n"
               f"- Portfolio static readiness: **PASS**\n"
               f"- Runtime verified by this workflow: **NO**\n\n"
-              "This artifact is generated at workflow runtime so the exact SHA is not self-referentially hard-coded into a tracked file.\n",
+              "Runtime/engine evidence is intentionally separate and must carry the same final SHA.\n",
               encoding="utf-8",
           )
 
