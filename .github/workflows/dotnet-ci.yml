@@ -1,29 +1,11 @@
 name: .NET CI
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "src/**"
-      - "tests/**"
-      - "*.sln"
-      - "Directory.Build.*"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/dotnet-ci.yml"
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "src/**"
-      - "tests/**"
-      - "*.sln"
-      - "Directory.Build.*"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/dotnet-ci.yml"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 
 permissions:
   contents: read
