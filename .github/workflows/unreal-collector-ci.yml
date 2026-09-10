@@ -2,15 +2,9 @@ name: Unreal Collector CI
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - ".portfolio-ci-trigger"
-      - 'collectors/unreal-collector/**'
-      - '.github/workflows/unreal-collector-ci.yml'
-  pull_request:
-    paths:
-      - ".portfolio-ci-trigger"
-      - 'collectors/unreal-collector/**'
-      - '.github/workflows/unreal-collector-ci.yml'
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,5 +13,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: python -m compileall collectors/unreal-collector
-      - run: python -m unittest discover -s collectors/unreal-collector/tests -v
+      - name: Compile collector
+        run: python -m compileall collectors/unreal-collector
+      - name: Unit tests
+        run: python -m unittest discover -s collectors/unreal-collector/tests -v
+      - name: Hosted-CI boundary
+        shell: bash
+        run: |
+          echo "Hosted CI validates collector code only."
+          echo "Actual UnrealEditor-Cmd runtime evidence is required separately for the final SHA."
