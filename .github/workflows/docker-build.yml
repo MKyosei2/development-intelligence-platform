@@ -1,11 +1,10 @@
 name: Native Package Build
 on:
-  push:
-    branches: [main, develop]
-    paths: [".portfolio-ci-trigger", "src/**", "services/**", "scripts/**", "deploy/**", ".github/workflows/docker-build.yml"]
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 permissions: { contents: read }
 jobs:
   native-package:
