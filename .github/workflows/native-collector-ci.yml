@@ -1,27 +1,11 @@
 name: Native Collector CI
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "collectors/native-collector/**"
-      - "Directory.Build.props"
-      - "Directory.Build.targets"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/native-collector-ci.yml"
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - ".portfolio-ci-trigger"
-      - "collectors/native-collector/**"
-      - "Directory.Build.props"
-      - "Directory.Build.targets"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/native-collector-ci.yml"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 
 permissions:
   contents: read
