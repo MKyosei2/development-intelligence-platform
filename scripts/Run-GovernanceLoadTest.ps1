@@ -129,7 +129,7 @@ try{
     foreach($projectId in $projectIds){
         $sql=@"
 INSERT INTO qa_finding_states(id,project_id,fingerprint,last_finding_id,subject_key,last_commit_sha,status,occurrences,team,workstream,ownership_source,disposition_reason,updated_by,first_seen_at_utc,last_seen_at_utc,updated_at_utc,version)
-SELECT gen_random_uuid(),'$projectId'::uuid,md5('$projectId:'||g::text)||md5('$projectId:x:'||g::text),gen_random_uuid(),'load:'||g,'0123456789abcdef0123456789abcdef01234567','Confirmed',1,'Load Team','Load','Rule',NULL,NULL,clock_timestamp()+(g||' microseconds')::interval,clock_timestamp()+(g||' microseconds')::interval,now(),1 FROM generate_series(1,$FindingsPerProject) g;
+SELECT gen_random_uuid(),'$projectId'::uuid,md5('${projectId}:'||g::text)||md5('${projectId}:x:'||g::text),gen_random_uuid(),'load:'||g,'0123456789abcdef0123456789abcdef01234567','Confirmed',1,'Load Team','Load','Rule',NULL,NULL,clock_timestamp()+(g||' microseconds')::interval,clock_timestamp()+(g||' microseconds')::interval,now(),1 FROM generate_series(1,$FindingsPerProject) g;
 "@
         Invoke-Psql $database $sql|Out-Null
     }
