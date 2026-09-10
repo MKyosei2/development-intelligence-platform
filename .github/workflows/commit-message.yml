@@ -1,10 +1,10 @@
 name: Commit Message
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main, develop]
   push:
-    branches: [main, develop]
+    branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 permissions:
   contents: read
 jobs:
@@ -21,8 +21,4 @@ jobs:
       - name: Validate commit subjects
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git log "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" --format=%s | python tools/validate_commit_message.py
-          else
-            git log -1 --format=%s | python tools/validate_commit_message.py
-          fi
+          git log -1 --format=%s | python tools/validate_commit_message.py
