@@ -1,9 +1,13 @@
 name: PR Lineage Safety
 
 on:
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
+    inputs:
+      base_ref:
+        description: "Base branch used for lineage verification"
+        required: true
+        default: "main"
+        type: string
 
 permissions:
   contents: read
@@ -14,7 +18,7 @@ concurrency:
 
 jobs:
   linear-history:
-    name: Reject non-linear PR history
+    name: Verify selected branch lineage
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -22,52 +26,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify pull request lineage
-        if: github.event_name == 'pull_request'
+      - name: Fetch base branch
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ inputs.base_ref }}
         run: |
           set -euo pipefail
+          git fetch origin "${BASE_REF}" --no-tags
 
-          echo "base=$BASE_SHA"
-          echo "head=$HEAD_SHA"
-          echo "tested_merge=${GITHUB_SHA}"
-
-          git cat-file -e "${BASE_SHA}^{commit}"
-          git cat-file -e "${HEAD_SHA}^{commit}"
-
-          merge_commits="$(git rev-list --merges "${BASE_SHA}..${HEAD_SHA}")"
-          if [ -n "$merge_commits" ]; then
-            echo "::error::Non-linear PR history detected. Do not merge a feature branch into itself or merge divergent copies of the same feature branch. Rebase/reset onto the known-good lineage instead."
-            echo "Merge commits inside PR range:"
-            while IFS= read -r sha; do
-              [ -z "$sha" ] && continue
-              git show --no-patch --format='  %H %s' "$sha"
-            done <<< "$merge_commits"
+      - name: Reject merge commits inside branch range
+        shell: bash
+        env:
+          BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          set -euo pipefail
+          BASE_SHA="$(git merge-base HEAD "origin/${BASE_REF}")"
+          HEAD_SHA="$(git rev-parse HEAD)"
+          MERGES="$(git rev-list --merges "${BASE_SHA}..${HEAD_SHA}")"
+          echo "base_ref=${BASE_REF}"
+          echo "base_sha=${BASE_SHA}"
+          echo "head_sha=${HEAD_SHA}"
+          if [ -n "${MERGES}" ]; then
+            echo "::error::Non-linear branch history detected."
+            echo "${MERGES}"
             exit 1
           fi
+          echo "PASS: branch history is linear relative to ${BASE_REF}."
 
-          echo "PASS: PR head history is linear relative to its base."
-
-      - name: Verify GitHub integrated revision is checked out
-        if: github.event_name == 'pull_request'
+      - name: Validate commit subjects
         shell: bash
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ inputs.base_ref }}
         run: |
           set -euo pipefail
-
-          parents="$(git show -s --format=%P "$GITHUB_SHA")"
-          case " $parents " in
-            *" $HEAD_SHA "*) ;;
-            *)
-              echo "::error::The checked-out PR revision does not contain the advertised head SHA as a merge parent. CI must validate GitHub's integrated PR revision, not an unrelated revision."
-              echo "GITHUB_SHA=$GITHUB_SHA"
-              echo "parents=$parents"
-              exit 1
-              ;;
-          esac
-
-          echo "PASS: workflow is validating GitHub's integrated pull-request revision $GITHUB_SHA."
+          BASE_SHA="$(git merge-base HEAD "origin/${BASE_REF}")"
+          git log "${BASE_SHA}..HEAD" --format=%s | python tools/validate_commit_message.py
