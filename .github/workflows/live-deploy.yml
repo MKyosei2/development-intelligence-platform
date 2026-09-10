@@ -1,14 +1,14 @@
 name: Live Native Deployment
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths: [".portfolio-ci-trigger", "src/**", "services/**", "scripts/**", "deploy/**", ".github/workflows/live-deploy.yml"]
-  push:
-    branches: [main]
-    paths: [".portfolio-ci-trigger", "src/**", "services/**", "scripts/**", "deploy/**", ".github/workflows/live-deploy.yml"]
+    inputs:
+      deploy:
+        description: "Actually mutate the configured production environment"
+        required: true
+        default: false
+        type: boolean
 concurrency:
-  group: dip-production-${{ github.repository }}-${{ github.event_name }}-${{ github.ref }}
+  group: dip-production-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 permissions:
   contents: read
@@ -51,22 +51,23 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Record dry-run deployment policy
-        if: github.event_name == 'pull_request' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED != 'true')
+      - name: Record policy-only verification
+        if: ${{ !inputs.deploy }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "PASS: live deployment is disabled for this event; exact-SHA deployment matrix is not required."
+          echo "POLICY VERIFIED: production deployment was not requested."
           echo "event=${GITHUB_EVENT_NAME}"
           echo "sha=${GITHUB_SHA}"
           {
             echo "### Live deployment policy"
-            echo "- Result: PASS"
+            echo "- Policy verification: VERIFIED"
+            echo "- Production deployment: NOT EXECUTED"
             echo "- Production mutation: disabled"
             echo "- Exact SHA: \`${GITHUB_SHA}\`"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Wait for required workflows on this SHA
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
+        if: ${{ inputs.deploy }}
         shell: bash
         run: |
           set -euo pipefail
@@ -97,6 +98,7 @@ jobs:
           exit 4
 
   package:
+    if: ${{ inputs.deploy }}
     name: Build exact-SHA native package
     needs: [verify, exact-gate]
     runs-on: ubuntu-latest
@@ -131,6 +133,7 @@ jobs:
           retention-days: 7
 
   deploy:
+    if: ${{ inputs.deploy }}
     name: Deploy native runtime and verify browser
     needs: package
     runs-on: ubuntu-latest
@@ -163,21 +166,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || { [ "${{ github.event_name }}" = "push" ] && [ "${{ vars.DIP_LIVE_DEPLOY_ENABLED }}" = "true" ]; }; then
-            echo "PASS: production deployment is enabled for this event."
-          else
-            echo "PASS: production deployment is intentionally disabled for this event."
-            echo "No production host, database, or runtime will be mutated."
-          fi
+          echo "Production deployment: REQUESTED"
+          echo "Production mutation: ENABLED FOR THIS EXPLICIT RUN"
       - uses: actions/checkout@v7
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
       - uses: actions/download-artifact@v7
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         with:
           name: dip-native-${{ github.sha }}
           path: artifacts/deploy
       - name: Validate deployment configuration
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         shell: bash
         run: |
           set -euo pipefail
@@ -189,20 +185,17 @@ jobs:
           safe=(POSTGRES_PASSWORD ANALYSIS_API_KEY OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET ADMIN_LOGIN JWT_SIGNING_KEY WEBHOOK_SECRET GITHUB_INTEGRATION_TOKEN)
           for n in "${safe[@]}"; do [[ "${!n:-}" =~ ^[A-Za-z0-9_+=./:@-]*$ ]] || { echo "$n contains characters unsafe for the SSH environment handoff." >&2; exit 2; }; done
       - name: Configure SSH
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$DEPLOY_HOST_KEY" > ~/.ssh/known_hosts
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/known_hosts ~/.ssh/id_ed25519
       - name: Upload exact-SHA package
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         run: |
           ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/incoming' '$DEPLOY_PATH/releases' '$DEPLOY_PATH/data/artifacts' '$DEPLOY_PATH/data/workspaces' '$DEPLOY_PATH/backups'"
           scp "artifacts/deploy/dip-native-${GITHUB_SHA}.tar.gz" "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/incoming/"
           scp "artifacts/deploy/dip-native-${GITHUB_SHA}.sha256" "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/incoming/"
       - name: Native transactional deployment
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         shell: bash
         run: |
           set -euo pipefail
@@ -352,24 +345,32 @@ jobs:
           REMOTE
           } | ssh "$remote" "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_SHA='$GITHUB_SHA' bash -s"
       - name: Verify public readiness
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         run: |
           curl --fail --silent --show-error --retry 40 --retry-delay 5 --retry-all-errors "https://$PUBLIC_HOST/healthz" > /tmp/ready.json
           python -c 'import json; d=json.load(open("/tmp/ready.json")); assert d["ready"] is True, d'
           curl --fail --silent --show-error "https://$PUBLIC_HOST/" >/dev/null
       - uses: actions/setup-node@v7
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         with: { node-version: "22" }
       - name: Verify public browser
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true')
         working-directory: tests/Dip.UiE2E
         env: { DIP_WEB_BASE_URL: "https://${{ vars.DIP_PUBLIC_HOST }}" }
         run: |
           npm ci
           npx playwright install --with-deps chromium
           npm run test:public
+      - name: Record successful production deployment
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "### Live deployment result"
+            echo "- Policy verification: VERIFIED"
+            echo "- Production deployment: EXECUTED"
+            echo "- Production mutation: completed"
+            echo "- Exact SHA: \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Roll back native deployment on failure
-        if: failure() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DIP_LIVE_DEPLOY_ENABLED == 'true'))
+        if: failure()
         continue-on-error: true
         shell: bash
         run: |
