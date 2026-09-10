@@ -34,21 +34,56 @@ jobs:
       - name: Portfolio readiness
         run: python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
 
+      - name: Validate three-stage Actions policy
+        run: python tools/verify_actions_policy.py
+
+      - name: Validate final-evidence tooling exists and compiles
+        shell: python
+        run: |
+          import py_compile
+          from pathlib import Path
+
+          required = [
+              "tools/verify_final_ci_matrix.py",
+              "tools/verify_unity_real_project.py",
+              "tools/verify_unreal_real_project.py",
+              "tools/publish_real_project_evidence.py",
+              "tools/finalize_portfolio_evidence.py",
+              "scripts/Request-FinalVerification.ps1",
+              "scripts/Complete-PortfolioRelease.ps1",
+              "docs/09-portfolio/REAL_PROJECT_CASE_STUDY.md",
+              "docs/09-portfolio/REAL_PROJECT_DEMO.md",
+              "docs/09-portfolio/ENGINEERING_JOURNEY.md",
+              "docs/09-portfolio/CI_EXECUTION_POLICY.md",
+          ]
+          missing = [path for path in required if not Path(path).is_file()]
+          if missing:
+              raise SystemExit("Final portfolio contract is missing: " + ", ".join(missing))
+
+          for path in [value for value in required if value.endswith(".py")]:
+              py_compile.compile(path, doraise=True)
+          print("PASS: final-evidence tooling and reviewer documents are present.")
+
       - name: Validate reviewer-facing capability contract
         shell: python
         run: |
           from pathlib import Path
           text = Path("README.md").read_text(encoding="utf-8")
           required = [
-              "Project Truth",
+              "Project Truth / Evidence",
               "Game Development QA",
               "Verification / Release Operations",
               "Historical PASS ≠ Current Revision PASS",
+              "MAYAtoUnity",
+              "Fast / Targeted / Full",
+              "Policy Verified",
+              "Production Deployed",
+              "sample-data preview",
           ]
           missing = [value for value in required if value not in text]
           if missing:
               raise SystemExit("README capability/verification contract is incomplete: " + ", ".join(missing))
-          print("PASS: reviewer-facing three-pillar capability and verification boundaries are present.")
+          print("PASS: reviewer-facing three-pillar, real-project, CI and deployment boundaries are present.")
 
       - name: Generate exact-revision evidence artifact
         shell: python
@@ -77,7 +112,7 @@ jobs:
               "publicationSafety": "PASS",
               "portfolioStaticReadiness": "PASS",
               "runtimeVerified": False,
-              "note": "Runtime verification is tracked separately by exact-SHA GUI/Integration and engine evidence.",
+              "note": "Runtime verification is intentionally separate. Final release requires real Unity/Unreal and benchmark evidence bound to this same SHA.",
           }
           (out / "exact-revision.json").write_text(
               json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
@@ -91,7 +126,7 @@ jobs:
               f"- Publication safety: **PASS**\n"
               f"- Portfolio static readiness: **PASS**\n"
               f"- Runtime verified by this workflow: **NO**\n\n"
-              "Runtime/engine evidence is intentionally separate and must carry the same final SHA.\n",
+              "Runtime/engine/performance evidence is intentionally separate and must carry the same final SHA.\n",
               encoding="utf-8",
           )
 
