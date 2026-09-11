@@ -6,19 +6,46 @@
 
 公開対象revisionのperformance値として掲載できるのは、次をすべて満たすartifactだけです。
 
-1. `artifacts/portfolio-benchmark/portfolio-benchmark-results.json`が実測runnerから生成されている。
-2. artifactの`sourceCommit`が公開対象Git SHAと完全一致する。
-3. 必須scenarioが完了し、失敗・未実行・infrastructure blockedをPASSへ読み替えていない。
-4. 文書へ転記する値がraw artifactと一致する。
+1. `artifacts/portfolio-benchmark/portfolio-benchmark-results.json` が実測runnerから生成されている。
+2. artifactの `sourceCommit` が公開対象Git SHAと完全一致する。
+3. `sourceWorkingTreeDirty` が `false` である。
+4. 必須scenarioが完了し、失敗・未実行・infrastructure blockedをPASSへ読み替えていない。
+5. 文書やReleaseで参照する値がraw artifactと一致する。
 
-この4条件を満たさない場合、表は`NOT YET MEASURED`のままにします。
+この条件を満たさない場合、値は`NOT YET MEASURED`のまま扱います。
 
-| Scenario | Target | Current exact-revision evidence |
+| Scenario | Canonical gate | Current exact-revision evidence |
 |---|---:|---|
 | Project list p95 (250 projects) | <500 ms | NOT YET MEASURED |
-| Collector p95 | <1000 ms | NOT YET MEASURED |
-| 100 req/s error rate | <1% | NOT YET MEASURED |
-| 1M Metric query p95 | <2000 ms | NOT YET MEASURED |
+| Collector ingestion p95 | <250 ms | NOT YET MEASURED |
+| 100 req/s burst error rate | 0% | NOT YET MEASURED |
+| 1M Metric query p95 | <1000 ms | NOT YET MEASURED |
+| Paced soak error rate | <=0.1% | NOT YET MEASURED |
+| API working-set growth during soak | <=256 MB | NOT YET MEASURED |
+
+これらは`Run-PortfolioBenchmarks.ps1`内のgateと同一です。測定後に都合のよい閾値へ変更しません。
+
+## Exact-revision guard
+
+Runnerは実行開始時に次をfail-closedで確認します。
+
+- `git rev-parse HEAD`が40桁SHAとして取得できる。
+- working treeがcleanである。
+- `-ExpectedSha`を指定した場合、checkout SHAと完全一致する。
+
+最終提出では必ず次のように実行します。
+
+```powershell
+$sha = (git rev-parse HEAD).Trim()
+.\scripts\Run-PortfolioBenchmarks.ps1 -ExpectedSha $sha
+```
+
+結果はcanonical artifactとそのSHA-256として保存します。
+
+```text
+artifacts/portfolio-benchmark/portfolio-benchmark-results.json
+artifacts/portfolio-benchmark/portfolio-benchmark-results.sha256
+```
 
 ## Historical baseline
 
@@ -26,8 +53,10 @@
 
 ## Runtime Profile（実行プロファイル）
 
-Runnerは専用`Benchmark` ASP.NET Core environment（Evidence labelは`ProductionLikeBenchmark`）を使用します。Loopback authenticationをisolated benchmark harness内で無効化した場合は、その事実をresult JSONへ記録します。Default sustained-load windowは900秒・25 requests/secondです。Release / nightlyではより長いwindowを明示できます。
+Runnerは専用`Benchmark` ASP.NET Core environmentを使用し、Native PostgreSQL上でProject List、Collector ingestion、burst、1M Metric aggregation、paced soakを測定します。Default sustained-load windowは900秒・25 requests/secondです。
 
 ## Final SHAの扱い
 
-Portfolio公開直前にsourceをfreezeし、そのfinal SHAでbenchmarkを再実行します。測定後にsourceを1行でも変更した場合、そのartifactはhistorical Evidenceへ戻し、新しいSHAでは再度`NOT YET MEASURED`から扱います。これにより「測定後の修正だけを行い、古い数値をcurrentとして残す」状態を防ぎます。
+Portfolio公開直前にsourceをfreezeし、`.portfolio-ci-trigger`だけを変更するfinal PRをmainへmergeします。その結果できたmain SHAでrequired 11 workflowを全てGreenにした後、同じSHAを`-ExpectedSha`へ渡してbenchmarkを実測します。
+
+測定後にsourceを1行でも変更した場合、そのartifactはhistorical Evidenceへ戻します。新しいSHAでは再度`NOT YET MEASURED`として扱います。

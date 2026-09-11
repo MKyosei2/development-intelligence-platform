@@ -83,3 +83,28 @@ jobs:
           assert 'Run this collector inside Autodesk Maya or mayapy.' in text
           print('PASS: hosted CI does not pretend to provide Maya runtime verification.')
           PY
+
+  portfolio-evidence-tooling:
+    name: Validate exact-revision evidence tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Compile portfolio evidence tools
+        run: |
+          python -m py_compile \
+            tools/verify_final_ci_matrix.py \
+            tools/verify_unity_real_project.py \
+            tools/verify_unreal_real_project.py \
+            tools/publish_real_project_evidence.py \
+            tools/finalize_portfolio_evidence.py
+      - name: CLI smoke
+        run: |
+          python tools/verify_final_ci_matrix.py --help >/dev/null
+          python tools/verify_unity_real_project.py --help >/dev/null
+          python tools/verify_unreal_real_project.py --help >/dev/null
+          python tools/publish_real_project_evidence.py --help >/dev/null
+          python tools/finalize_portfolio_evidence.py --help >/dev/null
