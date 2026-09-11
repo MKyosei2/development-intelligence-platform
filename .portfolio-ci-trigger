@@ -1,1 +1,4 @@
-native-first-docker-free-runtime-20260829
+schema=dip-final-verification-v1
+requestedAtUtc=2026-09-11T00:02:00Z
+sourceParentSha=f40153620b0de75d9abf147d3c93d4449a316ed2
+requestedFromBranch=ci/final-portfolio-verification-20260911
