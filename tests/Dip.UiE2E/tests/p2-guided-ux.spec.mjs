@@ -22,8 +22,14 @@ async function createManualProject(page) {
 
 test.describe('P2 guided UX', () => {
   test('first visit shows a non-blocking onboarding prompt and completion persists in localStorage', async ({ page }) => {
-    await page.addInitScript(() => window.localStorage.removeItem('dip.onboarding.completed.v1'));
+    // The default E2E context represents a returning user so unrelated tests
+    // cannot race against the asynchronous welcome prompt. For this one
+    // first-visit test, clear the persisted completion exactly once and reload.
+    // Do not use addInitScript(removeItem): it would also clear the value on
+    // the final reload and invalidate the persistence assertion.
     await page.goto('/');
+    await page.evaluate(() => window.localStorage.removeItem('dip.onboarding.completed.v1'));
+    await page.reload();
 
     const welcome = page.getByTestId('guided-tour-welcome');
     await expect(welcome).toBeVisible();
@@ -33,10 +39,28 @@ test.describe('P2 guided UX', () => {
     await expect(page.getByTestId('guided-tour-overlay')).toBeVisible();
     await expect(page.getByTestId('guided-tour-open-surface')).toBeVisible();
 
-    while (await page.getByTestId('guided-tour-next').count()) {
-      await page.getByTestId('guided-tour-next').click();
+    const stepCount = page.locator('.tour-step-count');
+    const initialStepText = (await stepCount.textContent())?.trim() ?? '';
+    const stepMatch = initialStepText.match(/^Step\s+(\d+)\s+of\s+(\d+)$/);
+
+    expect(stepMatch).not.toBeNull();
+
+    const totalSteps = Number(stepMatch[2]);
+
+    for (let step = 1; step < totalSteps; step += 1) {
+      const next = page.getByTestId('guided-tour-next');
+
+      await expect(next).toBeVisible();
+      await next.click();
+
+      // Wait for Blazor to finish rendering the next step before
+      // deciding whether another Next button exists.
+      await expect(stepCount).toHaveText(`Step ${step + 1} of ${totalSteps}`);
     }
-    await page.getByTestId('guided-tour-finish').click();
+
+    const finish = page.getByTestId('guided-tour-finish');
+    await expect(finish).toBeVisible();
+    await finish.click();
     await expect(page.getByTestId('guided-tour-overlay')).toHaveCount(0);
 
     const completed = await page.evaluate(() => window.localStorage.getItem('dip.onboarding.completed.v1'));

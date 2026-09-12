@@ -4,24 +4,40 @@
 
 ## 公開ルール
 
-公開対象revisionのperformance値として掲載できるのは、次をすべて満たすartifactだけです。
+公開対象revisionのperformance値として扱えるのは、次をすべて満たすartifactだけです。
 
 1. `artifacts/portfolio-benchmark/portfolio-benchmark-results.json` が実測runnerから生成されている。
 2. artifactの `sourceCommit` が公開対象Git SHAと完全一致する。
 3. `sourceWorkingTreeDirty` が `false` である。
-4. 必須scenarioが完了し、失敗・未実行・infrastructure blockedをPASSへ読み替えていない。
-5. 文書やReleaseで参照する値がraw artifactと一致する。
+4. `passed` が `true` であり、必須scenarioが完了している。
+5. 失敗・未実行・infrastructure blockedをPASSへ読み替えていない。
+6. Releaseで公開するJSONとSHA-256が、final evidenceに束ねたartifactと一致する。
 
-この条件を満たさない場合、値は`NOT YET MEASURED`のまま扱います。
+## Current exact-revision evidence の参照方法
 
-| Scenario | Canonical gate | Current exact-revision evidence |
+Current revisionの数値は、このtracked Markdownへ直接書き戻しません。Benchmark実測後に数値をcommitするとGit SHAが変わり、実測対象revisionと文書revisionが一致しなくなるためです。
+
+公開時のcanonical sourceは、**公開対象SHAから作成されたGitHub Releaseの次のasset**です。
+
+```text
+portfolio-benchmark-results.json
+portfolio-benchmark-results.sha256
+FINAL_EVIDENCE_SUMMARY.json
+SHA256SUMS.txt
+```
+
+Release asset内の `sourceCommit` がRelease/tagのcommit SHAと一致し、`sourceWorkingTreeDirty == false`、`passed == true` を満たす場合、そのJSONに記録された値をCurrent exact-revision measurementとして扱います。
+
+該当するRelease assetが存在しないSHA、または上記条件を満たさないSHAは **NOT YET MEASURED** です。
+
+| Scenario | Canonical gate | Canonical current value |
 |---|---:|---|
-| Project list p95 (250 projects) | <500 ms | NOT YET MEASURED |
-| Collector ingestion p95 | <250 ms | NOT YET MEASURED |
-| 100 req/s burst error rate | 0% | NOT YET MEASURED |
-| 1M Metric query p95 | <1000 ms | NOT YET MEASURED |
-| Paced soak error rate | <=0.1% | NOT YET MEASURED |
-| API working-set growth during soak | <=256 MB | NOT YET MEASURED |
+| Project list p95 (250 projects) | <500 ms | matching Release assetの実測値 |
+| Collector ingestion p95 | <250 ms | matching Release assetの実測値 |
+| 100 req/s burst error rate | 0% | matching Release assetの実測値 |
+| 1M Metric query p95 | <1000 ms | matching Release assetの実測値 |
+| Paced soak error rate | <=0.1% | matching Release assetの実測値 |
+| API working-set growth during soak | <=256 MB | matching Release assetの実測値 |
 
 これらは`Run-PortfolioBenchmarks.ps1`内のgateと同一です。測定後に都合のよい閾値へ変更しません。
 
@@ -57,6 +73,8 @@ Runnerは専用`Benchmark` ASP.NET Core environmentを使用し、Native Postgre
 
 ## Final SHAの扱い
 
-Portfolio公開直前にsourceをfreezeし、`.portfolio-ci-trigger`だけを変更するfinal PRをmainへmergeします。その結果できたmain SHAでrequired 11 workflowを全てGreenにした後、同じSHAを`-ExpectedSha`へ渡してbenchmarkを実測します。
+Portfolio公開直前にsourceをfreezeし、`.portfolio-ci-trigger`を含むfinal publication revisionをmainへ反映します。そのmain SHAでrequired 11 workflowを全てGreenにした後、同じSHAを`-ExpectedSha`へ渡してbenchmarkを実測します。
 
-測定後にsourceを1行でも変更した場合、そのartifactはhistorical Evidenceへ戻します。新しいSHAでは再度`NOT YET MEASURED`として扱います。
+Benchmark、Unity、Unreal、Project Truth、CI matrixを同じDIP SHAへ束ね、`tools/finalize_portfolio_evidence.py`でfail-closedに検証します。Releaseへ公開する値は、このfinal evidence bundleに含まれるartifactだけを使用します。
+
+測定後にsourceを1行でも変更した場合、そのartifactはhistorical Evidenceへ戻します。新しいSHAでは再測定が必要です。
