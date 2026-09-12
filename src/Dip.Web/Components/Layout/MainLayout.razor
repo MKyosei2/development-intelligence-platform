@@ -39,7 +39,7 @@
             <a class="@NavClass("/", exact: true)" href="/"><span>◫</span> Portfolio</a>
             @if (!_viewerReadOnly)
             {
-                <a class="@NavClass("/projects/import/github")" href="/projects/import/github"><span>⌘</span> Import GitHub</a>
+                <a class="@NavClass("/projects/import/github")" data-enhance-nav="false" href="/projects/import/github"><span>⌘</span> Import GitHub</a>
                 <a class="@NavClass("/projects/new")" href="/projects/new"><span>＋</span> Manual Project</a>
             }
 
@@ -123,7 +123,7 @@
                 <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="RefreshProjects" disabled="@Projects.IsLoading">↻ Refresh</button>
                 @if (!_viewerReadOnly)
                 {
-                    <a class="btn btn-primary btn-sm" href="/projects/import/github">Import repository</a>
+                    <a class="btn btn-primary btn-sm" data-enhance-nav="false" href="/projects/import/github">Import repository</a>
                 }
                 else
                 {

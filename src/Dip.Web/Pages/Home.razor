@@ -25,7 +25,7 @@
     {
         <div class="heading-actions">
             <a class="btn btn-outline-secondary" href="/projects/new">Manual project</a>
-            <a class="btn btn-primary" data-testid="import-github-cta" href="/projects/import/github">Import from GitHub</a>
+            <a class="btn btn-primary" data-testid="import-github-cta" data-enhance-nav="false" href="/projects/import/github">Import from GitHub</a>
         </div>
     }
 </section>
@@ -46,7 +46,7 @@
             }
             else if (!_viewerReadOnly)
             {
-                <a class="btn btn-primary" href="/projects/import/github">Connect first repository</a>
+                <a class="btn btn-primary" data-enhance-nav="false" href="/projects/import/github">Connect first repository</a>
                 <a class="btn btn-outline-secondary" href="/projects/new">Create manually</a>
             }
         </div>
