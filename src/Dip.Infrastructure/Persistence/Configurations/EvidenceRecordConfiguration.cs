@@ -25,9 +25,27 @@ public sealed class EvidenceRecordConfiguration : IEntityTypeConfiguration<Evide
         builder.Property(x => x.ObservedAtUtc).HasColumnName("observed_at_utc").IsRequired();
         builder.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc").IsRequired();
 
+        builder.Property(x => x.SourceInstanceId).HasColumnName("source_instance_id").HasMaxLength(200);
+        builder.Property(x => x.SourceEventId).HasColumnName("source_event_id").HasMaxLength(300);
+        builder.Property(x => x.EventType).HasColumnName("event_type").HasConversion<string>().HasMaxLength(80).HasDefaultValue(Dip.Domain.Enums.EvidenceEventType.Unknown).IsRequired();
+        builder.Property(x => x.ActorId).HasColumnName("actor_id").HasMaxLength(300);
+        builder.Property(x => x.MachineId).HasColumnName("machine_id").HasMaxLength(300);
+        builder.Property(x => x.ArtifactId).HasColumnName("artifact_id").HasMaxLength(300);
+        builder.Property(x => x.ContentHash).HasColumnName("content_hash").HasMaxLength(128);
+        builder.Property(x => x.ParentEvidenceId).HasColumnName("parent_evidence_id");
+        builder.Property(x => x.PrivacyClass).HasColumnName("privacy_class").HasConversion<string>().HasMaxLength(40).HasDefaultValue(Dip.Domain.Enums.EvidencePrivacyClass.Internal).IsRequired();
+        builder.Property(x => x.IntegrityStatus).HasColumnName("integrity_status").HasConversion<string>().HasMaxLength(40).HasDefaultValue(Dip.Domain.Enums.EvidenceIntegrityStatus.LegacyUnsigned).IsRequired();
+        builder.Property(x => x.MetadataJson).HasColumnName("metadata_json").HasMaxLength(32000);
+
         builder.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<PipelineRun>().WithMany().HasForeignKey(x => x.PipelineRunId).OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => new { x.ProjectId, x.ObservedAtUtc });
         builder.HasIndex(x => new { x.ProjectId, x.SubjectKey, x.EvidenceKind });
+        builder.HasIndex(x => new { x.ProjectId, x.EventType, x.ObservedAtUtc });
+        builder.HasIndex(x => new { x.ProjectId, x.SourceType, x.SourceInstanceId });
+        builder.HasIndex(x => new { x.ProjectId, x.SourceType, x.SourceInstanceId, x.SourceEventId })
+            .IsUnique()
+            .HasFilter("\"source_event_id\" IS NOT NULL AND \"source_instance_id\" IS NOT NULL");
     }
 }

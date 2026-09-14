@@ -1,0 +1,352 @@
+@page "/admin/policies"
+@using System.Net.Http.Json
+@using Dip.Application.Features.Policies
+@inject HttpClient Http
+
+<PageTitle>Policies | DIP</PageTitle>
+
+<section class="page-heading" data-testid="admin-policies-page">
+    <div>
+        <div class="eyebrow">Administration</div>
+        <h1>Runtime policies</h1>
+        <p>Change evidence, collector, privacy, retention and alert behavior without restarting DIP. Project overrides can restrict the global ceiling but cannot widen privacy-sensitive collection.</p>
+    </div>
+</section>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+<div class="row g-3">
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header"><strong>Global defaults / ceilings</strong></div>
+            <div class="card-body">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_gCollectMetadata" id="g-meta" />
+                    <label class="form-check-label" for="g-meta">Collect normalized metadata</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_gHash" id="g-hash" />
+                    <label class="form-check-label" for="g-hash">Calculate / retain SHA-256 content hashes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_gRaw" id="g-raw" />
+                    <label class="form-check-label" for="g-raw">Allow raw artifact upload</label>
+                </div>
+
+                <hr />
+                <strong>Collectors</strong>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" @bind="_gMaya" id="g-maya" />
+                    <label class="form-check-label" for="g-maya">Maya monitoring allowed</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_gUnity" id="g-unity" />
+                    <label class="form-check-label" for="g-unity">Unity monitoring allowed</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_gUnreal" id="g-unreal" />
+                    <label class="form-check-label" for="g-unreal">Unreal monitoring allowed</label>
+                </div>
+
+                <hr />
+                <strong>Privacy</strong>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" @bind="_gScreenshots" id="g-screen" />
+                    <label class="form-check-label" for="g-screen">Allow screenshots</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_gVideo" id="g-video" />
+                    <label class="form-check-label" for="g-video">Allow video capture</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_gHashOnly" id="g-hashonly" />
+                    <label class="form-check-label" for="g-hashonly">Hash-only / do not retain provider raw payload</label>
+                </div>
+
+                <hr />
+                <strong>Retention</strong>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4">
+                        <label class="form-label">Metadata days</label>
+                        <input class="form-control" type="number" min="1" @bind="_gMetadataDays" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Artifact days</label>
+                        <input class="form-control" type="number" min="1" @bind="_gArtifactDays" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Video days</label>
+                        <input class="form-control" type="number" min="1" @bind="_gVideoDays" />
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label">Critical alert threshold</label>
+                    <input class="form-control" type="number" min="1" @bind="_gCriticalThreshold" />
+                </div>
+
+                <button class="btn btn-primary w-100 mt-3"
+                        data-testid="save-global-policy"
+                        @onclick="SaveGlobalAsync"
+                        disabled="@_busy">
+                    Save global policy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header"><strong>Project override</strong></div>
+            <div class="card-body">
+                <label class="form-label">Project ID</label>
+                <div class="input-group mb-3">
+                    <input class="form-control" @bind="_projectIdText" placeholder="GUID" />
+                    <button class="btn btn-outline-secondary" @onclick="LoadProjectAsync" disabled="@_busy">Load</button>
+                </div>
+
+                <p class="small text-muted">Inherit leaves the global value unchanged. An override may restrict collection/privacy, but it cannot make the effective policy more permissive than the global ceiling.</p>
+
+                <div class="mt-3">
+                    <label class="form-label">Maya monitoring</label>
+                    <select class="form-select" @bind="_pMaya">
+                        <option value="inherit">inherit</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                    </select>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label">Allow video</label>
+                    <select class="form-select" @bind="_pVideo">
+                        <option value="inherit">inherit</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                    </select>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label">Hash only</label>
+                    <select class="form-select" @bind="_pHashOnly">
+                        <option value="inherit">inherit</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                    </select>
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label">Video retention days (blank = inherit)</label>
+                    <input class="form-control" type="number" min="1" @bind="_pVideoDays" />
+                </div>
+
+                @if (ParsedProjectId is { } qaProjectId)
+                {
+                    <div class="alert alert-secondary small mt-3">
+                        QA rules keep using DIP's existing governed QA Policy lifecycle
+                        (Draft → Approved → Active). This page does not create a second
+                        competing QA policy model.
+                        <div class="mt-2">
+                            <a class="btn btn-outline-secondary btn-sm"
+                               href="@($"/dashboard/{qaProjectId}/qa-governance")">
+                                Open QA Governance
+                            </a>
+                        </div>
+                    </div>
+                }
+
+                <button class="btn btn-primary w-100 mt-3"
+                        @onclick="SaveProjectAsync"
+                        disabled="@_busy">
+                    Save project override
+                </button>
+
+                @if (_effective is not null)
+                {
+                    <hr />
+                    <strong>Effective policy</strong>
+                    <dl class="row small mt-2">
+                        <dt class="col-7">Maya monitoring</dt><dd class="col-5">@_effective.Agent.MayaMonitoringEnabled</dd>
+                        <dt class="col-7">Allow video</dt><dd class="col-5">@_effective.Privacy.AllowVideo</dd>
+                        <dt class="col-7">Hash only</dt><dd class="col-5">@_effective.Privacy.HashOnly</dd>
+                        <dt class="col-7">Video retention</dt><dd class="col-5">@_effective.Retention.VideoRetentionDays days</dd>
+                        <dt class="col-7">Applied profiles</dt><dd class="col-5">@_effective.AppliedProfileIds.Count</dd>
+                    </dl>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _busy;
+    private string? _error;
+
+    private bool _gCollectMetadata = true;
+    private bool _gHash = true;
+    private bool _gRaw;
+    private bool _gMaya = true;
+    private bool _gUnity = true;
+    private bool _gUnreal = true;
+    private bool _gScreenshots;
+    private bool _gVideo;
+    private bool _gHashOnly = true;
+    private int _gMetadataDays = 365;
+    private int _gArtifactDays = 90;
+    private int _gVideoDays = 30;
+    private int _gCriticalThreshold = 1;
+
+    private string _projectIdText = string.Empty;
+    private string _pMaya = "inherit";
+    private string _pVideo = "inherit";
+    private string _pHashOnly = "inherit";
+    private int? _pVideoDays;
+    private EffectivePolicy? _effective;
+
+    private Guid? ParsedProjectId
+        => Guid.TryParse(_projectIdText, out var value) ? value : null;
+
+    protected override Task OnInitializedAsync() => LoadGlobalAsync();
+
+    private async Task LoadGlobalAsync()
+    {
+        _error = null;
+        try
+        {
+            var profile = await Http.GetFromJsonAsync<PolicyProfileDto?>(
+                "api/v1/admin/policies/global");
+            if (profile is null)
+                return;
+            var d = profile.Document;
+            _gCollectMetadata = d.Evidence.CollectMetadata ?? true;
+            _gHash = d.Evidence.CalculateContentHash ?? true;
+            _gRaw = d.Evidence.AllowRawArtifactUpload ?? false;
+            _gMaya = d.Agent.MayaMonitoringEnabled ?? true;
+            _gUnity = d.Agent.UnityMonitoringEnabled ?? true;
+            _gUnreal = d.Agent.UnrealMonitoringEnabled ?? true;
+            _gScreenshots = d.Privacy.AllowScreenshots ?? false;
+            _gVideo = d.Privacy.AllowVideo ?? false;
+            _gHashOnly = d.Privacy.HashOnly ?? true;
+            _gMetadataDays = d.Retention.MetadataRetentionDays ?? 365;
+            _gArtifactDays = d.Retention.ArtifactRetentionDays ?? 90;
+            _gVideoDays = d.Retention.VideoRetentionDays ?? 30;
+            _gCriticalThreshold = d.Alert.CriticalThreshold ?? 1;
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private async Task SaveGlobalAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var document = new PolicyProfileDocument(
+                "Global default",
+                true,
+                new EvidencePolicySettings(_gCollectMetadata, _gHash, _gRaw),
+                new AgentPolicySettings(_gMaya, _gUnity, _gUnreal),
+                new RetentionPolicySettings(_gMetadataDays, _gArtifactDays, _gVideoDays),
+                new AlertPolicySettings(_gCriticalThreshold, true),
+                new PrivacyPolicySettings(
+                    _gScreenshots,
+                    _gVideo,
+                    _gHashOnly,
+                    Array.Empty<string>()),
+                null);
+
+            using var response = await Http.PutAsJsonAsync(
+                "api/v1/admin/policies/global",
+                document);
+            await EnsureSuccessAsync(response);
+            await LoadGlobalAsync();
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task LoadProjectAsync()
+    {
+        if (!Guid.TryParse(_projectIdText, out var projectId))
+        {
+            _error = "Project ID must be a GUID.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var profile = await Http.GetFromJsonAsync<PolicyProfileDto?>(
+                $"api/v1/projects/{projectId}/policy");
+
+            _pMaya = Tri(profile?.Document.Agent.MayaMonitoringEnabled);
+            _pVideo = Tri(profile?.Document.Privacy.AllowVideo);
+            _pHashOnly = Tri(profile?.Document.Privacy.HashOnly);
+            _pVideoDays = profile?.Document.Retention.VideoRetentionDays;
+            _effective = await Http.GetFromJsonAsync<EffectivePolicy>(
+                $"api/v1/projects/{projectId}/policy/effective");
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveProjectAsync()
+    {
+        if (!Guid.TryParse(_projectIdText, out var projectId))
+        {
+            _error = "Project ID must be a GUID.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var document = new PolicyProfileDocument(
+                "Project override",
+                true,
+                new EvidencePolicySettings(),
+                new AgentPolicySettings(ParseTri(_pMaya), null, null),
+                new RetentionPolicySettings(null, null, _pVideoDays),
+                new AlertPolicySettings(),
+                new PrivacyPolicySettings(
+                    null,
+                    ParseTri(_pVideo),
+                    ParseTri(_pHashOnly),
+                    null),
+                null);
+
+            using var response = await Http.PutAsJsonAsync(
+                $"api/v1/projects/{projectId}/policy",
+                document);
+            await EnsureSuccessAsync(response);
+            await LoadProjectAsync();
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _busy = false; }
+    }
+
+    private static string Tri(bool? value)
+        => value.HasValue ? value.Value.ToString().ToLowerInvariant() : "inherit";
+
+    private static bool? ParseTri(string value)
+        => value switch
+        {
+            "true" => true,
+            "false" => false,
+            _ => null
+        };
+
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+        var body = await response.Content.ReadAsStringAsync();
+        throw new InvalidOperationException(
+            $"API {(int)response.StatusCode}: {body}");
+    }
+}

@@ -1,5 +1,9 @@
 @page "/projects/import/github"
+@using System.Net.Http.Json
+@using Dip.Application.Features.GitHubIntegration
+@using Dip.Application.Features.Integrations
 @inject ApiClient Api
+@inject HttpClient Http
 @inject ProjectState Projects
 @inject NavigationManager Navigation
 
@@ -9,16 +13,17 @@
     <div>
         <div class="eyebrow">Project onboarding</div>
         <h1>Import GitHub repository</h1>
-        <p>Select a repository visible to the configured GitHub App or read-only token. DIP can synchronize the source and run the first QA pass during import.</p>
+        <p>Select a repository visible to a managed GitHub Connection. If no managed connection exists, DIP falls back to the legacy server-side GitHub configuration.</p>
     </div>
     <div class="heading-actions">
+        <a class="btn btn-outline-secondary" href="/admin/connections">Manage connections</a>
         <a class="btn btn-outline-secondary" href="/projects/new">Manual setup</a>
     </div>
 </section>
 
 @if (_loading)
 {
-    <LoadingState Message="Loading GitHub repositories…" Detail="Checking the server-side GitHub repository connection." />
+    <LoadingState Message="Loading GitHub repositories…" Detail="Checking managed and legacy GitHub repository access." />
 }
 else if (_error is not null)
 {
@@ -32,16 +37,12 @@ else if (_connection is not null && !_connection.Connected)
             <h2>Connect GitHub repository access</h2>
             <p>@_connection.Message</p>
         </div>
-        @if (!string.IsNullOrWhiteSpace(_connection.InstallUrl))
-        {
-            <a class="btn btn-primary" href="@_connection.InstallUrl" target="_blank" rel="noopener noreferrer">Install / manage GitHub App</a>
-        }
+        <a class="btn btn-primary" href="/admin/connections">Add managed GitHub connection</a>
     </div>
     <div class="card mt-3">
         <div class="card-body">
-            <strong>Required server configuration</strong>
-            <p class="small text-muted mt-2">Set <code>DIP_GITHUB_TOKEN</code> to a repository-scoped fine-grained PAT, or configure the GitHub App ID / installation ID / private key in <code>.env</code>, then restart the API. Secrets never enter the browser.</p>
-            <a href="/settings" class="btn btn-outline-secondary btn-sm">Open settings</a>
+            <strong>Recommended</strong>
+            <p class="small text-muted mt-2 mb-0">Create a managed GitHub PAT/App connection from the Admin Connections page. It becomes available immediately without restarting the API. The legacy <code>DIP_GITHUB_*</code> configuration remains supported as a fallback.</p>
         </div>
     </div>
 }
@@ -50,10 +51,27 @@ else
     <div class="integration-banner healthy mb-3" data-testid="github-connected">
         <div>
             <div class="eyebrow">GitHub connected</div>
-            <strong>@(_connection?.Account ?? "GitHub App installation")</strong>
+            <strong>@ConnectionLabel</strong>
             <p class="mb-0">Mode: @_connection?.Mode · @_repositories.Count repositories loaded</p>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="LoadAsync">Refresh</button>
+        <div class="d-flex gap-2 align-items-end">
+            @if (_managedConnections.Count > 0)
+            {
+                <div>
+                    <label class="form-label small mb-1">Connection</label>
+                    <select class="form-select form-select-sm"
+                            value="@(_managedConnectionId?.ToString() ?? string.Empty)"
+                            @onchange="ChangeConnectionAsync"
+                            disabled="@_filtering">
+                        @foreach (var connection in _managedConnections)
+                        {
+                            <option value="@connection.Id">@connection.DisplayName (@connection.HealthState)</option>
+                        }
+                    </select>
+                </div>
+            }
+            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="LoadAsync">Refresh</button>
+        </div>
     </div>
 
     <div class="repo-picker-toolbar card mb-3">
@@ -80,7 +98,7 @@ else
 
     @if (_repositories.Count == 0)
     {
-        <EmptyState Icon="⌕" Title="No repositories found" Description="Change the search/filter or grant the configured GitHub App/token access to another repository." />
+        <EmptyState Icon="⌕" Title="No repositories found" Description="Change the filter or grant the selected GitHub connection access to another repository." />
     }
     else
     {
@@ -109,7 +127,7 @@ else
                         <div class="import-placeholder">
                             <div class="empty-icon">↙</div>
                             <strong>Select a repository</strong>
-                            <p>The repository URL and branch will be copied from GitHub.</p>
+                            <p>The repository URL and branch are copied from the selected GitHub connection.</p>
                         </div>
                     }
                     else
@@ -136,15 +154,34 @@ else
                                 <InputDate id="import-release" class="form-control" @bind-Value="_releaseDate" />
                             </div>
                         </div>
-                        <label class="check-row">
-                            <InputCheckbox @bind-Value="_syncWorkspace" />
-                            <span><strong>Synchronize workspace now</strong><small>Downloads the selected branch into the persistent protected QA workspace.</small></span>
-                        </label>
-                        <label class="check-row">
-                            <InputCheckbox @bind-Value="_runInitialQa" disabled="@(!_syncWorkspace)" />
-                            <span><strong>Run initial QA after import</strong><small>Detects the repository technology, executes available analyzers/tests and persists Critical/Warning findings as durable Issues.</small></span>
-                        </label>
-                        <button class="btn btn-primary w-100" data-testid="import-repository-submit" type="button" @onclick="ImportAsync" disabled="@_importing">
+
+                        @if (UsingManagedConnection)
+                        {
+                            <label class="check-row">
+                                <InputCheckbox @bind-Value="_syncWorkspace" />
+                                <span><strong>Synchronize connector evidence now</strong><small>Creates the ProjectSourceBinding and records the selected repository head as Unified Evidence V2.</small></span>
+                            </label>
+                            <div class="alert alert-info small">
+                                Managed Connector import does not yet migrate the legacy archive-based initial QA workspace. The existing legacy GitHub import path remains available when no managed connection is configured.
+                            </div>
+                        }
+                        else
+                        {
+                            <label class="check-row">
+                                <InputCheckbox @bind-Value="_syncWorkspace" />
+                                <span><strong>Synchronize workspace now</strong><small>Downloads the selected branch into the protected QA workspace.</small></span>
+                            </label>
+                            <label class="check-row">
+                                <InputCheckbox @bind-Value="_runInitialQa" disabled="@(!_syncWorkspace)" />
+                                <span><strong>Run initial QA after import</strong><small>Runs the legacy exact-revision QA flow.</small></span>
+                            </label>
+                        }
+
+                        <button class="btn btn-primary w-100"
+                                data-testid="import-repository-submit"
+                                type="button"
+                                @onclick="ImportAsync"
+                                disabled="@_importing">
                             @(_importing ? "Importing…" : "Import repository")
                         </button>
                     }
@@ -156,8 +193,15 @@ else
 
 @code {
     private GitHubConnectionStatusDto? _connection;
-    private IReadOnlyList<GitHubRepositorySummaryDto> _repositories = Array.Empty<GitHubRepositorySummaryDto>();
+    private IReadOnlyList<GitHubRepositorySummaryDto> _repositories =
+        Array.Empty<GitHubRepositorySummaryDto>();
+    private IReadOnlyList<ConnectorResourceDto> _managedResources =
+        Array.Empty<ConnectorResourceDto>();
+    private IReadOnlyList<IntegrationConnectionDto> _managedConnections =
+        Array.Empty<IntegrationConnectionDto>();
+    private Guid? _managedConnectionId;
     private GitHubRepositorySummaryDto? _selected;
+
     private string _search = string.Empty;
     private string _visibility = "all";
     private string _projectName = string.Empty;
@@ -170,6 +214,13 @@ else
     private string? _error;
     private string? _importError;
 
+    private bool UsingManagedConnection => _managedConnectionId.HasValue;
+
+    private string ConnectionLabel =>
+        _managedConnections.FirstOrDefault(item => item.Id == _managedConnectionId)?.DisplayName
+        ?? _connection?.Account
+        ?? "GitHub App installation";
+
     protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync()
@@ -178,11 +229,47 @@ else
         _error = null;
         try
         {
-            _connection = await Api.GetGitHubConnectionStatusAsync();
-            if (_connection.Connected)
-                _repositories = await Api.GetGitHubRepositoriesAsync(_search, _visibility);
+            _managedConnections =
+                await Http.GetFromJsonAsync<IReadOnlyList<IntegrationConnectionDto>>(
+                    "api/v1/integrations/connections?provider=GitHub")
+                ?? Array.Empty<IntegrationConnectionDto>();
+
+            if (_managedConnections.Count > 0)
+            {
+                if (!_managedConnectionId.HasValue ||
+                    _managedConnections.All(item => item.Id != _managedConnectionId.Value))
+                {
+                    _managedConnectionId =
+                        _managedConnections.FirstOrDefault(item =>
+                            item.HealthState == Dip.Domain.Enums.ConnectionHealthState.Healthy)?.Id
+                        ?? _managedConnections[0].Id;
+                }
+
+                var selectedConnection =
+                    _managedConnections.First(item => item.Id == _managedConnectionId.Value);
+
+                _connection = new GitHubConnectionStatusDto(
+                    true,
+                    true,
+                    $"Managed/{selectedConnection.Mode}",
+                    null,
+                    selectedConnection.ExternalAccount,
+                    null,
+                    null,
+                    selectedConnection.LastHealthMessage
+                        ?? "Managed GitHub connection is active.");
+
+                await LoadManagedRepositoriesAsync();
+            }
             else
-                _repositories = Array.Empty<GitHubRepositorySummaryDto>();
+            {
+                _managedConnectionId = null;
+                _managedResources = Array.Empty<ConnectorResourceDto>();
+                _connection = await Api.GetGitHubConnectionStatusAsync();
+                _repositories = _connection.Connected
+                    ? await Api.GetGitHubRepositoriesAsync(_search, _visibility)
+                    : Array.Empty<GitHubRepositorySummaryDto>();
+            }
         }
         catch (Exception exception)
         {
@@ -194,14 +281,77 @@ else
         }
     }
 
+    private async Task ChangeConnectionAsync(ChangeEventArgs args)
+    {
+        if (!Guid.TryParse(args.Value?.ToString(), out var connectionId))
+            return;
+
+        _managedConnectionId = connectionId;
+        _selected = null;
+        _filtering = true;
+        _error = null;
+        try
+        {
+            var selectedConnection =
+                _managedConnections.First(item => item.Id == connectionId);
+            _connection = new GitHubConnectionStatusDto(
+                true,
+                true,
+                $"Managed/{selectedConnection.Mode}",
+                null,
+                selectedConnection.ExternalAccount,
+                null,
+                null,
+                selectedConnection.LastHealthMessage
+                    ?? "Managed GitHub connection is active.");
+            await LoadManagedRepositoriesAsync();
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _filtering = false; }
+    }
+
+    private async Task LoadManagedRepositoriesAsync()
+    {
+        if (!_managedConnectionId.HasValue)
+            return;
+
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_search))
+            query.Add("search=" + Uri.EscapeDataString(_search.Trim()));
+        if (!string.IsNullOrWhiteSpace(_visibility))
+            query.Add("visibility=" + Uri.EscapeDataString(_visibility));
+        query.Add("limit=500");
+
+        var path =
+            $"api/v1/integrations/connections/{_managedConnectionId.Value}/resources"
+            + "?" + string.Join("&", query);
+
+        _managedResources =
+            await Http.GetFromJsonAsync<IReadOnlyList<ConnectorResourceDto>>(path)
+            ?? Array.Empty<ConnectorResourceDto>();
+
+        _repositories = _managedResources
+            .Where(item => item.ResourceType.Equals(
+                "repository",
+                StringComparison.OrdinalIgnoreCase))
+            .Select(MapRepository)
+            .ToArray();
+    }
+
     private async Task ApplyFiltersAsync()
     {
         _filtering = true;
         _error = null;
         try
         {
-            _repositories = await Api.GetGitHubRepositoriesAsync(_search, _visibility);
-            if (_selected is not null && !_repositories.Any(item => item.Id == _selected.Id))
+            if (UsingManagedConnection)
+                await LoadManagedRepositoriesAsync();
+            else
+                _repositories =
+                    await Api.GetGitHubRepositoriesAsync(_search, _visibility);
+
+            if (_selected is not null &&
+                !_repositories.Any(item => item.Id == _selected.Id))
                 _selected = null;
         }
         catch (Exception exception)
@@ -233,36 +383,80 @@ else
     {
         if (_selected is null || string.IsNullOrWhiteSpace(_projectName))
             return;
+
         _importing = true;
         _importError = null;
         await InvokeAsync(StateHasChanged);
         await Task.Yield();
+
         try
         {
             DateTimeOffset? release = _releaseDate is { } date
                 ? new DateTimeOffset(DateTime.SpecifyKind(date.Date, DateTimeKind.Utc))
                 : null;
-            var imported = await Api.ImportGitHubProjectAsync(new ImportGitHubProjectRequest(
-                _selected.FullName,
-                _projectName.Trim(),
-                release,
-                _syncWorkspace,
-                _runInitialQa));
-            await Projects.RefreshAsync();
-            Projects.Select(imported.ProjectId);
-            if (imported.InitialQaRunId is { } qaRunId)
+
+            if (UsingManagedConnection)
             {
-                var suffix = $"?run={qaRunId}";
-                if (!string.IsNullOrWhiteSpace(imported.Warning))
-                    suffix += "&importWarning=" + Uri.EscapeDataString(imported.Warning);
-                Navigation.NavigateTo($"/dashboard/{imported.ProjectId}/qa{suffix}");
-            }
-            else
-            {
+                var resource = _managedResources.First(item =>
+                    item.FullName.Equals(
+                        _selected.FullName,
+                        StringComparison.OrdinalIgnoreCase));
+
+                var command = new ImportConnectionProjectCommand(
+                    resource.ExternalId,
+                    resource.FullName,
+                    _projectName.Trim(),
+                    release,
+                    SyncEvidence: _syncWorkspace);
+
+                using var response = await Http.PostAsJsonAsync(
+                    $"api/v1/integrations/connections/{_managedConnectionId!.Value}/import",
+                    command);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    throw new InvalidOperationException(
+                        $"Import failed ({(int)response.StatusCode}): {body}");
+                }
+
+                var imported =
+                    await response.Content.ReadFromJsonAsync<ImportConnectionProjectResult>()
+                    ?? throw new InvalidOperationException(
+                        "Managed import returned an empty response.");
+
+                await Projects.RefreshAsync();
+                Projects.Select(imported.ProjectId);
                 var suffix = string.IsNullOrWhiteSpace(imported.Warning)
                     ? string.Empty
                     : "?importWarning=" + Uri.EscapeDataString(imported.Warning);
                 Navigation.NavigateTo($"/dashboard/{imported.ProjectId}{suffix}");
+                return;
+            }
+
+            var legacy = await Api.ImportGitHubProjectAsync(
+                new ImportGitHubProjectRequest(
+                    _selected.FullName,
+                    _projectName.Trim(),
+                    release,
+                    _syncWorkspace,
+                    _runInitialQa));
+
+            await Projects.RefreshAsync();
+            Projects.Select(legacy.ProjectId);
+
+            if (legacy.InitialQaRunId is { } qaRunId)
+            {
+                var suffix = $"?run={qaRunId}";
+                if (!string.IsNullOrWhiteSpace(legacy.Warning))
+                    suffix += "&importWarning=" + Uri.EscapeDataString(legacy.Warning);
+                Navigation.NavigateTo($"/dashboard/{legacy.ProjectId}/qa{suffix}");
+            }
+            else
+            {
+                var suffix = string.IsNullOrWhiteSpace(legacy.Warning)
+                    ? string.Empty
+                    : "?importWarning=" + Uri.EscapeDataString(legacy.Warning);
+                Navigation.NavigateTo($"/dashboard/{legacy.ProjectId}{suffix}");
             }
         }
         catch (Exception exception)
@@ -273,5 +467,38 @@ else
         {
             _importing = false;
         }
+    }
+
+    private static GitHubRepositorySummaryDto MapRepository(
+        ConnectorResourceDto resource)
+    {
+        var id = long.TryParse(
+            resource.ExternalId,
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var parsed)
+            ? parsed
+            : Math.Abs((long)StringComparer.OrdinalIgnoreCase.GetHashCode(resource.FullName));
+
+        var owner = resource.FullName.Contains('/')
+            ? resource.FullName.Split('/', 2)[0]
+            : string.Empty;
+
+        return new GitHubRepositorySummaryDto(
+            id,
+            owner,
+            resource.Name,
+            resource.FullName,
+            resource.Url ?? string.Empty,
+            resource.DefaultBranch ?? "main",
+            resource.Private,
+            resource.Archived,
+            resource.PrimaryLanguage,
+            resource.Description,
+            0,
+            0,
+            0,
+            resource.UpdatedAtUtc,
+            resource.DipProjectId);
     }
 }

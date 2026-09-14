@@ -23,6 +23,10 @@ public static class GitHubDependencyInjection
         services.AddSingleton<IGitHubRepositoryCatalog, GitHubRepositoryCatalog>();
         services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,
             Dip.Infrastructure.Integrations.GitHubVersionControlConnector>();
+
+        // Difficulty-1 foundation is registered here so existing API Program.cs
+        // remains unchanged and the legacy GitHub integration keeps working.
+        services.AddDifficultyOneFoundation(configuration);
         return services;
     }
 }

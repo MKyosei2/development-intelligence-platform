@@ -7,6 +7,7 @@ namespace Dip.Infrastructure.Persistence;
 public sealed class DipDbContext : DbContext, IUnitOfWork
 {
     public DipDbContext(DbContextOptions<DipDbContext> options) : base(options) { }
+
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectMembership> ProjectMemberships => Set<ProjectMembership>();
     public DbSet<PipelineRun> PipelineRuns => Set<PipelineRun>();
@@ -73,6 +74,11 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<CrossRepositoryImpact> CrossRepositoryImpacts => Set<CrossRepositoryImpact>();
     public DbSet<DevelopmentGraphNode> DevelopmentGraphNodes => Set<DevelopmentGraphNode>();
     public DbSet<DevelopmentGraphEdge> DevelopmentGraphEdges => Set<DevelopmentGraphEdge>();
+
+    // Difficulty-1 foundation.
+    public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
+    public DbSet<ProjectSourceBinding> ProjectSourceBindings => Set<ProjectSourceBinding>();
+    public DbSet<PolicyProfile> PolicyProfiles => Set<PolicyProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

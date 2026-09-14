@@ -13,6 +13,10 @@ public sealed class EvidenceRecord
 {
     private EvidenceRecord() { }
 
+    /// <summary>
+    /// Legacy constructor kept intentionally so existing QA/Project Truth/Replay/
+    /// Release code does not need to migrate in the same change set.
+    /// </summary>
     public EvidenceRecord(
         Guid id,
         Guid projectId,
@@ -31,16 +35,12 @@ public sealed class EvidenceRecord
     {
         if (projectId == Guid.Empty)
             throw new ArgumentException("ProjectId is required.", nameof(projectId));
-
         if (pipelineRunId == Guid.Empty)
             throw new ArgumentException("PipelineRunId cannot be empty.", nameof(pipelineRunId));
-
         if (!Enum.IsDefined(sourceType))
             throw new ArgumentOutOfRangeException(nameof(sourceType));
-
         if (!Enum.IsDefined(outcome))
             throw new ArgumentOutOfRangeException(nameof(outcome));
-
         if (!Enum.IsDefined(confidence))
             throw new ArgumentOutOfRangeException(nameof(confidence));
 
@@ -58,6 +58,9 @@ public sealed class EvidenceRecord
         PayloadJson = Optional(payloadJson, 16000, nameof(payloadJson));
         ObservedAtUtc = observedAtUtc;
         CreatedAtUtc = createdAtUtc;
+        EventType = EvidenceEventType.Unknown;
+        PrivacyClass = EvidencePrivacyClass.Internal;
+        IntegrityStatus = EvidenceIntegrityStatus.LegacyUnsigned;
     }
 
     public Guid Id { get; private set; }
@@ -75,27 +78,97 @@ public sealed class EvidenceRecord
     public DateTimeOffset ObservedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
-    /// <summary>
-    /// Best-effort lookup for provider/domain metadata embedded in PayloadJson.
-    /// PayloadJson remains backward compatible: non-JSON historical payloads are
-    /// allowed and simply return null here.
-    /// </summary>
-    public string? PayloadValue(string name)
+    // Unified Evidence V2.
+    public string? SourceInstanceId { get; private set; }
+    public string? SourceEventId { get; private set; }
+    public EvidenceEventType EventType { get; private set; }
+    public string? ActorId { get; private set; }
+    public string? MachineId { get; private set; }
+    public string? ArtifactId { get; private set; }
+    public string? ContentHash { get; private set; }
+    public Guid? ParentEvidenceId { get; private set; }
+    public EvidencePrivacyClass PrivacyClass { get; private set; }
+    public EvidenceIntegrityStatus IntegrityStatus { get; private set; }
+    public string? MetadataJson { get; private set; }
+
+    public static EvidenceRecord CreateV2(
+        Guid id,
+        Guid projectId,
+        Guid? pipelineRunId,
+        string subjectKey,
+        EvidenceSourceType sourceType,
+        string sourceInstanceId,
+        string sourceEventId,
+        EvidenceEventType eventType,
+        string evidenceKind,
+        EvidenceOutcome outcome,
+        string title,
+        string summary,
+        EvidenceConfidence confidence,
+        string? sourceReference,
+        string? metadataJson,
+        string? payloadJson,
+        DateTimeOffset observedAtUtc,
+        DateTimeOffset createdAtUtc,
+        string? actorId = null,
+        string? machineId = null,
+        string? artifactId = null,
+        string? contentHash = null,
+        Guid? parentEvidenceId = null,
+        EvidencePrivacyClass privacyClass = EvidencePrivacyClass.Internal,
+        EvidenceIntegrityStatus integrityStatus = EvidenceIntegrityStatus.Unverified)
     {
-        if(string.IsNullOrWhiteSpace(PayloadJson)||string.IsNullOrWhiteSpace(name))return null;
+        if (!Enum.IsDefined(eventType))
+            throw new ArgumentOutOfRangeException(nameof(eventType));
+        if (!Enum.IsDefined(privacyClass))
+            throw new ArgumentOutOfRangeException(nameof(privacyClass));
+        if (!Enum.IsDefined(integrityStatus))
+            throw new ArgumentOutOfRangeException(nameof(integrityStatus));
+        if (parentEvidenceId == Guid.Empty)
+            throw new ArgumentException("ParentEvidenceId cannot be empty.", nameof(parentEvidenceId));
+
+        var item = new EvidenceRecord(
+            id, projectId, pipelineRunId, subjectKey, sourceType, evidenceKind,
+            outcome, title, summary, confidence, sourceReference, payloadJson,
+            observedAtUtc, createdAtUtc)
+        {
+            SourceInstanceId = Required(sourceInstanceId, 200, nameof(sourceInstanceId)),
+            SourceEventId = Required(sourceEventId, 300, nameof(sourceEventId)),
+            EventType = eventType,
+            ActorId = Optional(actorId, 300, nameof(actorId)),
+            MachineId = Optional(machineId, 300, nameof(machineId)),
+            ArtifactId = Optional(artifactId, 300, nameof(artifactId)),
+            ContentHash = Optional(contentHash?.ToLowerInvariant(), 128, nameof(contentHash)),
+            ParentEvidenceId = parentEvidenceId,
+            PrivacyClass = privacyClass,
+            IntegrityStatus = integrityStatus,
+            MetadataJson = Optional(metadataJson, 32000, nameof(metadataJson))
+        };
+        return item;
+    }
+
+    public string? PayloadValue(string name) => JsonValue(PayloadJson, name);
+    public string? MetadataValue(string name) => JsonValue(MetadataJson, name);
+
+    private static string? JsonValue(string? json, string name)
+    {
+        if (string.IsNullOrWhiteSpace(json) || string.IsNullOrWhiteSpace(name))
+            return null;
         try
         {
-            using var doc=JsonDocument.Parse(PayloadJson);
-            if(doc.RootElement.ValueKind!=JsonValueKind.Object)return null;
-            foreach(var property in doc.RootElement.EnumerateObject())
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
+            foreach (var property in doc.RootElement.EnumerateObject())
             {
-                if(!property.Name.Equals(name,StringComparison.OrdinalIgnoreCase))continue;
-                return property.Value.ValueKind==JsonValueKind.String
-                    ?property.Value.GetString()
-                    :property.Value.GetRawText();
+                if (!property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                return property.Value.ValueKind == JsonValueKind.String
+                    ? property.Value.GetString()
+                    : property.Value.GetRawText();
             }
         }
-        catch{}
+        catch { }
         return null;
     }
 
@@ -103,7 +176,9 @@ public sealed class EvidenceRecord
     {
         var normalized = value?.Trim() ?? string.Empty;
         if (normalized.Length is < 1 || normalized.Length > maxLength)
-            throw new ArgumentException($"{parameterName} must be 1-{maxLength} characters.", parameterName);
+            throw new ArgumentException(
+                $"{parameterName} must be 1-{maxLength} characters.",
+                parameterName);
         return normalized;
     }
 
@@ -113,7 +188,9 @@ public sealed class EvidenceRecord
             return null;
         var normalized = value.Trim();
         if (normalized.Length > maxLength)
-            throw new ArgumentException($"{parameterName} must be at most {maxLength} characters.", parameterName);
+            throw new ArgumentException(
+                $"{parameterName} must be at most {maxLength} characters.",
+                parameterName);
         return normalized;
     }
 }
