@@ -1,0 +1,8 @@
+{
+  "name": "com.dip.collector",
+  "version": "0.3.0",
+  "displayName": "DIP Production Collector",
+  "description": "Local-agent bridge for Unity build, asset, test, performance and media evidence.",
+  "unity": "2021.3",
+  "author": { "name": "DIP" }
+}

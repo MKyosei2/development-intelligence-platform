@@ -1,0 +1,7 @@
+{
+  "name": "DIP.Collector.Editor",
+  "rootNamespace": "DIP.Collector",
+  "references": [],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

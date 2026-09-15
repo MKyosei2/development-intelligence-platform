@@ -80,6 +80,33 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<ProjectSourceBinding> ProjectSourceBindings => Set<ProjectSourceBinding>();
     public DbSet<PolicyProfile> PolicyProfiles => Set<PolicyProfile>();
 
+    // Phase-2 local/non-Git artifact tracking foundation.
+    public DbSet<TrackedArtifact> TrackedArtifacts => Set<TrackedArtifact>();
+    public DbSet<TrackedArtifactVersion> TrackedArtifactVersions => Set<TrackedArtifactVersion>();
+    public DbSet<ArtifactPreview> ArtifactPreviews => Set<ArtifactPreview>();
+    public DbSet<ArtifactDependency> ArtifactDependencies => Set<ArtifactDependency>();
+
+    // Phase-4 quality automation / explainable management intelligence.
+    public DbSet<QualityAutomationProfile> QualityAutomationProfiles => Set<QualityAutomationProfile>();
+    public DbSet<GoldenMasterProfile> GoldenMasterProfiles => Set<GoldenMasterProfile>();
+    public DbSet<VisualComparisonRecord> VisualComparisonRecords => Set<VisualComparisonRecord>();
+    public DbSet<AssetQaFindingRecord> AssetQaFindingRecords => Set<AssetQaFindingRecord>();
+    public DbSet<ClaimEvidenceAssessmentRecord> ClaimEvidenceAssessmentRecords => Set<ClaimEvidenceAssessmentRecord>();
+
+
+    // Phase-5 enterprise fleet / tenancy / integrity / identity governance.
+    public DbSet<OrganizationTenant> OrganizationTenants => Set<OrganizationTenant>();
+    public DbSet<ProjectTenantBinding> ProjectTenantBindings => Set<ProjectTenantBinding>();
+    public DbSet<AgentEnrollmentToken> AgentEnrollmentTokens => Set<AgentEnrollmentToken>();
+    public DbSet<AgentRegistration> AgentRegistrations => Set<AgentRegistration>();
+    public DbSet<AgentRelease> AgentReleases => Set<AgentRelease>();
+    public DbSet<EvidenceIntegrityReceipt> EvidenceIntegrityReceipts => Set<EvidenceIntegrityReceipt>();
+    public DbSet<DistributedIngestionEvent> DistributedIngestionEvents => Set<DistributedIngestionEvent>();
+    public DbSet<IdentityProfile> IdentityProfiles => Set<IdentityProfile>();
+    public DbSet<ExternalIdentityLink> ExternalIdentityLinks => Set<ExternalIdentityLink>();
+    public DbSet<OrganizationRoleBinding> OrganizationRoleBindings => Set<OrganizationRoleBinding>();
+    public DbSet<RetentionExecutionRecord> RetentionExecutionRecords => Set<RetentionExecutionRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

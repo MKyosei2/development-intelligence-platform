@@ -19,7 +19,7 @@ public static class EvidenceFreshnessPolicy
         return item.SourceType switch
         {
             EvidenceSourceType.Build or EvidenceSourceType.Test or EvidenceSourceType.Runtime or EvidenceSourceType.Quality => TimeSpan.FromDays(7),
-            EvidenceSourceType.Unity or EvidenceSourceType.Maya => TimeSpan.FromDays(14),
+            EvidenceSourceType.Unity or EvidenceSourceType.Maya or EvidenceSourceType.Unreal => TimeSpan.FromDays(14),
             EvidenceSourceType.GitHub => TimeSpan.FromDays(7),
             EvidenceSourceType.Performance => TimeSpan.FromDays(7),
             _ => TimeSpan.FromDays(10)
@@ -79,7 +79,7 @@ public static class EvidenceConflictPolicy
             EvidenceSourceType.Test=>37m,
             EvidenceSourceType.Performance when !item.EvidenceKind.Contains("simulation",StringComparison.OrdinalIgnoreCase)=>35m,
             EvidenceSourceType.Quality=>32m,
-            EvidenceSourceType.Unity or EvidenceSourceType.Maya=>30m,
+            EvidenceSourceType.Unity or EvidenceSourceType.Maya or EvidenceSourceType.Unreal=>30m,
             EvidenceSourceType.GitHub=>25m,
             EvidenceSourceType.Collector=>20m,
             EvidenceSourceType.Performance=>10m,

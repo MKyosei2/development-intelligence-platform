@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.3.0",
+  "FriendlyName": "DIP Production Collector",
+  "Description": "Maya/Unity/Unreal Phase-3 production evidence bridge for DIP.",
+  "Category": "Production",
+  "EnabledByDefault": false,
+  "CanContainContent": false,
+  "Modules": [
+    { "Name": "DIPCollector", "Type": "Editor", "LoadingPhase": "PostEngineInit" }
+  ]
+}

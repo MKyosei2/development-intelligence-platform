@@ -113,7 +113,7 @@ public sealed class AdaptiveProjectRiskEvaluator
 
     private static bool IsObjective(EvidenceRecord e) => e.SourceType is EvidenceSourceType.Build
         or EvidenceSourceType.Test or EvidenceSourceType.Quality or EvidenceSourceType.Runtime
-        or EvidenceSourceType.Performance or EvidenceSourceType.Unity or EvidenceSourceType.Maya
+        or EvidenceSourceType.Performance or EvidenceSourceType.Unity or EvidenceSourceType.Maya or EvidenceSourceType.Unreal
         or EvidenceSourceType.Collector or EvidenceSourceType.Analysis;
 
     private static bool IsReproducedFailure(EvidenceRecord e)

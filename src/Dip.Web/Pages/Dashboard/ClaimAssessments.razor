@@ -1,0 +1,38 @@
+@page "/dashboard/{ProjectId:guid}/claim-assessments"
+@using System.Net.Http.Json
+@using Dip.Application.Features.ProjectTruth
+@inject HttpClient Http
+
+<PageTitle>Claim Assessments | DIP</PageTitle>
+
+<section class="page-heading" data-testid="claim-assessments-page">
+    <div><div class="eyebrow">Phase 4 · Claim / Evidence verification</div><h1>Claim assessments</h1><p>DIP evaluates the statement against objective evidence. It does not label or score the person who submitted it.</p></div>
+    <div class="heading-actions"><a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/producer-intelligence")">Producer view</a></div>
+</section>
+@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+@if (_loading) { <LoadingState Message="Loading claims and assessments…" /> }
+else
+{
+    <section class="card mb-4">
+        <div class="card-header"><strong>Project claims</strong><span>@_claims.Count</span></div>
+        <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Subject</th><th>Report</th><th>Reporter</th><th>Current verification</th><th></th></tr></thead><tbody>
+        @foreach (var c in _claims) { <tr><td><code>@c.SubjectKey</code></td><td>@c.ClaimedStatus @if(c.ClaimedProgress is { } p){<span>(@p%)</span>}</td><td>@c.ClaimedBy</td><td>@c.VerificationStatus</td><td><button class="btn btn-outline-primary btn-sm" @onclick="() => AssessAsync(c.Id)" disabled="@_busy">Assess evidence</button></td></tr> }
+        </tbody></table></div></div>
+    </section>
+    <section class="card">
+        <div class="card-header"><strong>Explainable assessments</strong><span>@_assessments.Count</span></div>
+        <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Time</th><th>Status</th><th>Discrepancy</th><th>Confidence</th><th>Explanation</th></tr></thead><tbody>
+        @foreach (var a in _assessments.Take(200)) { <tr><td>@a.AssessedAtUtc.ToLocalTime().ToString("g")</td><td><strong>@a.Status</strong></td><td>@a.DiscrepancyScore</td><td>@a.Confidence</td><td>@a.Summary<div class="small text-muted">Supports @a.SupportingEvidenceIds.Count · Contradicts @a.ContradictingEvidenceIds.Count · @string.Join(", ", a.ReasonCodes)</div></td></tr> }
+        </tbody></table></div></div>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private IReadOnlyList<ProjectClaimDto> _claims = Array.Empty<ProjectClaimDto>();
+    private IReadOnlyList<ClaimEvidenceAssessmentDto> _assessments = Array.Empty<ClaimEvidenceAssessmentDto>();
+    private bool _loading = true, _busy; private string? _error;
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync() { _loading = true; _error = null; try { _claims = await Http.GetFromJsonAsync<IReadOnlyList<ProjectClaimDto>>($"api/v1/projects/{ProjectId}/claims") ?? Array.Empty<ProjectClaimDto>(); _assessments = await Http.GetFromJsonAsync<IReadOnlyList<ClaimEvidenceAssessmentDto>>($"api/v1/projects/{ProjectId}/claim-assessments?take=500") ?? Array.Empty<ClaimEvidenceAssessmentDto>(); } catch(Exception ex) { _error = ex.Message; } finally { _loading = false; } }
+    private async Task AssessAsync(Guid claimId) { _busy = true; _error = null; try { using var r = await Http.PostAsync($"api/v1/projects/{ProjectId}/claim-assessments/{claimId}", null); if(!r.IsSuccessStatusCode) throw new InvalidOperationException($"API {(int)r.StatusCode}: {await r.Content.ReadAsStringAsync()}"); await LoadAsync(); } catch(Exception ex) { _error = ex.Message; } finally { _busy = false; } }
+}

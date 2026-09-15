@@ -25,7 +25,8 @@ public static class DifficultyOneDependencyInjection
         services.AddScoped<IProjectSourceBindingRepository, ProjectSourceBindingRepository>();
         services.AddScoped<IPolicyProfileRepository, PolicyProfileRepository>();
 
-        services.AddSingleton<IIntegrationCredentialStore, LocalIntegrationCredentialStore>();
+        services.AddSingleton<LocalIntegrationCredentialStore>();
+        services.AddSingleton<IIntegrationCredentialStore, EnterpriseIntegrationCredentialStore>();
 
         services.AddScoped<IIntegrationConnector, GitHubConnector>();
         services.AddScoped<IntegrationConnectorRegistry>();
@@ -35,6 +36,8 @@ public static class DifficultyOneDependencyInjection
         services.AddScoped<EvidenceIngestionService>();
         services.AddScoped<IntegrationConnectionService>();
 
+        // Phase 2 builds on the Phase 1 contracts without replacing them.
+        services.AddDifficultyTwoFoundation(configuration);
         return services;
     }
 }

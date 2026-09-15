@@ -24,5 +24,6 @@ public enum EvidenceSourceType
     Construction = 19,
     Inspection = 20,
     Approval = 21,
-    Bim = 22
+    Bim = 22,
+    Unreal = 23
 }

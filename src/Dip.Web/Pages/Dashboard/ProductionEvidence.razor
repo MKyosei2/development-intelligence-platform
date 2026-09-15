@@ -1,0 +1,105 @@
+@page "/dashboard/{ProjectId:guid}/production"
+@using System.Net.Http.Json
+@using System.Text.Json
+@using Dip.Application.Features.ProductionTools
+@inject HttpClient Http
+
+<PageTitle>Production evidence | DIP</PageTitle>
+
+<section class="page-heading" data-testid="production-evidence-page">
+    <div>
+        <div class="eyebrow">DCC / Engine evidence</div>
+        <h1>Production evidence</h1>
+        <p>Maya, Unity and Unreal observations delivered through the local DIP Agent bridge.</p>
+    </div>
+    <div class="heading-actions">
+        <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/artifacts")">Tracked artifacts</a>
+        <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/quality-automation")">Quality automation</a>
+        <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/producer-intelligence")">Producer intelligence</a>
+        <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}")">Project overview</a>
+        <button class="btn btn-outline-secondary" @onclick="LoadAsync" disabled="@_loading">Refresh</button>
+    </div>
+</section>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_loading)
+{
+    <LoadingState Message="Loading production evidence…" Detail="Reading Maya, Unity and Unreal Evidence V2 events." />
+}
+else if (_events.Count == 0)
+{
+    <EmptyState Icon="◇" Title="No production-tool evidence yet" Description="Run Dip.Agent.Windows and install one of the Phase-3 Maya, Unity or Unreal plugins." />
+}
+else
+{
+    <div class="card">
+        <div class="card-header d-flex justify-content-between"><strong>Recent production events</strong><span>@_events.Count</span></div>
+        <div class="list-group list-group-flush">
+            @foreach (var item in _events)
+            {
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between gap-3">
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge text-bg-secondary">@item.Source</span>
+                                <span class="badge text-bg-light">@item.Kind</span>
+                                <strong>@item.Title</strong>
+                            </div>
+                            <div class="small mt-1">@item.Summary</div>
+                            @if (!string.IsNullOrWhiteSpace(item.ArtifactId))
+                            {
+                                <div class="small text-muted">Artifact: @item.ArtifactId</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.ContentHash))
+                            {
+                                <code class="small">@Short(item.ContentHash)</code>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.MetadataJson))
+                            {
+                                <details class="small mt-2"><summary>Metadata</summary><pre class="mt-2 mb-0">@Pretty(item.MetadataJson)</pre></details>
+                            }
+                        </div>
+                        <time class="small text-muted text-nowrap">@item.ObservedAtUtc.ToLocalTime().ToString("g")</time>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private IReadOnlyList<ProductionEventDto> _events = Array.Empty<ProductionEventDto>();
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _events = await Http.GetFromJsonAsync<IReadOnlyList<ProductionEventDto>>(
+                $"api/v1/projects/{ProjectId}/production/events?take=300")
+                ?? Array.Empty<ProductionEventDto>();
+        }
+        catch (Exception exception) { _error = exception.Message; }
+        finally { _loading = false; }
+    }
+
+    private static string Short(string value) => value[..Math.Min(16, value.Length)] + "…";
+    private static string Pretty(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return JsonSerializer.Serialize(document.RootElement, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch { return json; }
+    }
+}

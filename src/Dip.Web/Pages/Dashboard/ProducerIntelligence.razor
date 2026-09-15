@@ -1,0 +1,43 @@
+@page "/dashboard/{ProjectId:guid}/producer-intelligence"
+@using System.Net.Http.Json
+@using Dip.Application.Features.Management
+@inject HttpClient Http
+
+<PageTitle>Producer Intelligence | DIP</PageTitle>
+
+<section class="page-heading" data-testid="producer-intelligence-page">
+    <div><div class="eyebrow">Phase 4 · Management decision support</div><h1>Producer intelligence</h1><p>Evidence-backed project status without requiring source-code inspection.</p></div>
+    <div class="heading-actions"><a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/quality-automation")">Quality automation</a><a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/claim-assessments")">Claim assessments</a></div>
+</section>
+
+@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+@if (_model is null) { <LoadingState Message="Building producer intelligence…" /> }
+else
+{
+    <div class="overview-metrics mb-4">
+        <div class="overview-metric primary-metric"><span>Verified progress</span><strong>@_model.VerifiedProgress.ToString("0.#")%</strong><small>Reported: @(_model.ReportedProgress?.ToString("0.#") ?? "n/a")% · @_model.ProgressConfidence</small></div>
+        <div class="overview-metric"><span>Project truth</span><strong>@_model.TruthStatus</strong><small>@_model.RiskLevel risk · health @_model.HealthScore</small></div>
+        <div class="overview-metric"><span>Claim discrepancy</span><strong>@_model.HighClaimDiscrepancies</strong><small>@_model.ClaimDiscrepancies need review</small></div>
+        <div class="overview-metric"><span>Asset risk</span><strong>@_model.AssetRisk</strong><small>@_model.CriticalAssetFindings critical / @_model.OpenAssetFindings open</small></div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">Build</div><div class="h4">@_model.BuildHealth</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">QA trend</div><div class="h5">@_model.QaTrend</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">Visual failures</div><div class="h4">@_model.VisualFailures</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">Evidence freshness</div><div class="h5">@_model.EvidenceFreshness</div><small>@_model.UnverifiedWork unverified work item(s)</small></div></div></div>
+    </div>
+    <section class="card">
+        <div class="card-header"><strong>Top evidence-backed risks</strong><button class="btn btn-outline-secondary btn-sm" @onclick="LoadAsync">Refresh</button></div>
+        <div class="card-body p-0">
+            @if (_model.TopRisks.Count == 0) { <div class="p-3 text-muted">No Phase-4 risk signal currently requires attention.</div> }
+            else { <div class="list-group list-group-flush">@foreach (var r in _model.TopRisks) { <div class="list-group-item"><div class="d-flex justify-content-between"><strong>@r.Title</strong><span class="badge text-bg-secondary">@r.Severity · @r.Category</span></div><div>@r.Detail</div>@if(!string.IsNullOrWhiteSpace(r.Reference)){<a class="small" href="@r.Reference">Open evidence →</a>}</div> }</div> }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private ProducerIntelligenceDto? _model; private string? _error;
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync() { _error = null; try { _model = await Http.GetFromJsonAsync<ProducerIntelligenceDto>($"api/v1/projects/{ProjectId}/producer-intelligence"); } catch(Exception ex) { _error = ex.Message; } }
+}

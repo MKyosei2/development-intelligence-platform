@@ -1,0 +1,146 @@
+@page "/dashboard/{ProjectId:guid}/quality-automation"
+@using System.Net.Http.Json
+@using System.Text.Json
+@using Dip.Application.Features.QualityAutomation.AssetQa
+@using Dip.Application.Features.QualityAutomation.VisualQa
+@using Dip.Domain.Enums
+@inject HttpClient Http
+
+<PageTitle>Quality Automation | DIP</PageTitle>
+
+<section class="page-heading" data-testid="quality-automation-page">
+    <div>
+        <div class="eyebrow">Phase 4 · Quality automation</div>
+        <h1>Visual & Asset QA</h1>
+        <p>Govern golden masters, visual regression thresholds and DCC/engine asset rules from one project surface.</p>
+    </div>
+    <div class="heading-actions">
+        <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/production")">Production evidence</a>
+        <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/producer-intelligence")">Producer view</a>
+    </div>
+</section>
+
+@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+@if (_loading) { <LoadingState Message="Loading Phase-4 quality automation…" /> }
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-xl-6">
+            <section class="card h-100">
+                <div class="card-header"><strong>Automation profile</strong></div>
+                <div class="card-body">
+                    <label class="form-check mb-3"><input class="form-check-input" type="checkbox" @bind="_enabled" /><span class="form-check-label">Enable automated quality checks</span></label>
+                    <div class="row g-2">
+                        <div class="col-md-4"><label class="form-label">Pixel warning %</label><input class="form-control" type="number" step="0.01" @bind="_warningPixels" /></div>
+                        <div class="col-md-4"><label class="form-label">Pixel failure %</label><input class="form-control" type="number" step="0.01" @bind="_failurePixels" /></div>
+                        <div class="col-md-4"><label class="form-label">Minimum SSIM</label><input class="form-control" type="number" step="0.001" @bind="_minimumSsim" /></div>
+                    </div>
+                    <label class="form-label mt-3">Asset QA rule JSON</label>
+                    <textarea class="form-control font-monospace" rows="10" @bind="_assetRules"></textarea>
+                    <button class="btn btn-primary mt-3" @onclick="SaveProfileAsync" disabled="@_busy">Save profile</button>
+                </div>
+            </section>
+        </div>
+        <div class="col-xl-6">
+            <section class="card h-100">
+                <div class="card-header"><strong>Register golden master</strong></div>
+                <div class="card-body">
+                    <div class="mb-2"><label class="form-label">Capture key</label><input class="form-control" @bind="_goldenCaptureKey" placeholder="DIPCaptures/menu-main.png" /></div>
+                    <div class="mb-2"><label class="form-label">Artifact record ID</label><input class="form-control" @bind="_goldenArtifactId" placeholder="GUID" /></div>
+                    <div class="row g-2"><div class="col"><label class="form-label">Scene</label><input class="form-control" @bind="_goldenScene" /></div><div class="col"><label class="form-label">Camera</label><input class="form-control" @bind="_goldenCamera" /></div></div>
+                    <div class="mt-2"><label class="form-label">Approved by</label><input class="form-control" @bind="_approvedBy" /></div>
+                    <div class="mt-2"><label class="form-label">Mask JSON</label><textarea class="form-control font-monospace" rows="3" @bind="_maskJson"></textarea><div class="form-text">Example: [{"x":0,"y":0,"width":100,"height":40}]</div></div>
+                    <button class="btn btn-primary mt-3" @onclick="RegisterGoldenAsync" disabled="@_busy">Register / replace active golden</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-5">
+            <section class="card h-100">
+                <div class="card-header"><strong>Run visual comparison</strong></div>
+                <div class="card-body">
+                    <label class="form-label">Capture key</label><input class="form-control mb-2" @bind="_compareCaptureKey" />
+                    <label class="form-label">Current artifact ID</label><input class="form-control mb-3" @bind="_compareArtifactId" />
+                    <button class="btn btn-primary" @onclick="CompareAsync" disabled="@_busy">Compare now</button>
+                    @if (_lastComparison is not null)
+                    {
+                        <div class="alert alert-secondary mt-3 mb-0"><strong>@_lastComparison.Verdict</strong><br />Changed @_lastComparison.ChangedPixelPercent% · SSIM @_lastComparison.Ssim</div>
+                    }
+                </div>
+            </section>
+        </div>
+        <div class="col-xl-7">
+            <section class="card h-100">
+                <div class="card-header"><strong>Golden masters</strong><span>@_goldens.Count</span></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Capture</th><th>Scene / Camera</th><th>Size</th><th>State</th></tr></thead><tbody>
+                    @foreach (var g in _goldens.Take(50)) { <tr><td>@g.CaptureKey</td><td>@g.SceneKey / @g.CameraKey</td><td>@g.Width×@g.Height</td><td>@(g.Active ? "Active" : "Historical")</td></tr> }
+                    </tbody></table></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <section class="card mb-4">
+        <div class="card-header"><strong>Recent visual comparisons</strong><span>@_comparisons.Count</span></div>
+        <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Time</th><th>Verdict</th><th>Changed</th><th>SSIM</th><th>Diff</th></tr></thead><tbody>
+        @foreach (var c in _comparisons.Take(100)) { <tr><td>@c.ComparedAtUtc.ToLocalTime().ToString("g")</td><td><strong>@c.Verdict</strong></td><td>@c.ChangedPixelPercent%</td><td>@c.Ssim</td><td>@if(c.DiffArtifactRecordId is { } id){<a href="@($"/api/v1/artifacts/{id}")" target="_blank">Open diff</a>}</td></tr> }
+        </tbody></table></div></div>
+    </section>
+
+    <section class="card">
+        <div class="card-header"><strong>Open asset QA findings</strong><span>@_findings.Count</span></div>
+        <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Severity</th><th>Rule</th><th>Asset</th><th>Finding</th><th>Observed</th></tr></thead><tbody>
+        @foreach (var f in _findings.Take(200)) { <tr><td>@f.Severity</td><td><code>@f.RuleId</code></td><td>@f.RelativePath</td><td><strong>@f.Title</strong><div class="small text-muted">@f.Message</div></td><td>@f.ObservedAtUtc.ToLocalTime().ToString("g")</td></tr> }
+        </tbody></table></div></div>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    private bool _loading = true, _busy, _enabled = true;
+    private string? _error;
+    private decimal _warningPixels = .5m, _failurePixels = 3m, _minimumSsim = .97m;
+    private string _assetRules = "{}";
+    private string _goldenCaptureKey = "", _goldenArtifactId = "", _goldenScene = "default", _goldenCamera = "default", _approvedBy = "admin", _maskJson = "[]";
+    private string _compareCaptureKey = "", _compareArtifactId = "";
+    private IReadOnlyList<GoldenMasterProfileDto> _goldens = Array.Empty<GoldenMasterProfileDto>();
+    private IReadOnlyList<VisualComparisonDto> _comparisons = Array.Empty<VisualComparisonDto>();
+    private IReadOnlyList<AssetQaFindingDto> _findings = Array.Empty<AssetQaFindingDto>();
+    private VisualComparisonDto? _lastComparison;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try
+        {
+            var p = await Http.GetFromJsonAsync<QualityAutomationProfileDto>($"api/v1/projects/{ProjectId}/quality-automation/profile");
+            if (p is not null) { _enabled = p.Enabled; _warningPixels = p.ChangedPixelWarningPercent; _failurePixels = p.ChangedPixelFailurePercent; _minimumSsim = p.MinimumSsim; _assetRules = p.AssetRulesJson; }
+            _goldens = await Http.GetFromJsonAsync<IReadOnlyList<GoldenMasterProfileDto>>($"api/v1/projects/{ProjectId}/quality-automation/goldens") ?? Array.Empty<GoldenMasterProfileDto>();
+            _comparisons = await Http.GetFromJsonAsync<IReadOnlyList<VisualComparisonDto>>($"api/v1/projects/{ProjectId}/quality-automation/visual-comparisons?take=200") ?? Array.Empty<VisualComparisonDto>();
+            _findings = await Http.GetFromJsonAsync<IReadOnlyList<AssetQaFindingDto>>($"api/v1/projects/{ProjectId}/quality-automation/asset-findings?state=Open&take=500") ?? Array.Empty<AssetQaFindingDto>();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+    private async Task SaveProfileAsync() => await Busy(async () =>
+    {
+        using var r = await Http.PutAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/profile", new UpdateQualityAutomationProfileCommand(_enabled, _warningPixels, _failurePixels, _minimumSsim, _assetRules)); await Ensure(r); await LoadAsync();
+    });
+    private async Task RegisterGoldenAsync() => await Busy(async () =>
+    {
+        if (!Guid.TryParse(_goldenArtifactId, out var id)) throw new InvalidOperationException("Artifact record ID must be a GUID.");
+        var masks = JsonSerializer.Deserialize<VisualMaskRegion[]>(_maskJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? Array.Empty<VisualMaskRegion>();
+        using var r = await Http.PostAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/goldens", new RegisterGoldenMasterCommand(_goldenCaptureKey, id, _goldenScene, _goldenCamera, masks, _approvedBy)); await Ensure(r); _compareCaptureKey = _goldenCaptureKey; await LoadAsync();
+    });
+    private async Task CompareAsync() => await Busy(async () =>
+    {
+        if (!Guid.TryParse(_compareArtifactId, out var id)) throw new InvalidOperationException("Current artifact ID must be a GUID.");
+        using var r = await Http.PostAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/visual-comparisons", new RunVisualComparisonCommand(_compareCaptureKey, id)); await Ensure(r); _lastComparison = await r.Content.ReadFromJsonAsync<VisualComparisonDto>(); await LoadAsync();
+    });
+    private async Task Busy(Func<Task> action) { _busy = true; _error = null; try { await action(); } catch (Exception ex) { _error = ex.Message; } finally { _busy = false; } }
+    private static async Task Ensure(HttpResponseMessage r) { if (r.IsSuccessStatusCode) return; throw new InvalidOperationException($"API {(int)r.StatusCode}: {await r.Content.ReadAsStringAsync()}"); }
+}
