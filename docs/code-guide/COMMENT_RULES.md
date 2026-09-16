@@ -27,3 +27,19 @@ PowerShell / Python は `# Purpose:` を使用する。
 - 同じ Purpose の重複
 
 Generated code、EF Migration、third-party/license header は自動整理対象外とする。
+
+## Purpose品質ゲート
+
+`Purpose:` は「存在している」だけでは合格としない。次の状態はreadability auditで失敗させる。
+
+- `C ha ng eR is k...` のようにfilename/type名が細切れになった文字分解コメント
+- 同一ファイル内の複数 `Purpose:`
+- 人が責務を判断できない極端に短い/不自然なPurpose
+
+再検証は次で行う。
+
+```powershell
+.\scripts\Verify-SourceReadability.ps1 -Strict
+```
+
+監査結果は `docs/code-guide/_generated/source-cleanup-report.md` に生成される。`Readability/documentation findings = 0` の場合だけreadability上のclean状態と扱う。
