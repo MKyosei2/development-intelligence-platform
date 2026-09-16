@@ -1,9 +1,10 @@
 #requires -Version 5.1
-# Purpose: Repairs only malformed or duplicated Purpose comments without renaming files or changing application behavior.
+# Purpose: Repairs malformed Purpose comments without renaming files or changing application behavior.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-    [switch]$WhatIfReport
+    [switch]$WhatIfReport,
+    [switch]$BrokenOnly
 )
 
 Set-StrictMode -Version Latest
@@ -48,14 +49,22 @@ function ConvertTo-HumanName {
     return $value
 }
 
-function Get-PrimaryTypeName {
+function Get-DeclaredTypeNames {
     param([Parameter(Mandatory = $true)][string]$Content)
     $pattern = '(?m)^(?:public|internal)\s+(?:(?:sealed|static|abstract|partial|readonly)\s+)*(?:class|record(?:\s+(?:class|struct))?|interface|enum|struct)\s+([A-Za-z_][A-Za-z0-9_]*)'
-    $matches = [regex]::Matches($Content, $pattern)
-    if ($matches.Count -eq 1) {
-        return $matches[0].Groups[1].Value
-    }
+    return @(
+        [regex]::Matches($Content, $pattern) |
+        ForEach-Object { $_.Groups[1].Value } |
+        Select-Object -Unique
+    )
+}
 
+function Get-PrimaryTypeName {
+    param([Parameter(Mandatory = $true)][string]$Content)
+    $names = @(Get-DeclaredTypeNames -Content $Content)
+    if ($names.Count -eq 1) {
+        return $names[0]
+    }
     return $null
 }
 
@@ -71,7 +80,16 @@ function Get-FeatureArea {
     if ($normalized -match '^src/Dip\.Infrastructure/([^/]+)/') {
         return $Matches[1]
     }
+    if ($normalized -match '^src/Dip\.Api/Controllers/') {
+        return 'API'
+    }
     if ($normalized -match '^src/Dip\.Api/([^/]+)/') {
+        return $Matches[1]
+    }
+    if ($normalized -match '^src/Dip\.Worker/([^/]+)/') {
+        return $Matches[1]
+    }
+    if ($normalized -match '^src/Dip\.Web/([^/]+)/') {
         return $Matches[1]
     }
     if ($normalized -match '^tests/([^/]+)/') {
@@ -80,38 +98,74 @@ function Get-FeatureArea {
     return 'DIP'
 }
 
-function Test-BrokenPurposeText {
+function Test-FragmentedName {
     param(
         [Parameter(Mandatory = $true)][string]$Purpose,
-        [Parameter(Mandatory = $true)][string]$FilePath
+        [Parameter(Mandatory = $true)][string]$Candidate
     )
 
-    $stem = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
-    if ($stem.EndsWith('.xaml', [System.StringComparison]::OrdinalIgnoreCase)) {
-        $stem = $stem.Substring(0, $stem.Length - 5)
-    }
-    $stemNormalized = ($stem -replace '[^A-Za-z0-9]', '')
-    if ($stemNormalized.Length -lt 4) {
+    $candidateNormalized = ($Candidate -replace '[^A-Za-z0-9]', '')
+    if ($candidateNormalized.Length -lt 4) {
         return $false
     }
 
-    $tokens = @([regex]::Matches($Purpose, '[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*') | ForEach-Object { $_.Value })
-    $run = ''
-    $runCount = 0
-    foreach ($token in $tokens) {
-        $normalized = ($token -replace '[^A-Za-z0-9]', '')
-        if ($normalized.Length -gt 0 -and $normalized.Length -le 2) {
-            $run += $normalized
-            $runCount++
-            if ($runCount -ge 4 -and $run.Length -ge 6) {
-                if ($stemNormalized.IndexOf($run, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
-                    return $true
-                }
+    # Split punctuation as well as spaces. This catches names such as
+    # "b ui ld-a ll", "A pp.x am l", and "G it Hu bC li en t".
+    $tokens = @(
+        [regex]::Matches($Purpose, '[A-Za-z0-9]+') |
+        ForEach-Object { $_.Value }
+    )
+
+    for ($start = 0; $start -lt $tokens.Count; $start++) {
+        $joined = ''
+        $shortCount = 0
+
+        for ($end = $start; $end -lt $tokens.Count -and $end -lt ($start + 32); $end++) {
+            $token = $tokens[$end]
+            $joined += $token
+
+            if ($token.Length -le 2) {
+                $shortCount++
+            }
+
+            $partCount = $end - $start + 1
+            if ($joined.Length -gt $candidateNormalized.Length) {
+                break
+            }
+
+            if (
+                $partCount -ge 3 -and
+                $shortCount -ge 2 -and
+                $joined.Equals($candidateNormalized, [System.StringComparison]::OrdinalIgnoreCase)
+            ) {
+                return $true
             }
         }
-        else {
-            $run = ''
-            $runCount = 0
+    }
+
+    return $false
+}
+
+function Test-BrokenPurposeText {
+    param(
+        [Parameter(Mandatory = $true)][string]$Purpose,
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [Parameter(Mandatory = $true)][string]$Content
+    )
+
+    $candidates = New-Object 'System.Collections.Generic.List[string]'
+    $fileStem = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
+    $candidates.Add($fileStem) | Out-Null
+
+    foreach ($typeName in @(Get-DeclaredTypeNames -Content $Content)) {
+        if (-not $candidates.Contains($typeName)) {
+            $candidates.Add($typeName) | Out-Null
+        }
+    }
+
+    foreach ($candidate in $candidates) {
+        if (Test-FragmentedName -Purpose $Purpose -Candidate $candidate) {
+            return $true
         }
     }
 
@@ -141,6 +195,9 @@ function Get-ReplacementPurpose {
     if ($baseName.EndsWith('.xaml', [System.StringComparison]::OrdinalIgnoreCase)) {
         $baseName = $baseName.Substring(0, $baseName.Length - 5)
     }
+    if ($baseName.EndsWith('.razor', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $baseName = $baseName.Substring(0, $baseName.Length - 6)
+    }
 
     $primaryType = Get-PrimaryTypeName -Content $Content
     $name = if ($primaryType) { $primaryType } else { $baseName }
@@ -160,7 +217,7 @@ function Get-ReplacementPurpose {
         return 'Provides shared imports for this project.'
     }
     if ($name -match 'Controller$') {
-        return "Exposes $feature API operations through $humanName."
+        return "Exposes HTTP endpoints implemented by $humanName."
     }
     if ($name -match 'Validator$') {
         return "Validates $feature inputs and invariants through $humanName."
@@ -213,6 +270,9 @@ function Get-ReplacementPurpose {
     if ($relative -match '^src/Dip\.Desktop/') {
         return "Implements the desktop responsibility represented by $humanName."
     }
+    if ($relative -match '^src/Dip\.Agent\.') {
+        return "Implements the agent responsibility represented by $humanName."
+    }
 
     return "Defines the DIP responsibility represented by $humanName."
 }
@@ -260,18 +320,21 @@ function Repair-FilePurpose {
     $firstIndex = $purposeIndexes[0]
     $match = [regex]::Match($lines[$firstIndex], '^\s*(?://|#)\s*Purpose\s*:\s*(.+?)\s*$')
     $currentPurpose = $match.Groups[1].Value.Trim()
-    $needsRepair = Test-BrokenPurposeText -Purpose $currentPurpose -FilePath $File.FullName
+    $needsRepair = Test-BrokenPurposeText -Purpose $currentPurpose -FilePath $File.FullName -Content $content
     $hasDuplicates = $purposeIndexes.Count -gt 1
+    $removeDuplicates = $hasDuplicates -and -not $BrokenOnly
 
-    if (-not $needsRepair -and -not $hasDuplicates) {
+    if (-not $needsRepair -and -not $removeDuplicates) {
         return
     }
 
-    $prefix = if ($extension -in @('.ps1', '.py')) { '# Purpose: ' } else { '// Purpose: ' }
-    $replacement = Get-ReplacementPurpose -FilePath $File.FullName -Content $content
-    $lines[$firstIndex] = $prefix + $replacement
+    if ($needsRepair) {
+        $prefix = if ($extension -in @('.ps1', '.py')) { '# Purpose: ' } else { '// Purpose: ' }
+        $replacement = Get-ReplacementPurpose -FilePath $File.FullName -Content $content
+        $lines[$firstIndex] = $prefix + $replacement
+    }
 
-    if ($hasDuplicates) {
+    if ($removeDuplicates) {
         for ($j = $purposeIndexes.Count - 1; $j -ge 1; $j--) {
             $lines.RemoveAt($purposeIndexes[$j])
         }
@@ -283,7 +346,14 @@ function Repair-FilePurpose {
         return
     }
 
-    if ($PSCmdlet.ShouldProcess($relative, 'Repair malformed/duplicate Purpose comment')) {
+    $action = if ($BrokenOnly) {
+        'Repair malformed Purpose comment'
+    }
+    else {
+        'Repair malformed/duplicate Purpose comment'
+    }
+
+    if ($PSCmdlet.ShouldProcess($relative, $action)) {
         $output = ($lines -join "`n").TrimEnd("`n") + "`n"
         [System.IO.File]::WriteAllText($File.FullName, $output, $Utf8NoBom)
         $Changed.Add($relative) | Out-Null
