@@ -1,3 +1,4 @@
+// Purpose: Coordinates A ss et Qa Co nt ra ct s application behavior for QualityAutomation.
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
 

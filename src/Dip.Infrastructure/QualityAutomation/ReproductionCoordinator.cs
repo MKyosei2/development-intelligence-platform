@@ -1,3 +1,4 @@
+// Purpose: Provides the R ep ro du ct io nC oo rd in at or infrastructure implementation.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;

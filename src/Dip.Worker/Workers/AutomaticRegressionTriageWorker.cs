@@ -1,3 +1,4 @@
+// Purpose: Runs A ut om at ic Re gr es si on Tr ia ge Wo rk er background processing.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Triage;
 using Dip.Domain.Enums;

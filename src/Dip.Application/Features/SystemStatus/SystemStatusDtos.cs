@@ -1,3 +1,4 @@
+// Purpose: Coordinates S ys te mS ta tu sD to s application behavior for SystemStatus.
 namespace Dip.Application.Features.SystemStatus;
 
 public static class SystemComponentStates

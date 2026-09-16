@@ -1,3 +1,4 @@
+// Purpose: Verifies T es tI mp ac tA na ly ze rT es ts behavior.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Infrastructure.P2Intelligence;
 using Dip.Infrastructure.QualityAutomation;

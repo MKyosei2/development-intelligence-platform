@@ -1,3 +1,4 @@
+// Purpose: Provides the U ni ve rs al Sy nt ax Tr ee infrastructure implementation.
 namespace Dip.Infrastructure.QualityAutomation;
 
 public enum UniversalSyntaxKind{Root,Block,Group,Index,Call,Assignment,Identifier,Literal,Token}

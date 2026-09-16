@@ -1,3 +1,4 @@
+// Purpose: Defines the R ep os it or ie s application boundary.
 using Dip.Domain.Entities;
 namespace Dip.Application.Abstractions.Persistence;
 

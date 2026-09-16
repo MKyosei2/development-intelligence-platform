@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-P1 repository workflow.
 [CmdletBinding()]
 param([switch]$SkipBugZoo)
 

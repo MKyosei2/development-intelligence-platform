@@ -1,3 +1,4 @@
+// Purpose: Implements A ge nt Ap iC li en t agent behavior.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 

@@ -1,3 +1,4 @@
+// Purpose: Implements D bI ni ti al iz er persistence behavior.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

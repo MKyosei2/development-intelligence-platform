@@ -1,3 +1,4 @@
+// Purpose: Configures P ro je ct Sc op eA ut ho ri za ti on for the DIP API.
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Security.Claims;

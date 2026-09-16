@@ -1,3 +1,4 @@
+// Purpose: Provides the E nt er pr is eI nt eg ra ti on Cr ed en ti al St or e infrastructure implementation.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Dip.Application.Abstractions.Security;

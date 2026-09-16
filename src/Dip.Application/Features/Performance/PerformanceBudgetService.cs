@@ -1,3 +1,4 @@
+// Purpose: Coordinates P er fo rm an ce Bu dg et Se rv ic e application behavior for Performance.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

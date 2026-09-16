@@ -1,3 +1,4 @@
+// Purpose: Provides the H ar dw ar eC on st ra in tR un ne r infrastructure implementation.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;

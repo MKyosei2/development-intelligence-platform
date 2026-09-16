@@ -1,3 +1,4 @@
+// Purpose: Coordinates A rt if ac tS er vi ce application behavior for Artifacts.
 using System.Text.Json;
 using Dip.Application.Abstractions.Artifacts;
 using Dip.Application.Abstractions.Persistence;

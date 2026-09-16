@@ -1,1 +1,2 @@
+// Purpose: Defines A pi Er ro r repository behavior.
 namespace Dip.Shared.Contracts.Api; public sealed record ApiError(string Type,string Title,int Status,string TraceId,IReadOnlyDictionary<string,string[]>? Errors=null);

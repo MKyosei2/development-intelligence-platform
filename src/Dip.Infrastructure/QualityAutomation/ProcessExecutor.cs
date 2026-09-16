@@ -1,3 +1,4 @@
+// Purpose: Provides the P ro ce ss Ex ec ut or infrastructure implementation.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;

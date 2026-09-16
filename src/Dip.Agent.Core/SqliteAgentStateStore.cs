@@ -1,3 +1,4 @@
+// Purpose: Implements S ql it eA ge nt St at eS to re agent behavior.
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 

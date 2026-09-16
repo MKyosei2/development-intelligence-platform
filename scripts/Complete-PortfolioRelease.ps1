@@ -1,3 +1,4 @@
+# Purpose: Automates the C om pl et e-P or tf ol io Re le as e repository workflow.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$Version,

@@ -1,3 +1,4 @@
+// Purpose: Implements M ed ia Sp oo l agent behavior.
 using System.Security.Cryptography;
 
 namespace Dip.Agent.Core;

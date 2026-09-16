@@ -1,3 +1,4 @@
+// Purpose: Exposes P ol ic yP ro fi le sC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Policies;
 using Dip.Application.Features.Authorization;

@@ -1,3 +1,4 @@
+// Purpose: Exposes C on ne ct io ns Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Integrations;
 using Microsoft.AspNetCore.Authorization;

@@ -1,3 +1,4 @@
+// Purpose: Coordinates R et en ti on Go ve rn an ce Se rv ic e application behavior for Enterprise.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

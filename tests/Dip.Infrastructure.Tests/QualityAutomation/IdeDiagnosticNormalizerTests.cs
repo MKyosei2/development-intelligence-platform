@@ -1,3 +1,4 @@
+// Purpose: Verifies I de Di ag no st ic No rm al iz er Te st s behavior.
 using Dip.Application.Features.QualityAutomation;using Dip.Domain.ValueObjects;using Dip.Infrastructure.QualityAutomation;
 namespace Dip.Infrastructure.Tests.QualityAutomation;
 public sealed class IdeDiagnosticNormalizerTests

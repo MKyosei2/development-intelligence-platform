@@ -1,3 +1,4 @@
+// Purpose: Provides the O pe nT el em et ry In ci de nt In ge st io nA da pt er infrastructure implementation.
 using System.Text.Json;
 using Dip.Application.Features.ExternalEvents;
 

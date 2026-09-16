@@ -1,3 +1,4 @@
+// Purpose: Coordinates C ol le ct or Re po rt Se rv ic e application behavior for Collectors.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

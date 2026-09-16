@@ -1,3 +1,4 @@
+// Purpose: Implements o nb oa rd in g web UI behavior.
 export function getBoolean(key) {
     try {
         return window.localStorage.getItem(key) === 'true';

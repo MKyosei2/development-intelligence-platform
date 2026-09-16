@@ -1,3 +1,4 @@
+// Purpose: Provides the O pe nA iC om pa ti bl eF ix Pr op os al Ag en t infrastructure implementation.
 using Dip.Application.Features.QualityAutomation;
 
 namespace Dip.Infrastructure.P2Intelligence;

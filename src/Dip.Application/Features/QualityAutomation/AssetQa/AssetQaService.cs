@@ -1,3 +1,4 @@
+// Purpose: Coordinates A ss et Qa Se rv ic e application behavior for QualityAutomation.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

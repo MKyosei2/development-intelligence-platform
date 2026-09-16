@@ -1,3 +1,4 @@
+// Purpose: Coordinates Q aO rc he st ra ti on Se rv ic e application behavior for QualityAutomation.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

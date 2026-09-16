@@ -1,3 +1,4 @@
+// Purpose: Implements A pi Cl ie nt web UI behavior.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;

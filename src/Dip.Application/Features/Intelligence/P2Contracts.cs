@@ -1,3 +1,4 @@
+// Purpose: Coordinates P2 Co nt ra ct s application behavior for Intelligence.
 namespace Dip.Application.Features.Intelligence;
 
 public sealed record CommunityHardwareSubmission(

@@ -1,3 +1,4 @@
+// Purpose: Provides the Q aA da pt er Re gi st ry infrastructure implementation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 

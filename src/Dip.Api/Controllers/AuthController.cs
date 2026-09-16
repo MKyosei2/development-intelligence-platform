@@ -1,3 +1,4 @@
+// Purpose: Exposes A ut hC on tr ol le r HTTP endpoints.
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;

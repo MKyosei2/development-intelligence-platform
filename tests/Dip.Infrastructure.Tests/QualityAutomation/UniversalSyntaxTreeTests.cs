@@ -1,3 +1,4 @@
+// Purpose: Verifies U ni ve rs al Sy nt ax Tr ee Te st s behavior.
 using Dip.Infrastructure.QualityAutomation;
 namespace Dip.Infrastructure.Tests.QualityAutomation;
 public sealed class UniversalSyntaxTreeTests

@@ -1,3 +1,4 @@
+// Purpose: Verifies Q ua li ty Ru le Ev al ua to rT es ts behavior.
 using Dip.Application.Features.Quality;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

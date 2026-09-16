@@ -1,3 +1,4 @@
+// Purpose: Coordinates P2 An al ys is Se rv ic e application behavior for Intelligence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

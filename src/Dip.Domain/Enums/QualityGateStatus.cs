@@ -1,1 +1,0 @@
-namespace Dip.Domain.Enums; public enum QualityGateStatus { Pass, Warning, Fail }

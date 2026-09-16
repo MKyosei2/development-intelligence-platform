@@ -1,3 +1,4 @@
+// Purpose: Coordinates E vi de nc eI nt eg ri ty Se rv ic e application behavior for Enterprise.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;

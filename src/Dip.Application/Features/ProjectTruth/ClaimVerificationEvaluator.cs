@@ -1,3 +1,4 @@
+// Purpose: Coordinates C la im Ve ri fi ca ti on Ev al ua to r application behavior for ProjectTruth.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

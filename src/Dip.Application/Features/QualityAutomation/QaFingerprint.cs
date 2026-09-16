@@ -1,3 +1,4 @@
+// Purpose: Coordinates Q aF in ge rp ri nt application behavior for QualityAutomation.
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

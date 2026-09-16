@@ -1,3 +1,4 @@
+// Purpose: Coordinates C ha ng eI mp ac tA na ly si sS er vi ce application behavior for ChangeImpact.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-P ro je ct Co nt ro l repository workflow.
 [CmdletBinding()]
 param(
     [switch]$RunIntegration,

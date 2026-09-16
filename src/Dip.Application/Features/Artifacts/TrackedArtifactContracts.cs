@@ -1,3 +1,4 @@
+// Purpose: Coordinates T ra ck ed Ar ti fa ct Co nt ra ct s application behavior for Artifacts.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.Artifacts;

@@ -1,3 +1,4 @@
+// Purpose: Coordinates F ea tu re Re ad in es sS er vi ce application behavior for FeatureControl.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

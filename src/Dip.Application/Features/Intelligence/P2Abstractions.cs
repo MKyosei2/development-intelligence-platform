@@ -1,3 +1,4 @@
+// Purpose: Coordinates P2 Ab st ra ct io ns application behavior for Intelligence.
 using Dip.Domain.Entities;
 namespace Dip.Application.Features.Intelligence;
 public interface ICommunityHardwareStore{Task AddAsync(CommunityHardwareSample sample,CancellationToken ct);Task<IReadOnlyList<CommunityHardwareSample>> ListAsync(string hardwareKey,CancellationToken ct);}

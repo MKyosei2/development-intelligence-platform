@@ -1,3 +1,4 @@
+// Purpose: Coordinates V is ua lQ aS er vi ce application behavior for QualityAutomation.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

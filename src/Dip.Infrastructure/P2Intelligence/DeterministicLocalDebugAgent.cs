@@ -1,3 +1,4 @@
+// Purpose: Provides the D et er mi ni st ic Lo ca lD eb ug Ag en t infrastructure implementation.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 

@@ -1,3 +1,4 @@
+// Purpose: Exposes S ys te mS ta tu sC on tr ol le r HTTP endpoints.
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;

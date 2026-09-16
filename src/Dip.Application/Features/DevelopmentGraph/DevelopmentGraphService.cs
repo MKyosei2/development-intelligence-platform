@@ -1,3 +1,4 @@
+// Purpose: Coordinates D ev el op me nt Gr ap hS er vi ce application behavior for DevelopmentGraph.
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Dip.Application.Abstractions.Persistence;

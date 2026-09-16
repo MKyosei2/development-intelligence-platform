@@ -1,3 +1,4 @@
+// Purpose: Coordinates A ss et In te ll ig en ce Se rv ic e application behavior for Assets.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

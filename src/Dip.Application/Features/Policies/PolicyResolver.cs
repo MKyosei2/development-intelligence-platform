@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ol ic yR es ol ve r application behavior for Policies.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;

@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-D at ab as eM ig ra ti on s repository workflow.
 [CmdletBinding()]
 param(
     [string]$DatabaseUser=$(if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}),

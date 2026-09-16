@@ -1,3 +1,4 @@
+# Purpose: Automates the I nv ok e-M an ua lC I repository workflow.
 [CmdletBinding()]
 param(
     [ValidateSet('Fast','Targeted','Full')]

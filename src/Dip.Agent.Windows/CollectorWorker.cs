@@ -1,3 +1,4 @@
+// Purpose: Implements C ol le ct or Wo rk er agent behavior.
 using Dip.Agent.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

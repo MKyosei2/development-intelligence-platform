@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-P or tf ol io Fo rm al repository workflow.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$UnityPath,

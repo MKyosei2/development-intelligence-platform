@@ -1,3 +1,4 @@
+// Purpose: Coordinates A da pt iv eQ aP la nn er application behavior for Intelligence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Enums;
 

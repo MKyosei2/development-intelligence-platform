@@ -1,3 +1,4 @@
+// Purpose: Provides the S la ck Pr oj ec tS ou rc eA da pt er infrastructure implementation.
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;

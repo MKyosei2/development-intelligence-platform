@@ -1,3 +1,4 @@
+// Purpose: Coordinates S pr ea ds he et Sc he ma In fe re nc e application behavior for Management.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

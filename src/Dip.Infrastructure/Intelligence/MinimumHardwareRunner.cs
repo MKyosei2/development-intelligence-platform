@@ -1,3 +1,4 @@
+// Purpose: Provides the M in im um Ha rd wa re Ru nn er infrastructure implementation.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.Hardware;

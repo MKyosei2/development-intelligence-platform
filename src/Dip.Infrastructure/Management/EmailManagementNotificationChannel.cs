@@ -1,3 +1,4 @@
+// Purpose: Provides the E ma il Ma na ge me nt No ti fi ca ti on Ch an ne l infrastructure implementation.
 using System.Net;
 using System.Net.Mail;
 using Dip.Application.Features.Management;

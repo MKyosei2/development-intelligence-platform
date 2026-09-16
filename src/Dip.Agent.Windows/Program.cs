@@ -1,3 +1,4 @@
+// Purpose: Implements P ro gr am agent behavior.
 using Dip.Agent.Core;
 using Dip.Agent.Windows;
 using Microsoft.Extensions.Hosting;

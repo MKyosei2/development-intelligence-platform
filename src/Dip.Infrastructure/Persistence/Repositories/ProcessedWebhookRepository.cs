@@ -1,3 +1,4 @@
+// Purpose: Implements P ro ce ss ed We bh oo kR ep os it or y persistence behavior.
 using Dip.Application.Abstractions.Persistence;using Dip.Domain.Entities;using Microsoft.EntityFrameworkCore;
 namespace Dip.Infrastructure.Persistence.Repositories;
 public sealed class ProcessedWebhookRepository(DipDbContext db):IProcessedWebhookRepository

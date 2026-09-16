@@ -1,3 +1,4 @@
+// Purpose: Runs C ol le ct or Re po rt Pr oc es se dW or ke r background processing.
 using System.Text.Json;using Dip.Application.Abstractions.Messaging;using Dip.Application.Features.Quality;using Dip.Infrastructure.Messaging;using Dip.Infrastructure.Persistence;using Microsoft.EntityFrameworkCore;using Microsoft.Extensions.Options;
 namespace Dip.Worker.Workers;
 public sealed class CollectorReportProcessedWorker(IServiceScopeFactory scopes,IQueueClient queue,IOptions<QueueOptions> options,ILogger<CollectorReportProcessedWorker> logger):BackgroundService

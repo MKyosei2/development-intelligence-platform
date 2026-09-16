@@ -1,3 +1,4 @@
+// Purpose: Exposes A ge nt Po li cy Di st ri bu ti on Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Enterprise;
 using Dip.Application.Abstractions.Persistence;

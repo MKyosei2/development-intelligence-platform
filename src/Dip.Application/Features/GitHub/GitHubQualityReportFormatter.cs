@@ -1,3 +1,4 @@
+// Purpose: Coordinates G it Hu bQ ua li ty Re po rt Fo rm at te r application behavior for GitHub.
 namespace Dip.Application.Features.GitHub;
 
 public static class GitHubQualityReportFormatter

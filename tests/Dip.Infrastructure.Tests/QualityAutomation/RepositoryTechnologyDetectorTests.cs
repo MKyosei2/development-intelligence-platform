@@ -1,3 +1,4 @@
+// Purpose: Verifies R ep os it or yT ec hn ol og yD et ec to rT es ts behavior.
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;

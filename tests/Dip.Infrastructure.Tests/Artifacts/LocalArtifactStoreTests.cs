@@ -1,3 +1,4 @@
+// Purpose: Verifies L oc al Ar ti fa ct St or eT es ts behavior.
 using System.Text;
 using Dip.Infrastructure.Artifacts;
 using Microsoft.Extensions.Options;

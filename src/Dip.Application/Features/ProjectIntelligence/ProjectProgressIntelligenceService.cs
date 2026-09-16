@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Pr og re ss In te ll ig en ce Se rv ic e application behavior for ProjectIntelligence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

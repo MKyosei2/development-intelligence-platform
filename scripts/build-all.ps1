@@ -1,3 +1,4 @@
+# Purpose: Automates the b ui ld-a ll repository workflow.
 param([ValidateSet("Debug","Release")][string]$Configuration="Release")
 $ErrorActionPreference="Stop"
 dotnet restore

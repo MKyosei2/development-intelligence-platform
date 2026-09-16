@@ -1,3 +1,4 @@
+// Purpose: Exposes E xt er na lE ve nt sC on tr ol le r HTTP endpoints.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

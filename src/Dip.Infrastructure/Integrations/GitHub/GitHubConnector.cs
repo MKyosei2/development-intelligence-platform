@@ -1,3 +1,4 @@
+// Purpose: Provides the G it Hu bC on ne ct or infrastructure implementation.
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -650,7 +651,7 @@ public sealed class GitHubConnector : IIntegrationConnector
     private sealed record CachedToken(string Token, DateTimeOffset ExpiresAtUtc);
 }
 
-internal static class HttpClientDifficultyOneExtensions
+internal static class HttpClientEvidenceIntegrationExtensions
 {
     public static T Tap<T>(this T value, Action<T> configure)
     {

@@ -1,3 +1,4 @@
+// Purpose: Implements P2 Le ga cy St or es persistence behavior.
 using Dip.Application.Features.Intelligence;using Dip.Domain.Entities;using Microsoft.EntityFrameworkCore;
 namespace Dip.Infrastructure.Persistence.Repositories;
 public sealed class CommunityHardwareStore(DipDbContext db):ICommunityHardwareStore

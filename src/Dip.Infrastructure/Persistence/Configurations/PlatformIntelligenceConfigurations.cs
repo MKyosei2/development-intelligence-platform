@@ -1,3 +1,4 @@
+// Purpose: Implements P la tf or mI nt el li ge nc eC on fi gu ra ti on s persistence behavior.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

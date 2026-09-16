@@ -1,3 +1,4 @@
+// Purpose: Defines the I In te gr at io nC re de nt ia lS to re application boundary.
 namespace Dip.Application.Abstractions.Security;
 
 public interface IIntegrationCredentialStore

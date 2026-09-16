@@ -1,3 +1,4 @@
+// Purpose: Verifies P1 Qa Ev id en ce Sc en ar io behavior.
 using System.Diagnostics;
 using Dip.EndToEndTests.Support;
 using FluentAssertions;

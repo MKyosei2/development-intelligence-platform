@@ -1,3 +1,4 @@
+// Purpose: Coordinates E xt er na lI nc id en tI ng es ti on application behavior for ExternalEvents.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;

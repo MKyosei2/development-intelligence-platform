@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-P2 repository workflow.
 [CmdletBinding()]
 param(
     [switch]$SkipDotNet,

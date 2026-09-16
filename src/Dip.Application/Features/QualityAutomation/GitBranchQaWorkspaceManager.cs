@@ -1,3 +1,4 @@
+// Purpose: Coordinates G it Br an ch Qa Wo rk sp ac eM an ag er application behavior for QualityAutomation.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

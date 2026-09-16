@@ -1,3 +1,4 @@
+// Purpose: Coordinates M an ag em en tS pr ea ds he et Se rv ic e application behavior for Management.
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

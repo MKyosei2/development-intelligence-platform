@@ -1,3 +1,4 @@
+// Purpose: Coordinates P2 Ev id en ce Po li ci es application behavior for P2Intelligence.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 

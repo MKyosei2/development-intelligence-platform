@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-S ol ut io n repository workflow.
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release')][string]$Configuration='Release',

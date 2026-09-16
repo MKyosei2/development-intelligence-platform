@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct So ur ce In ge st io nS er vi ce application behavior for ProjectIntelligence.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

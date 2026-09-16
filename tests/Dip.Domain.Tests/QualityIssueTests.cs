@@ -1,3 +1,4 @@
+// Purpose: Verifies Q ua li ty Is su eT es ts behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

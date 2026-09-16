@@ -1,3 +1,4 @@
+// Purpose: Provides the J ir aW or kI te mC on ne ct or infrastructure implementation.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;

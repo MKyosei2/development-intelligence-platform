@@ -1,3 +1,4 @@
+// Purpose: Defines A na ly si sR eq ue st ed repository behavior.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record AnalysisRequested(

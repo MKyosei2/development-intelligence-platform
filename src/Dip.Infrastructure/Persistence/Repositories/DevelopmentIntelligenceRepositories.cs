@@ -1,3 +1,4 @@
+// Purpose: Implements D ev el op me nt In te ll ig en ce Re po si to ri es persistence behavior.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

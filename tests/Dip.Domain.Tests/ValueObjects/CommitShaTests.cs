@@ -1,3 +1,4 @@
+// Purpose: Verifies C om mi tS ha Te st s behavior.
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

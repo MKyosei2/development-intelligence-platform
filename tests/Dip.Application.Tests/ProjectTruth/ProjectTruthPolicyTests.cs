@@ -1,3 +1,4 @@
+// Purpose: Verifies P ro je ct Tr ut hP ol ic yT es ts behavior.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Enums;
 using FluentAssertions;

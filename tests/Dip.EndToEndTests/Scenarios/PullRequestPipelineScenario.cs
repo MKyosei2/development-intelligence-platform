@@ -1,3 +1,4 @@
+// Purpose: Verifies P ul lR eq ue st Pi pe li ne Sc en ar io behavior.
 using System.Net;
 using System.Text.Json;
 using Dip.EndToEndTests.Support;

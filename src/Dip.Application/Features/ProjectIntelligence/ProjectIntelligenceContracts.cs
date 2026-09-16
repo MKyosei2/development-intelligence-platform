@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct In te ll ig en ce Co nt ra ct s application behavior for ProjectIntelligence.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectIntelligence;

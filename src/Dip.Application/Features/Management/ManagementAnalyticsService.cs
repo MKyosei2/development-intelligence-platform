@@ -1,3 +1,4 @@
+// Purpose: Coordinates M an ag em en tA na ly ti cs Se rv ic e application behavior for Management.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

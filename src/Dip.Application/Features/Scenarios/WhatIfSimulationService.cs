@@ -1,3 +1,4 @@
+// Purpose: Coordinates W ha tI fS im ul at io nS er vi ce application behavior for Scenarios.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

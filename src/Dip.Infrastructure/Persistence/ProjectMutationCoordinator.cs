@@ -1,3 +1,4 @@
+// Purpose: Implements P ro je ct Mu ta ti on Co or di na to r persistence behavior.
 using System.Collections.Concurrent;
 using System.Data;
 using Dip.Application.Features.Authorization;

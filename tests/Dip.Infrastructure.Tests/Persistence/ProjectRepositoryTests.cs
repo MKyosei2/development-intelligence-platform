@@ -1,3 +1,4 @@
+// Purpose: Verifies P ro je ct Re po si to ry Te st s behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

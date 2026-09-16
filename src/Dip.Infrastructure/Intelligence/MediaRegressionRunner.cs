@@ -1,3 +1,4 @@
+// Purpose: Provides the M ed ia Re gr es si on Ru nn er infrastructure implementation.
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;

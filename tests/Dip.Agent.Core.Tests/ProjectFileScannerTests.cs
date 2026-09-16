@@ -1,3 +1,4 @@
+// Purpose: Verifies P ro je ct Fi le Sc an ne rT es ts behavior.
 using Dip.Agent.Core;
 using FluentAssertions;
 

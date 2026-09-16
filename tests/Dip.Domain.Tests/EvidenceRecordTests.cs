@@ -1,3 +1,4 @@
+// Purpose: Verifies E vi de nc eR ec or dT es ts behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

@@ -1,3 +1,4 @@
+// Purpose: Verifies U ni ve rs al Se ma nt ic An al yz er Te st s behavior.
 using Dip.Application.Features.QualityAutomation;using Dip.Domain.ValueObjects;using Dip.Infrastructure.QualityAutomation;
 namespace Dip.Infrastructure.Tests.QualityAutomation;
 public sealed class UniversalSemanticAnalyzerTests:IDisposable

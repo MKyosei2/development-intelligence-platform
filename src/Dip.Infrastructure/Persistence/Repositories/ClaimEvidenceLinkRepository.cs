@@ -1,3 +1,4 @@
+// Purpose: Implements C la im Ev id en ce Li nk Re po si to ry persistence behavior.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

@@ -1,3 +1,4 @@
+// Purpose: Provides the R el ia bi li ty Ru nn er infrastructure implementation.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

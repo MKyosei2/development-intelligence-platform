@@ -1,3 +1,4 @@
+// Purpose: Exposes P ro je ct So ur ce Bi nd in gs Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Integrations;
 using Dip.Application.Features.Authorization;

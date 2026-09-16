@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Tr ut hM od el s application behavior for ProjectTruth.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectTruth;

@@ -1,3 +1,4 @@
+// Purpose: Provides the G oo gl eS he et sR es tC on ne ct or infrastructure implementation.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;

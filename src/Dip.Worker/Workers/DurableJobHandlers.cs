@@ -1,3 +1,4 @@
+// Purpose: Runs D ur ab le Jo bH an dl er s background processing.
 using System.Text.Json;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Benchmarks;

@@ -1,3 +1,4 @@
+// Purpose: Coordinates G am eR ep la yS er vi ce application behavior for Replay.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Replay;

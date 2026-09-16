@@ -1,3 +1,4 @@
+// Purpose: Coordinates A ge nt Po li cy Di st ri bu ti on Se rv ic e application behavior for Enterprise.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

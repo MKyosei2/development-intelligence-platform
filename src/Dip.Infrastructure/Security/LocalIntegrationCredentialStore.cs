@@ -1,3 +1,4 @@
+// Purpose: Provides the L oc al In te gr at io nC re de nt ia lS to re infrastructure implementation.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

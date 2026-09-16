@@ -1,3 +1,4 @@
+# Purpose: Automates the B oo ts tr ap-P ro je ct Me mb er sh ip s repository workflow.
 [CmdletBinding(DefaultParameterSetName='Selected')]
 param(
     [Parameter(Mandatory=$true)][string]$BaseUrl,

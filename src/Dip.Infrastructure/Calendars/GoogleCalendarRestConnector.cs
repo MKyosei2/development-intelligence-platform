@@ -1,3 +1,4 @@
+// Purpose: Provides the G oo gl eC al en da rR es tC on ne ct or infrastructure implementation.
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;

@@ -1,3 +1,4 @@
+// Purpose: Runs P ro gr am background processing.
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;

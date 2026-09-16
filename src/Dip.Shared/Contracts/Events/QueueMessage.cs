@@ -1,3 +1,4 @@
+// Purpose: Defines Q ue ue Me ss ag e repository behavior.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record QueueMessage<T>(

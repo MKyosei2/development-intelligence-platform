@@ -1,3 +1,4 @@
+// Purpose: Coordinates A ss et Qa Ru le En gi ne application behavior for QualityAutomation.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;

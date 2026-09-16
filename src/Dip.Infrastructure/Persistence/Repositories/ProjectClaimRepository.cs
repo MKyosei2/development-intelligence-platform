@@ -1,3 +1,4 @@
+// Purpose: Implements P ro je ct Cl ai mR ep os it or y persistence behavior.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

@@ -1,3 +1,4 @@
+// Purpose: Provides the S ys te mI nt eg ra ti on Qa Pa ck infrastructure implementation.
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;

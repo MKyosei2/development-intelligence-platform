@@ -1,3 +1,4 @@
+// Purpose: Verifies E vi de nc eP ol ic yT es ts behavior.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

@@ -1,3 +1,4 @@
+// Purpose: Exposes H ar dw ar eC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Hardware;
 using Microsoft.AspNetCore.Authorization;

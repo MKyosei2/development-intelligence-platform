@@ -1,3 +1,4 @@
+// Purpose: Provides the D ip Op er at io na lM et ri cs infrastructure implementation.
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;

@@ -1,3 +1,4 @@
+// Purpose: Coordinates W or kI te mS er vi ce application behavior for WorkItems.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Abstractions.WorkItems;

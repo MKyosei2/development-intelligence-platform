@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Tr ut hS er vi ce application behavior for ProjectTruth.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

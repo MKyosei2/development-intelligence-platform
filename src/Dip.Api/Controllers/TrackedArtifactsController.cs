@@ -1,3 +1,4 @@
+// Purpose: Exposes T ra ck ed Ar ti fa ct sC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;

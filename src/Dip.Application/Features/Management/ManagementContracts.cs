@@ -1,3 +1,4 @@
+// Purpose: Coordinates M an ag em en tC on tr ac ts application behavior for Management.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.Management;

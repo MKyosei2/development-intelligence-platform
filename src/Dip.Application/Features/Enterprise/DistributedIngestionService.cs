@@ -1,3 +1,4 @@
+// Purpose: Coordinates D is tr ib ut ed In ge st io nS er vi ce application behavior for Enterprise.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

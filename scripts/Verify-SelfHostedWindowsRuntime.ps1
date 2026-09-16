@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-S el fH os te dW in do ws Ru nt im e repository workflow.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

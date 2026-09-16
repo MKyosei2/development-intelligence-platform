@@ -1,3 +1,4 @@
+// Purpose: Exposes G it Hu bR ep os it or ie sC on tr ol le r HTTP endpoints.
 using System.Text.Json;
 using Dip.Api.Authorization;
 using Dip.Api.Hubs;

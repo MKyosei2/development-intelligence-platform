@@ -1,3 +1,4 @@
+// Purpose: Provides the U ni ve rs al Di ag no st ic No rm al iz er infrastructure implementation.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;

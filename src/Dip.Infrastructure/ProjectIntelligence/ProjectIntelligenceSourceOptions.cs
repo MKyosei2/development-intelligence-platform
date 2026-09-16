@@ -1,3 +1,4 @@
+// Purpose: Provides the P ro je ct In te ll ig en ce So ur ce Op ti on s infrastructure implementation.
 namespace Dip.Infrastructure.ProjectIntelligence;
 
 public sealed class ProjectIntelligenceSourceOptions

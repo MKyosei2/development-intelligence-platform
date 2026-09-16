@@ -1,4 +1,5 @@
-﻿[CmdletBinding()]
+# Purpose: Automates the V er if y-G it Hu bC iP re fl ig ht repository workflow.
+[CmdletBinding()]
 param(
     [switch]$SkipGui,
     [switch]$SkipIntegration,

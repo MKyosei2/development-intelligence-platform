@@ -1,3 +1,4 @@
+# Purpose: Automates the v al id at e-s ch em as repository workflow.
 param([string]$SampleRoot="samples")
 $ErrorActionPreference="Stop"
 $python="services/python-analysis/.venv/Scripts/python.exe"; if(-not(Test-Path $python)){$python="python"}

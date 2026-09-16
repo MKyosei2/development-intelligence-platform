@@ -1,3 +1,4 @@
+// Purpose: Exposes M an ag em en tO pe ra ti on sC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Management;
 using Dip.Domain.Enums;

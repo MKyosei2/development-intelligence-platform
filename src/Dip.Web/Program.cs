@@ -1,3 +1,4 @@
+// Purpose: Implements P ro gr am web UI behavior.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;

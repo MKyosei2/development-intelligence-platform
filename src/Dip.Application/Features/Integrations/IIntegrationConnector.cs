@@ -1,3 +1,4 @@
+// Purpose: Coordinates I In te gr at io nC on ne ct or application behavior for Integrations.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Features.Integrations;

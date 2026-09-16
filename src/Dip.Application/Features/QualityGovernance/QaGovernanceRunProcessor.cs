@@ -1,3 +1,4 @@
+// Purpose: Coordinates Q aG ov er na nc eR un Pr oc es so r application behavior for QualityGovernance.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Domain.Entities;

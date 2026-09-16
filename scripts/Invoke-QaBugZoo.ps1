@@ -1,3 +1,4 @@
+# Purpose: Automates the I nv ok e-Q aB ug Zo o repository workflow.
 [CmdletBinding()]
 param(
     [switch]$AllowMissingTools,

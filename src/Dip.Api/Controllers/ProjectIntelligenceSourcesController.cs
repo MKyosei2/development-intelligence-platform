@@ -1,3 +1,4 @@
+// Purpose: Exposes P ro je ct In te ll ig en ce So ur ce sC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.ProjectIntelligence;
 using Dip.Domain.Enums;

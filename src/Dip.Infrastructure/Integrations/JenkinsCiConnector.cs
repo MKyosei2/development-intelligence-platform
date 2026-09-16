@@ -1,3 +1,4 @@
+// Purpose: Provides the J en ki ns Ci Co nn ec to r infrastructure implementation.
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;

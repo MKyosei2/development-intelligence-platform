@@ -1,3 +1,4 @@
+// Purpose: Verifies Q aG ov er na nc eE nt it ie sT es ts behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

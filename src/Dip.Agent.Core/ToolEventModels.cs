@@ -1,3 +1,4 @@
+// Purpose: Implements T oo lE ve nt Mo de ls agent behavior.
 using System.Text.Json;
 
 namespace Dip.Agent.Core;

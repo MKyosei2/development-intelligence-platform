@@ -1,3 +1,4 @@
+// Purpose: Coordinates V er si on Co nt ro lS yn cS er vi ce application behavior for Integrations.
 using System.Text.Json;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Abstractions.Persistence;

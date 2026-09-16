@@ -1,3 +1,4 @@
+// Purpose: Defines the I Ar ti fa ct St or e application boundary.
 namespace Dip.Application.Abstractions.Artifacts;
 
 public sealed record StoredArtifactContent(string StorageKey,string Sha256,long SizeBytes,string ContentType);

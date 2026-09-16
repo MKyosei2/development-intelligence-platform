@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro du ct io nE ve nt Qu er yS er vi ce application behavior for ProductionTools.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Enums;
 

@@ -1,3 +1,4 @@
+// Purpose: Coordinates D ec is io nL og Se rv ic e application behavior for Decisions.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

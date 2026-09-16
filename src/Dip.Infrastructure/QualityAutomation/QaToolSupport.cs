@@ -1,3 +1,4 @@
+// Purpose: Provides the Q aT oo lS up po rt infrastructure implementation.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;

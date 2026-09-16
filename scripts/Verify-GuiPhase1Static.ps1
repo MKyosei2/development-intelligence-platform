@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-G ui Ph as e1 St at ic repository workflow.
 [CmdletBinding()]
 param()
 

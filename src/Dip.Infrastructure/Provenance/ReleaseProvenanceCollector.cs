@@ -1,3 +1,4 @@
+// Purpose: Provides the R el ea se Pr ov en an ce Co ll ec to r infrastructure implementation.
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Xml.Linq;

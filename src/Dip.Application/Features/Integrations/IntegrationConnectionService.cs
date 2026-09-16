@@ -1,3 +1,4 @@
+// Purpose: Coordinates I nt eg ra ti on Co nn ec ti on Se rv ic e application behavior for Integrations.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Security;

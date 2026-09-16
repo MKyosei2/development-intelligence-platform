@@ -1,3 +1,4 @@
+// Purpose: Provides the C pp Qa En gi ne infrastructure implementation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

@@ -1,3 +1,4 @@
+// Purpose: Implements P ro je ct St at e web UI behavior.
 using Dip.Application.Features.Dashboard;
 using Dip.Web.Services;
 

@@ -1,3 +1,4 @@
+// Purpose: Verifies P ro je ct Se rv ic eT es ts behavior.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Projects;

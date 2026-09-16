@@ -1,3 +1,4 @@
+// Purpose: Exposes M et ri cs Co nt ro ll er HTTP endpoints.
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;

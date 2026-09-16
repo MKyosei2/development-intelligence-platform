@@ -1,3 +1,4 @@
+// Purpose: Coordinates R el ea se Ev id en ce Se rv ic e application behavior for Release.
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;

@@ -1,3 +1,4 @@
+// Purpose: Defines the I Qu eu eC li en t application boundary.
 namespace Dip.Application.Abstractions.Messaging;
 
 public sealed record QueueEnvelope(

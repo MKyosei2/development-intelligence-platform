@@ -1,3 +1,4 @@
+# Purpose: Automates the P ub li sh-P or tf ol io Re le as e repository workflow.
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$Version = "1.0.0-portfolio",

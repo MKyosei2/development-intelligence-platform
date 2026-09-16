@@ -1,3 +1,4 @@
+// Purpose: Implements D ip Pl at fo rm Cl ie nt client behavior.
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;

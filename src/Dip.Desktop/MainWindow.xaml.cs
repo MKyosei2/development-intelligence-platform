@@ -1,3 +1,4 @@
+// Purpose: Implements M ai nW in do w.x am l desktop UI behavior.
 using System.Windows;
 using System.Windows.Controls;
 using Dip.Desktop.ViewModels;

@@ -1,3 +1,4 @@
+# Purpose: Automates the f or ma t-a ll repository workflow.
 param([switch]$Check)
 $ErrorActionPreference="Stop"
 if($Check){dotnet format --verify-no-changes}else{dotnet format}

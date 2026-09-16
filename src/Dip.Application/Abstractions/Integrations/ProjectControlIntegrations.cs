@@ -1,3 +1,4 @@
+// Purpose: Defines the P ro je ct Co nt ro lI nt eg ra ti on s application boundary.
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Domain.Enums;
 

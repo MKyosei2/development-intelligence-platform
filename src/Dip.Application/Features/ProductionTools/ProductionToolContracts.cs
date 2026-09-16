@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro du ct io nT oo lC on tr ac ts application behavior for ProductionTools.
 using System.Text.Json;
 using Dip.Domain.Enums;
 

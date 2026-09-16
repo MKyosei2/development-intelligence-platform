@@ -1,3 +1,4 @@
+// Purpose: Verifies P ro je ct Pl an Un de rs ta nd in gE ng in eT es ts behavior.
 using Dip.Application.Features.ProjectIntelligence;
 using FluentAssertions;
 

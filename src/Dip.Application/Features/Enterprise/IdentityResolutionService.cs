@@ -1,3 +1,4 @@
+// Purpose: Coordinates I de nt it yR es ol ut io nS er vi ce application behavior for Enterprise.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Entities;

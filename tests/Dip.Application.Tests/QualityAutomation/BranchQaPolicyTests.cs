@@ -1,3 +1,4 @@
+// Purpose: Verifies B ra nc hQ aP ol ic yT es ts behavior.
 using Dip.Application.Features.QualityAutomation;
 using FluentAssertions;
 

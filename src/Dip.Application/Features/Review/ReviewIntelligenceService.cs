@@ -1,3 +1,4 @@
+// Purpose: Coordinates R ev ie wI nt el li ge nc eS er vi ce application behavior for Review.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

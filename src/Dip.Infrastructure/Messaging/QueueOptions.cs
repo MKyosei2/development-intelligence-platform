@@ -1,3 +1,4 @@
+// Purpose: Provides the Q ue ue Op ti on s infrastructure implementation.
 namespace Dip.Infrastructure.Messaging;
 public sealed class QueueOptions
 {

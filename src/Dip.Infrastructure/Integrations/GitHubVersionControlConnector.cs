@@ -1,3 +1,4 @@
+// Purpose: Provides the G it Hu bV er si on Co nt ro lC on ne ct or infrastructure implementation.
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Domain.Enums;

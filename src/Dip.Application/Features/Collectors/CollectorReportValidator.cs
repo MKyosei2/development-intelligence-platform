@@ -1,3 +1,4 @@
+// Purpose: Coordinates C ol le ct or Re po rt Va li da to r application behavior for Collectors.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Shared.Contracts.Collectors;
