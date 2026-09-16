@@ -1,1 +1,5 @@
-// Purpose: Defines the I Me tr ic Re po si to ry application boundary.
+// Purpose: Defines the IMetricRepository application boundary.
+using Dip.Domain.Entities;
+namespace Dip.Application.Abstractions.Persistence;
+
+public interface IMetricRepository{Task AddRangeAsync(IEnumerable<Metric> metrics,CancellationToken ct);}

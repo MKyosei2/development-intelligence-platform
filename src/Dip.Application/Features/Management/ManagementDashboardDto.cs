@@ -1,0 +1,5 @@
+// Purpose: Defines the ManagementDashboardDto application contract.
+using Dip.Domain.Enums;
+namespace Dip.Application.Features.Management;
+
+public sealed record ManagementDashboardDto(Guid ProjectId,string OverallStatus,decimal HealthScore,IReadOnlyList<ManagementHealthDimension> Dimensions,CapacityOverviewDto Capacity,ManagementScheduleDto Schedule,BlockerOverviewDto Blockers,DependencyOverviewDto Dependencies,ManagementMilestoneOverviewDto Milestones,ScopeOverviewDto Scope,RiskRegisterDto Risks,DecisionActionOverviewDto Decisions,ResourceAllocationOverviewDto Resources,ScopeChangeOverviewDto ScopeChanges,EscalationOverviewDto Alerts,ManagementSummaryDto Summary,IReadOnlyList<string> ActionsRequired,DateTimeOffset GeneratedAtUtc);
