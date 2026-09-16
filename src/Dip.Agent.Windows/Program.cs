@@ -1,4 +1,4 @@
-// Purpose: Implements P ro gr am agent behavior.
+// Purpose: Composes and starts the Windows endpoint-agent host.
 using Dip.Agent.Core;
 using Dip.Agent.Windows;
 using Microsoft.Extensions.Hosting;

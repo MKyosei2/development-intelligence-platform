@@ -1,4 +1,4 @@
-// Purpose: Implements A ge nt Co nf ig ur at io n agent behavior.
+// Purpose: Loads and normalizes Windows endpoint-agent configuration from environment-backed settings.
 using Dip.Agent.Core;
 using Microsoft.Extensions.Configuration;
 

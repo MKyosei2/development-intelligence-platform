@@ -1,4 +1,4 @@
-// Purpose: Implements A ud it Lo gR ep os it or y persistence behavior.
+// Purpose: Persists and queries project audit logs with server-side filtering and cursor pagination.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

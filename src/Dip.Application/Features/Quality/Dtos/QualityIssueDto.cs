@@ -1,1 +1,1 @@
-// Purpose: Coordinates Q ua li ty Is su eD to application behavior for Quality.
+// Purpose: Reserves the responsibility-based source location for the QualityIssueDto application contract.

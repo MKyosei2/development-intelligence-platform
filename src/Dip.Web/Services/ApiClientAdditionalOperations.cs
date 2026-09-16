@@ -1,4 +1,4 @@
-// Purpose: Implements A pi Cl ie nt Ad di ti on al Op er at io ns web UI behavior.
+// Purpose: Provides additive web-client operations for management, QA, debugging, and project intelligence.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;

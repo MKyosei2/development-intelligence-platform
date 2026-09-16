@@ -1,1 +1,1 @@
-// Purpose: Coordinates P ro je ct Dt o application behavior for Projects.
+// Purpose: Reserves the responsibility-based source location for the ProjectDto application contract.

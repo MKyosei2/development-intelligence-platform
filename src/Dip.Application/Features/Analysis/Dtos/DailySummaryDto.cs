@@ -1,1 +1,1 @@
-// Purpose: Coordinates D ai ly Su mm ar yD to application behavior for Analysis.
+// Purpose: Reserves the responsibility-based source location for the DailySummaryDto application contract.

@@ -1,4 +1,4 @@
-// Purpose: Implements A ud it Lo gC on fi gu ra ti on persistence behavior.
+// Purpose: Configures EF Core mapping, constraints, and indexes for audit log persistence.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

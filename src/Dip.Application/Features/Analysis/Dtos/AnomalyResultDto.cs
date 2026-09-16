@@ -1,1 +1,1 @@
-// Purpose: Coordinates A no ma ly Re su lt Dt o application behavior for Analysis.
+// Purpose: Reserves the responsibility-based source location for the AnomalyResultDto application contract.

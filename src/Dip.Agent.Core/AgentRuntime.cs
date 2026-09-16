@@ -1,4 +1,4 @@
-// Purpose: Implements A ge nt Ru nt im e agent behavior.
+// Purpose: Coordinates local project scanning, durable queueing, and delivery of agent evidence.
 namespace Dip.Agent.Core;
 
 public sealed class AgentRuntime : IDisposable

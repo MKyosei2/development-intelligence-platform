@@ -1,4 +1,4 @@
-// Purpose: Implements A ge nt Ap iC li en t agent behavior.
+// Purpose: Sends file, production-event, and media evidence from the endpoint agent to the DIP API.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 

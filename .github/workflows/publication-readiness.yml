@@ -28,6 +28,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Verify source readability
+        shell: pwsh
+        run: ./scripts/Verify-SourceReadability.ps1 -Strict
+
       - name: Publication safety
         run: python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
 

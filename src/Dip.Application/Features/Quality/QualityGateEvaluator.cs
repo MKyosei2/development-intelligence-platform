@@ -1,2 +1,51 @@
-// Purpose: Coordinates Q ua li ty Ga te Ev al ua to r application behavior for Quality.
-using Dip.Domain.Entities; using Dip.Domain.Enums; namespace Dip.Application.Features.Quality; public sealed record QualityGateResultDto(string Status,int CriticalIssueCount,int WarningIssueCount,decimal Score,IReadOnlyList<string> Reasons); public sealed class QualityGateEvaluator { private readonly QualityRuleEvaluator _ruleEvaluator; public QualityGateEvaluator(QualityRuleEvaluator ruleEvaluator){_ruleEvaluator=ruleEvaluator;} public QualityGateResultDto Evaluate(IReadOnlyCollection<Metric> metrics,IReadOnlyCollection<QualityIssue> issues){ArgumentNullException.ThrowIfNull(metrics);ArgumentNullException.ThrowIfNull(issues);var evaluations=_ruleEvaluator.Evaluate(metrics,issues);var criticalCount=evaluations.Count(x=>x.Severity==Severity.Critical);var warningCount=evaluations.Count(x=>x.Severity==Severity.Warning);var score=Math.Clamp(100m-evaluations.Sum(x=>x.ScorePenalty),0m,100m);var status=criticalCount>0||score<60m?"Failed":warningCount>0||score<85m?"Warning":"Passed";IReadOnlyList<string> reasons=evaluations.Count==0?["No blocking quality issues or material regressions were found."]:evaluations.OrderByDescending(x=>x.Severity).ThenBy(x=>x.RuleId,StringComparer.Ordinal).Select(x=>x.Reason).Take(20).ToArray();return new(status,criticalCount,warningCount,score,reasons);}}
+// Purpose: Aggregates deterministic quality-rule evaluations into gate status, score, and reasons.
+using Dip.Domain.Entities;
+using Dip.Domain.Enums;
+
+namespace Dip.Application.Features.Quality;
+
+public sealed record QualityGateResultDto(
+    string Status,
+    int CriticalIssueCount,
+    int WarningIssueCount,
+    decimal Score,
+    IReadOnlyList<string> Reasons);
+
+public sealed class QualityGateEvaluator
+{
+    private readonly QualityRuleEvaluator _ruleEvaluator;
+
+    public QualityGateEvaluator(QualityRuleEvaluator ruleEvaluator)
+    {
+        _ruleEvaluator = ruleEvaluator;
+    }
+
+    public QualityGateResultDto Evaluate(
+        IReadOnlyCollection<Metric> metrics,
+        IReadOnlyCollection<QualityIssue> issues)
+    {
+        ArgumentNullException.ThrowIfNull(metrics);
+        ArgumentNullException.ThrowIfNull(issues);
+
+        var evaluations = _ruleEvaluator.Evaluate(metrics, issues);
+        var criticalCount = evaluations.Count(x => x.Severity == Severity.Critical);
+        var warningCount = evaluations.Count(x => x.Severity == Severity.Warning);
+        var score = Math.Clamp(100m - evaluations.Sum(x => x.ScorePenalty), 0m, 100m);
+        var status = criticalCount > 0 || score < 60m
+            ? "Failed"
+            : warningCount > 0 || score < 85m
+                ? "Warning"
+                : "Passed";
+
+        IReadOnlyList<string> reasons = evaluations.Count == 0
+            ? ["No blocking quality issues or material regressions were found."]
+            : evaluations
+                .OrderByDescending(x => x.Severity)
+                .ThenBy(x => x.RuleId, StringComparer.Ordinal)
+                .Select(x => x.Reason)
+                .Take(20)
+                .ToArray();
+
+        return new(status, criticalCount, warningCount, score, reasons);
+    }
+}

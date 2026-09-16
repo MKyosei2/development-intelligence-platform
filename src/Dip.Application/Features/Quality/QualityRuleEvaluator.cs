@@ -1,2 +1,106 @@
-// Purpose: Coordinates Q ua li ty Ru le Ev al ua to r application behavior for Quality.
-using Dip.Domain.Entities; using Dip.Domain.Enums; namespace Dip.Application.Features.Quality; public sealed record QualityRuleEvaluation(string RuleId, Severity Severity, decimal ScorePenalty, string Reason); public sealed class QualityRuleEvaluator { private const decimal WarningRegressionPercent=10m; private const decimal CriticalRegressionPercent=20m; private static readonly string[] LowerIsBetterTokens=["frame_time","frametime","latency","memory","heap","size","duration","load_time","build_time","errors","warnings","crashes"]; public IReadOnlyList<QualityRuleEvaluation> Evaluate(IReadOnlyCollection<Metric> metrics,IReadOnlyCollection<QualityIssue> issues){ArgumentNullException.ThrowIfNull(metrics);ArgumentNullException.ThrowIfNull(issues);var evaluations=new List<QualityRuleEvaluation>(metrics.Count+issues.Count);foreach(var issue in issues){var evaluation=EvaluateIssue(issue);if(evaluation is not null)evaluations.Add(evaluation);}foreach(var metric in metrics){var evaluation=EvaluateMetric(metric);if(evaluation is not null)evaluations.Add(evaluation);}return evaluations;} private static QualityRuleEvaluation? EvaluateIssue(QualityIssue issue){if(issue.Status is not (IssueStatus.Open or IssueStatus.Reopened))return null;return issue.Severity switch{Severity.Critical=>new(issue.RuleId??$"issue:{issue.Category}",Severity.Critical,25m,$"Critical issue: {issue.Title}"),Severity.Warning=>new(issue.RuleId??$"issue:{issue.Category}",Severity.Warning,8m,$"Warning issue: {issue.Title}"),_=>null};} private static QualityRuleEvaluation? EvaluateMetric(Metric metric){if(metric.Severity==Severity.Critical)return new($"metric:{metric.Name}",Severity.Critical,20m,$"{metric.Name} was explicitly marked critical by the collector.");if(metric.Severity==Severity.Warning)return new($"metric:{metric.Name}",Severity.Warning,5m,$"{metric.Name} was explicitly marked as a warning by the collector.");if(metric.DifferencePercent is not { } differencePercent)return null;var regressionPercent=IsLowerBetter(metric.Name)?differencePercent:-differencePercent;if(regressionPercent<WarningRegressionPercent)return null;var severity=regressionPercent>=CriticalRegressionPercent?Severity.Critical:Severity.Warning;var direction=IsLowerBetter(metric.Name)?"increased":"decreased";return new($"metric-regression:{metric.Name}",severity,severity==Severity.Critical?15m:5m,$"{metric.Name} {direction} by {regressionPercent:0.##}% compared with its baseline.");} private static bool IsLowerBetter(string metricName)=>LowerIsBetterTokens.Any(token=>metricName.Contains(token,StringComparison.OrdinalIgnoreCase));}
+// Purpose: Evaluates issue severity and metric regressions into deterministic quality penalties.
+using Dip.Domain.Entities;
+using Dip.Domain.Enums;
+
+namespace Dip.Application.Features.Quality;
+
+public sealed record QualityRuleEvaluation(
+    string RuleId,
+    Severity Severity,
+    decimal ScorePenalty,
+    string Reason);
+
+public sealed class QualityRuleEvaluator
+{
+    private const decimal WarningRegressionPercent = 10m;
+    private const decimal CriticalRegressionPercent = 20m;
+
+    private static readonly string[] LowerIsBetterTokens =
+    [
+        "frame_time", "frametime", "latency", "memory", "heap", "size", "duration",
+        "load_time", "build_time", "errors", "warnings", "crashes"
+    ];
+
+    public IReadOnlyList<QualityRuleEvaluation> Evaluate(
+        IReadOnlyCollection<Metric> metrics,
+        IReadOnlyCollection<QualityIssue> issues)
+    {
+        ArgumentNullException.ThrowIfNull(metrics);
+        ArgumentNullException.ThrowIfNull(issues);
+
+        var evaluations = new List<QualityRuleEvaluation>(metrics.Count + issues.Count);
+        foreach (var issue in issues)
+        {
+            var evaluation = EvaluateIssue(issue);
+            if (evaluation is not null)
+                evaluations.Add(evaluation);
+        }
+
+        foreach (var metric in metrics)
+        {
+            var evaluation = EvaluateMetric(metric);
+            if (evaluation is not null)
+                evaluations.Add(evaluation);
+        }
+
+        return evaluations;
+    }
+
+    private static QualityRuleEvaluation? EvaluateIssue(QualityIssue issue)
+    {
+        if (issue.Status is not (IssueStatus.Open or IssueStatus.Reopened))
+            return null;
+
+        return issue.Severity switch
+        {
+            Severity.Critical => new(
+                issue.RuleId ?? $"issue:{issue.Category}",
+                Severity.Critical,
+                25m,
+                $"Critical issue: {issue.Title}"),
+            Severity.Warning => new(
+                issue.RuleId ?? $"issue:{issue.Category}",
+                Severity.Warning,
+                8m,
+                $"Warning issue: {issue.Title}"),
+            _ => null
+        };
+    }
+
+    private static QualityRuleEvaluation? EvaluateMetric(Metric metric)
+    {
+        if (metric.Severity == Severity.Critical)
+            return new(
+                $"metric:{metric.Name}",
+                Severity.Critical,
+                20m,
+                $"{metric.Name} was explicitly marked critical by the collector.");
+
+        if (metric.Severity == Severity.Warning)
+            return new(
+                $"metric:{metric.Name}",
+                Severity.Warning,
+                5m,
+                $"{metric.Name} was explicitly marked as a warning by the collector.");
+
+        if (metric.DifferencePercent is not { } differencePercent)
+            return null;
+
+        var regressionPercent = IsLowerBetter(metric.Name) ? differencePercent : -differencePercent;
+        if (regressionPercent < WarningRegressionPercent)
+            return null;
+
+        var severity = regressionPercent >= CriticalRegressionPercent
+            ? Severity.Critical
+            : Severity.Warning;
+        var direction = IsLowerBetter(metric.Name) ? "increased" : "decreased";
+        return new(
+            $"metric-regression:{metric.Name}",
+            severity,
+            severity == Severity.Critical ? 15m : 5m,
+            $"{metric.Name} {direction} by {regressionPercent:0.##}% compared with its baseline.");
+    }
+
+    private static bool IsLowerBetter(string metricName) =>
+        LowerIsBetterTokens.Any(token => metricName.Contains(token, StringComparison.OrdinalIgnoreCase));
+}

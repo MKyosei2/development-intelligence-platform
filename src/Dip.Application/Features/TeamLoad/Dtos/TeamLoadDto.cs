@@ -1,1 +1,1 @@
-// Purpose: Coordinates T ea mL oa dD to application behavior for TeamLoad.
+// Purpose: Reserves the responsibility-based source location for the TeamLoadDto application contract.

@@ -1,4 +1,4 @@
-// Purpose: Coordinates A da pt iv eQ aP la nn er application behavior for Intelligence.
+// Purpose: Builds budget-aware QA plans from changed paths and historical evidence risk.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Enums;
 

@@ -1,4 +1,4 @@
-// Purpose: Implements A pi Cl ie nt web UI behavior.
+// Purpose: Provides the web UI client boundary for DIP project, QA, governance, integration, and management APIs.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;

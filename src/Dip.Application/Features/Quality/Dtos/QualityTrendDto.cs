@@ -1,1 +1,1 @@
-// Purpose: Coordinates Q ua li ty Tr en dD to application behavior for Quality.
+// Purpose: Reserves the responsibility-based source location for the QualityTrendDto application contract.

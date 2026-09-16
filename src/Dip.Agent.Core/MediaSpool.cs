@@ -1,4 +1,4 @@
-// Purpose: Implements M ed ia Sp oo l agent behavior.
+// Purpose: Stages project media safely for durable upload and computes content hashes.
 using System.Security.Cryptography;
 
 namespace Dip.Agent.Core;

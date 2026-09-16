@@ -1,4 +1,4 @@
-// Purpose: Coordinates E vi de nc eV al id at or application behavior for Evidence.
+// Purpose: Validates evidence-ingestion identifiers, timestamps, hashes, and payload size bounds.
 using System.Text.RegularExpressions;
 
 namespace Dip.Application.Features.Evidence;

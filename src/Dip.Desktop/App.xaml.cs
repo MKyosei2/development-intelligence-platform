@@ -1,4 +1,4 @@
-// Purpose: Implements A pp.x am l desktop UI behavior.
+// Purpose: Defines the WPF application entry point for the DIP desktop client.
 using System.Windows;
 
 namespace Dip.Desktop;

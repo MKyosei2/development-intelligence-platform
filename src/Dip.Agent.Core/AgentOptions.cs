@@ -1,4 +1,4 @@
-// Purpose: Implements A ge nt Op ti on s agent behavior.
+// Purpose: Defines and validates endpoint-agent configuration, paths, batching, and media limits.
 namespace Dip.Agent.Core;
 
 public sealed record AgentOptions(
