@@ -1,3 +1,4 @@
+# Purpose: Automates the S to p-D IP repository workflow.
 [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact='High')]
 param([switch]$KeepData,[switch]$PurgeRuntimeData)
 Set-StrictMode -Version Latest;$ErrorActionPreference='Stop'

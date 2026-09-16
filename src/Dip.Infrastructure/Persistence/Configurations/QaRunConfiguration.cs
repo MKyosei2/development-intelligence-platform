@@ -1,3 +1,4 @@
+// Purpose: Implements Q aR un Co nf ig ur at io n persistence behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;

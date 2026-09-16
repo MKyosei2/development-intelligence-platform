@@ -1,3 +1,4 @@
+// Purpose: Implements A pi Au th en ti ca ti on Ha nd le r web UI behavior.
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Components.Authorization;
 

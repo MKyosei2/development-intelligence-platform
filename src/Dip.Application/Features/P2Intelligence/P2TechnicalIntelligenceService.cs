@@ -1,3 +1,4 @@
+// Purpose: Coordinates P2 Te ch ni ca lI nt el li ge nc eS er vi ce application behavior for P2Intelligence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

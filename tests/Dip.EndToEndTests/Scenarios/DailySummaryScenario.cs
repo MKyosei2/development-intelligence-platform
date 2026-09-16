@@ -1,3 +1,4 @@
+// Purpose: Verifies D ai ly Su mm ar yS ce na ri o behavior.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

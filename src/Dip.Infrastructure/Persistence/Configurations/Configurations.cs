@@ -1,3 +1,4 @@
+// Purpose: Implements C on fi gu ra ti on s persistence behavior.
 namespace Dip.Infrastructure.Persistence.Configurations;
 
 // Entity Framework Core configurations are defined in dedicated files:

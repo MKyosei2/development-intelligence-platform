@@ -1,3 +1,4 @@
+// Purpose: Provides the I nt el li ge nc eE xe cu ti on Sa fe ty infrastructure implementation.
 using System.Diagnostics;
 
 namespace Dip.Infrastructure.Intelligence;

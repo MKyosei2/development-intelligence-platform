@@ -1,3 +1,4 @@
+// Purpose: Implements M an ag em en tO pe ra ti on s.r az or web UI behavior.
 using Dip.Application.Features.Management;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;

@@ -1,3 +1,4 @@
+// Purpose: Verifies M ed ia Sp oo lT es ts behavior.
 using System.Text.Json;
 using Dip.Agent.Core;
 using FluentAssertions;

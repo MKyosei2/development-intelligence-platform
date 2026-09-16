@@ -1,3 +1,4 @@
+// Purpose: Configures P ro du ct io nS ec ur it yG ua rd for the DIP API.
 using Dip.Api.Controllers;
 
 namespace Dip.Api.Authorization;

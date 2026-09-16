@@ -1,3 +1,4 @@
+// Purpose: Coordinates B ra nc hQ ua li ty Op er at io ns Se rv ic e application behavior for QualityAutomation.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Enums;

@@ -1,3 +1,4 @@
+// Purpose: Verifies O ut bo xW ri te rT es ts behavior.
 using Dip.Application.Services;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;

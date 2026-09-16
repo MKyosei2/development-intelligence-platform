@@ -1,3 +1,4 @@
+// Purpose: Verifies G am eR eg re ss io nE va lu at or Te st s behavior.
 using Dip.Application.Features.P2Intelligence;
 using FluentAssertions;
 

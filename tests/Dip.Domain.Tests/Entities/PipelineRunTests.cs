@@ -1,3 +1,4 @@
+// Purpose: Verifies P ip el in eR un Te st s behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Dip.Domain.Exceptions;

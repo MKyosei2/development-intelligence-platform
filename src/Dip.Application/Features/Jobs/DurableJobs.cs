@@ -1,3 +1,4 @@
+// Purpose: Coordinates D ur ab le Jo bs application behavior for Jobs.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

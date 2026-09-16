@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ol ic yC on tr ac ts application behavior for Policies.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.Policies;

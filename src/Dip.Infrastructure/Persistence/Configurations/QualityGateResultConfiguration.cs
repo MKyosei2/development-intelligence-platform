@@ -1,3 +1,4 @@
+// Purpose: Implements Q ua li ty Ga te Re su lt Co nf ig ur at io n persistence behavior.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

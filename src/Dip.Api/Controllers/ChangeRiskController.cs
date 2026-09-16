@@ -1,3 +1,4 @@
+// Purpose: Exposes C ha ng eR is kC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.ChangeRisk;
 using Microsoft.AspNetCore.Authorization;

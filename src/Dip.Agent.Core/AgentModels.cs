@@ -1,3 +1,4 @@
+// Purpose: Implements A ge nt Mo de ls agent behavior.
 namespace Dip.Agent.Core;
 
 public enum FileObservationKind

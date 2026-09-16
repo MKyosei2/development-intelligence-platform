@@ -1,3 +1,4 @@
+// Purpose: Implements A ge nt Co nf ig ur at io n agent behavior.
 using Dip.Agent.Core;
 using Microsoft.Extensions.Configuration;
 

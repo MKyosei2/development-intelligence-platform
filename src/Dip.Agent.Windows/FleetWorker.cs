@@ -1,3 +1,4 @@
+// Purpose: Implements F le et Wo rk er agent behavior.
 using Dip.Agent.Core;
 namespace Dip.Agent.Windows;
 public sealed class FleetWorker(AgentOptions options,ILogger<FleetWorker> logger):BackgroundService

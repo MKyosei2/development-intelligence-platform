@@ -1,3 +1,4 @@
+// Purpose: Provides the P er fo rc eV er si on Co nt ro lC on ne ct or infrastructure implementation.
 using System.Diagnostics;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.DevelopmentGraph;

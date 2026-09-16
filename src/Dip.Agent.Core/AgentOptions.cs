@@ -1,3 +1,4 @@
+// Purpose: Implements A ge nt Op ti on s agent behavior.
 namespace Dip.Agent.Core;
 
 public sealed record AgentOptions(

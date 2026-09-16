@@ -1,3 +1,4 @@
+// Purpose: Provides the S en tr yI nc id en tI ng es ti on Ad ap te r infrastructure implementation.
 using System.Text.Json;
 using Dip.Application.Features.ExternalEvents;
 

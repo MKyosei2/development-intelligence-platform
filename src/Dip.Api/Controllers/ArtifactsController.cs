@@ -1,3 +1,4 @@
+// Purpose: Exposes A rt if ac ts Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;

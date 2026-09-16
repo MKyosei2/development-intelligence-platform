@@ -1,3 +1,4 @@
+// Purpose: Composes and starts the DIP API host.
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;

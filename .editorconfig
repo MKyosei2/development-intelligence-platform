@@ -56,3 +56,48 @@ indent_size = 4
 
 [*.{sh,bash}]
 indent_size = 2
+
+# BEGIN DIP SOURCE NAMING RULES
+
+[*.cs]
+# Types, methods, properties, events and public members use PascalCase.
+dotnet_naming_rule.dip_types_pascal.symbols = dip_types
+dotnet_naming_rule.dip_types_pascal.style = dip_pascal
+dotnet_naming_rule.dip_types_pascal.severity = suggestion
+
+dotnet_naming_symbols.dip_types.applicable_kinds = class, struct, interface, enum, delegate
+dotnet_naming_symbols.dip_types.applicable_accessibilities = *
+
+dotnet_naming_style.dip_pascal.capitalization = pascal_case
+
+# Interfaces start with I and use PascalCase.
+dotnet_naming_rule.dip_interfaces.symbols = dip_interfaces
+dotnet_naming_rule.dip_interfaces.style = dip_interface_style
+dotnet_naming_rule.dip_interfaces.severity = suggestion
+
+dotnet_naming_symbols.dip_interfaces.applicable_kinds = interface
+dotnet_naming_symbols.dip_interfaces.applicable_accessibilities = *
+
+dotnet_naming_style.dip_interface_style.required_prefix = I
+dotnet_naming_style.dip_interface_style.capitalization = pascal_case
+
+# Private fields use _camelCase.
+dotnet_naming_rule.dip_private_fields.symbols = dip_private_fields
+dotnet_naming_rule.dip_private_fields.style = dip_private_field_style
+dotnet_naming_rule.dip_private_fields.severity = suggestion
+
+dotnet_naming_symbols.dip_private_fields.applicable_kinds = field
+dotnet_naming_symbols.dip_private_fields.applicable_accessibilities = private
+
+dotnet_naming_style.dip_private_field_style.required_prefix = _
+dotnet_naming_style.dip_private_field_style.capitalization = camel_case
+
+# Methods and properties use PascalCase.
+dotnet_naming_rule.dip_members_pascal.symbols = dip_members
+dotnet_naming_rule.dip_members_pascal.style = dip_pascal
+dotnet_naming_rule.dip_members_pascal.severity = suggestion
+
+dotnet_naming_symbols.dip_members.applicable_kinds = method, property, event
+dotnet_naming_symbols.dip_members.applicable_accessibilities = *
+
+# END DIP SOURCE NAMING RULES

@@ -1,3 +1,4 @@
+// Purpose: Coordinates M an ag em en tD as hb oa rd Se rv ic e application behavior for Dashboard.
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Management;
 

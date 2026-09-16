@@ -1,3 +1,4 @@
+// Purpose: Coordinates P or ta bl eP ng Co de c application behavior for QualityAutomation.
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;

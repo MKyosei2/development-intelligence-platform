@@ -1,4 +1,5 @@
-﻿[CmdletBinding()]
+# Purpose: Automates the R un-D IP-A ge nt repository workflow.
+[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,
     [Parameter(Mandatory=$true)][string]$ProjectRoot,

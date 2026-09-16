@@ -1,3 +1,4 @@
+// Purpose: Coordinates C ap ab il it yR eg is tr y application behavior for Capabilities.
 namespace Dip.Application.Features.Capabilities;
 
 public sealed record CapabilityDescriptor(

@@ -1,3 +1,4 @@
+// Purpose: Provides the G am eP ro je ct Qa Pa ck infrastructure implementation.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;

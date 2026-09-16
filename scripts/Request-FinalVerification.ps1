@@ -1,3 +1,4 @@
+# Purpose: Automates the R eq ue st-F in al Ve ri fi ca ti on repository workflow.
 [CmdletBinding()]
 param(
     [switch]$Commit,

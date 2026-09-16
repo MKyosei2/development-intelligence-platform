@@ -1,3 +1,4 @@
+// Purpose: Coordinates R eg re ss io nT ri ag eS er vi ce application behavior for Triage.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

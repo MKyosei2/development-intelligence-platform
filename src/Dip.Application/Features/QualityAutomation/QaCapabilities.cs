@@ -1,3 +1,4 @@
+// Purpose: Coordinates Q aC ap ab il it ie s application behavior for QualityAutomation.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 

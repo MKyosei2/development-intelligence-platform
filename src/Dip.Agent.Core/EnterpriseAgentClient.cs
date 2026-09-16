@@ -1,3 +1,4 @@
+// Purpose: Implements E nt er pr is eA ge nt Cl ie nt agent behavior.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;

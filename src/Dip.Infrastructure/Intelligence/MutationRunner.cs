@@ -1,3 +1,4 @@
+// Purpose: Provides the M ut at io nR un ne r infrastructure implementation.
 using System.Text.Json;
 using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.QualityAutomation;

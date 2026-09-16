@@ -1,3 +1,4 @@
+// Purpose: Provides the G it Hu bP ul lR eq ue st Co mm en tS er vi ce infrastructure implementation.
 using Dip.Application.Abstractions.GitHub;
 using Microsoft.Extensions.Options;
 using Octokit;

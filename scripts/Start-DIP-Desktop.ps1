@@ -1,4 +1,5 @@
-﻿[CmdletBinding()]
+# Purpose: Automates the S ta rt-D IP-D es kt op repository workflow.
+[CmdletBinding()]
 param(
     [string]$RepoPath = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
     [switch]$NoBackendStart,

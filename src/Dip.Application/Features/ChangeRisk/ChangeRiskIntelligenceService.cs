@@ -1,3 +1,4 @@
+// Purpose: Coordinates C ha ng eR is kI nt el li ge nc eS er vi ce application behavior for ChangeRisk.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

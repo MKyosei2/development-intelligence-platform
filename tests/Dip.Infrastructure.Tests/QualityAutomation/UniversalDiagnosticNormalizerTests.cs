@@ -1,3 +1,4 @@
+// Purpose: Verifies U ni ve rs al Di ag no st ic No rm al iz er Te st s behavior.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

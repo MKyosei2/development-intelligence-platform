@@ -1,3 +1,4 @@
+// Purpose: Verifies P2 Pu re Lo gi cT es ts behavior.
 using Dip.Application.Features.Intelligence;using Xunit;
 namespace Dip.Application.Tests.Intelligence;
 public sealed class P2PureLogicTests

@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-Q aG ov er na nc e repository workflow.
 [CmdletBinding()]
 param([string]$Configuration='Release')
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest

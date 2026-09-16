@@ -1,3 +1,4 @@
+# Purpose: Automates the R un-P or tf ol io Be nc hm ar ks repository workflow.
 [CmdletBinding()]
 param(
     [string]$ExpectedSha = '',

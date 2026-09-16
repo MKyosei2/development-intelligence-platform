@@ -1,3 +1,4 @@
+// Purpose: Exposes P or tf ol io Ma na ge me nt Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Authorization;

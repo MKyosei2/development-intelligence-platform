@@ -1,3 +1,4 @@
+// Purpose: Verifies C ol le ct or Re po rt Va li da to rT es ts behavior.
 using Dip.Application.Features.Collectors;
 using Dip.Shared.Contracts.Collectors;
 using Xunit;

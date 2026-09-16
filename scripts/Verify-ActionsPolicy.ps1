@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-A ct io ns Po li cy repository workflow.
 [CmdletBinding()]
 param()
 

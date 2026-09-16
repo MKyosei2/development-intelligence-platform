@@ -1,3 +1,4 @@
+// Purpose: Exposes W or kI te ms Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Domain.Enums;

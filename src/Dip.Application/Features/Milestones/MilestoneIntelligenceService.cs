@@ -1,3 +1,4 @@
+// Purpose: Coordinates M il es to ne In te ll ig en ce Se rv ic e application behavior for Milestones.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

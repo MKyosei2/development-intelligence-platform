@@ -1,3 +1,4 @@
+// Purpose: Coordinates M ul ti Re po si to ry Gr ap hS er vi ce application behavior for Repositories.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

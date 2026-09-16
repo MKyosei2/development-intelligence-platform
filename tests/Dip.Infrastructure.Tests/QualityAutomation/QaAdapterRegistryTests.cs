@@ -1,3 +1,4 @@
+// Purpose: Verifies Q aA da pt er Re gi st ry Te st s behavior.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

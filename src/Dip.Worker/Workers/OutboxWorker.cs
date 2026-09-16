@@ -1,3 +1,4 @@
+// Purpose: Runs O ut bo xW or ke r background processing.
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;

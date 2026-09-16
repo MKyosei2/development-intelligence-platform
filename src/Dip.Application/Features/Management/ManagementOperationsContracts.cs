@@ -1,3 +1,4 @@
+// Purpose: Coordinates M an ag em en tO pe ra ti on sC on tr ac ts application behavior for Management.
 namespace Dip.Application.Features.Management;
 
 public sealed record ManagementTarget(string Type,string Key);

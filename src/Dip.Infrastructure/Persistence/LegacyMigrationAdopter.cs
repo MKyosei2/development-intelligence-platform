@@ -1,3 +1,4 @@
+// Purpose: Implements L eg ac yM ig ra ti on Ad op te r persistence behavior.
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

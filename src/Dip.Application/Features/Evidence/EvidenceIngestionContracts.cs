@@ -1,3 +1,4 @@
+// Purpose: Coordinates E vi de nc eI ng es ti on Co nt ra ct s application behavior for Evidence.
 using System.Text.Json;
 using Dip.Domain.Enums;
 

@@ -1,3 +1,4 @@
+// Purpose: Implements A ge nt Ru nt im e agent behavior.
 namespace Dip.Agent.Core;
 
 public sealed class AgentRuntime : IDisposable

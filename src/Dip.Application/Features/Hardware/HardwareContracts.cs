@@ -1,3 +1,4 @@
+// Purpose: Coordinates H ar dw ar eC on tr ac ts application behavior for Hardware.
 namespace Dip.Application.Features.Hardware;
 
 public sealed record HardwareCalibrationMeasurement(

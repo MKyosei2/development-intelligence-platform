@@ -1,3 +1,4 @@
+// Purpose: Verifies M ig ra ti on Me ta da ta Te st s behavior.
 using Dip.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 

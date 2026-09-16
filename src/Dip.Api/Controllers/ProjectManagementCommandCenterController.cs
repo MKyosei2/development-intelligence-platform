@@ -1,3 +1,4 @@
+// Purpose: Exposes P ro je ct Ma na ge me nt Co mm an dC en te rC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Management;
 using Dip.Domain.Enums;

@@ -1,3 +1,4 @@
+// Purpose: Coordinates W or kC al en da rI nt eg ra ti on Se rv ic e application behavior for Management.
 using Dip.Application.Abstractions.Calendars;
 using Dip.Application.Abstractions.Time;
 

@@ -1,3 +1,4 @@
+// Purpose: Verifies P1 En ti ti es Te st s behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

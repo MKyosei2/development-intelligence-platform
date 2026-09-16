@@ -1,3 +1,4 @@
+// Purpose: Implements C la im Ev id en ce Li nk Co nf ig ur at io n persistence behavior.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

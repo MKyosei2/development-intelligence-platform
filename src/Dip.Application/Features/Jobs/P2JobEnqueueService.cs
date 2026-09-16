@@ -1,3 +1,4 @@
+// Purpose: Coordinates P2 Jo bE nq ue ue Se rv ic e application behavior for Jobs.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Enums;
 

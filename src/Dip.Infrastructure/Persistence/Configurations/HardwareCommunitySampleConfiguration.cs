@@ -1,3 +1,4 @@
+// Purpose: Implements H ar dw ar eC om mu ni ty Sa mp le Co nf ig ur at io n persistence behavior.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

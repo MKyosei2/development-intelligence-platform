@@ -1,3 +1,4 @@
+# Purpose: Automates the P ub li sh-P or tf ol io repository workflow.
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [switch]$MakePublic,

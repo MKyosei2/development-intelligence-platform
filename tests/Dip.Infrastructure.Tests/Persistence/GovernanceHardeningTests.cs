@@ -1,3 +1,4 @@
+// Purpose: Verifies G ov er na nc eH ar de ni ng Te st s behavior.
 using Dip.Application.Features.Authorization;
 using Dip.Infrastructure.Persistence;
 using Dip.Domain.Entities;

@@ -1,3 +1,4 @@
+// Purpose: Provides the G it Hu bW eb ho ok Ve ri fi er infrastructure implementation.
 using System.Security.Cryptography;using System.Text;using Dip.Application.Abstractions.GitHub;using Microsoft.Extensions.Options;
 namespace Dip.Infrastructure.GitHub;
 public sealed class GitHubWebhookVerifier:IGitHubWebhookVerifier

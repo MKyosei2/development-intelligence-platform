@@ -1,3 +1,4 @@
+// Purpose: Coordinates T es tS tr en gt hC on tr ac ts application behavior for Intelligence.
 namespace Dip.Application.Features.Intelligence;
 public sealed record FuzzRequest(Guid ProjectId,string SubjectKey,string WorkspaceRelativePath,string Executable,IReadOnlyList<string> BaseArguments,int Cases=50,int TimeoutSeconds=20);
 public sealed record FuzzResult(int Cases,int Crashes,int Timeouts,int NonZeroExits,string ArtifactPath,string EvidenceJson);

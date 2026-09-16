@@ -1,3 +1,4 @@
+// Purpose: Implements M ai nW in do wV ie wM od el desktop UI behavior.
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;

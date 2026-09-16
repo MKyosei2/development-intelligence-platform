@@ -1,3 +1,4 @@
+// Purpose: Provides the E xt er na lI nt eg ra ti on Op ti on s infrastructure implementation.
 namespace Dip.Infrastructure.Integrations;
 
 public sealed class PerforceOptions

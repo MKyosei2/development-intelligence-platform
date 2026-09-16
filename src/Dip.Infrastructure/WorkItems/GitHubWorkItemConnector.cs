@@ -1,3 +1,4 @@
+// Purpose: Provides the G it Hu bW or kI te mC on ne ct or infrastructure implementation.
 using Dip.Application.Abstractions.WorkItems;
 using Dip.Infrastructure.GitHub;
 using Microsoft.Extensions.Options;

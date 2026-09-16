@@ -1,3 +1,4 @@
+// Purpose: Coordinates Q aG ov er na nc eQ ue ry Se rv ic e application behavior for QualityGovernance.
 using System.Text;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

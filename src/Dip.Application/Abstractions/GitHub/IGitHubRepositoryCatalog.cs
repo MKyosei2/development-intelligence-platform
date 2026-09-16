@@ -1,3 +1,4 @@
+// Purpose: Defines the I Gi tH ub Re po si to ry Ca ta lo g application boundary.
 using Dip.Application.Features.GitHubIntegration;
 
 namespace Dip.Application.Abstractions.GitHub;

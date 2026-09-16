@@ -1,3 +1,4 @@
+// Purpose: Implements T oo lB ri dg eW or ke r agent behavior.
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;

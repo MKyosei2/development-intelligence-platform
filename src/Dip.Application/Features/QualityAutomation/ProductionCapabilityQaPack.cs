@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro du ct io nC ap ab il it yQ aP ac k application behavior for QualityAutomation.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Domain.Enums;

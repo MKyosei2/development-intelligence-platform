@@ -1,3 +1,4 @@
+// Purpose: Coordinates A ut on om ou sD eb ug Se rv ic e application behavior for QualityAutomation.
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text.Json;

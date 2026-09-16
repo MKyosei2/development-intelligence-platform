@@ -1,4 +1,5 @@
-﻿[CmdletBinding()]
+# Purpose: Automates the S et-D IP-P ro du ct io nB ri dg eE nv ir on me nt repository workflow.
+[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,
     [Parameter(Mandatory=$true)][string]$ProjectRoot,

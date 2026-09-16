@@ -1,3 +1,4 @@
+// Purpose: Provides the D ee pL an gu ag eP ac kQ aA da pt er infrastructure implementation.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;

@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro du ct io nQ aI nt el li ge nc e application behavior for QualityAutomation.
 using System.Text.Json;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

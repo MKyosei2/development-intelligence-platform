@@ -1,3 +1,4 @@
+// Purpose: Verifies C om me rc ia lQ aP ol ic yT es ts behavior.
 using Dip.Application.Features.QualityAutomation;
 using FluentAssertions;
 

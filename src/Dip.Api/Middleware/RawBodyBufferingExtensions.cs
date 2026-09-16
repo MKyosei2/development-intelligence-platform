@@ -1,3 +1,4 @@
+// Purpose: Configures R aw Bo dy Bu ff er in gE xt en si on s for the DIP API.
 namespace Dip.Api.Middleware;
 public static class RawBodyBufferingExtensions
 {

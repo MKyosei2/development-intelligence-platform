@@ -1,3 +1,4 @@
+// Purpose: Defines the I Go og le Sh ee ts Co nn ec to r application boundary.
 namespace Dip.Application.Abstractions.Spreadsheets;
 
 public sealed record GoogleSheetGrid(string Name,IReadOnlyList<IReadOnlyList<string>> Rows);

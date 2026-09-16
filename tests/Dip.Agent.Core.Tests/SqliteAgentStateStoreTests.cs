@@ -1,3 +1,4 @@
+// Purpose: Verifies S ql it eA ge nt St at eS to re Te st s behavior.
 using Dip.Agent.Core;
 using FluentAssertions;
 

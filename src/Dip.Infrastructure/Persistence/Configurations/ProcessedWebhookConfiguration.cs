@@ -1,3 +1,4 @@
+// Purpose: Implements P ro ce ss ed We bh oo kC on fi gu ra ti on persistence behavior.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

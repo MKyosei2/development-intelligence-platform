@@ -1,3 +1,4 @@
+// Purpose: Coordinates Q aG ov er na nc eC on tr ac ts application behavior for QualityGovernance.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.QualityGovernance;

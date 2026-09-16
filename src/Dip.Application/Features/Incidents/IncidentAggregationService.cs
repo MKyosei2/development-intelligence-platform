@@ -1,3 +1,4 @@
+// Purpose: Coordinates I nc id en tA gg re ga ti on Se rv ic e application behavior for Incidents.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

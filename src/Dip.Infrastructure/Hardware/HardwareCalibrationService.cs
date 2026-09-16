@@ -1,3 +1,4 @@
+// Purpose: Provides the H ar dw ar eC al ib ra ti on Se rv ic e infrastructure implementation.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;

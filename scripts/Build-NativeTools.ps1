@@ -1,3 +1,4 @@
+# Purpose: Automates the B ui ld-N at iv eT oo ls repository workflow.
 param([string]$Configuration="Release")
 $ErrorActionPreference="Stop"
 $root=(Resolve-Path (Join-Path $PSScriptRoot "..")).Path

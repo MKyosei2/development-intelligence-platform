@@ -1,3 +1,4 @@
+// Purpose: Verifies D ip Sc en ar io Cl ie nt behavior.
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;

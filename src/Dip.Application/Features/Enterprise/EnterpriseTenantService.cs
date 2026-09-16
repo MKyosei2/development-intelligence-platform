@@ -1,3 +1,4 @@
+// Purpose: Coordinates E nt er pr is eT en an tS er vi ce application behavior for Enterprise.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Entities;

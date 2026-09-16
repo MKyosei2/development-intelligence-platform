@@ -1,3 +1,4 @@
+// Purpose: Coordinates M an ag em en tX ls xC od ec application behavior for Management.
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;

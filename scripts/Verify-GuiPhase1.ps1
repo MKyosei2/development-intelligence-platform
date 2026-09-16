@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-G ui Ph as e1 repository workflow.
 [CmdletBinding()]
 param(
     [int]$StartupTimeoutSeconds=420,

@@ -1,3 +1,4 @@
+# Purpose: Automates the R un-G ov er na nc eL oa dT es t repository workflow.
 [CmdletBinding()]
 param(
     [int]$ProjectCount=10,

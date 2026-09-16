@@ -1,3 +1,4 @@
+// Purpose: Provides the V er if ie dF ix Se rv ic e infrastructure implementation.
 using System.Diagnostics;
 using System.Text;
 using Dip.Application.Features.QualityAutomation;

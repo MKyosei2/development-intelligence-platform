@@ -1,3 +1,4 @@
+// Purpose: Implements D ip Db Co nt ex t persistence behavior.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

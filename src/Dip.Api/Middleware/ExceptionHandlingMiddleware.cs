@@ -1,3 +1,4 @@
+// Purpose: Configures E xc ep ti on Ha nd li ng Mi dd le wa re for the DIP API.
 using System.Diagnostics;using System.Text.Json;
 namespace Dip.Api.Middleware;
 public sealed class ExceptionHandlingMiddleware

@@ -1,3 +1,4 @@
+// Purpose: Provides the G it Hu bM an ag em en tS yn cA da pt er infrastructure implementation.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;

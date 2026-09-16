@@ -1,3 +1,4 @@
+// Purpose: Provides the G it Hu bC li en tF ac to ry infrastructure implementation.
 using Microsoft.Extensions.Options;
 using Octokit;
 

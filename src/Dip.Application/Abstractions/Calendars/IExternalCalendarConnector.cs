@@ -1,3 +1,4 @@
+// Purpose: Defines the I Ex te rn al Ca le nd ar Co nn ec to r application boundary.
 namespace Dip.Application.Abstractions.Calendars;
 
 public sealed record ExternalCalendarEvent(string Id,string Summary,DateTimeOffset StartsAtUtc,DateTimeOffset EndsAtUtc,bool AllDay,string Status);

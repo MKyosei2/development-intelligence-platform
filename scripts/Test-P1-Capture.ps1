@@ -1,3 +1,4 @@
+# Purpose: Automates the T es t-P1-C ap tu re repository workflow.
 $ErrorActionPreference="Stop"
 if($env:OS -ne "Windows_NT"){Write-Host "SKIP: capture smoke requires interactive Windows.";exit 0}
 $root=(Resolve-Path (Join-Path $PSScriptRoot "..")).Path

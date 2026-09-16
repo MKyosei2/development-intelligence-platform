@@ -1,3 +1,4 @@
+// Purpose: Exposes Q ua li ty Au to ma ti on Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.QualityAutomation.AssetQa;

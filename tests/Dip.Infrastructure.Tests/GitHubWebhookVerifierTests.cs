@@ -1,3 +1,4 @@
+// Purpose: Verifies G it Hu bW eb ho ok Ve ri fi er Te st s behavior.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Infrastructure.GitHub;

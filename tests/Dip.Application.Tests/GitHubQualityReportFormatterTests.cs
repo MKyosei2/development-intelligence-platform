@@ -1,3 +1,4 @@
+// Purpose: Verifies G it Hu bQ ua li ty Re po rt Fo rm at te rT es ts behavior.
 using Dip.Application.Features.GitHub;
 using Xunit;
 

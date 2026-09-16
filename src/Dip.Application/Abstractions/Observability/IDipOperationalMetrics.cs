@@ -1,3 +1,4 @@
+// Purpose: Defines the I Di pO pe ra ti on al Me tr ic s application boundary.
 namespace Dip.Application.Abstractions.Observability;
 public interface IDipOperationalMetrics
 {

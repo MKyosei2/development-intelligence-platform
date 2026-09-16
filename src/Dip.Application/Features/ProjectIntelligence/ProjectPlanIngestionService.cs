@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Pl an In ge st io nS er vi ce application behavior for ProjectIntelligence.
 using System.Globalization;
 using System.IO.Compression;
 using System.Security.Cryptography;

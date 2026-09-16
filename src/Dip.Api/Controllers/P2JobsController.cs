@@ -1,3 +1,4 @@
+// Purpose: Exposes P2 Jo bs Co nt ro ll er HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Jobs;
 using Dip.Application.Features.P2Intelligence;

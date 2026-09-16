@@ -1,3 +1,4 @@
+// Purpose: Provides the Q aE xe cu ti on Op ti on s infrastructure implementation.
 namespace Dip.Infrastructure.QualityAutomation;
 
 public sealed class QaExecutionOptions

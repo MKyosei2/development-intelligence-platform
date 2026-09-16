@@ -1,3 +1,4 @@
+// Purpose: Verifies G it Br an ch Qa Wo rk sp ac eM an ag er Te st s behavior.
 using System.Diagnostics;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Application.Abstractions.GitHub;

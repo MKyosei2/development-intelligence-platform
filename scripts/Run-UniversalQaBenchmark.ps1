@@ -1,3 +1,4 @@
+# Purpose: Automates the R un-U ni ve rs al Qa Be nc hm ar k repository workflow.
 [CmdletBinding()]param([string]$OutputDirectory="artifacts/universal-qa-benchmark")
 $ErrorActionPreference='Stop';$root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path;$python=(Get-Command python -ErrorAction SilentlyContinue);if(-not $python){$python=Get-Command python3 -ErrorAction SilentlyContinue};if(-not $python){throw 'Python 3 is required for the cross-platform Universal QA toolchain benchmark.'}
 & $python.Source (Join-Path $root 'tools/universal_qa_benchmark.py') --output (Join-Path $root $OutputDirectory)

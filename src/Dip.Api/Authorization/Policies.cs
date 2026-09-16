@@ -1,3 +1,4 @@
+// Purpose: Configures P ol ic ie s for the DIP API.
 namespace Dip.Api.Authorization;
 
 public static class Policies

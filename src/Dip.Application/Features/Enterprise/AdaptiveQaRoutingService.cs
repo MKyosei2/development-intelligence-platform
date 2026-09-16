@@ -1,3 +1,4 @@
+// Purpose: Coordinates A da pt iv eQ aR ou ti ng Se rv ic e application behavior for Enterprise.
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.Enterprise;
 public sealed record AdaptiveQaSelection(string PackId,string Reason,int Priority,decimal Confidence);

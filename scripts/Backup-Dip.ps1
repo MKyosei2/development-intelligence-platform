@@ -1,3 +1,4 @@
+# Purpose: Automates the B ac ku p-D ip repository workflow.
 [CmdletBinding()]
 param(
  [string]$OutputDirectory='artifacts\backups',[string]$ArtifactDirectory='artifacts\durable',

@@ -1,3 +1,4 @@
+# Purpose: Automates the s et up-d ev el op me nt repository workflow.
 param([switch]$SkipInstall,[switch]$SkipDocker)
 $ErrorActionPreference="Stop"
 Set-StrictMode -Version Latest

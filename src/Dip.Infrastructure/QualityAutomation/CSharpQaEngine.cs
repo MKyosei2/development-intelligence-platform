@@ -1,3 +1,4 @@
+// Purpose: Provides the C Sh ar pQ aE ng in e infrastructure implementation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

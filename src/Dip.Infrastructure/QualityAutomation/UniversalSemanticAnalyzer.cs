@@ -1,3 +1,4 @@
+// Purpose: Provides the U ni ve rs al Se ma nt ic An al yz er infrastructure implementation.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;

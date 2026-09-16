@@ -1,3 +1,4 @@
+// Purpose: Coordinates D ev el op me nt Gr ap hC on tr ac ts application behavior for DevelopmentGraph.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.DevelopmentGraph;

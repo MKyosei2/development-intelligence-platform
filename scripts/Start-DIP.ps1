@@ -1,3 +1,4 @@
+# Purpose: Automates the S ta rt-D IP repository workflow.
 [CmdletBinding()]
 param(
     [switch]$NoBuild,

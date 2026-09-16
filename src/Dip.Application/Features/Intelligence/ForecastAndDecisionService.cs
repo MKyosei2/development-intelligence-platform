@@ -1,3 +1,4 @@
+// Purpose: Coordinates F or ec as tA nd De ci si on Se rv ic e application behavior for Intelligence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

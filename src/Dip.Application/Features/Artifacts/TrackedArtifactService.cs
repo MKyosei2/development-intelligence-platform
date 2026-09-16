@@ -1,3 +1,4 @@
+// Purpose: Coordinates T ra ck ed Ar ti fa ct Se rv ic e application behavior for Artifacts.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

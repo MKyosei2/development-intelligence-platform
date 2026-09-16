@@ -1,3 +1,4 @@
+// Purpose: Coordinates V is ua lQ aC on tr ac ts application behavior for QualityAutomation.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.QualityAutomation.VisualQa;

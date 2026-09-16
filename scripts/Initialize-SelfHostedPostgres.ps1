@@ -1,3 +1,4 @@
+# Purpose: Automates the I ni ti al iz e-S el fH os te dP os tg re s repository workflow.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

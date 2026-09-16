@@ -1,3 +1,4 @@
+// Purpose: Runs M an ag em en tN ot if ic at io nW or ke r background processing.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Management;

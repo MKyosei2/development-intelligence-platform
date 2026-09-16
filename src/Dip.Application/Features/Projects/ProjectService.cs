@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Se rv ic e application behavior for Projects.
 using System.Text;
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;

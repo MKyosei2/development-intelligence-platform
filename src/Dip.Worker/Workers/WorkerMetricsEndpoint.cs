@@ -1,3 +1,4 @@
+// Purpose: Runs W or ke rM et ri cs En dp oi nt background processing.
 using System.Net;
 using System.Net.Sockets;
 using System.Text;

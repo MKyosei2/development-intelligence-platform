@@ -1,3 +1,4 @@
+// Purpose: Provides the M an if es tQ aA da pt er infrastructure implementation.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;

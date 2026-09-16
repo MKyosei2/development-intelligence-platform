@@ -1,3 +1,4 @@
+// Purpose: Verifies P2 In te ll ig en ce Sc en ar io behavior.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 using Xunit;

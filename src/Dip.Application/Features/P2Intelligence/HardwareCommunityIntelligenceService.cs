@@ -1,3 +1,4 @@
+// Purpose: Coordinates H ar dw ar eC om mu ni ty In te ll ig en ce Se rv ic e application behavior for P2Intelligence.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

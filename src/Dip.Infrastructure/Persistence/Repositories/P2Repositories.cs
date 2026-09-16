@@ -1,3 +1,4 @@
+// Purpose: Implements P2 Re po si to ri es persistence behavior.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

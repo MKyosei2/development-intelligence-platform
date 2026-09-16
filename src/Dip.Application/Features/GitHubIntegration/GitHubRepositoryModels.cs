@@ -1,3 +1,4 @@
+// Purpose: Coordinates G it Hu bR ep os it or yM od el s application behavior for GitHubIntegration.
 namespace Dip.Application.Features.GitHubIntegration;
 
 public sealed record GitHubConnectionStatusDto(

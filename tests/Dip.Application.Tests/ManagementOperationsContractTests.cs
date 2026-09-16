@@ -1,3 +1,4 @@
+// Purpose: Verifies M an ag em en tO pe ra ti on sC on tr ac tT es ts behavior.
 using System.IO.Compression;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;

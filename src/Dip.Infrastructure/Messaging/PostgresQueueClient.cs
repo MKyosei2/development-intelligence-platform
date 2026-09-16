@@ -1,3 +1,4 @@
+// Purpose: Provides the P os tg re sQ ue ue Cl ie nt infrastructure implementation.
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;

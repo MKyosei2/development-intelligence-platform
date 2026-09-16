@@ -1,3 +1,4 @@
+// Purpose: Provides the Q aB ug Mi ni mi ze r infrastructure implementation.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

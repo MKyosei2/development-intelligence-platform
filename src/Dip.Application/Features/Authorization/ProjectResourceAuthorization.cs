@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Re so ur ce Au th or iz at io n application behavior for Authorization.
 namespace Dip.Application.Features.Authorization;
 
 public enum ProjectResourceKind{QaRun,Incident,DurableJob,BenchmarkRun,ReplaySession,ReplayRun,Artifact,PipelineRun}

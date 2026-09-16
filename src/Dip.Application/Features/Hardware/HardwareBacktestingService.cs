@@ -1,3 +1,4 @@
+// Purpose: Coordinates H ar dw ar eB ac kt es ti ng Se rv ic e application behavior for Hardware.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Entities;

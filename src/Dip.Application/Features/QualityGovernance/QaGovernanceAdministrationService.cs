@@ -1,3 +1,4 @@
+// Purpose: Coordinates Q aG ov er na nc eA dm in is tr at io nS er vi ce application behavior for QualityGovernance.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Observability;

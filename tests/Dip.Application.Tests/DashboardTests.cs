@@ -1,3 +1,4 @@
+// Purpose: Verifies D as hb oa rd Te st s behavior.
 using Dip.Application.Features.Dashboard;
 using FluentAssertions;
 

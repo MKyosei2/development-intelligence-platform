@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Ac ce ss Se rv ic e application behavior for Authorization.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

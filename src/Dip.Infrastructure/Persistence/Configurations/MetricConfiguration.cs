@@ -1,3 +1,4 @@
+// Purpose: Implements M et ri cC on fi gu ra ti on persistence behavior.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

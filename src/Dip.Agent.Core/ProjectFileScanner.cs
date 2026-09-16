@@ -1,3 +1,4 @@
+// Purpose: Implements P ro je ct Fi le Sc an ne r agent behavior.
 using System.Security.Cryptography;
 using System.Text;
 

@@ -1,3 +1,4 @@
+// Purpose: Verifies P ro je ct In te ll ig en ce Au th or iz at io nS ur fa ce Te st s behavior.
 using System.Reflection;
 using Dip.Api.Authorization;
 using Dip.Api.Controllers;

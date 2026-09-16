@@ -1,3 +1,4 @@
+// Purpose: Coordinates P ro je ct Ma na ge me nt Co mm an dC en te rS er vi ce application behavior for Management.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Dashboard;

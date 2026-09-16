@@ -1,3 +1,4 @@
+// Purpose: Coordinates H ar dw ar eO rc he st ra ti on Se rv ic e application behavior for Hardware.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

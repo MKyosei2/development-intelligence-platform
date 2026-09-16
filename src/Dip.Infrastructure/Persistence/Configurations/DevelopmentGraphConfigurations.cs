@@ -1,3 +1,4 @@
+// Purpose: Implements D ev el op me nt Gr ap hC on fi gu ra ti on s persistence behavior.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

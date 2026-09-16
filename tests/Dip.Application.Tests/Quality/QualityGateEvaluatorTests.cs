@@ -1,3 +1,4 @@
+// Purpose: Verifies Q ua li ty Ga te Ev al ua to rT es ts behavior.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.DevelopmentGraph;

@@ -1,3 +1,4 @@
+// Purpose: Verifies P os tg re Sq lF ix tu re behavior.
 using Testcontainers.PostgreSql;
 
 namespace Dip.IntegrationTests.Database;

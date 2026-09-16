@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-U ni ty Co ll ec to r repository workflow.
 [CmdletBinding()]
 param(
     [string]$UnityPath = $env:UNITY_EDITOR_PATH,

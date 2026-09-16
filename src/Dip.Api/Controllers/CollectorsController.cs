@@ -1,3 +1,4 @@
+// Purpose: Exposes C ol le ct or sC on tr ol le r HTTP endpoints.
 using Dip.Application.Features.Collectors;
 using Dip.Shared.Contracts.Collectors;
 using Microsoft.AspNetCore.Mvc;

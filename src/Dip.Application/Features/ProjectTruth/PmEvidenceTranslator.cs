@@ -1,3 +1,4 @@
+// Purpose: Coordinates P mE vi de nc eT ra ns la to r application behavior for ProjectTruth.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

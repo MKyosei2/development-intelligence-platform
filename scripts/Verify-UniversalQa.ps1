@@ -1,3 +1,4 @@
+# Purpose: Automates the V er if y-U ni ve rs al Qa repository workflow.
 [CmdletBinding()]
 param([string[]]$RequireLanguages=@('python','csharp','cpp','javascript','customlang'))
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest

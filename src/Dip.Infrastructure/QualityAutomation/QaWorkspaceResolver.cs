@@ -1,3 +1,4 @@
+// Purpose: Provides the Q aW or ks pa ce Re so lv er infrastructure implementation.
 using Dip.Application.Features.QualityAutomation;
 using Microsoft.Extensions.Options;
 

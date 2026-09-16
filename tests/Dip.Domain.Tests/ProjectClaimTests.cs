@@ -1,3 +1,4 @@
+// Purpose: Verifies P ro je ct Cl ai mT es ts behavior.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

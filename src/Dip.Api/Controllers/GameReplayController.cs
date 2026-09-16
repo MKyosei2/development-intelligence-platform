@@ -1,3 +1,4 @@
+// Purpose: Exposes G am eR ep la yC on tr ol le r HTTP endpoints.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Replay;
