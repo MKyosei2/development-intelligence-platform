@@ -35,11 +35,16 @@ Generated code、EF Migration、third-party/license header は自動整理対象
 - `C ha ng eR is k...` のようにfilename/type名が細切れになった文字分解コメント
 - 同一ファイル内の複数 `Purpose:`
 - 人が責務を判断できない極端に短い/不自然なPurpose
+- 異常に圧縮された複数statementのC#行
 
-再検証は次で行う。
+ローカル再検証は次で行う。
 
 ```powershell
-.\scripts\Verify-SourceReadability.ps1 -Strict
+.\scripts\Verify-SourceReadability.ps1 `
+  -Strict `
+  -ReportPath artifacts/source-readability/report.md `
+  -InventoryPath artifacts/source-readability/inventory.csv
 ```
 
-監査結果は `docs/code-guide/_generated/source-cleanup-report.md` に生成される。`Readability/documentation findings = 0` の場合だけreadability上のclean状態と扱う。
+CIでも同じartifact配下へ出力し、tracked documentationを検証実行中に書き換えない。
+`Readability/documentation findings = 0` の場合だけreadability上のclean状態と扱う。

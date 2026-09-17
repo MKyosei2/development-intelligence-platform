@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct Se rv ic e application behavior for Projects.
+// Purpose: Orchestrates project creation, lifecycle changes, and audit retrieval.
 using System.Text;
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
@@ -7,50 +7,6 @@ using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.Projects;
-
-public sealed record CreateProjectCommand(
-    string Name,
-    string RepositoryUrl,
-    string DefaultBranch,
-    DateTimeOffset? ReleaseDateUtc);
-
-public sealed record UpdateProjectCommand(
-    string Name,
-    string RepositoryUrl,
-    string DefaultBranch,
-    DateTimeOffset? ReleaseDateUtc,
-    string Reason = "Project settings updated from the DIP UI.");
-
-public sealed record ProjectLifecycleCommand(
-    string Reason = "Project lifecycle changed from the DIP UI.");
-
-public sealed record ProjectDto(
-    Guid Id,
-    string Name,
-    string RepositoryUrl,
-    string DefaultBranch,
-    decimal HealthScore,
-    DateTimeOffset? ReleaseDateUtc,
-    string LifecycleState = "Active",
-    DateTimeOffset? LifecycleChangedAtUtc = null);
-
-public sealed record ProjectAuditEntryDto(
-    Guid Id,
-    Guid ProjectId,
-    string Category,
-    string Action,
-    string Actor,
-    string? SubjectKey,
-    string? DetailJson,
-    string? RequestId,
-    string? CorrelationId,
-    string? Reason,
-    DateTimeOffset CreatedAtUtc);
-
-public sealed record ProjectAuditPageDto(
-    IReadOnlyList<ProjectAuditEntryDto> Items,
-    string? NextCursor,
-    bool HasMore);
 
 public sealed class ProjectService(
     IProjectRepository projects,
@@ -116,13 +72,22 @@ public sealed class ProjectService(
     public async Task<IReadOnlyList<ProjectDto>> ListAsync(CancellationToken ct)
     {
         var entities = await projects.ListAllAsync(ct);
-        var result = new List<ProjectDto>(entities.Count);
-        foreach (var project in entities)
-        {
-            var lifecycle = await ResolveLifecycleAsync(project.Id, ct);
-            result.Add(Map(project, lifecycle.State, lifecycle.ChangedAtUtc));
-        }
-        return result;
+        if (entities.Count == 0)
+            return Array.Empty<ProjectDto>();
+
+        var lifecycleEntries = await audit.GetLatestByCategoryAsync(
+            entities.Select(x => x.Id).ToArray(),
+            LifecycleCategory,
+            ct);
+
+        return entities
+            .Select(project =>
+            {
+                lifecycleEntries.TryGetValue(project.Id, out var latest);
+                var lifecycle = ResolveLifecycle(latest);
+                return Map(project, lifecycle.State, lifecycle.ChangedAtUtc);
+            })
+            .ToArray();
     }
 
     public async Task<ProjectDto?> GetAsync(Guid id, CancellationToken ct)
@@ -189,25 +154,13 @@ public sealed class ProjectService(
         return Map(project, ActiveState, null);
     }
 
-    public Task<ProjectDto> ArchiveAsync(
-        Guid id,
-        string actor,
-        string reason,
-        CancellationToken ct)
+    public Task<ProjectDto> ArchiveAsync(Guid id, string actor, string reason, CancellationToken ct)
         => ChangeLifecycleAsync(id, ArchivedState, "project.archived", actor, reason, ct);
 
-    public Task<ProjectDto> RestoreAsync(
-        Guid id,
-        string actor,
-        string reason,
-        CancellationToken ct)
+    public Task<ProjectDto> RestoreAsync(Guid id, string actor, string reason, CancellationToken ct)
         => ChangeLifecycleAsync(id, ActiveState, "project.restored", actor, reason, ct);
 
-    public Task<ProjectDto> DeleteAsync(
-        Guid id,
-        string actor,
-        string reason,
-        CancellationToken ct)
+    public Task<ProjectDto> DeleteAsync(Guid id, string actor, string reason, CancellationToken ct)
         => ChangeLifecycleAsync(id, DeletedState, "project.deleted", actor, reason, ct);
 
     public Task<IReadOnlyList<ProjectAuditEntryDto>> GetAuditAsync(
@@ -228,14 +181,8 @@ public sealed class ProjectService(
     {
         _ = await NeedProjectAsync(projectId, ct);
         var entries = await audit.SearchAsync(
-            projectId,
-            search,
-            category,
-            correlationId,
-            fromUtc,
-            toUtc,
-            Math.Clamp(take, 1, 5000),
-            ct);
+            projectId, search, category, correlationId, fromUtc, toUtc,
+            Math.Clamp(take, 1, 5000), ct);
         return entries.Select(MapAudit).ToArray();
     }
 
@@ -253,16 +200,8 @@ public sealed class ProjectService(
         _ = await NeedProjectAsync(projectId, ct);
         var (beforeUtc, beforeId) = DecodeAuditCursor(cursor);
         var page = await audit.SearchPageAsync(
-            projectId,
-            search,
-            category,
-            correlationId,
-            fromUtc,
-            toUtc,
-            beforeUtc,
-            beforeId,
-            Math.Clamp(take, 1, 500),
-            ct);
+            projectId, search, category, correlationId, fromUtc, toUtc,
+            beforeUtc, beforeId, Math.Clamp(take, 1, 500), ct);
         var nextCursor = page.NextBeforeUtc.HasValue && page.NextBeforeId.HasValue
             ? EncodeAuditCursor(page.NextBeforeUtc.Value, page.NextBeforeId.Value)
             : null;
@@ -331,7 +270,11 @@ public sealed class ProjectService(
         CancellationToken ct)
     {
         var latest = await audit.GetLatestByCategoryAsync(projectId, LifecycleCategory, ct);
+        return ResolveLifecycle(latest);
+    }
 
+    private static (string State, DateTimeOffset? ChangedAtUtc) ResolveLifecycle(AuditLog? latest)
+    {
         if (latest is null || latest.Action is not ("project.archived" or "project.restored" or "project.deleted"))
             return (ActiveState, null);
 
@@ -385,6 +328,7 @@ public sealed class ProjectService(
     {
         if (string.IsNullOrWhiteSpace(cursor))
             return (null, null);
+
         try
         {
             var normalized = cursor.Trim().Replace('-', '+').Replace('_', '/');
@@ -397,6 +341,7 @@ public sealed class ProjectService(
             {
                 throw new ArgumentException("Audit cursor is invalid.", nameof(cursor));
             }
+
             return (new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc)), id);
         }
         catch (FormatException exception)
