@@ -30,7 +30,11 @@ jobs:
 
       - name: Verify source readability
         shell: pwsh
-        run: ./scripts/Verify-SourceReadability.ps1 -Strict
+        run: |
+          ./scripts/Verify-SourceReadability.ps1 `
+            -Strict `
+            -ReportPath artifacts/source-readability/report.md `
+            -InventoryPath artifacts/source-readability/inventory.csv
 
       - name: Publication safety
         run: python tools/verify_publication_safety.py --root . --output artifacts/publication-safety/publication-safety.json
@@ -149,18 +153,18 @@ jobs:
               "note": "Runtime verification is intentionally separate. Final release requires real Unity/Unreal and benchmark evidence bound to this same SHA.",
           }
           (out / "exact-revision.json").write_text(
-              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\\n",
               encoding="utf-8",
           )
           (out / "exact-revision.md").write_text(
-              "# Exact revision static evidence\n\n"
-              f"- Revision: `{payload['revision']}`\n"
-              f"- Event: `{payload['event']}`\n"
-              f"- Ref: `{payload['ref']}`\n"
-              f"- Publication safety: **PASS**\n"
-              f"- Portfolio static readiness: **PASS**\n"
-              f"- Runtime verified by this workflow: **NO**\n\n"
-              "Runtime/engine/performance evidence is intentionally separate and must carry the same final SHA.\n",
+              "# Exact revision static evidence\\n\\n"
+              f"- Revision: `{payload['revision']}`\\n"
+              f"- Event: `{payload['event']}`\\n"
+              f"- Ref: `{payload['ref']}`\\n"
+              f"- Publication safety: **PASS**\\n"
+              f"- Portfolio static readiness: **PASS**\\n"
+              f"- Runtime verified by this workflow: **NO**\\n\\n"
+              "Runtime/engine/performance evidence is intentionally separate and must carry the same final SHA.\\n",
               encoding="utf-8",
           )
 
@@ -174,5 +178,7 @@ jobs:
             artifacts/portfolio-readiness/static.json
             artifacts/portfolio-readiness/exact-revision.json
             artifacts/portfolio-readiness/exact-revision.md
+            artifacts/source-readability/report.md
+            artifacts/source-readability/inventory.csv
           if-no-files-found: warn
           retention-days: 30
