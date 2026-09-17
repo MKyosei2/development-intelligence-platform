@@ -2,9 +2,32 @@
 
 DIPは、ゲーム・メディア・ソフトウェア開発チーム向けのDevelopment Intelligence（開発インテリジェンス）基盤です。Git / CI / QA / Runtime / Performance / Project Dataを共通のProject Contextへ集約し、出所とrevisionを追跡できるEvidenceとして扱います。Evidenceを基に、品質判断、Project Truth、性能分析、リリース準備状況、Evidenceに基づくデバッグを支援します。
 
+**Portfolio focus:** C# / .NET 8、PostgreSQL、Python、C++ / native Collector、Unity / Unreal連携、GitHub Actionsを別々のデモとして並べるのではなく、**Evidenceとexact-revision verificationを中心に一つの開発基盤として接続した設計・実装・検証プロセス**を示すProjectです。
+
 ![DIP portfolio demo](docs/09-portfolio/demo/dip-portfolio-demo.gif)
 
 > **このGIFはsample-data previewです。** 製品範囲を短時間で確認するためのUI previewであり、Runtime Verifiedの根拠には使用しません。実Projectの検証結果はcommit-bound Evidenceとして別に扱います。
+
+## 60秒レビュー
+
+1. 下の「まず見てほしい3領域」で、DIPが解こうとしている問題と主軸を確認する。
+2. 「実Project Case Study」で、実Unity ProjectからDIPへEvidenceが流れる経路を確認する。
+3. 「Verification status」と「Final exact-revision gate」で、Implemented / Tested / Runtime Verifiedをどう分離しているか確認する。
+4. さらに設計判断を見る場合は [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md) を読む。
+
+## Verification status
+
+DIPはREADME上の説明を検証結果そのものとして扱いません。**最終提出revisionは、同一SHAに紐付いたCI / benchmark / engine runtime / Project Truth / Release Evidenceが揃うまで `Current Revision PASS` を主張しません。**
+
+| Claim | Verifiedと扱う条件 |
+|---|---|
+| Implemented | 対応するsourceが存在する |
+| Tested | 対象revisionのtest artifact / workflowが成功している |
+| Runtime Verified | 対象revisionを実runtimeで検証したEvidenceがある |
+| Performance Verified | clean working tree + exact SHAで生成したbenchmark artifactがある |
+| Final Portfolio Revision | required 11 workflow、runtime Evidence、final Evidence binding、Releaseが同一SHAに紐付く |
+
+最終状態のSource of Truthは、README中の固定文言ではなく、GitHub Actions / Release artifact / `artifacts/final-evidence/` に保存されたexact-revision Evidenceです。
 
 ## まず見てほしい3領域
 
@@ -46,6 +69,8 @@ Case Studyでは次の2つを混同しません。
 
 - `dipSourceCommit`: 検証しているDIP自身のSHA
 - `targetCommit`: Collectorが解析したMAYAtoUnity側のSHA
+
+このCase Studyが示すのは**実Projectとのend-to-end integration**です。第三者チームへのproduction導入実績を意味するものではなく、そのようなclaimは別Evidenceなしに行いません。
 
 実行方法とEvidence contract: [`REAL_PROJECT_CASE_STUDY.md`](docs/09-portfolio/REAL_PROJECT_CASE_STUDY.md)
 
@@ -219,12 +244,14 @@ PostgreSQLをdurable Source of Truthかつqueue / coordination boundaryとして
 
 ## Reviewer向け読み順
 
-1. このREADMEの「まず見てほしい3領域」
-2. [`REAL_PROJECT_CASE_STUDY.md`](docs/09-portfolio/REAL_PROJECT_CASE_STUDY.md)
-3. [`GAME_DEVELOPMENT_SCENARIO.md`](docs/09-portfolio/GAME_DEVELOPMENT_SCENARIO.md)
-4. [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md)
-5. [`REAL_PROJECT_DEMO.md`](docs/09-portfolio/REAL_PROJECT_DEMO.md)
-6. [`reviewer-brief.md`](docs/09-portfolio/reviewer-brief.md)
-7. Architecture / Evidence / CI artifacts
+1. このREADMEの「60秒レビュー」
+2. このREADMEの「まず見てほしい3領域」
+3. このREADMEの「実Project Case Study」
+4. このREADMEの「Verification status」と「Final exact-revision gate」
+5. [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md)
+6. [`GAME_DEVELOPMENT_SCENARIO.md`](docs/09-portfolio/GAME_DEVELOPMENT_SCENARIO.md)
+7. [`REAL_PROJECT_DEMO.md`](docs/09-portfolio/REAL_PROJECT_DEMO.md)
+8. [`reviewer-brief.md`](docs/09-portfolio/reviewer-brief.md)
+9. Architecture / Evidence / CI artifacts
 
 DIPはgameplayやrendering単体のshowcaseではなく、**ゲーム制作を支えるDevelopment Infrastructure / QA / Developer Productivity / Production Engineering**を示すProjectです。

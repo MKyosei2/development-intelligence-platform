@@ -1,4 +1,4 @@
-# Purpose: Automates the C om pl et e-P or tf ol io Re le as e repository workflow.
+# Purpose: Runs the complete exact-revision portfolio release workflow.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$Version,

@@ -1,4 +1,4 @@
-# Purpose: Automates the R eq ue st-F in al Ve ri fi ca ti on repository workflow.
+# Purpose: Prepares the dedicated final exact-revision verification trigger PR.
 [CmdletBinding()]
 param(
     [switch]$Commit,

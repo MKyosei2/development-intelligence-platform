@@ -1,4 +1,4 @@
-# Purpose: Automates the P ub li sh-P or tf ol io Re le as e repository workflow.
+# Purpose: Publishes a versioned portfolio release after the publication gate succeeds.
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$Version = "1.0.0-portfolio",

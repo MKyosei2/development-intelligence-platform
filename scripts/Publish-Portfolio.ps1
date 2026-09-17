@@ -1,4 +1,4 @@
-# Purpose: Automates the P ub li sh-P or tf ol io repository workflow.
+# Purpose: Verifies publication gates and optionally makes the portfolio repository public.
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [switch]$MakePublic,
