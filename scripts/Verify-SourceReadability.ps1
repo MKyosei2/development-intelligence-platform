@@ -1,5 +1,5 @@
 #requires -Version 5.1
-# Purpose: Audits Purpose quality, compressed C# statements, and Feature documentation coverage without treating mere comment presence as a pass.
+# Purpose: Audits Purpose quality, compressed C# statements, and Feature documentation coverage for publication readiness.
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
@@ -14,10 +14,10 @@ $Repo = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92, 47)
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 if (-not $ReportPath) {
-    $ReportPath = Join-Path $Repo 'docs\code-guide\_generated\source-cleanup-report.md'
+    $ReportPath = Join-Path $Repo 'artifacts\source-readability\report.md'
 }
 if (-not $InventoryPath) {
-    $InventoryPath = Join-Path $Repo 'docs\code-guide\_generated\source-readability-inventory.csv'
+    $InventoryPath = Join-Path $Repo 'artifacts\source-readability\inventory.csv'
 }
 
 $Issues = New-Object 'System.Collections.Generic.List[object]'
@@ -59,11 +59,9 @@ function Test-ExcludedPath {
     if ($name -match '\.(g|generated|designer)\.cs$') {
         return $true
     }
-
     if ($name -in @('AssemblyInfo.cs', 'GlobalUsings.g.cs')) {
         return $true
     }
-
     return $false
 }
 
@@ -85,34 +83,31 @@ function Test-BrokenPurposeText {
     )
 
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
-    if ($stem.EndsWith('.xaml', [System.StringComparison]::OrdinalIgnoreCase)) {
-        $stem = $stem.Substring(0, $stem.Length - 5)
-    }
     $stemNormalized = ($stem -replace '[^A-Za-z0-9]', '')
     if ($stemNormalized.Length -lt 4) {
         return $false
     }
 
-    $tokens = @([regex]::Matches($Purpose, '[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*') | ForEach-Object { $_.Value })
-    $run = ''
-    $runCount = 0
-    foreach ($token in $tokens) {
-        $normalized = ($token -replace '[^A-Za-z0-9]', '')
-        if ($normalized.Length -gt 0 -and $normalized.Length -le 2) {
-            $run += $normalized
-            $runCount++
-            if ($runCount -ge 4 -and $run.Length -ge 6) {
-                if ($stemNormalized.IndexOf($run, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
-                    return $true
-                }
+    $tokens = @([regex]::Matches($Purpose, '[A-Za-z0-9]+') | ForEach-Object { $_.Value })
+    for ($start = 0; $start -lt $tokens.Count; $start++) {
+        $joined = ''
+        $shortCount = 0
+        for ($end = $start; $end -lt $tokens.Count -and $end -lt ($start + 32); $end++) {
+            $token = $tokens[$end]
+            $joined += $token
+            if ($token.Length -le 2) {
+                $shortCount++
+            }
+            if ($joined.Length -gt $stemNormalized.Length) {
+                break
+            }
+            $partCount = $end - $start + 1
+            if ($partCount -ge 3 -and $shortCount -ge 2 -and
+                $joined.Equals($stemNormalized, [System.StringComparison]::OrdinalIgnoreCase)) {
+                return $true
             }
         }
-        else {
-            $run = ''
-            $runCount = 0
-        }
     }
-
     return $false
 }
 
@@ -154,17 +149,13 @@ foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'pl
         if (Test-ExcludedPath -Path $file.FullName) {
             continue
         }
-
         $extension = $file.Extension.ToLowerInvariant()
         if ($extension -notin $extensions) {
             continue
         }
 
         $text = [System.IO.File]::ReadAllText($file.FullName)
-        if ([string]::IsNullOrEmpty($text)) {
-            continue
-        }
-        if (Test-LicenseHeader -Text $text) {
+        if ([string]::IsNullOrEmpty($text) -or (Test-LicenseHeader -Text $text)) {
             continue
         }
 
@@ -223,6 +214,10 @@ $featureRoot = Join-Path $Repo 'src\Dip.Application\Features'
 $referenceRoot = Join-Path $Repo 'docs\code-reference'
 if (Test-Path -LiteralPath $featureRoot -PathType Container) {
     foreach ($featureDirectory in Get-ChildItem -LiteralPath $featureRoot -Directory | Sort-Object Name) {
+        $sourceFiles = @(Get-ChildItem -LiteralPath $featureDirectory.FullName -Recurse -File -Filter '*.cs')
+        if ($sourceFiles.Count -eq 0) {
+            continue
+        }
         $featureReadme = Join-Path (Join-Path $referenceRoot $featureDirectory.Name) 'README.md'
         if (-not (Test-Path -LiteralPath $featureReadme -PathType Leaf)) {
             Add-Issue -Severity 'ERROR' -Code 'MISSING_FEATURE_REFERENCE' -Path "docs/code-reference/$($featureDirectory.Name)/README.md" -Message "Feature '$($featureDirectory.Name)' has source code but no Japanese code-reference README."
@@ -239,7 +234,6 @@ $reportParent = Split-Path -Parent $ReportPath
 if (-not (Test-Path -LiteralPath $reportParent -PathType Container)) {
     New-Item -ItemType Directory -Path $reportParent -Force | Out-Null
 }
-
 $inventoryParent = Split-Path -Parent $InventoryPath
 if (-not (Test-Path -LiteralPath $inventoryParent -PathType Container)) {
     New-Item -ItemType Directory -Path $inventoryParent -Force | Out-Null
@@ -248,7 +242,6 @@ $Inventory | Sort-Object Path | Export-Csv -LiteralPath $InventoryPath -NoTypeIn
 
 $errors = @($Issues | Where-Object { $_.Severity -eq 'ERROR' }).Count
 $warnings = @($Issues | Where-Object { $_.Severity -eq 'WARN' }).Count
-$infos = @($Issues | Where-Object { $_.Severity -eq 'INFO' }).Count
 $brokenCount = @($Issues | Where-Object { $_.Code -eq 'BROKEN_PURPOSE' }).Count
 $compressedCount = @($Issues | Where-Object { $_.Code -eq 'COMPRESSED_CSHARP' }).Count
 $missingReferenceCount = @($Issues | Where-Object { $_.Code -eq 'MISSING_FEATURE_REFERENCE' }).Count
@@ -259,7 +252,7 @@ $report = New-Object 'System.Collections.Generic.List[string]'
 $report.Add('# Source Cleanup Report') | Out-Null
 $report.Add('') | Out-Null
 $report.Add("- Generated (UTC): $generatedUtc") | Out-Null
-$report.Add('- Audit: `source-readability-v2`') | Out-Null
+$report.Add('- Audit: `source-readability-v3`') | Out-Null
 $report.Add("- Files scanned: $FilesScanned") | Out-Null
 $report.Add("- Readability/documentation findings: **$total**") | Out-Null
 $report.Add("- Errors: **$errors**") | Out-Null
@@ -270,16 +263,7 @@ $report.Add("- Missing Feature references: **$missingReferenceCount**") | Out-Nu
 $report.Add('') | Out-Null
 $report.Add('## Pass condition') | Out-Null
 $report.Add('') | Out-Null
-$report.Add('This report is clean only when **Readability/documentation findings = 0**. A Purpose comment merely existing is not sufficient: malformed character-split text, duplicates, compressed C# statements, and missing Feature documentation are separate failures.') | Out-Null
-$report.Add('') | Out-Null
-$report.Add('## Checks') | Out-Null
-$report.Add('') | Out-Null
-$report.Add('| Check | Count |') | Out-Null
-$report.Add('|---|---:|') | Out-Null
-foreach ($code in @('MISSING_PURPOSE', 'DUPLICATE_PURPOSE', 'BROKEN_PURPOSE', 'PURPOSE_LENGTH', 'COMPRESSED_CSHARP', 'MISSING_FEATURE_REFERENCE', 'MISSING_REFERENCE_INDEX')) {
-    $count = @($Issues | Where-Object { $_.Code -eq $code }).Count
-    $report.Add("| $code | $count |") | Out-Null
-}
+$report.Add('This report is clean only when **Readability/documentation findings = 0**.') | Out-Null
 $report.Add('') | Out-Null
 $report.Add('## Findings') | Out-Null
 $report.Add('') | Out-Null
@@ -289,18 +273,12 @@ if ($total -eq 0) {
     $report.Add('| PASS | NONE | - | - | No static readability or Feature-documentation findings. |') | Out-Null
 }
 else {
-    foreach ($issue in $Issues | Sort-Object @{ Expression = { switch ($_.Severity) { 'ERROR' { 0 } 'WARN' { 1 } default { 2 } } } }, Code, Path, Line) {
+    foreach ($issue in $Issues | Sort-Object Code, Path, Line) {
         $lineText = if ($issue.Line -gt 0) { [string]$issue.Line } else { '-' }
         $detail = $issue.Message.Replace('|', '\|')
         $report.Add("| $($issue.Severity) | $($issue.Code) | ``$($issue.Path)`` | $lineText | $detail |") | Out-Null
     }
 }
-$report.Add('') | Out-Null
-$report.Add('## Re-run') | Out-Null
-$report.Add('') | Out-Null
-$report.Add('```powershell') | Out-Null
-$report.Add('.\scripts\Verify-SourceReadability.ps1 -Strict') | Out-Null
-$report.Add('```') | Out-Null
 
 [System.IO.File]::WriteAllText($ReportPath, (($report -join "`n") + "`n"), $Utf8NoBom)
 

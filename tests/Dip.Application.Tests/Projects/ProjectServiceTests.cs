@@ -211,8 +211,117 @@ public sealed class ProjectServiceTests
                 Items
                     .Where(x => x.ProjectId == projectId)
                     .OrderByDescending(x => x.CreatedAtUtc)
-                    .Take(take)
+                    .ThenByDescending(x => x.Id)
+                    .Take(Math.Clamp(take, 1, 5000))
                     .ToArray());
+
+        public Task<IReadOnlyList<AuditLog>> SearchAsync(
+            Guid projectId,
+            string? search,
+            string? category,
+            string? correlationId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int take,
+            CancellationToken ct)
+        {
+            var query = Filter(projectId, search, category, correlationId, fromUtc, toUtc)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .Take(Math.Clamp(take, 1, 5000))
+                .ToArray();
+
+            return Task.FromResult<IReadOnlyList<AuditLog>>(query);
+        }
+
+        public async Task<AuditLogPage> SearchPageAsync(
+            Guid projectId,
+            string? search,
+            string? category,
+            string? correlationId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            DateTimeOffset? beforeUtc,
+            Guid? beforeId,
+            int take,
+            CancellationToken ct)
+        {
+            var limit = Math.Clamp(take, 1, 500);
+            var query = await SearchAsync(
+                projectId,
+                search,
+                category,
+                correlationId,
+                fromUtc,
+                toUtc,
+                5000,
+                ct);
+
+            var rows = query
+                .Where(x => !beforeUtc.HasValue
+                            || x.CreatedAtUtc < beforeUtc.Value
+                            || (x.CreatedAtUtc == beforeUtc.Value
+                                && (!beforeId.HasValue || x.Id.CompareTo(beforeId.Value) < 0)))
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .Take(limit + 1)
+                .ToArray();
+
+            var page = rows.Take(limit).ToArray();
+            var last = rows.Length > limit ? page.LastOrDefault() : null;
+            return new AuditLogPage(page, last?.CreatedAtUtc, last?.Id);
+        }
+
+        public Task<AuditLog?> GetLatestByCategoryAsync(
+            Guid projectId,
+            string category,
+            CancellationToken ct) =>
+            Task.FromResult(
+                Items
+                    .Where(x => x.ProjectId == projectId
+                                && x.Category.Equals(category, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.CreatedAtUtc)
+                    .ThenByDescending(x => x.Id)
+                    .FirstOrDefault());
+
+        public Task<IReadOnlyDictionary<Guid, AuditLog>> GetLatestByCategoryAsync(
+            IReadOnlyCollection<Guid> projectIds,
+            string category,
+            CancellationToken ct)
+        {
+            var idSet = projectIds.ToHashSet();
+            IReadOnlyDictionary<Guid, AuditLog> result = Items
+                .Where(x => idSet.Contains(x.ProjectId)
+                            && x.Category.Equals(category, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .GroupBy(x => x.ProjectId)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            return Task.FromResult(result);
+        }
+
+        private IEnumerable<AuditLog> Filter(
+            Guid projectId,
+            string? search,
+            string? category,
+            string? correlationId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc)
+        {
+            return Items.Where(x =>
+                x.ProjectId == projectId
+                && (string.IsNullOrWhiteSpace(search)
+                    || x.Action.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || x.Actor.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || (x.SubjectKey?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
+                && (string.IsNullOrWhiteSpace(category)
+                    || x.Category.Contains(category, StringComparison.OrdinalIgnoreCase))
+                && (string.IsNullOrWhiteSpace(correlationId)
+                    || (x.CorrelationId?.Contains(correlationId, StringComparison.OrdinalIgnoreCase) ?? false))
+                && (!fromUtc.HasValue || x.CreatedAtUtc >= fromUtc.Value)
+                && (!toUtc.HasValue || x.CreatedAtUtc <= toUtc.Value));
+        }
     }
 
     private sealed class StubUnitOfWork : IUnitOfWork

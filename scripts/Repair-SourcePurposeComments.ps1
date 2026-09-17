@@ -1,5 +1,5 @@
 #requires -Version 5.1
-# Purpose: Repairs malformed Purpose comments without renaming files or changing application behavior.
+# Purpose: Repairs missing, duplicate, and malformed Purpose comments without changing application behavior.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
@@ -31,12 +31,16 @@ function Test-ExcludedPath {
     if ($name -match '\.(g|generated|designer)\.cs$') {
         return $true
     }
-
     if ($name -in @('AssemblyInfo.cs', 'GlobalUsings.g.cs')) {
         return $true
     }
-
     return $false
+}
+
+function Test-LicenseHeader {
+    param([Parameter(Mandatory = $true)][string]$Text)
+    $head = $Text.Substring(0, [Math]::Min(2500, $Text.Length))
+    return $head -match '(?im)Copyright|SPDX-License-Identifier|Licensed under'
 }
 
 function ConvertTo-HumanName {
@@ -45,8 +49,7 @@ function ConvertTo-HumanName {
     $value = $value -replace '([a-z0-9])([A-Z])', '$1 $2'
     $value = $value -replace '([A-Z]+)([A-Z][a-z])', '$1 $2'
     $value = $value -replace '[_\-]+', ' '
-    $value = ($value -replace '\s+', ' ').Trim()
-    return $value
+    return ($value -replace '\s+', ' ').Trim()
 }
 
 function Get-DeclaredTypeNames {
@@ -109,8 +112,6 @@ function Test-FragmentedName {
         return $false
     }
 
-    # Split punctuation as well as spaces. This catches names such as
-    # "b ui ld-a ll", "A pp.x am l", and "G it Hu bC li en t".
     $tokens = @(
         [regex]::Matches($Purpose, '[A-Za-z0-9]+') |
         ForEach-Object { $_.Value }
@@ -119,30 +120,22 @@ function Test-FragmentedName {
     for ($start = 0; $start -lt $tokens.Count; $start++) {
         $joined = ''
         $shortCount = 0
-
         for ($end = $start; $end -lt $tokens.Count -and $end -lt ($start + 32); $end++) {
             $token = $tokens[$end]
             $joined += $token
-
             if ($token.Length -le 2) {
                 $shortCount++
             }
-
             $partCount = $end - $start + 1
             if ($joined.Length -gt $candidateNormalized.Length) {
                 break
             }
-
-            if (
-                $partCount -ge 3 -and
-                $shortCount -ge 2 -and
-                $joined.Equals($candidateNormalized, [System.StringComparison]::OrdinalIgnoreCase)
-            ) {
+            if ($partCount -ge 3 -and $shortCount -ge 2 -and
+                $joined.Equals($candidateNormalized, [System.StringComparison]::OrdinalIgnoreCase)) {
                 return $true
             }
         }
     }
-
     return $false
 }
 
@@ -156,19 +149,16 @@ function Test-BrokenPurposeText {
     $candidates = New-Object 'System.Collections.Generic.List[string]'
     $fileStem = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
     $candidates.Add($fileStem) | Out-Null
-
     foreach ($typeName in @(Get-DeclaredTypeNames -Content $Content)) {
         if (-not $candidates.Contains($typeName)) {
             $candidates.Add($typeName) | Out-Null
         }
     }
-
     foreach ($candidate in $candidates) {
         if (Test-FragmentedName -Purpose $Purpose -Candidate $candidate) {
             return $true
         }
     }
-
     return $false
 }
 
@@ -192,13 +182,6 @@ function Get-ReplacementPurpose {
     }
 
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
-    if ($baseName.EndsWith('.xaml', [System.StringComparison]::OrdinalIgnoreCase)) {
-        $baseName = $baseName.Substring(0, $baseName.Length - 5)
-    }
-    if ($baseName.EndsWith('.razor', [System.StringComparison]::OrdinalIgnoreCase)) {
-        $baseName = $baseName.Substring(0, $baseName.Length - 6)
-    }
-
     $primaryType = Get-PrimaryTypeName -Content $Content
     $name = if ($primaryType) { $primaryType } else { $baseName }
     $humanName = ConvertTo-HumanName -Name $name
@@ -212,9 +195,6 @@ function Get-ReplacementPurpose {
     }
     if ($baseName -eq 'Program') {
         return 'Composes and starts this DIP host.'
-    }
-    if ($baseName -eq 'GlobalUsings') {
-        return 'Provides shared imports for this project.'
     }
     if ($name -match 'Controller$') {
         return "Exposes HTTP endpoints implemented by $humanName."
@@ -273,8 +253,38 @@ function Get-ReplacementPurpose {
     if ($relative -match '^src/Dip\.Agent\.') {
         return "Implements the agent responsibility represented by $humanName."
     }
-
     return "Defines the DIP responsibility represented by $humanName."
+}
+
+function Get-PurposePrefix {
+    param([Parameter(Mandatory = $true)][string]$Extension)
+    if ($Extension -in @('.ps1', '.py')) {
+        return '# Purpose: '
+    }
+    return '// Purpose: '
+}
+
+function Get-InsertionIndex {
+    param(
+        [Parameter(Mandatory = $true)][System.Collections.Generic.List[string]]$Lines,
+        [Parameter(Mandatory = $true)][string]$Extension
+    )
+
+    $index = 0
+    if ($Extension -eq '.ps1') {
+        while ($index -lt $Lines.Count -and $Lines[$index] -match '^\s*#requires\b') {
+            $index++
+        }
+    }
+    elseif ($Extension -eq '.py') {
+        if ($index -lt $Lines.Count -and $Lines[$index] -match '^#!') {
+            $index++
+        }
+        if ($index -lt $Lines.Count -and $Lines[$index] -match '^#.*coding[:=]') {
+            $index++
+        }
+    }
+    return $index
 }
 
 function Repair-FilePurpose {
@@ -290,11 +300,7 @@ function Repair-FilePurpose {
     }
 
     $content = [System.IO.File]::ReadAllText($File.FullName)
-    if ([string]::IsNullOrEmpty($content)) {
-        return
-    }
-
-    if ($content.Substring(0, [Math]::Min(2500, $content.Length)) -match '(?im)Copyright|SPDX-License-Identifier|Licensed under') {
+    if ([string]::IsNullOrEmpty($content) -or (Test-LicenseHeader -Text $content)) {
         return
     }
 
@@ -305,60 +311,69 @@ function Repair-FilePurpose {
     }
 
     $purposeIndexes = New-Object 'System.Collections.Generic.List[int]'
-    $scanCount = [Math]::Min(40, $lines.Count)
+    $scanCount = [Math]::Min(60, $lines.Count)
     for ($i = 0; $i -lt $scanCount; $i++) {
-        if ($lines[$i] -match '^\s*(?://|#)\s*Purpose\s*:\s*(.+?)\s*$') {
+        if ($lines[$i] -match '^\s*(?://|#)\s*Purpose\s*:\s*(.*?)\s*$') {
             $purposeIndexes.Add($i) | Out-Null
         }
     }
 
-    if ($purposeIndexes.Count -eq 0) {
-        $Skipped.Add("$(Get-RelativePath $File.FullName): no Purpose comment") | Out-Null
-        return
+    $needsInsert = $purposeIndexes.Count -eq 0
+    $needsRepair = $false
+    if (-not $needsInsert) {
+        $firstIndex = $purposeIndexes[0]
+        $match = [regex]::Match($lines[$firstIndex], '^\s*(?://|#)\s*Purpose\s*:\s*(.*?)\s*$')
+        $currentPurpose = $match.Groups[1].Value.Trim()
+        $needsRepair = $currentPurpose.Length -lt 12 -or
+            $currentPurpose.Length -gt 180 -or
+            (Test-BrokenPurposeText -Purpose $currentPurpose -FilePath $File.FullName -Content $content)
     }
 
-    $firstIndex = $purposeIndexes[0]
-    $match = [regex]::Match($lines[$firstIndex], '^\s*(?://|#)\s*Purpose\s*:\s*(.+?)\s*$')
-    $currentPurpose = $match.Groups[1].Value.Trim()
-    $needsRepair = Test-BrokenPurposeText -Purpose $currentPurpose -FilePath $File.FullName -Content $content
     $hasDuplicates = $purposeIndexes.Count -gt 1
-    $removeDuplicates = $hasDuplicates -and -not $BrokenOnly
-
-    if (-not $needsRepair -and -not $removeDuplicates) {
+    if ($BrokenOnly -and -not $needsRepair) {
+        if ($needsInsert) {
+            $Skipped.Add("$(Get-RelativePath $File.FullName): no Purpose comment") | Out-Null
+        }
         return
     }
 
-    if ($needsRepair) {
-        $prefix = if ($extension -in @('.ps1', '.py')) { '# Purpose: ' } else { '// Purpose: ' }
-        $replacement = Get-ReplacementPurpose -FilePath $File.FullName -Content $content
-        $lines[$firstIndex] = $prefix + $replacement
+    if (-not $needsInsert -and -not $needsRepair -and -not $hasDuplicates) {
+        return
     }
 
-    if ($removeDuplicates) {
-        for ($j = $purposeIndexes.Count - 1; $j -ge 1; $j--) {
-            $lines.RemoveAt($purposeIndexes[$j])
-        }
+    $replacement = Get-ReplacementPurpose -FilePath $File.FullName -Content $content
+    $prefix = Get-PurposePrefix -Extension $extension
+
+    if ($WhatIfReport -or $WhatIfPreference) {
+        Write-Host "[WOULD FIX] $(Get-RelativePath $File.FullName)" -ForegroundColor Yellow
+        return
     }
 
     $relative = Get-RelativePath $File.FullName
-    if ($WhatIfReport -or $WhatIfPreference) {
-        Write-Host "[WOULD FIX] $relative" -ForegroundColor Yellow
+    if (-not $PSCmdlet.ShouldProcess($relative, 'Normalize Purpose comment')) {
         return
     }
 
-    $action = if ($BrokenOnly) {
-        'Repair malformed Purpose comment'
+    if ($needsInsert) {
+        $insertAt = Get-InsertionIndex -Lines $lines -Extension $extension
+        $lines.Insert($insertAt, $prefix + $replacement)
     }
     else {
-        'Repair malformed/duplicate Purpose comment'
+        $firstIndex = $purposeIndexes[0]
+        if ($needsRepair) {
+            $lines[$firstIndex] = $prefix + $replacement
+        }
+        if ($hasDuplicates -and -not $BrokenOnly) {
+            for ($j = $purposeIndexes.Count - 1; $j -ge 1; $j--) {
+                $lines.RemoveAt($purposeIndexes[$j])
+            }
+        }
     }
 
-    if ($PSCmdlet.ShouldProcess($relative, $action)) {
-        $output = ($lines -join "`n").TrimEnd("`n") + "`n"
-        [System.IO.File]::WriteAllText($File.FullName, $output, $Utf8NoBom)
-        $Changed.Add($relative) | Out-Null
-        Write-Host "[FIXED] $relative" -ForegroundColor Green
-    }
+    $output = ($lines -join "`n").TrimEnd("`n") + "`n"
+    [System.IO.File]::WriteAllText($File.FullName, $output, $Utf8NoBom)
+    $Changed.Add($relative) | Out-Null
+    Write-Host "[FIXED] $relative" -ForegroundColor Green
 }
 
 foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'plugins')) {
@@ -366,15 +381,13 @@ foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'pl
     if (-not (Test-Path -LiteralPath $root -PathType Container)) {
         continue
     }
-
     foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
         Repair-FilePurpose -File $file
     }
 }
 
 Write-Host ''
-Write-Host "Purpose repair complete. Changed: $($Changed.Count); skipped-without-purpose: $($Skipped.Count)" -ForegroundColor Cyan
+Write-Host "Purpose normalization complete. Changed: $($Changed.Count); skipped: $($Skipped.Count)" -ForegroundColor Cyan
 if ($Changed.Count -gt 0) {
-    Write-Host 'Changed files:' -ForegroundColor Cyan
     $Changed | Sort-Object | ForEach-Object { Write-Host " - $_" }
 }

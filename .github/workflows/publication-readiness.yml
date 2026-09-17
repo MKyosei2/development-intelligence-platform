@@ -153,18 +153,18 @@ jobs:
               "note": "Runtime verification is intentionally separate. Final release requires real Unity/Unreal and benchmark evidence bound to this same SHA.",
           }
           (out / "exact-revision.json").write_text(
-              json.dumps(payload, indent=2, ensure_ascii=False) + "\\n",
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
               encoding="utf-8",
           )
           (out / "exact-revision.md").write_text(
-              "# Exact revision static evidence\\n\\n"
-              f"- Revision: `{payload['revision']}`\\n"
-              f"- Event: `{payload['event']}`\\n"
-              f"- Ref: `{payload['ref']}`\\n"
-              f"- Publication safety: **PASS**\\n"
-              f"- Portfolio static readiness: **PASS**\\n"
-              f"- Runtime verified by this workflow: **NO**\\n\\n"
-              "Runtime/engine/performance evidence is intentionally separate and must carry the same final SHA.\\n",
+              "# Exact revision static evidence\n\n"
+              f"- Revision: `{payload['revision']}`\n"
+              f"- Event: `{payload['event']}`\n"
+              f"- Ref: `{payload['ref']}`\n"
+              f"- Publication safety: **PASS**\n"
+              f"- Portfolio static readiness: **PASS**\n"
+              f"- Runtime verified by this workflow: **NO**\n\n"
+              "Runtime/engine/performance evidence is intentionally separate and must carry the same final SHA.\n",
               encoding="utf-8",
           )
 
