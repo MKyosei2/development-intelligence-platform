@@ -1,4 +1,4 @@
-// Purpose: Coordinates C ap ab il it yR eg is tr y application behavior for Capabilities.
+// Purpose: Defines the platform capability registry exposed through DIP APIs.
 namespace Dip.Application.Features.Capabilities;
 
 public sealed record CapabilityDescriptor(
@@ -27,6 +27,6 @@ public static class CapabilityRegistry
         new("qa-governance", "Release", "QA Governance", "QA policies, findings and governance overview.", true, "api/v1/qa-governance/projects/{projectId}/overview", "Implemented", "RuntimeCheckRequired"),
         new("system", "Platform", "System Status", "Health of API, database, analysis, worker and artifact store.", false, "api/v1/system/status", "Implemented", "RuntimeCheckRequired"),
         new("integrations", "Platform", "Integrations", "Current GitHub integration status.", false, "api/v1/integrations/github/status", "Implemented", "RuntimeCheckRequired"),
-        new("capabilities", "Platform", "Capabilities", "DIP capability registry used by the native desktop shell.", false, "api/v1/capabilities", "Implemented", "RuntimeCheckRequired")
+        new("capabilities", "Platform", "Capabilities", "Capability registry exposed to DIP clients through the API.", false, "api/v1/capabilities", "Implemented", "RuntimeCheckRequired")
     ];
 }

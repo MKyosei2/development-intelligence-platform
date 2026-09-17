@@ -20,7 +20,7 @@
 - Difficulty4 / DifficultyFour -> QualityAutomation
 - Difficulty5 / DifficultyFive -> EnterpriseFleet
 
-EF Migration と `scripts/legacy/difficulty-foundation` は履歴互換性のため例外とする。
+EF Migration は履歴互換性のため例外とする。
 
 ## 避ける名前
 
