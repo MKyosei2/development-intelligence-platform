@@ -50,6 +50,7 @@ Saved/
 artifacts/**
 !artifacts/.gitkeep
 !artifacts/README.md
+/src/Dip.Api/artifacts/
 reports/generated/
 reports/tmp/
 .pgdata/
