@@ -87,9 +87,9 @@ DashboardはPM向け情報を最初に表示する。
 
 ## 8. DB互換性
 
-現行DIPはEF Core migration baselineがなく`EnsureCreated`を使用している。`EnsureCreated`は既存DBへ新テーブルを追加できないため、P0ではno-migrations modeに限って`P0SchemaBootstrapper`を実行し、新しいProject Truthテーブルだけを`CREATE TABLE IF NOT EXISTS`で追加する。
+現行DIPは正式なEF Core migration chainを使用する。新規Databaseは`DbInitializer`からmigrationを適用し、過去の`EnsureCreated`系Databaseについては`LegacyMigrationAdopter`が互換性をfail-closedで検証したうえでmigration baselineへ移行する。
 
-正式なmigration baselineを導入する段階では、このbootstrapperをmigrationへ置換する。
+P0開発時に使用していた`P0SchemaBootstrapper`による`CREATE TABLE IF NOT EXISTS`方式は、正式migration baselineの導入完了に伴い廃止した。Schema evolutionのtruth sourceは`src/Dip.Infrastructure/Persistence/Migrations/`とする。
 
 ## 9. P0で実装しないもの
 
