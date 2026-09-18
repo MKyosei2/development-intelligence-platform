@@ -1,4 +1,4 @@
-// Purpose: Evaluates E vi de nc eC on fi de nc eE va lu at or using DIP project evidence and policy.
+// Purpose: Evaluates project evidence confidence without mixing historical revisions into current verification.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
@@ -6,9 +6,9 @@ using Dip.Domain.Enums;
 namespace Dip.Application.Features.ProjectTruth;
 
 /// <summary>
-/// Converts the source and declared confidence of recent evidence into a
-/// project-level confidence. Multiple independent providers are needed before
-/// a project can be described as fully verified.
+/// Converts recent objective evidence into a project-level confidence.
+/// When revision-bound evidence exists, only evidence applicable to the latest
+/// observed revision contributes to current confidence.
 /// </summary>
 public sealed class EvidenceConfidenceEvaluator
 {
@@ -26,12 +26,26 @@ public sealed class EvidenceConfidenceEvaluator
         if (recent.Length == 0)
             return EvidenceConfidence.Unverified;
 
-        var effective = recent
-            .Select(item => new { Item = item, Confidence = EvidenceFreshnessPolicy.EffectiveConfidence(item, now) })
+        var pipelineRevisions = EvidenceRevisionPolicy.BuildPipelineRevisionMap(recent);
+        var currentRevision = EvidenceRevisionPolicy.ResolveCurrentRevision(recent, pipelineRevisions);
+        var applicable = recent
+            .Where(item => EvidenceRevisionPolicy.AppliesToCurrentRevision(
+                item,
+                currentRevision,
+                pipelineRevisions))
             .ToArray();
 
-        // SourceType alone is too coarse for an extensible platform. Prefer an
-        // explicit provider/source id in evidence payload when present.
+        if (applicable.Length == 0)
+            return EvidenceConfidence.Unverified;
+
+        var effective = applicable
+            .Select(item => new
+            {
+                Item = item,
+                Confidence = EvidenceFreshnessPolicy.EffectiveConfidence(item, now)
+            })
+            .ToArray();
+
         var distinctSources = effective
             .Where(item => item.Confidence >= EvidenceConfidence.High)
             .Select(item => SourceIdentity(item.Item))
@@ -51,11 +65,13 @@ public sealed class EvidenceConfidenceEvaluator
 
     private static string SourceIdentity(EvidenceRecord item)
     {
-        var provider=item.PayloadValue("provider")
-            ??item.PayloadValue("sourceProvider")
-            ??item.PayloadValue("source");
+        var provider = item.PayloadValue("provider")
+            ?? item.PayloadValue("sourceProvider")
+            ?? item.PayloadValue("source")
+            ?? item.SourceInstanceId;
+
         return string.IsNullOrWhiteSpace(provider)
-            ?item.SourceType.ToString()
-            :$"{item.SourceType}:{provider.Trim()}";
+            ? item.SourceType.ToString()
+            : $"{item.SourceType}:{provider.Trim()}";
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using Dip.UnityCollector.Editor.Models;
 using UnityEditor;
@@ -15,7 +14,12 @@ namespace Dip.UnityCollector.Editor.Analysis
         {
             var originalSetup = EditorSceneManager.GetSceneManagerSetup();
             var scenePaths = analyzeAllBuildScenes
-                ? EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+                ? EditorBuildSettings.scenes
+                    .Where(scene => scene.enabled)
+                    .Select(scene => scene.path)
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
                 : Array.Empty<string>();
 
             long totalObjects = 0;
@@ -34,8 +38,17 @@ namespace Dip.UnityCollector.Editor.Analysis
                         var scene = alreadyLoaded.IsValid() && alreadyLoaded.isLoaded
                             ? alreadyLoaded
                             : EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
-                        AnalyzeScene(scene, report, maxObjectsPerScene, ref totalObjects, ref disabledObjects, ref missingScripts, ref missingSerializedReferences);
+
+                        AnalyzeScene(
+                            scene,
+                            report,
+                            maxObjectsPerScene,
+                            ref totalObjects,
+                            ref disabledObjects,
+                            ref missingScripts,
+                            ref missingSerializedReferences);
                         analyzedScenes++;
+
                         if (!(alreadyLoaded.IsValid() && alreadyLoaded.isLoaded))
                             EditorSceneManager.CloseScene(scene, true);
                     }
@@ -45,15 +58,27 @@ namespace Dip.UnityCollector.Editor.Analysis
                     for (var i = 0; i < SceneManager.sceneCount; i++)
                     {
                         var scene = SceneManager.GetSceneAt(i);
-                        if (!scene.IsValid() || !scene.isLoaded) continue;
-                        AnalyzeScene(scene, report, maxObjectsPerScene, ref totalObjects, ref disabledObjects, ref missingScripts, ref missingSerializedReferences);
+                        if (!scene.IsValid() || !scene.isLoaded)
+                            continue;
+
+                        AnalyzeScene(
+                            scene,
+                            report,
+                            maxObjectsPerScene,
+                            ref totalObjects,
+                            ref disabledObjects,
+                            ref missingScripts,
+                            ref missingSerializedReferences);
                         analyzedScenes++;
                     }
                 }
             }
             finally
             {
-                try { EditorSceneManager.RestoreSceneManagerSetup(originalSetup); }
+                try
+                {
+                    EditorSceneManager.RestoreSceneManagerSetup(originalSetup);
+                }
                 catch (Exception ex)
                 {
                     report.issues.Add(new CollectorIssue
@@ -62,7 +87,8 @@ namespace Dip.UnityCollector.Editor.Analysis
                         severity = "Warning",
                         title = "Scene setup restoration failed",
                         description = ex.Message,
-                        source = "EditorSceneManager"
+                        source = "EditorSceneManager",
+                        ruleId = "unity.scene.restore-failed"
                     });
                 }
             }
@@ -86,7 +112,16 @@ namespace Dip.UnityCollector.Editor.Analysis
         {
             var sceneObjects = 0L;
             foreach (var root in scene.GetRootGameObjects())
-                AnalyzeObject(root, scene.path, report, ref sceneObjects, ref disabledObjects, ref missingScripts, ref missingSerializedReferences);
+            {
+                AnalyzeObject(
+                    root,
+                    scene.path,
+                    report,
+                    ref sceneObjects,
+                    ref disabledObjects,
+                    ref missingScripts,
+                    ref missingSerializedReferences);
+            }
 
             totalObjects += sceneObjects;
             if (sceneObjects > maxObjectsPerScene)
@@ -97,7 +132,8 @@ namespace Dip.UnityCollector.Editor.Analysis
                     severity = "Warning",
                     title = "High scene object count",
                     description = $"Scene contains {sceneObjects} GameObjects, exceeding the configured limit {maxObjectsPerScene}.",
-                    source = scene.path
+                    source = scene.path,
+                    ruleId = "unity.scene.object-count"
                 });
             }
         }
@@ -112,7 +148,8 @@ namespace Dip.UnityCollector.Editor.Analysis
             ref long missingSerializedReferences)
         {
             objectCount++;
-            if (!gameObject.activeSelf) disabledObjects++;
+            if (!gameObject.activeSelf)
+                disabledObjects++;
 
             var missing = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(gameObject);
             if (missing > 0)
@@ -124,13 +161,16 @@ namespace Dip.UnityCollector.Editor.Analysis
                     severity = "Critical",
                     title = "Missing MonoBehaviour script",
                     description = $"{gameObject.name} has {missing} missing script component(s).",
-                    source = string.IsNullOrWhiteSpace(scenePath) ? gameObject.name : scenePath
+                    source = string.IsNullOrWhiteSpace(scenePath) ? gameObject.name : scenePath,
+                    ruleId = "unity.scene.missing-script"
                 });
             }
 
             foreach (var component in gameObject.GetComponents<Component>())
             {
-                if (component == null) continue;
+                if (component == null)
+                    continue;
+
                 try
                 {
                     var serializedObject = new SerializedObject(component);
@@ -139,8 +179,11 @@ namespace Dip.UnityCollector.Editor.Analysis
                     while (property.NextVisible(enterChildren))
                     {
                         enterChildren = false;
-                        if (property.propertyType != SerializedPropertyType.ObjectReference) continue;
-                        if (property.objectReferenceValue != null || property.objectReferenceInstanceIDValue == 0) continue;
+                        if (property.propertyType != SerializedPropertyType.ObjectReference)
+                            continue;
+                        if (property.objectReferenceValue != null || property.objectReferenceInstanceIDValue == 0)
+                            continue;
+
                         missingSerializedReferences++;
                         report.issues.Add(new CollectorIssue
                         {
@@ -148,7 +191,8 @@ namespace Dip.UnityCollector.Editor.Analysis
                             severity = "Critical",
                             title = "Missing serialized object reference",
                             description = $"{gameObject.name}/{component.GetType().Name}.{property.propertyPath} references a missing Unity object.",
-                            source = string.IsNullOrWhiteSpace(scenePath) ? gameObject.name : scenePath
+                            source = string.IsNullOrWhiteSpace(scenePath) ? gameObject.name : scenePath,
+                            ruleId = "unity.scene.missing-reference"
                         });
                     }
                 }
@@ -160,13 +204,23 @@ namespace Dip.UnityCollector.Editor.Analysis
                         severity = "Info",
                         title = "Component serialization inspection skipped",
                         description = $"{component.GetType().FullName}: {ex.Message}",
-                        source = scenePath
+                        source = scenePath,
+                        ruleId = "unity.scene.serialization-inspection-skipped"
                     });
                 }
             }
 
             foreach (Transform child in gameObject.transform)
-                AnalyzeObject(child.gameObject, scenePath, report, ref objectCount, ref disabledObjects, ref missingScripts, ref missingSerializedReferences);
+            {
+                AnalyzeObject(
+                    child.gameObject,
+                    scenePath,
+                    report,
+                    ref objectCount,
+                    ref disabledObjects,
+                    ref missingScripts,
+                    ref missingSerializedReferences);
+            }
         }
     }
 }
