@@ -1,4 +1,4 @@
-// Purpose: Represents H ar dw ar eP ro fi le in the Quality domain.
+// Purpose: Represents H ar dw ar eP ro fi le in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

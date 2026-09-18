@@ -1,4 +1,4 @@
-// Purpose: Registers D ep en de nc yI nj ec ti on.E nt er pr is eF le et infrastructure dependencies.
+// Purpose: Provides the infrastructure capability represented by D if fi cu lt yF iv eD ep en de nc yI nj ec ti on.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Enterprise;
 using Dip.Application.Features.Fleet;

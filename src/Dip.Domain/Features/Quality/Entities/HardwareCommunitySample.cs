@@ -1,4 +1,4 @@
-// Purpose: Represents H ar dw ar eC om mu ni ty Sa mp le in the Quality domain.
+// Purpose: Represents H ar dw ar eC om mu ni ty Sa mp le in the DIP domain.
 namespace Dip.Domain.Entities;
 
 /// <summary>

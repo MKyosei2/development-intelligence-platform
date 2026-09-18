@@ -1,4 +1,4 @@
-// Purpose: Represents P ro je ct Me mb er sh ip in the Identity domain.
+// Purpose: Represents P ro je ct Me mb er sh ip in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

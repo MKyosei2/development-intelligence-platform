@@ -1,4 +1,4 @@
-// Purpose: Coordinates I In te gr at io nC on ne ct or application behavior for Integrations.
+// Purpose: Defines the application boundary represented by I In te gr at io nC on ne ct or.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Features.Integrations;

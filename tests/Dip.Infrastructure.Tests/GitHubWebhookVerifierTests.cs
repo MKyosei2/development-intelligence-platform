@@ -1,4 +1,4 @@
-// Purpose: Verifies G it Hu bW eb ho ok Ve ri fi er Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by G it Hu bW eb ho ok Ve ri fi er Te st s.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Infrastructure.GitHub;

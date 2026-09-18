@@ -1,4 +1,4 @@
-// Purpose: Exposes E nt er pr is eG ov er na nc eC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for E nt er pr is eG ov er na nc eC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Enterprise;
 using Dip.Application.Features.Evidence;

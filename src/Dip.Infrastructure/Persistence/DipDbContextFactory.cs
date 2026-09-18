@@ -1,4 +1,4 @@
-// Purpose: Implements D ip Db Co nt ex tF ac to ry persistence behavior.
+// Purpose: Provides the infrastructure capability represented by D ip Db Co nt ex tF ac to ry.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 

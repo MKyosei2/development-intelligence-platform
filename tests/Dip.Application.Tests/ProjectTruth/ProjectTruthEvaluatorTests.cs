@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Tr ut hE va lu at or Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by P ro je ct Tr ut hE va lu at or Te st s.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

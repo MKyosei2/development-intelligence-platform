@@ -1,4 +1,4 @@
-// Purpose: Provides the G it Hu bV er si on Co nt ro lC on ne ct or infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through G it Hu bV er si on Co nt ro lC on ne ct or.
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Domain.Enums;

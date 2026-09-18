@@ -1,4 +1,4 @@
-# Purpose: Automates the G en er at e-P ro du ct io nT oo ls-M ig ra ti on repository workflow.
+# Purpose: Generates P ro du ct io nT oo ls M ig ra ti on artifacts required by DIP.
 [CmdletBinding()]
 param()
 

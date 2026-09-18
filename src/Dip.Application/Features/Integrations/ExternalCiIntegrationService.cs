@@ -1,4 +1,4 @@
-// Purpose: Coordinates E xt er na lC iI nt eg ra ti on Se rv ic e application behavior for Integrations.
+// Purpose: Orchestrates the DIP workflow for E xt er na lC iI nt eg ra ti on Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Abstractions.Persistence;

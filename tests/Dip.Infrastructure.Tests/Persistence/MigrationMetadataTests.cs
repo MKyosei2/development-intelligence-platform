@@ -1,4 +1,4 @@
-// Purpose: Verifies M ig ra ti on Me ta da ta Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by M ig ra ti on Me ta da ta Te st s.
 using Dip.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 

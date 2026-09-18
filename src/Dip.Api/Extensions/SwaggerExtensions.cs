@@ -1,1 +1,1 @@
-// Purpose: Configures S wa gg er Ex te ns io ns for the DIP API.
+// Purpose: Defines the DIP responsibility represented by S wa gg er Ex te ns io ns.

@@ -1,1 +1,1 @@
-// Purpose: Coordinates N ot if ic at io nD to application behavior for Notifications.
+// Purpose: Defines data exchanged for N ot if ic at io nD to.

@@ -1,4 +1,4 @@
-// Purpose: Implements P ip el in eR un Re po si to ry persistence behavior.
+// Purpose: Persists and queries P ip el in eR un Re po si to ry data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;

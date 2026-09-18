@@ -1,4 +1,4 @@
-// Purpose: Represents P er fo rm an ce Si mu la ti on Ru n in the Quality domain.
+// Purpose: Represents P er fo rm an ce Si mu la ti on Ru n in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

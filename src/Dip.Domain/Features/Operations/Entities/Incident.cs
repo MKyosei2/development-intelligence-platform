@@ -1,4 +1,4 @@
-// Purpose: Represents I nc id en t in the Operations domain.
+// Purpose: Represents I nc ID en t in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

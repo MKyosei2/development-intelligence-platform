@@ -1,4 +1,4 @@
-// Purpose: Represents C ro ss Re po si to ry Im pa ct in the Projects domain.
+// Purpose: Represents C ro ss Re po si to ry Im pa ct in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class CrossRepositoryImpact

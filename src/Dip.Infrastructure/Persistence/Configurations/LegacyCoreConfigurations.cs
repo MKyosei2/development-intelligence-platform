@@ -1,4 +1,4 @@
-// Purpose: Implements L eg ac yC or eC on fi gu ra ti on s persistence behavior.
+// Purpose: Configures EF Core persistence for L eg ac yC or eC on fi gu ra ti on s.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;

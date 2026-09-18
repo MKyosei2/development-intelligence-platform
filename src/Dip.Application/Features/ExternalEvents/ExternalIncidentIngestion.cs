@@ -1,4 +1,4 @@
-// Purpose: Coordinates E xt er na lI nc id en tI ng es ti on application behavior for ExternalEvents.
+// Purpose: Implements application behavior for E xt er na lI nc ID en tI ng es ti on.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;

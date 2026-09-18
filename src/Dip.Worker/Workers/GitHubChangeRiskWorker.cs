@@ -1,4 +1,4 @@
-// Purpose: Runs G it Hu bC ha ng eR is kW or ke r background processing.
+// Purpose: Runs background processing for G it Hu bC ha ng eR is kW or ke r.
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;

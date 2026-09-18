@@ -1,1 +1,1 @@
-// Purpose: Provides the S to ra ge Op ti on s infrastructure implementation.
+// Purpose: Defines configuration options for S to ra ge Op ti on s.

@@ -1,4 +1,4 @@
-// Purpose: Runs D ur ab le Jo bR ec ov er yW or ke r background processing.
+// Purpose: Runs background processing for D ur ab le Jo bR ec ov er yW or ke r.
 using Dip.Application.Features.Jobs;
 using Dip.Application.Abstractions.Observability;
 using Microsoft.Extensions.Options;

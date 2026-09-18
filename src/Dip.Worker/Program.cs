@@ -1,4 +1,4 @@
-// Purpose: Runs P ro gr am background processing.
+// Purpose: Composes and starts the DIP background worker host.
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;

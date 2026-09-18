@@ -1,1 +1,1 @@
-// Purpose: Describes the P ul lR eq ue st Ri sk Ch an ge dE ve nt domain event.
+// Purpose: Defines P ul lR eq ue st Ri sk Ch an ge dE ve nt in the DIP domain.

@@ -1,4 +1,4 @@
-// Purpose: Verifies V is ua lC om pa ra to rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by V is ua lC om pa ra to rT es ts.
 using Dip.Application.Features.QualityAutomation.VisualQa;
 using FluentAssertions;
 

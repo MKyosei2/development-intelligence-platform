@@ -1,4 +1,4 @@
-// Purpose: Represents C om mu ni ty Ha rd wa re Sa mp le in the Quality domain.
+// Purpose: Represents C om mu ni ty Ha rd wa re Sa mp le in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class CommunityHardwareSample
 {

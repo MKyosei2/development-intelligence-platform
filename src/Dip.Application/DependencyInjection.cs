@@ -1,4 +1,4 @@
-// Purpose: Coordinates D ep en de nc yI nj ec ti on application behavior for Common.
+// Purpose: Implements application behavior for D ep en de nc yI nj ec ti on.
 using Dip.Application.Features.Collectors;
 using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.ProjectTruth;

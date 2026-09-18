@@ -1,4 +1,4 @@
-// Purpose: Provides the T ea ms Ma na ge me nt No ti fi ca ti on Ch an ne l infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by T ea ms Ma na ge me nt No ti fi ca ti on Ch an ne l.
 using System.Net.Http.Json;
 using Dip.Application.Features.Management;
 using Microsoft.Extensions.Options;

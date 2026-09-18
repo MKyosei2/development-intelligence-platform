@@ -1,1 +1,1 @@
-// Purpose: Provides the L oc al Ob je ct St or ag e infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by L oc al Ob je ct St or ag e.

@@ -1,4 +1,4 @@
-// Purpose: Verifies E vi de nc eP ol ic yT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by E vi de nc eP ol ic yT es ts.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

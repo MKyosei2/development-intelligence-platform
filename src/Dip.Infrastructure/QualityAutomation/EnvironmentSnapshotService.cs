@@ -1,4 +1,4 @@
-// Purpose: Provides the E nv ir on me nt Sn ap sh ot Se rv ic e infrastructure implementation.
+// Purpose: Implements infrastructure support for E nv ir on me nt Sn ap sh ot Se rv ic e.
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;

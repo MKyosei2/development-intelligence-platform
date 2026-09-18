@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct So ur ce Bi nd in gs Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for P ro je ct So ur ce Bi nd in gs Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Integrations;
 using Dip.Application.Features.Authorization;

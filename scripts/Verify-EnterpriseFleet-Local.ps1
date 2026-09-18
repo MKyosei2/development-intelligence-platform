@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-E nt er pr is eF le et-L oc al repository workflow.
+# Purpose: Verifies E nt er pr is eF le et L oc al requirements for DIP.
 [CmdletBinding()]
 param()
 Set-StrictMode -Version Latest

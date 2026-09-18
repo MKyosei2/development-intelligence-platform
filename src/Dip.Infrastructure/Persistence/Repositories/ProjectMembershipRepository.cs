@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Me mb er sh ip Re po si to ry persistence behavior.
+// Purpose: Persists and queries P ro je ct Me mb er sh ip Re po si to ry data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

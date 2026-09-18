@@ -1,4 +1,4 @@
-// Purpose: Verifies G ov er na nc eA ut ho ri za ti on Su rf ac eT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by G ov er na nc eA ut ho ri za ti on Su rf ac eT es ts.
 using System.Reflection;
 using System.Security.Claims;
 using Dip.Api.Authorization;

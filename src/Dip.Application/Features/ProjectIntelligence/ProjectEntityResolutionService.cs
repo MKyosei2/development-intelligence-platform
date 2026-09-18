@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct En ti ty Re so lu ti on Se rv ic e application behavior for ProjectIntelligence.
+// Purpose: Orchestrates the DIP workflow for P ro je ct En ti ty Re so lu ti on Se rv ic e.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Application.Abstractions.Persistence;

@@ -1,1 +1,1 @@
-// Purpose: Configures C or re la ti on Id Mi dd le wa re for the DIP API.
+// Purpose: Defines the DIP responsibility represented by C or re la ti on ID Mi dd le wa re.

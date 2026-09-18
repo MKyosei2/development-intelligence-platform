@@ -1,4 +1,4 @@
-// Purpose: Exposes P er fo rm an ce Bu dg et sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for P er fo rm an ce Bu dg et sC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Performance;
 using Microsoft.AspNetCore.Authorization;

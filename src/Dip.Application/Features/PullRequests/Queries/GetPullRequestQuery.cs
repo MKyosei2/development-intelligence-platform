@@ -1,1 +1,1 @@
-// Purpose: Coordinates G et Pu ll Re qu es tQ ue ry application behavior for PullRequests.
+// Purpose: Defines the application query for G et Pu ll Re qu es tQ ue ry.

@@ -1,4 +1,4 @@
-// Purpose: Verifies Q ua li ty Ga te Ev al ua to rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by Q ua li ty Ga te Ev al ua to rT es ts.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.DevelopmentGraph;

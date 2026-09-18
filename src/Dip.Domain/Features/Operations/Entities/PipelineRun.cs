@@ -1,4 +1,4 @@
-// Purpose: Represents P ip el in eR un in the Operations domain.
+// Purpose: Represents P ip el in eR un in the DIP domain.
 using Dip.Domain.Enums;
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;

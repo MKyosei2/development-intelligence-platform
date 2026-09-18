@@ -1,4 +1,4 @@
-// Purpose: Defines Q ue ue Me ss ag e repository behavior.
+// Purpose: Defines the shared contract represented by Q ue ue Me ss ag e.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record QueueMessage<T>(

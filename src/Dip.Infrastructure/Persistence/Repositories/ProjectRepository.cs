@@ -1,4 +1,4 @@
-// Purpose: Implements R ep os it or ie s persistence behavior.
+// Purpose: Persists and queries P ro je ct Re po si to ry data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

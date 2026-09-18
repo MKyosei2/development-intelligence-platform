@@ -1,1 +1,1 @@
-// Purpose: Provides the R et ry Po li ci es infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by R et ry Po li CI es.

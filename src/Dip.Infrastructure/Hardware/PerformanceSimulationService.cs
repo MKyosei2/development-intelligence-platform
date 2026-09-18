@@ -1,4 +1,4 @@
-// Purpose: Provides the P er fo rm an ce Si mu la ti on Se rv ic e infrastructure implementation.
+// Purpose: Implements infrastructure support for P er fo rm an ce Si mu la ti on Se rv ic e.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

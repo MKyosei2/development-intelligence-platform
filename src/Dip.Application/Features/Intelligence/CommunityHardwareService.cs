@@ -1,4 +1,4 @@
-// Purpose: Coordinates C om mu ni ty Ha rd wa re Se rv ic e application behavior for Intelligence.
+// Purpose: Orchestrates the DIP workflow for C om mu ni ty Ha rd wa re Se rv ic e.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;

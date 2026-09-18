@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro du ce rI nt el li ge nc eS er vi ce application behavior for Management.
+// Purpose: Orchestrates the DIP workflow for P ro du ce rI nt el li ge nc eS er vi ce.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Enums;

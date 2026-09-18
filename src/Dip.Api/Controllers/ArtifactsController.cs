@@ -1,4 +1,4 @@
-// Purpose: Exposes A rt if ac ts Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for A rt if ac ts Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;

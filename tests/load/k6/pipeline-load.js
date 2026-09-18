@@ -1,1 +1,1 @@
-// Purpose: Verifies p ip el in e-l oa d behavior.
+// Purpose: Verifies behavior and invariants covered by p ip el in e l oa d.

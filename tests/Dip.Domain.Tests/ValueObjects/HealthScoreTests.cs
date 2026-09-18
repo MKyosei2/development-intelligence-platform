@@ -1,4 +1,4 @@
-// Purpose: Verifies H ea lt hS co re Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by H ea lt hS co re Te st s.
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

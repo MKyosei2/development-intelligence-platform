@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-P2 repository workflow.
+# Purpose: Verifies P2 requirements for DIP.
 [CmdletBinding()]
 param(
     [switch]$SkipDotNet,

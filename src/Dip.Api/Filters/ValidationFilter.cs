@@ -1,1 +1,1 @@
-// Purpose: Configures V al id at io nF il te r for the DIP API.
+// Purpose: Defines the DIP responsibility represented by V al ID at io nF il te r.

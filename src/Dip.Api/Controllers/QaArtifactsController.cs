@@ -1,4 +1,4 @@
-// Purpose: Exposes Q aA rt if ac ts Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for Q aA rt if ac ts Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Domain.Enums;

@@ -1,4 +1,4 @@
-// Purpose: Represents A rt if ac tB lo b in the Artifacts domain.
+// Purpose: Represents A rt if ac tB lo b in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class ArtifactBlob

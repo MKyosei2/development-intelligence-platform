@@ -1,4 +1,4 @@
-// Purpose: Defines P2 In te ll ig en ce St at us states used by Common.
+// Purpose: Defines the allowed P2 In te ll ig en ce St at us states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum P2IntelligenceStatus

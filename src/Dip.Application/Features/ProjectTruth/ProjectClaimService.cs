@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct Cl ai mS er vi ce application behavior for ProjectTruth.
+// Purpose: Orchestrates the DIP workflow for P ro je ct Cl ai mS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

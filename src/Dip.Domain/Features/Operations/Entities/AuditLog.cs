@@ -1,4 +1,4 @@
-// Purpose: Represents A ud it Lo g in the Operations domain.
+// Purpose: Represents A ud it Lo g in the DIP domain.
 namespace Dip.Domain.Entities;
 
 /// <summary>

@@ -1,4 +1,4 @@
-// Purpose: Provides the J ir aM an ag em en tS yn cA da pt er infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through J ir aM an ag em en tS yn cA da pt er.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;

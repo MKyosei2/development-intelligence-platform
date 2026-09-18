@@ -1,4 +1,4 @@
-// Purpose: Coordinates F or ec as tA nd De ci si on Se rv ic e application behavior for Intelligence.
+// Purpose: Orchestrates the DIP workflow for F or ec as tA nd De CI si on Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

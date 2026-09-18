@@ -1,4 +1,4 @@
-// Purpose: Exposes Q aG ov er na nc eC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for Q aG ov er na nc eC on tr ol le r.
 using System.Diagnostics;
 using Dip.Api.Authorization;
 using Dip.Application.Features.QualityGovernance;

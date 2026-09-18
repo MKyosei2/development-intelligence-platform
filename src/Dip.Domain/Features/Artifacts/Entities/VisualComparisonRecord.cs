@@ -1,4 +1,4 @@
-// Purpose: Represents V is ua lC om pa ri so nR ec or d in the Artifacts domain.
+// Purpose: Represents V is ua lC om pa ri so nR ec or d in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

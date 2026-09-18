@@ -1,4 +1,4 @@
-// Purpose: Provides the O pe nA iC om pa ti bl eF ix Pr op os al Ag en t infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by O pe nA iC om pa ti bl eF ix Pr op os al Ag en t.
 using Dip.Application.Features.QualityAutomation;
 
 namespace Dip.Infrastructure.P2Intelligence;

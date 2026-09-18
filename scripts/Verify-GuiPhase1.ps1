@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-G ui Ph as e1 repository workflow.
+# Purpose: Verifies G ui Ph as e1 requirements for DIP.
 [CmdletBinding()]
 param(
     [int]$StartupTimeoutSeconds=420,

@@ -1,4 +1,4 @@
-// Purpose: Represents H ar dw ar eC al ib ra ti on in the Quality domain.
+// Purpose: Represents H ar dw ar eC al ib ra ti on in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class HardwareCalibration

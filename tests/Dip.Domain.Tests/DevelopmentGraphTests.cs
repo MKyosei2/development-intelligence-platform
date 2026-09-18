@@ -1,4 +1,4 @@
-// Purpose: Verifies D ev el op me nt Gr ap hT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by D ev el op me nt Gr ap hT es ts.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 

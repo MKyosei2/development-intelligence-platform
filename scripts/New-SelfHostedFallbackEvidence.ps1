@@ -1,4 +1,4 @@
-# Purpose: Automates the N ew-S el fH os te dF al lb ac kE vi de nc e repository workflow.
+# Purpose: Automates the DIP workflow represented by N ew S el fH os te dF al lb ac kE vi de nc e.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

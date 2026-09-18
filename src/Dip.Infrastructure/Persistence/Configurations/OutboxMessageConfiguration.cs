@@ -1,4 +1,4 @@
-// Purpose: Implements O ut bo xM es sa ge Co nf ig ur at io n persistence behavior.
+// Purpose: Configures EF Core persistence for O ut bo xM es sa ge Co nf ig ur at io n.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

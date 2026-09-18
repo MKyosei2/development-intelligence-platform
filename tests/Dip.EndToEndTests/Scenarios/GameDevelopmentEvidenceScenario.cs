@@ -1,4 +1,4 @@
-// Purpose: Verifies G am eD ev el op me nt Ev id en ce Sc en ar io behavior.
+// Purpose: Verifies behavior and invariants covered by G am eD ev el op me nt Ev ID en ce Sc en ar io.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

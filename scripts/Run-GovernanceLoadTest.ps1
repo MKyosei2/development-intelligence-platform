@@ -1,4 +1,4 @@
-# Purpose: Automates the R un-G ov er na nc eL oa dT es t repository workflow.
+# Purpose: Runs the DIP G ov er na nc eL oa dT es t workflow.
 [CmdletBinding()]
 param(
     [int]$ProjectCount=10,

@@ -1,4 +1,4 @@
-// Purpose: Provides the M an ag em en tN ot if ic at io nO pt io ns infrastructure implementation.
+// Purpose: Defines configuration options for M an ag em en tN ot if ic at io nO pt io ns.
 namespace Dip.Infrastructure.Management;
 
 public sealed class ManagementNotificationOptions

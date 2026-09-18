@@ -1,4 +1,4 @@
-// Purpose: Provides the J ir aW or kI te mC on ne ct or infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through J ir aW or kI te mC on ne ct or.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;

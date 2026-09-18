@@ -1,4 +1,4 @@
-// Purpose: Defines C ol le ct or Re po rt repository behavior.
+// Purpose: Defines the shared contract represented by C ol le ct or Re po rt.
 namespace Dip.Shared.Contracts.Collectors;
 
 public sealed record CollectorMetric(string Name, decimal Value, string Unit, decimal? BaselineValue, string? EnvironmentId = null, string? ScenarioId = null, string? Platform = null, string? BuildConfiguration = null, string? BenchmarkVersion = null);

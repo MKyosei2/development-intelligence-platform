@@ -1,1 +1,1 @@
-// Purpose: Provides the Q ue ue Me ss ag eS er ia li ze r infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by Q ue ue Me ss ag eS er ia li ze r.

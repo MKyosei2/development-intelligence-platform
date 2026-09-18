@@ -1,4 +1,4 @@
-// Purpose: Provides the B en ch ma rk Ex ec ut or infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by B en ch ma rk Ex ec ut or.
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;

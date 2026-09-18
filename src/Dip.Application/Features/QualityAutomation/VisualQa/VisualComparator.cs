@@ -1,4 +1,4 @@
-// Purpose: Coordinates V is ua lC om pa ra to r application behavior for QualityAutomation.
+// Purpose: Implements application behavior for V is ua lC om pa ra to r.
 namespace Dip.Application.Features.QualityAutomation.VisualQa;
 
 public interface IVisualComparator

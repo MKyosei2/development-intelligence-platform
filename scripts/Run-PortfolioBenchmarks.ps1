@@ -1,4 +1,4 @@
-# Purpose: Automates the R un-P or tf ol io Be nc hm ar ks repository workflow.
+# Purpose: Runs the DIP P or tf ol io Be nc hm ar ks workflow.
 [CmdletBinding()]
 param(
     [string]$ExpectedSha = '',

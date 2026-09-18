@@ -1,4 +1,4 @@
-// Purpose: Registers D ep en de nc yI nj ec ti on.A rt if ac tT ra ck in g infrastructure dependencies.
+// Purpose: Provides the infrastructure capability represented by A rt if ac tT ra ck in gD ep en de nc yI nj ec ti on.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Artifacts;
 using Dip.Infrastructure.Persistence.Repositories;

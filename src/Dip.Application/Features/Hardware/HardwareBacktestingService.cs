@@ -1,4 +1,4 @@
-// Purpose: Coordinates H ar dw ar eB ac kt es ti ng Se rv ic e application behavior for Hardware.
+// Purpose: Orchestrates the DIP workflow for H ar dw ar eB ac kt es ti ng Se rv ic e.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Entities;

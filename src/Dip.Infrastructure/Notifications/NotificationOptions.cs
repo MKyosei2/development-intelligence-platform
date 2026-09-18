@@ -1,1 +1,1 @@
-// Purpose: Provides the N ot if ic at io nO pt io ns infrastructure implementation.
+// Purpose: Defines configuration options for N ot if ic at io nO pt io ns.

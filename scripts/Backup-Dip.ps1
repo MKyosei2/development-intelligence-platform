@@ -1,4 +1,4 @@
-# Purpose: Automates the B ac ku p-D ip repository workflow.
+# Purpose: Creates a recoverable backup of DIP data and operational artifacts.
 [CmdletBinding()]
 param(
  [string]$OutputDirectory='artifacts\backups',[string]$ArtifactDirectory='artifacts\durable',

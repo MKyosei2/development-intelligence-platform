@@ -1,4 +1,4 @@
-// Purpose: Verifies R ep os it or yT ec hn ol og yD et ec to rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by R ep os it or yT ec hn ol og yD et ec to rT es ts.
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;

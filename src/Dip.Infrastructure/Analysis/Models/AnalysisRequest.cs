@@ -1,1 +1,1 @@
-// Purpose: Provides the A na ly si sR eq ue st infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by A na ly si sR eq ue st.

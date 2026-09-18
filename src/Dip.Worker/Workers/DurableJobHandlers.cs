@@ -1,4 +1,4 @@
-// Purpose: Runs D ur ab le Jo bH an dl er s background processing.
+// Purpose: Defines the DIP responsibility represented by D ur ab le Jo bH an dl er s.
 using System.Text.Json;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Benchmarks;

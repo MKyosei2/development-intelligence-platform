@@ -1,4 +1,4 @@
-// Purpose: Provides the G it Hu bW or kI te mC on ne ct or infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through G it Hu bW or kI te mC on ne ct or.
 using Dip.Application.Abstractions.WorkItems;
 using Dip.Infrastructure.GitHub;
 using Microsoft.Extensions.Options;

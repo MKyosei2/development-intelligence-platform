@@ -1,4 +1,4 @@
-// Purpose: Verifies R ep la yA nd Pr ov en an ce Sa fe ty Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by R ep la yA nd Pr ov en an ce Sa fe ty Te st s.
 using Dip.Application.Abstractions.Replay;
 using Dip.Infrastructure.Provenance;
 using Dip.Infrastructure.QualityAutomation;

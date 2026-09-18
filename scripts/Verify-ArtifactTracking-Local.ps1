@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-A rt if ac tT ra ck in g-L oc al repository workflow.
+# Purpose: Verifies A rt if ac tT ra ck in g L oc al requirements for DIP.
 [CmdletBinding()]
 param()
 

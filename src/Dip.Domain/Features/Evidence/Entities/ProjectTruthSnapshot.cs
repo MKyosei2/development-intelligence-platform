@@ -1,4 +1,4 @@
-// Purpose: Represents P ro je ct Tr ut hS na ps ho t in the Evidence domain.
+// Purpose: Represents P ro je ct Tr ut hS na ps ho t in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

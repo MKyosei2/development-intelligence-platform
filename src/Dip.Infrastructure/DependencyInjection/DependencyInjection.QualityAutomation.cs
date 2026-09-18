@@ -1,4 +1,4 @@
-// Purpose: Registers D ep en de nc yI nj ec ti on.Q ua li ty Au to ma ti on infrastructure dependencies.
+// Purpose: Provides the infrastructure capability represented by Q ua li ty Au to ma ti on De pe nd en cy In je ct io n.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Features.Management;

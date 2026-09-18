@@ -1,4 +1,4 @@
-// Purpose: Provides the P er fo rc eV er si on Co nt ro lC on ne ct or infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through P er fo rc eV er si on Co nt ro lC on ne ct or.
 using System.Diagnostics;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.DevelopmentGraph;

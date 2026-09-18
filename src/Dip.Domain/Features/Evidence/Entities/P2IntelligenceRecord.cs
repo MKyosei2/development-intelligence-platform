@@ -1,4 +1,4 @@
-// Purpose: Represents P2 In te ll ig en ce Re co rd in the Evidence domain.
+// Purpose: Represents P2 In te ll ig en ce Re co rd in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

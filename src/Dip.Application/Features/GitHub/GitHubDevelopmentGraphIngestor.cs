@@ -1,4 +1,4 @@
-// Purpose: Coordinates G it Hu bD ev el op me nt Gr ap hI ng es to r application behavior for GitHub.
+// Purpose: Implements application behavior for G it Hu bD ev el op me nt Gr ap hI ng es to r.
 using System.Text.Json;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Domain.Enums;

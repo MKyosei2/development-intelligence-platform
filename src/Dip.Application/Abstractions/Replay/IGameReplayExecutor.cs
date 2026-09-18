@@ -1,4 +1,4 @@
-// Purpose: Defines the I Ga me Re pl ay Ex ec ut or application boundary.
+// Purpose: Defines the application boundary represented by I Ga me Re pl ay Ex ec ut or.
 namespace Dip.Application.Abstractions.Replay;
 
 public sealed record ReplayExecutionRequest(string Command,string Arguments,string? WorkingDirectory,string Scene,string InputArtifactId,int RandomSeed,int DurationSeconds,string CommitSha,string BuildId,string HardwareFingerprint);

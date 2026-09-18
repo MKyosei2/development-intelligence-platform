@@ -1,4 +1,4 @@
-# Purpose: Automates the S et-D IP-P ro du ct io nB ri dg eE nv ir on me nt repository workflow.
+# Purpose: Automates the DIP workflow represented by S et D IP P ro du ct io nB ri dg eE nv ir on me nt.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,

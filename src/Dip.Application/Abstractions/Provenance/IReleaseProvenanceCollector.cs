@@ -1,4 +1,4 @@
-// Purpose: Defines the I Re le as eP ro ve na nc eC ol le ct or application boundary.
+// Purpose: Defines the application boundary represented by I Re le as eP ro ve na nc eC ol le ct or.
 namespace Dip.Application.Abstractions.Provenance;
 public sealed record ProvenanceComponent(string Type,string Name,string Version,string? Path,string? Sha256);
 public sealed record ProvenanceSnapshot(string RepositoryRoot,string Runtime,string OperatingSystem,IReadOnlyList<ProvenanceComponent> Components,IReadOnlyDictionary<string,string> Files);

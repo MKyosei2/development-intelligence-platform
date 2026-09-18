@@ -1,4 +1,4 @@
-// Purpose: Coordinates P or tf ol io Ma na ge me nt Se rv ic e application behavior for Management.
+// Purpose: Orchestrates the DIP workflow for P or tf ol io Ma na ge me nt Se rv ic e.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Dashboard;

@@ -1,1 +1,1 @@
-// Purpose: Provides the M et ri cs Re gi st ry infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by M et ri cs Re gi st ry.

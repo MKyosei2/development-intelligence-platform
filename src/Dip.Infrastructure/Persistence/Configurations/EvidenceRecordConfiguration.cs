@@ -1,4 +1,4 @@
-// Purpose: Implements E vi de nc eR ec or dC on fi gu ra ti on persistence behavior.
+// Purpose: Configures EF Core persistence for E vi de nc eR ec or dC on fi gu ra ti on.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

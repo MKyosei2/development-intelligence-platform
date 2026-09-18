@@ -1,4 +1,4 @@
-// Purpose: Verifies P2 En ti ti es Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by P2 En ti ti es Te st s.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-// Purpose: Verifies Q ua li ty Ru le Ev al ua to rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by Q ua li ty Ru le Ev al ua to rT es ts.
 using Dip.Application.Features.Quality;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

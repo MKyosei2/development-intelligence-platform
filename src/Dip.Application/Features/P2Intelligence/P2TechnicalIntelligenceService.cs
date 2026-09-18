@@ -1,4 +1,4 @@
-// Purpose: Coordinates P2 Te ch ni ca lI nt el li ge nc eS er vi ce application behavior for P2Intelligence.
+// Purpose: Orchestrates the DIP workflow for P2 Te ch ni ca lI nt el li ge nc eS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

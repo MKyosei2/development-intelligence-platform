@@ -1,4 +1,4 @@
-// Purpose: Represents R ep ro du ct io nA tt em pt in the Production domain.
+// Purpose: Represents R ep ro du ct io nA tt em pt in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Represents C la im Ev id en ce Li nk in the Evidence domain.
+// Purpose: Represents C la im Ev ID en ce Li nk in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-P ro du ct io nT oo ls-L oc al repository workflow.
+# Purpose: Verifies P ro du ct io nT oo ls L oc al requirements for DIP.
 [CmdletBinding()]
 param()
 

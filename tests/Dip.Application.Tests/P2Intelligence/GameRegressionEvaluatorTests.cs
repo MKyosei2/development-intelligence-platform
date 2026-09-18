@@ -1,4 +1,4 @@
-// Purpose: Verifies G am eR eg re ss io nE va lu at or Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by G am eR eg re ss io nE va lu at or Te st s.
 using Dip.Application.Features.P2Intelligence;
 using FluentAssertions;
 

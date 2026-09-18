@@ -1,4 +1,4 @@
-// Purpose: Coordinates M an ag em en tD as hb oa rd Se rv ic e application behavior for Dashboard.
+// Purpose: Orchestrates the DIP workflow for M an ag em en tD as hb oa rd Se rv ic e.
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Management;
 

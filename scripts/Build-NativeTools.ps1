@@ -1,4 +1,4 @@
-# Purpose: Automates the B ui ld-N at iv eT oo ls repository workflow.
+# Purpose: Automates the DIP workflow represented by B ui ld N at iv eT oo ls.
 param([string]$Configuration="Release")
 $ErrorActionPreference="Stop"
 $root=(Resolve-Path (Join-Path $PSScriptRoot "..")).Path

@@ -1,4 +1,4 @@
-// Purpose: Exposes R el ea se Re ad in es sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for R el ea se Re ad in es sC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Release;
 using Microsoft.AspNetCore.Authorization;

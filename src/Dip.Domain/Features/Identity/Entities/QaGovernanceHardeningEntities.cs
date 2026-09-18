@@ -1,4 +1,4 @@
-// Purpose: Represents Q aG ov er na nc eH ar de ni ng En ti ti es in the Identity domain.
+// Purpose: Represents Q aG ov er na nc eH ar de ni ng En ti ti es in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

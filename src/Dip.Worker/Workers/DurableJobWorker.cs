@@ -1,4 +1,4 @@
-// Purpose: Runs D ur ab le Jo bW or ke r background processing.
+// Purpose: Runs background processing for D ur ab le Jo bW or ke r.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;

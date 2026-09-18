@@ -1,4 +1,4 @@
-// Purpose: Coordinates C la im Ev id en ce As se ss me nt Se rv ic e application behavior for ProjectTruth.
+// Purpose: Orchestrates the DIP workflow for C la im Ev ID en ce As se ss me nt Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

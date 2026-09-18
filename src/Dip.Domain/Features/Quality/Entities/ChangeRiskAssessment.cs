@@ -1,4 +1,4 @@
-// Purpose: Represents C ha ng eR is kA ss es sm en t in the Quality domain.
+// Purpose: Represents C ha ng eR is kA ss es sm en t in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ChangeRiskAssessment

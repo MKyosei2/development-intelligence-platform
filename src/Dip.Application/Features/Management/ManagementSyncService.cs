@@ -1,4 +1,4 @@
-// Purpose: Coordinates M an ag em en tS yn cS er vi ce application behavior for Management.
+// Purpose: Orchestrates the DIP workflow for M an ag em en tS yn cS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

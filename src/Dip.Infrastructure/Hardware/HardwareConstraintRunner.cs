@@ -1,4 +1,4 @@
-// Purpose: Provides the H ar dw ar eC on st ra in tR un ne r infrastructure implementation.
+// Purpose: Executes the infrastructure workflow represented by H ar dw ar eC on st ra in tR un ne r.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;

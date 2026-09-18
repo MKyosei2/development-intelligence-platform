@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct Co nt ro lD as hb oa rd Se rv ic e application behavior for Dashboard.
+// Purpose: Orchestrates the DIP workflow for P ro je ct Co nt ro lD as hb oa rd Se rv ic e.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Decisions;
 using Dip.Domain.Enums;

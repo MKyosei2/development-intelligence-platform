@@ -1,4 +1,4 @@
-// Purpose: Coordinates P2 Co nt ra ct s application behavior for P2Intelligence.
+// Purpose: Implements application behavior for P2 Co nt ra ct s.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.P2Intelligence;

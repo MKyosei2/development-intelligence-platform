@@ -1,4 +1,4 @@
-// Purpose: Represents D ev el op me nt Gr ap hN od e in the Projects domain.
+// Purpose: Represents D ev el op me nt Gr ap hN od e in the DIP domain.
 using System.Text.Json.Nodes;
 using Dip.Domain.Enums;
 

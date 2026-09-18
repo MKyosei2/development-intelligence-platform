@@ -1,4 +1,4 @@
-// Purpose: Verifies G it Hu bQ ua li ty Re po rt Fo rm at te rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by G it Hu bQ ua li ty Re po rt Fo rm at te rT es ts.
 using Dip.Application.Features.GitHub;
 using Xunit;
 

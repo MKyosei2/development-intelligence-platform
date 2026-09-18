@@ -1,4 +1,4 @@
-// Purpose: Implements Q aG ov er na nc eE xe cu ti on Co or di na to r persistence behavior.
+// Purpose: Provides the infrastructure capability represented by Q aG ov er na nc eE xe cu ti on Co or di na to r.
 using System.Collections.Concurrent;
 using System.Data;
 using Dip.Application.Features.QualityGovernance;

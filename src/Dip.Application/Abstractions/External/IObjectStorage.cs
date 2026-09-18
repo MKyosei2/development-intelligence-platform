@@ -1,1 +1,1 @@
-// Purpose: Defines the I Ob je ct St or ag e application boundary.
+// Purpose: Defines the application boundary represented by I Ob je ct St or ag e.

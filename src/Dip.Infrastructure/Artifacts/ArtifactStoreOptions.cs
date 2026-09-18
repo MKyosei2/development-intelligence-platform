@@ -1,4 +1,4 @@
-// Purpose: Provides the A rt if ac tS to re Op ti on s infrastructure implementation.
+// Purpose: Defines configuration options for A rt if ac tS to re Op ti on s.
 namespace Dip.Infrastructure.Artifacts;
 public sealed class ArtifactStoreOptions
 {

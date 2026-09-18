@@ -1,1 +1,1 @@
-// Purpose: Defines R is kL ev el states used by Quality.
+// Purpose: Defines the allowed R is kL ev el states used by the DIP domain.

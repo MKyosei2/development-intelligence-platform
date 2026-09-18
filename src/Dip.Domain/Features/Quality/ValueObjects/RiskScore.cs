@@ -1,1 +1,1 @@
-// Purpose: Represents the R is kS co re value object.
+// Purpose: Defines and validates the R is kS co re value object.

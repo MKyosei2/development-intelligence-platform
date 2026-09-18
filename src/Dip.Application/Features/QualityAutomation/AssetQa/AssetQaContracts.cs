@@ -1,4 +1,4 @@
-// Purpose: Coordinates A ss et Qa Co nt ra ct s application behavior for QualityAutomation.
+// Purpose: Implements application behavior for A ss et QA Co nt ra ct s.
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
 

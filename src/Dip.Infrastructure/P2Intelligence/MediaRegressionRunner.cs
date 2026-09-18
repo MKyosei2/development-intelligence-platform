@@ -1,4 +1,4 @@
-// Purpose: Provides the M ed ia Re gr es si on Ru nn er infrastructure implementation.
+// Purpose: Executes the infrastructure workflow represented by M ed ia Re gr es si on Ru nn er.
 using System.Text.Json;
 using Dip.Application.Features.P2Intelligence;
 using Dip.Application.Features.QualityAutomation;

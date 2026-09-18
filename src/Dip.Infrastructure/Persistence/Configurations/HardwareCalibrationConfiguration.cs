@@ -1,4 +1,4 @@
-// Purpose: Implements H ar dw ar eC al ib ra ti on Co nf ig ur at io n persistence behavior.
+// Purpose: Configures EF Core persistence for H ar dw ar eC al ib ra ti on Co nf ig ur at io n.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

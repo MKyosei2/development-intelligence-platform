@@ -1,1 +1,1 @@
-// Purpose: Coordinates G et Pi pe li ne Ru nQ ue ry application behavior for PipelineRuns.
+// Purpose: Defines the application query for G et Pi pe li ne Ru nQ ue ry.

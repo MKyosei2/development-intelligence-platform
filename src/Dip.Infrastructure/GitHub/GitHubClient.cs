@@ -1,1 +1,1 @@
-// Purpose: Provides the G it Hu bC li en t infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through G it Hu bC li en t.

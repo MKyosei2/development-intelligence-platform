@@ -1,4 +1,4 @@
-// Purpose: Implements P1 Re po si to ri es persistence behavior.
+// Purpose: Provides the infrastructure capability represented by P1 Re po si to ri es.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

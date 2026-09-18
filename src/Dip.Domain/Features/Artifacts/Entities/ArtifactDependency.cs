@@ -1,4 +1,4 @@
-// Purpose: Represents A rt if ac tD ep en de nc y in the Artifacts domain.
+// Purpose: Represents A rt if ac tD ep en de nc y in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Represents P ro je ct Fo re ca st in the Projects domain.
+// Purpose: Represents P ro je ct Fo re ca st in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ProjectForecast

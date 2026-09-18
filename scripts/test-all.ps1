@@ -1,4 +1,4 @@
-# Purpose: Automates the t es t-a ll repository workflow.
+# Purpose: Runs the local DIP test suites used for development verification.
 param([ValidateSet("Debug","Release")][string]$Configuration="Release",[switch]$SkipIntegration,[switch]$SkipLoad)
 $ErrorActionPreference="Stop"
 New-Item -ItemType Directory -Force -Path "reports/test-results"|Out-Null

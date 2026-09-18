@@ -1,4 +1,4 @@
-// Purpose: Verifies D et er mi ni st ic Lo ca lD eb ug Ag en tT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by D et er mi ni st ic Lo ca lD eb ug Ag en tT es ts.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Infrastructure.P2Intelligence;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-// Purpose: Provides the Q aP ar si ng infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by Q aP ar si ng.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;

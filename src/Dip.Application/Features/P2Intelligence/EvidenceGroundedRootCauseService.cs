@@ -1,4 +1,4 @@
-// Purpose: Coordinates E vi de nc eG ro un de dR oo tC au se Se rv ic e application behavior for P2Intelligence.
+// Purpose: Orchestrates the DIP workflow for E vi de nc eG ro un de dR oo tC au se Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

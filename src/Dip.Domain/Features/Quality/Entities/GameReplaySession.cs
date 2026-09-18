@@ -1,4 +1,4 @@
-// Purpose: Represents G am eR ep la yS es si on in the Quality domain.
+// Purpose: Represents G am eR ep la yS es si on in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class GameReplaySession

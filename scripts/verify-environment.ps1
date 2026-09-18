@@ -1,4 +1,4 @@
-# Purpose: Automates the v er if y-e nv ir on me nt repository workflow.
+# Purpose: Verifies that the local machine satisfies DIP development prerequisites.
 $ErrorActionPreference="Stop"
 $checks=@(
   @("Git","git","--version"),@("GitHub CLI","gh","--version"),@(".NET","dotnet","--version"),

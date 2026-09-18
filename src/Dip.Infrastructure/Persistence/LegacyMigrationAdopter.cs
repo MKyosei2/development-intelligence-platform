@@ -1,4 +1,4 @@
-// Purpose: Implements L eg ac yM ig ra ti on Ad op te r persistence behavior.
+// Purpose: Provides the infrastructure capability represented by L eg ac yM ig ra ti on Ad op te r.
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

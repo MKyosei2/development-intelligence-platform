@@ -1,4 +1,4 @@
-// Purpose: Exposes H ar dw ar eB ac kt es ts Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for H ar dw ar eB ac kt es ts Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Hardware;
 using Microsoft.AspNetCore.Authorization;

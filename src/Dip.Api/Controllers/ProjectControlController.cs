@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct Co nt ro lC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for P ro je ct Co nt ro lC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.Assets;

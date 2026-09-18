@@ -1,1 +1,1 @@
-// Purpose: Represents the R ep os it or yU rl value object.
+// Purpose: Defines and validates the R ep os it or yU rl value object.

@@ -1,4 +1,4 @@
-// Purpose: Coordinates G it Hu bW eb ho ok Pr oc es so r application behavior for GitHub.
+// Purpose: Implements application behavior for G it Hu bW eb ho ok Pr oc es so r.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

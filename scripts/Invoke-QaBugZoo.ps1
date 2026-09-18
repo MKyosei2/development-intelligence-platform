@@ -1,4 +1,4 @@
-# Purpose: Automates the I nv ok e-Q aB ug Zo o repository workflow.
+# Purpose: Invokes the DIP Q aB ug Zo o workflow.
 [CmdletBinding()]
 param(
     [switch]$AllowMissingTools,

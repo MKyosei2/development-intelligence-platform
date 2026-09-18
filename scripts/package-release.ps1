@@ -1,4 +1,4 @@
-# Purpose: Automates the p ac ka ge-r el ea se repository workflow.
+# Purpose: Packages DIP release outputs and publication evidence.
 param([Parameter(Mandatory=$true)][string]$Version,[ValidateSet("Debug","Release")][string]$Configuration="Release")
 $ErrorActionPreference="Stop"
 if($Version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$'){throw "Invalid semantic version."}

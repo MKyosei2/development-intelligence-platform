@@ -1,4 +1,4 @@
-// Purpose: Provides the V er if ie dF ix Se rv ic e infrastructure implementation.
+// Purpose: Implements infrastructure support for V er if ie dF ix Se rv ic e.
 using System.Diagnostics;
 using System.Text;
 using Dip.Application.Features.QualityAutomation;

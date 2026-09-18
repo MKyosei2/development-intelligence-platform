@@ -1,4 +1,4 @@
-// Purpose: Provides the C od eO wn er sO wn er sh ip Re so lv er infrastructure implementation.
+// Purpose: Resolves infrastructure state through C od eO wn er sO wn er sh ip Re so lv er.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Application.Features.QualityGovernance;

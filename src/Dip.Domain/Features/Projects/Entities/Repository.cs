@@ -1,1 +1,1 @@
-// Purpose: Represents R ep os it or y in the Projects domain.
+// Purpose: Persists and queries R ep os it or y data.

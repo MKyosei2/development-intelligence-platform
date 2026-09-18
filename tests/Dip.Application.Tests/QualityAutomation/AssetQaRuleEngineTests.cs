@@ -1,4 +1,4 @@
-// Purpose: Verifies A ss et Qa Ru le En gi ne Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by A ss et QA Ru le En gi ne Te st s.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Application.Features.QualityAutomation.AssetQa;

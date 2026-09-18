@@ -1,4 +1,4 @@
-# Purpose: Automates the R es to re-D ip repository workflow.
+# Purpose: Restores DIP data and operational artifacts from a validated backup.
 [CmdletBinding()]
 param([Parameter(Mandatory=$true)][string]$BackupDirectory,[switch]$ConfirmRestore,[switch]$SkipSafetyBackup,[switch]$AllowCrossRevisionRestore,[switch]$DisableAutomaticRollback,
  [string]$ArtifactDirectory='artifacts\durable',[string]$Database=$(if($env:POSTGRES_DB){$env:POSTGRES_DB}else{'dip'}),[string]$DatabaseUser=$(if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}),[string]$DatabaseHost=$(if($env:POSTGRES_HOST){$env:POSTGRES_HOST}else{'127.0.0.1'}),[int]$DatabasePort=$(if($env:POSTGRES_PORT){[int]$env:POSTGRES_PORT}else{5432}),[string]$DatabasePassword=$(if($env:POSTGRES_PASSWORD){$env:POSTGRES_PASSWORD}else{''}))

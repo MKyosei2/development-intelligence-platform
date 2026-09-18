@@ -1,4 +1,4 @@
-// Purpose: Exposes P ol ic yP ro fi le sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for P ol ic yP ro fi le sC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Policies;
 using Dip.Application.Features.Authorization;

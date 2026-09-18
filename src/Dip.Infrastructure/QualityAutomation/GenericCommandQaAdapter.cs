@@ -1,4 +1,4 @@
-// Purpose: Provides the G en er ic Co mm an dQ aA da pt er infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through G en er ic Co mm an dQ aA da pt er.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

@@ -1,4 +1,4 @@
-// Purpose: Represents O rg an iz at io nT en an t in the Identity domain.
+// Purpose: Represents O rg an iz at io nT en an t in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class OrganizationTenant

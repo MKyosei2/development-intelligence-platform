@@ -1,4 +1,4 @@
-// Purpose: Coordinates D as hb oa rd Qu er yS er vi ce application behavior for Dashboard.
+// Purpose: Orchestrates the DIP workflow for D as hb oa rd Qu er yS er vi ce.
 namespace Dip.Application.Features.Dashboard;
 
 public sealed record ProjectDashboardSummary(

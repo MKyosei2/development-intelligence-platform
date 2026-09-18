@@ -1,4 +1,4 @@
-// Purpose: Provides the S ys te mI nt eg ra ti on Qa Pa ck infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by S ys te mI nt eg ra ti on QA Pa ck.
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;

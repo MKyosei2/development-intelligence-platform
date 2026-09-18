@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct Tr ut hP ol ic y application behavior for ProjectTruth.
+// Purpose: Implements application behavior for P ro je ct Tr ut hP ol ic y.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectTruth;

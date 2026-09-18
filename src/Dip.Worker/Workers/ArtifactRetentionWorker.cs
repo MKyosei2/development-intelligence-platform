@@ -1,4 +1,4 @@
-// Purpose: Runs A rt if ac tR et en ti on Wo rk er background processing.
+// Purpose: Runs background processing for A rt if ac tR et en ti on Wo rk er.
 using Dip.Application.Features.Artifacts;
 using Dip.Infrastructure.Artifacts;
 using Microsoft.Extensions.Options;

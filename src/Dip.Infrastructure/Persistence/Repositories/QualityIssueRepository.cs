@@ -1,4 +1,4 @@
-// Purpose: Implements Q ua li ty Is su eR ep os it or y persistence behavior.
+// Purpose: Persists and queries Q ua li ty Is su eR ep os it or y data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

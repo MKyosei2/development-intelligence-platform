@@ -1,4 +1,4 @@
-// Purpose: Verifies B ra nc hQ aP ol ic yT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by B ra nc hQ aP ol ic yT es ts.
 using Dip.Application.Features.QualityAutomation;
 using FluentAssertions;
 

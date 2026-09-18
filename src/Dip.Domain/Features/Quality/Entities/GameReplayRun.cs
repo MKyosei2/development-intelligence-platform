@@ -1,4 +1,4 @@
-// Purpose: Represents G am eR ep la yR un in the Quality domain.
+// Purpose: Represents G am eR ep la yR un in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 

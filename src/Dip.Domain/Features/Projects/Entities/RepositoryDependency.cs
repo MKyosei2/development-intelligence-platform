@@ -1,4 +1,4 @@
-// Purpose: Represents R ep os it or yD ep en de nc y in the Projects domain.
+// Purpose: Represents R ep os it or yD ep en de nc y in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class RepositoryDependency

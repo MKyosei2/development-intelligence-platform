@@ -1,4 +1,4 @@
-// Purpose: Implements R ea lt im eU pd at eS er vi ce web UI behavior.
+// Purpose: Implements web application behavior for R ea lt im eU pd at eS er vi ce.
 using Dip.Application.Features.Realtime;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.SignalR.Client;

@@ -1,4 +1,4 @@
-// Purpose: Exposes C la im Ev id en ce As se ss me nt sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for C la im Ev ID en ce As se ss me nt sC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.ProjectTruth;

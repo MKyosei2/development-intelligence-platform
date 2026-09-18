@@ -1,4 +1,4 @@
-// Purpose: Represents Q aF in di ng in the Production domain.
+// Purpose: Represents Q aF in di ng in the DIP domain.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 

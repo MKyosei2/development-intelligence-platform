@@ -1,1 +1,1 @@
-// Purpose: Defines I nv al id Me tr ic Ex ce pt io n for the Quality domain.
+// Purpose: Represents the domain error condition described by I nv al ID Me tr ic Ex ce pt io n.

@@ -1,4 +1,4 @@
-// Purpose: Coordinates Q aF in ge rp ri nt application behavior for QualityAutomation.
+// Purpose: Implements application behavior for Q aF in ge rp ri nt.
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Co nf ig ur at io n persistence behavior.
+// Purpose: Configures EF Core persistence for P ro je ct Co nf ig ur at io n.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;

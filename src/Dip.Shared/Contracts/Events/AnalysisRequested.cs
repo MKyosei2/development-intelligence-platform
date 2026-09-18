@@ -1,4 +1,4 @@
-// Purpose: Defines A na ly si sR eq ue st ed repository behavior.
+// Purpose: Defines the shared contract represented by A na ly si sR eq ue st ed.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record AnalysisRequested(

@@ -1,4 +1,4 @@
-// Purpose: Provides the G am eR ep la yO pt io ns infrastructure implementation.
+// Purpose: Defines configuration options for G am eR ep la yO pt io ns.
 namespace Dip.Infrastructure.Replay;
 
 public sealed class GameReplayOptions

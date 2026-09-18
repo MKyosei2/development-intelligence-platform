@@ -1,1 +1,1 @@
-// Purpose: Defines S ha re dJ so nO pt io ns repository behavior.
+// Purpose: Defines shared DIP behavior for S ha re dJ so nO pt io ns.

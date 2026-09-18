@@ -1,4 +1,4 @@
-// Purpose: Implements D bI ni ti al iz er persistence behavior.
+// Purpose: Provides the infrastructure capability represented by D bI ni ti al iz er.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

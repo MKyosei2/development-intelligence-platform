@@ -1,4 +1,4 @@
-// Purpose: Provides the S en tr yI nc id en tI ng es ti on Ad ap te r infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through S en tr yI nc ID en tI ng es ti on Ad ap te r.
 using System.Text.Json;
 using Dip.Application.Features.ExternalEvents;
 

@@ -1,4 +1,4 @@
-// Purpose: Verifies E vi de nc eR ec or dV2 Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by E vi de nc eR ec or dV2 Te st s.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

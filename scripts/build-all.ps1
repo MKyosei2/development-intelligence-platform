@@ -1,4 +1,4 @@
-# Purpose: Automates the b ui ld-a ll repository workflow.
+# Purpose: Builds all first-party DIP components required for local verification.
 param([ValidateSet("Debug","Release")][string]$Configuration="Release")
 $ErrorActionPreference="Stop"
 dotnet restore

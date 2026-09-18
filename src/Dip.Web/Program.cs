@@ -1,4 +1,4 @@
-// Purpose: Implements P ro gr am web UI behavior.
+// Purpose: Composes and starts the DIP web host.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;

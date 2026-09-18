@@ -1,4 +1,4 @@
-// Purpose: Provides the M ed ia Re gr es si on Ru nn er infrastructure implementation.
+// Purpose: Executes the infrastructure workflow represented by M ed ia Re gr es si on Ru nn er.
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;

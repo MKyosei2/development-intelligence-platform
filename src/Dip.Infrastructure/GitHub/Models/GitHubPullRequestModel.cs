@@ -1,1 +1,1 @@
-// Purpose: Provides the G it Hu bP ul lR eq ue st Mo de l infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by G it Hu bP ul lR eq ue st Mo de l.

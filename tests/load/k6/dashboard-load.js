@@ -1,4 +1,4 @@
-// Purpose: Verifies d as hb oa rd-l oa d behavior.
+// Purpose: Verifies behavior and invariants covered by d as hb oa rd l oa d.
 import http from "k6/http";
 import { check } from "k6";
 

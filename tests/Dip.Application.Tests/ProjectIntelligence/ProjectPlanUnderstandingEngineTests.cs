@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Pl an Un de rs ta nd in gE ng in eT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P ro je ct Pl an Un de rs ta nd in gE ng in eT es ts.
 using Dip.Application.Features.ProjectIntelligence;
 using FluentAssertions;
 

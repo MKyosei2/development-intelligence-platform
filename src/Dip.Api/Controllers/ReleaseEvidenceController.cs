@@ -1,4 +1,4 @@
-// Purpose: Exposes R el ea se Ev id en ce Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for R el ea se Ev ID en ce Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Release;
 using Microsoft.AspNetCore.Authorization;

@@ -1,4 +1,4 @@
-// Purpose: Represents the L an gu ag eI d value object.
+// Purpose: Defines and validates the L an gu ag eI d value object.
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;

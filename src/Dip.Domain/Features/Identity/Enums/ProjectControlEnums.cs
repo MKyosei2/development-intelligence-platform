@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Co nt ro lE nu ms states used by Identity.
+// Purpose: Defines the allowed P ro je ct Co nt ro lE nu ms states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum DevelopmentGraphNodeType

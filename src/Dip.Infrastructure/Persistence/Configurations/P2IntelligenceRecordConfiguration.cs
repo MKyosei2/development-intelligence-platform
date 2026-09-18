@@ -1,4 +1,4 @@
-// Purpose: Implements P2 In te ll ig en ce Re co rd Co nf ig ur at io n persistence behavior.
+// Purpose: Configures EF Core persistence for P2 In te ll ig en ce Re co rd Co nf ig ur at io n.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

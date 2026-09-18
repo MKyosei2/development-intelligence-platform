@@ -1,1 +1,1 @@
-// Purpose: Defines H ea lt hR es po ns e repository behavior.
+// Purpose: Defines the shared contract represented by H ea lt hR es po ns e.

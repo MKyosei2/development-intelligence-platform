@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro ce ss ed We bh oo kT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P ro ce ss ed We bh oo kT es ts.
 using Dip.Domain.Entities;
 using Xunit;
 

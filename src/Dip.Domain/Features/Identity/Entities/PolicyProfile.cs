@@ -1,4 +1,4 @@
-// Purpose: Represents P ol ic yP ro fi le in the Identity domain.
+// Purpose: Represents P ol ic yP ro fi le in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

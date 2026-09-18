@@ -1,1 +1,1 @@
-// Purpose: Provides the G it Hu bO Au th Se rv ic e infrastructure implementation.
+// Purpose: Implements infrastructure support for G it Hu bO Au th Se rv ic e.

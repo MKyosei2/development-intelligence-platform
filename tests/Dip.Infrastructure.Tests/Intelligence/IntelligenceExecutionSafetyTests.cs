@@ -1,4 +1,4 @@
-// Purpose: Verifies I nt el li ge nc eE xe cu ti on Sa fe ty Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by I nt el li ge nc eE xe cu ti on Sa fe ty Te st s.
 using Dip.Infrastructure.Intelligence;
 
 namespace Dip.Infrastructure.Tests.Intelligence;

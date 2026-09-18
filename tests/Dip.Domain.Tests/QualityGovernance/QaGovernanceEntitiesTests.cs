@@ -1,4 +1,4 @@
-// Purpose: Verifies Q aG ov er na nc eE nt it ie sT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by Q aG ov er na nc eE nt it ie sT es ts.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

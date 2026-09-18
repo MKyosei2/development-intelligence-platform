@@ -1,4 +1,4 @@
-// Purpose: Coordinates R oo tC au se In te ll ig en ce Se rv ic e application behavior for Intelligence.
+// Purpose: Orchestrates the DIP workflow for R oo tC au se In te ll ig en ce Se rv ic e.
 using System.Text.RegularExpressions;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Enums;

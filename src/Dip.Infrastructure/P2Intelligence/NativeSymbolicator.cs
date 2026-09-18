@@ -1,4 +1,4 @@
-// Purpose: Provides the N at iv eS ym bo li ca to r infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by N at iv eS ym bo li ca to r.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.P2Intelligence;

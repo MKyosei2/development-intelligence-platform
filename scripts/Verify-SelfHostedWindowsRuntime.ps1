@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-S el fH os te dW in do ws Ru nt im e repository workflow.
+# Purpose: Verifies S el fH os te dW in do ws Ru nt im e requirements for DIP.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

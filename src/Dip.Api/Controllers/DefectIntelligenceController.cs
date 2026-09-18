@@ -1,4 +1,4 @@
-// Purpose: Exposes D ef ec tI nt el li ge nc eC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for D ef ec tI nt el li ge nc eC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;

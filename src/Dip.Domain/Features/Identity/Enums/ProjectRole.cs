@@ -1,1 +1,1 @@
-// Purpose: Defines P ro je ct Ro le states used by Identity.
+// Purpose: Defines the allowed P ro je ct Ro le states used by the DIP domain.

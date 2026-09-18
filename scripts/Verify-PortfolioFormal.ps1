@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-P or tf ol io Fo rm al repository workflow.
+# Purpose: Verifies P or tf ol io Fo rm al requirements for DIP.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$UnityPath,

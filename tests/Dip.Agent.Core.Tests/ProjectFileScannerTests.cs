@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Fi le Sc an ne rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P ro je ct Fi le Sc an ne rT es ts.
 using Dip.Agent.Core;
 using FluentAssertions;
 

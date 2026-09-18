@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro ce ss Ex ec ut or Sa nd bo xT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P ro ce ss Ex ec ut or Sa nd bo xT es ts.
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;
 using Microsoft.Extensions.Options;

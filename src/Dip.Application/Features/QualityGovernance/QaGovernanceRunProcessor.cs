@@ -1,4 +1,4 @@
-// Purpose: Coordinates Q aG ov er na nc eR un Pr oc es so r application behavior for QualityGovernance.
+// Purpose: Implements application behavior for Q aG ov er na nc eR un Pr oc es so r.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Domain.Entities;

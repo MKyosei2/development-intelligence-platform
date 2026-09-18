@@ -1,4 +1,4 @@
-# Purpose: Automates the G en er at e-A rt if ac tT ra ck in g-M ig ra ti on repository workflow.
+# Purpose: Generates A rt if ac tT ra ck in g M ig ra ti on artifacts required by DIP.
 ﻿[CmdletBinding()]
 param(
     [string]$MigrationName = 'AddDifficulty2LocalArtifacts'

@@ -1,4 +1,4 @@
-# Purpose: Automates the v al id at e-s ch em as repository workflow.
+# Purpose: Validates schemas used by DIP collectors, evidence, and repository tooling.
 param([string]$SampleRoot="samples")
 $ErrorActionPreference="Stop"
 $python="services/python-analysis/.venv/Scripts/python.exe"; if(-not(Test-Path $python)){$python="python"}

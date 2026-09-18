@@ -1,4 +1,4 @@
-// Purpose: Verifies G ov er na nc eH ar de ni ng Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by G ov er na nc eH ar de ni ng Te st s.
 using Dip.Application.Features.Authorization;
 using Dip.Infrastructure.Persistence;
 using Dip.Domain.Entities;

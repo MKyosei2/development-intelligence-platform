@@ -1,4 +1,4 @@
-// Purpose: Defines P2 In te ll ig en ce Ki nd states used by Evidence.
+// Purpose: Defines the allowed P2 In te ll ig en ce Ki nd states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum P2IntelligenceKind

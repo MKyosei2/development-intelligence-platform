@@ -1,4 +1,4 @@
-// Purpose: Verifies U ni ve rs al Sy nt ax Tr ee Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by U ni ve rs al Sy nt ax Tr ee Te st s.
 using Dip.Infrastructure.QualityAutomation;
 namespace Dip.Infrastructure.Tests.QualityAutomation;
 public sealed class UniversalSyntaxTreeTests

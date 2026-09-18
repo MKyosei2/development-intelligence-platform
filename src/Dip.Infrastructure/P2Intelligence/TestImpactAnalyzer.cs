@@ -1,4 +1,4 @@
-// Purpose: Provides the T es tI mp ac tA na ly ze r infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by T es tI mp ac tA na ly ze r.
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;

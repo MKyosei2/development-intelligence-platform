@@ -1,1 +1,1 @@
-// Purpose: Configures R eq ue st Lo gg in gM id dl ew ar e for the DIP API.
+// Purpose: Defines the DIP responsibility represented by R eq ue st Lo gg in gM ID dl ew ar e.

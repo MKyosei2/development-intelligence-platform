@@ -1,4 +1,4 @@
-// Purpose: Provides the G am eR ep la yE xe cu to r infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by G am eR ep la yE xe cu to r.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Abstractions.Replay;

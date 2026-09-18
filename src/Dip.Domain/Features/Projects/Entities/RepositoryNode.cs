@@ -1,4 +1,4 @@
-// Purpose: Represents R ep os it or yN od e in the Projects domain.
+// Purpose: Represents R ep os it or yN od e in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class RepositoryNode
 {

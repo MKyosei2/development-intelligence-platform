@@ -1,1 +1,1 @@
-// Purpose: Defines the I Gi tH ub Cl ie nt application boundary.
+// Purpose: Defines the application boundary represented by I Gi tH ub Cl ie nt.

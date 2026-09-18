@@ -1,4 +1,4 @@
-// Purpose: Coordinates Q aC ap ab il it ie s application behavior for QualityAutomation.
+// Purpose: Implements application behavior for Q aC ap ab il it ie s.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 

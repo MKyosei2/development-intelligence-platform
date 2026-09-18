@@ -1,4 +1,4 @@
-// Purpose: Provides the R ep ro du ct io nC oo rd in at or infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by R ep ro du ct io nC oo rd in at or.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;

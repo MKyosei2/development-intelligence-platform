@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ol ic yP ro fi le Se rv ic e application behavior for Policies.
+// Purpose: Orchestrates the DIP workflow for P ol ic yP ro fi le Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

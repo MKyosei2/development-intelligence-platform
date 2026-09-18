@@ -1,4 +1,4 @@
-// Purpose: Verifies D ai ly Su mm ar yS ce na ri o behavior.
+// Purpose: Verifies behavior and invariants covered by D ai ly Su mm ar yS ce na ri o.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

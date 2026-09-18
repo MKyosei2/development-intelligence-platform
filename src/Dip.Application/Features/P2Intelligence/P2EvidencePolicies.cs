@@ -1,4 +1,4 @@
-// Purpose: Coordinates P2 Ev id en ce Po li ci es application behavior for P2Intelligence.
+// Purpose: Implements application behavior for P2 Ev ID en ce Po li CI es.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 

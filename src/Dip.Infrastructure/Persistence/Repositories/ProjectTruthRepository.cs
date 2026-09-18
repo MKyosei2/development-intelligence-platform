@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Tr ut hR ep os it or y persistence behavior.
+// Purpose: Persists and queries P ro je ct Tr ut hR ep os it or y data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

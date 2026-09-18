@@ -1,1 +1,1 @@
-// Purpose: Describes the Q ua li ty Ga te Fa il ed Ev en t domain event.
+// Purpose: Defines Q ua li ty Ga te Fa il ed Ev en t in the DIP domain.

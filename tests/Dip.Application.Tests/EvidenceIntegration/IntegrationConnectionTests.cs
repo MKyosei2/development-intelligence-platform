@@ -1,4 +1,4 @@
-// Purpose: Verifies I nt eg ra ti on Co nn ec ti on Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by I nt eg ra ti on Co nn ec ti on Te st s.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct Cl ai ms Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for P ro je ct Cl ai ms Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.ProjectTruth;
 using Microsoft.AspNetCore.Authorization;

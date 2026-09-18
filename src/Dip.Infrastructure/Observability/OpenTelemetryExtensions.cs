@@ -1,1 +1,1 @@
-// Purpose: Provides the O pe nT el em et ry Ex te ns io ns infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by O pe nT el em et ry Ex te ns io ns.

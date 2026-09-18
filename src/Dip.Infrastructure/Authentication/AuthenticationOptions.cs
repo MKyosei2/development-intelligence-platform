@@ -1,1 +1,1 @@
-// Purpose: Provides the A ut he nt ic at io nO pt io ns infrastructure implementation.
+// Purpose: Defines configuration options for A ut he nt ic at io nO pt io ns.

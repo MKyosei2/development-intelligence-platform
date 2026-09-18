@@ -1,4 +1,4 @@
-// Purpose: Provides the W or kI te mI nt eg ra ti on Op ti on s infrastructure implementation.
+// Purpose: Defines configuration options for W or kI te mI nt eg ra ti on Op ti on s.
 namespace Dip.Infrastructure.WorkItems;
 public sealed class WorkItemIntegrationOptions
 {

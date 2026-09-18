@@ -1,4 +1,4 @@
-// Purpose: Implements Q ua li ty Is su eC on fi gu ra ti on persistence behavior.
+// Purpose: Configures EF Core persistence for Q ua li ty Is su eC on fi gu ra ti on.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

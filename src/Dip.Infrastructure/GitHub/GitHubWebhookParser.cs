@@ -1,1 +1,1 @@
-// Purpose: Provides the G it Hu bW eb ho ok Pa rs er infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by G it Hu bW eb ho ok Pa rs er.

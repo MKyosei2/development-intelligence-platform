@@ -1,4 +1,4 @@
-// Purpose: Exposes B en ch ma rk sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for B en ch ma rk sC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Domain.Enums;

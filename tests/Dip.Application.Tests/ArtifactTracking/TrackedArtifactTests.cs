@@ -1,4 +1,4 @@
-// Purpose: Verifies T ra ck ed Ar ti fa ct Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by T ra ck ed Ar ti fa ct Te st s.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-// Purpose: Verifies C la im Ve ri fi ca ti on Ev al ua to rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by C la im Ve ri fi ca ti on Ev al ua to rT es ts.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

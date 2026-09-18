@@ -1,1 +1,1 @@
-// Purpose: Defines M et ri cN am es repository behavior.
+// Purpose: Defines shared constants for M et ri cN am es.

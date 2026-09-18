@@ -1,4 +1,4 @@
-// Purpose: Coordinates R eg re ss io nT ri ag eS er vi ce application behavior for Triage.
+// Purpose: Orchestrates the DIP workflow for R eg re ss io nT ri ag eS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

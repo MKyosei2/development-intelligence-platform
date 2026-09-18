@@ -1,4 +1,4 @@
-// Purpose: Verifies A da pt iv eQ aP la nn er Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by A da pt iv eQ aP la nn er Te st s.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.P2Intelligence;

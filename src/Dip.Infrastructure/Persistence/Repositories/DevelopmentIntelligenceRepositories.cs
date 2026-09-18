@@ -1,4 +1,4 @@
-// Purpose: Implements D ev el op me nt In te ll ig en ce Re po si to ri es persistence behavior.
+// Purpose: Provides the infrastructure capability represented by D ev el op me nt In te ll ig en ce Re po si to ri es.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

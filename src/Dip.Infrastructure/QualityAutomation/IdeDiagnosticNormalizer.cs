@@ -1,4 +1,4 @@
-// Purpose: Provides the I de Di ag no st ic No rm al iz er infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by I de Di ag no st ic No rm al iz er.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 

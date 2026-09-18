@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ol ic yR es ol ve r application behavior for Policies.
+// Purpose: Implements application behavior for P ol ic yR es ol ve r.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;

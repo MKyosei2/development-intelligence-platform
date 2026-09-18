@@ -1,4 +1,4 @@
-// Purpose: Implements O ut bo xR ep os it or y persistence behavior.
+// Purpose: Persists and queries O ut bo xR ep os it or y data.
 using Dip.Application.Abstractions.Persistence;using Dip.Domain.Entities;using Microsoft.EntityFrameworkCore;
 namespace Dip.Infrastructure.Persistence.Repositories;
 public sealed class OutboxRepository(DipDbContext db):IOutboxRepository

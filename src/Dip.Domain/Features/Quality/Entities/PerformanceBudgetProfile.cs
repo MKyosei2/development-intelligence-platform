@@ -1,4 +1,4 @@
-// Purpose: Represents P er fo rm an ce Bu dg et Pr of il e in the Quality domain.
+// Purpose: Represents P er fo rm an ce Bu dg et Pr of il e in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class PerformanceBudgetProfile
 {

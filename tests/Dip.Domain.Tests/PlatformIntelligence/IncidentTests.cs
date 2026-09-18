@@ -1,4 +1,4 @@
-// Purpose: Verifies I nc id en tT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by I nc ID en tT es ts.
 using Xunit;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

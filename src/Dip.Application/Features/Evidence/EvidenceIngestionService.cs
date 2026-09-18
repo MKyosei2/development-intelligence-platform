@@ -1,4 +1,4 @@
-// Purpose: Coordinates E vi de nc eI ng es ti on Se rv ic e application behavior for Evidence.
+// Purpose: Orchestrates the DIP workflow for E vi de nc eI ng es ti on Se rv ic e.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Policies;

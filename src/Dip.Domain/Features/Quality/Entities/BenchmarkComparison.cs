@@ -1,4 +1,4 @@
-// Purpose: Represents B en ch ma rk Co mp ar is on in the Quality domain.
+// Purpose: Represents B en ch ma rk Co mp ar is on in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class BenchmarkComparison

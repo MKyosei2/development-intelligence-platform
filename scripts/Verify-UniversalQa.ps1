@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-U ni ve rs al Qa repository workflow.
+# Purpose: Verifies U ni ve rs al QA requirements for DIP.
 [CmdletBinding()]
 param([string[]]$RequireLanguages=@('python','csharp','cpp','javascript','customlang'))
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest

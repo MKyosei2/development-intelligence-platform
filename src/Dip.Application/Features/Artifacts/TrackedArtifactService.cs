@@ -1,4 +1,4 @@
-// Purpose: Coordinates T ra ck ed Ar ti fa ct Se rv ic e application behavior for Artifacts.
+// Purpose: Orchestrates the DIP workflow for T ra ck ed Ar ti fa ct Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

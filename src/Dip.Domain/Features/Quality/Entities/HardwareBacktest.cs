@@ -1,4 +1,4 @@
-// Purpose: Represents H ar dw ar eB ac kt es t in the Quality domain.
+// Purpose: Represents H ar dw ar eB ac kt es t in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class HardwareBacktest
 {

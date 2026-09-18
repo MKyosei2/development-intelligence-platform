@@ -1,1 +1,1 @@
-// Purpose: Coordinates G et Pr oj ec tH ea lt hQ ue ry application behavior for Health.
+// Purpose: Defines the application query for G et Pr oj ec tH ea lt hQ ue ry.

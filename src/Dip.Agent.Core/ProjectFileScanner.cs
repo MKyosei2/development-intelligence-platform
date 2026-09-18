@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Fi le Sc an ne r agent behavior.
+// Purpose: Implements endpoint-agent behavior for P ro je ct Fi le Sc an ne r.
 using System.Security.Cryptography;
 using System.Text;
 

@@ -1,1 +1,1 @@
-// Purpose: Provides the A na ly si sO pt io ns infrastructure implementation.
+// Purpose: Defines configuration options for A na ly si sO pt io ns.

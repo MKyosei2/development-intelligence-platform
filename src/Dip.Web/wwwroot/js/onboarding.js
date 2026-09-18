@@ -1,4 +1,4 @@
-// Purpose: Implements o nb oa rd in g web UI behavior.
+// Purpose: Implements DIP web behavior for o nb oa rd in g.
 export function getBoolean(key) {
     try {
         return window.localStorage.getItem(key) === 'true';

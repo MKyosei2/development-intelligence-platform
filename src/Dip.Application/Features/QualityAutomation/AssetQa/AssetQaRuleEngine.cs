@@ -1,4 +1,4 @@
-// Purpose: Coordinates A ss et Qa Ru le En gi ne application behavior for QualityAutomation.
+// Purpose: Implements application behavior for A ss et QA Ru le En gi ne.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;

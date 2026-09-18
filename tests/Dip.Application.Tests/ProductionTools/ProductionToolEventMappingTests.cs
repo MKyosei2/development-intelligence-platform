@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro du ct io nT oo lE ve nt Ma pp in gT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P ro du ct io nT oo lE ve nt Ma pp in gT es ts.
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
 using FluentAssertions;

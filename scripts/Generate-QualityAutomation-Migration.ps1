@@ -1,4 +1,4 @@
-# Purpose: Automates the G en er at e-Q ua li ty Au to ma ti on-M ig ra ti on repository workflow.
+# Purpose: Generates Q ua li ty Au to ma ti on M ig ra ti on artifacts required by DIP.
 [CmdletBinding()]
 param(
     [string]$MigrationName = 'AddDifficulty4QualityIntelligence'

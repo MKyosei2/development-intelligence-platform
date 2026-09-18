@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-U ni ty Co ll ec to r repository workflow.
+# Purpose: Verifies U ni ty Co ll ec to r requirements for DIP.
 [CmdletBinding()]
 param(
     [string]$UnityPath = $env:UNITY_EDITOR_PATH,

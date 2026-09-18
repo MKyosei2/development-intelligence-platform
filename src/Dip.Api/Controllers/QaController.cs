@@ -1,4 +1,4 @@
-// Purpose: Exposes Q aC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for Q aC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Api.Hubs;
 using Dip.Application.Abstractions.Persistence;

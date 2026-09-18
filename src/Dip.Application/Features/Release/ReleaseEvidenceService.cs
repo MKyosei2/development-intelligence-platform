@@ -1,4 +1,4 @@
-// Purpose: Coordinates R el ea se Ev id en ce Se rv ic e application behavior for Release.
+// Purpose: Orchestrates the DIP workflow for R el ea se Ev ID en ce Se rv ic e.
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;

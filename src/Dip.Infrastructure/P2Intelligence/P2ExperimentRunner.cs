@@ -1,4 +1,4 @@
-// Purpose: Provides the P2 Ex pe ri me nt Ru nn er infrastructure implementation.
+// Purpose: Executes the infrastructure workflow represented by P2 Ex pe ri me nt Ru nn er.
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;

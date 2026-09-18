@@ -1,4 +1,4 @@
-// Purpose: Provides the U ni ve rs al Di ag no st ic No rm al iz er infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by U ni ve rs al Di ag no st ic No rm al iz er.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;

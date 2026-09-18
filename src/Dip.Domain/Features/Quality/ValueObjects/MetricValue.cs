@@ -1,1 +1,1 @@
-// Purpose: Represents the M et ri cV al ue value object.
+// Purpose: Defines and validates the M et ri cV al ue value object.

@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro du ct io nG ra ph Pr oj ec ti on Se rv ic e application behavior for DevelopmentGraph.
+// Purpose: Orchestrates the DIP workflow for P ro du ct io nG ra ph Pr oj ec ti on Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;

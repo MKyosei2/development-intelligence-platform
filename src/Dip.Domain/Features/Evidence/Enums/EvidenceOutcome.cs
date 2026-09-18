@@ -1,4 +1,4 @@
-// Purpose: Defines E vi de nc eO ut co me states used by Evidence.
+// Purpose: Defines the allowed E vi de nc eO ut co me states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum EvidenceOutcome

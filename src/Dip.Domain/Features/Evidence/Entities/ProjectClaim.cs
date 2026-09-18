@@ -1,4 +1,4 @@
-// Purpose: Represents P ro je ct Cl ai m in the Evidence domain.
+// Purpose: Represents P ro je ct Cl ai m in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

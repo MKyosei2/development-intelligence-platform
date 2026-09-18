@@ -1,4 +1,4 @@
-// Purpose: Represents E xt er na lW or kI te mL in k in the Operations domain.
+// Purpose: Represents E xt er na lW or kI te mL in k in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ExternalWorkItemLink

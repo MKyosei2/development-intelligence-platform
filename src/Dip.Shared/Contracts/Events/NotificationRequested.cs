@@ -1,4 +1,4 @@
-// Purpose: Defines N ot if ic at io nR eq ue st ed repository behavior.
+// Purpose: Defines the shared contract represented by N ot if ic at io nR eq ue st ed.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record NotificationRequested(

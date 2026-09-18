@@ -1,1 +1,1 @@
-// Purpose: Provides the M in io Ob je ct St or ag e infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by M in io Ob je ct St or ag e.

@@ -1,1 +1,1 @@
-// Purpose: Defines P ag ed Re sp on se repository behavior.
+// Purpose: Defines the shared contract represented by P ag ed Re sp on se.

@@ -1,4 +1,4 @@
-// Purpose: Verifies O ut bo xW ri te rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by O ut bo xW ri te rT es ts.
 using Dip.Application.Services;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;

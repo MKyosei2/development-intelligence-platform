@@ -1,4 +1,4 @@
-// Purpose: Implements O nb oa rd in gS ta te Se rv ic e web UI behavior.
+// Purpose: Implements web application behavior for O nb oa rd in gS ta te Se rv ic e.
 using Microsoft.JSInterop;
 
 namespace Dip.Web.Services;

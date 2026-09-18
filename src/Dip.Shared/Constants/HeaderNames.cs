@@ -1,1 +1,1 @@
-// Purpose: Defines H ea de rN am es repository behavior.
+// Purpose: Defines shared constants for H ea de rN am es.

@@ -1,4 +1,4 @@
-// Purpose: Configures P ro du ct io nS ec ur it yG ua rd for the DIP API.
+// Purpose: Defines the DIP responsibility represented by P ro du ct io nS ec ur it yG ua rd.
 using Dip.Api.Controllers;
 
 namespace Dip.Api.Authorization;

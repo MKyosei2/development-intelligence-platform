@@ -1,4 +1,4 @@
-// Purpose: Provides the Q aC ap ab il it yP la nn er infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by Q aC ap ab il it yP la nn er.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 

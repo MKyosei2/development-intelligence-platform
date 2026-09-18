@@ -1,4 +1,4 @@
-// Purpose: Represents I nc id en tO cc ur re nc e in the Operations domain.
+// Purpose: Represents I nc ID en tO cc ur re nc e in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class IncidentOccurrence
 {

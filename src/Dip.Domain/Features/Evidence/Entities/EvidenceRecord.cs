@@ -1,4 +1,4 @@
-// Purpose: Represents E vi de nc eR ec or d in the Evidence domain.
+// Purpose: Represents E vi de nc eR ec or d in the DIP domain.
 using System.Text.Json;
 using Dip.Domain.Enums;
 

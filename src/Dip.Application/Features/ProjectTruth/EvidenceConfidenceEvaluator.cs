@@ -1,4 +1,4 @@
-// Purpose: Coordinates E vi de nc eC on fi de nc eE va lu at or application behavior for ProjectTruth.
+// Purpose: Evaluates E vi de nc eC on fi de nc eE va lu at or using DIP project evidence and policy.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

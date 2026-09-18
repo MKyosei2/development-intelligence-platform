@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro du ct io nQ aI nt el li ge nc eT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P ro du ct io nQ aI nt el li ge nc eT es ts.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

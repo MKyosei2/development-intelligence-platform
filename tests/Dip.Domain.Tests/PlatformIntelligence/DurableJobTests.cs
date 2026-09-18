@@ -1,4 +1,4 @@
-// Purpose: Verifies D ur ab le Jo bT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by D ur ab le Jo bT es ts.
 using Xunit;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

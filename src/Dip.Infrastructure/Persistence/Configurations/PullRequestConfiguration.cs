@@ -1,1 +1,1 @@
-// Purpose: Implements P ul lR eq ue st Co nf ig ur at io n persistence behavior.
+// Purpose: Configures EF Core persistence for P ul lR eq ue st Co nf ig ur at io n.

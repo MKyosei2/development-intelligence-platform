@@ -1,1 +1,1 @@
-// Purpose: Defines C ol le ct or Me tr ic repository behavior.
+// Purpose: Defines the shared contract represented by C ol le ct or Me tr ic.

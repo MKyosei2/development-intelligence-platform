@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct sA pi Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by P ro je ct sA pi Te st s.
 using System.Net;
 using System.Net.Http.Json;
 using Dip.IntegrationTests.Database;

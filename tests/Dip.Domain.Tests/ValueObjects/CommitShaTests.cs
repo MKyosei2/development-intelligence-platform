@@ -1,4 +1,4 @@
-// Purpose: Verifies C om mi tS ha Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by C om mi tS ha Te st s.
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

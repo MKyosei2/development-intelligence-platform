@@ -1,4 +1,4 @@
-// Purpose: Verifies P ol ic yR es ol ve rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P ol ic yR es ol ve rT es ts.
 using Dip.Application.Features.Policies;
 using FluentAssertions;
 

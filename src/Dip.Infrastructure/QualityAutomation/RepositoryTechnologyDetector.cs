@@ -1,4 +1,4 @@
-// Purpose: Provides the R ep os it or yT ec hn ol og yD et ec to r infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by R ep os it or yT ec hn ol og yD et ec to r.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;

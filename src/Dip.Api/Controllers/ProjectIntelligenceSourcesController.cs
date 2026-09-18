@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct In te ll ig en ce So ur ce sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for P ro je ct In te ll ig en ce So ur ce sC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.ProjectIntelligence;
 using Dip.Domain.Enums;

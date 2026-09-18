@@ -1,1 +1,1 @@
-// Purpose: Defines P ip el in eC om pl et ed Me ss ag e repository behavior.
+// Purpose: Defines the shared contract represented by P ip el in eC om pl et ed Me ss ag e.

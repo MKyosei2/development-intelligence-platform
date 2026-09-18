@@ -1,4 +1,4 @@
-// Purpose: Provides the P yt ho nQ aE ng in e infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by P yt ho nQ aE ng in e.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

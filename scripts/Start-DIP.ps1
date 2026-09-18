@@ -1,4 +1,4 @@
-# Purpose: Automates the S ta rt-D IP repository workflow.
+# Purpose: Starts the local DIP runtime and required development services.
 [CmdletBinding()]
 param(
     [switch]$NoBuild,

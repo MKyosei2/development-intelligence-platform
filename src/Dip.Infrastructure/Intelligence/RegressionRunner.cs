@@ -1,4 +1,4 @@
-// Purpose: Provides the R eg re ss io nR un ne r infrastructure implementation.
+// Purpose: Executes the infrastructure workflow represented by R eg re ss io nR un ne r.
 using System.Text.Json;
 using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.QualityAutomation;

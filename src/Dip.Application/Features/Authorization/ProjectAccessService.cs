@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct Ac ce ss Se rv ic e application behavior for Authorization.
+// Purpose: Orchestrates the DIP workflow for P ro je ct Ac ce ss Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

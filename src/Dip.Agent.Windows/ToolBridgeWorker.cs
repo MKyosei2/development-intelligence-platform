@@ -1,4 +1,4 @@
-// Purpose: Implements T oo lB ri dg eW or ke r agent behavior.
+// Purpose: Runs background processing for T oo lB ri dg eW or ke r.
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;

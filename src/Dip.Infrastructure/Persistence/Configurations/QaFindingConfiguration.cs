@@ -1,4 +1,4 @@
-// Purpose: Implements Q aF in di ng Co nf ig ur at io n persistence behavior.
+// Purpose: Configures EF Core persistence for Q aF in di ng Co nf ig ur at io n.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;

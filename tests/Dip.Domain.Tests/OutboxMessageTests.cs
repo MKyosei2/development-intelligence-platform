@@ -1,4 +1,4 @@
-// Purpose: Verifies O ut bo xM es sa ge Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by O ut bo xM es sa ge Te st s.
 using Dip.Domain.Entities;
 using Xunit;
 

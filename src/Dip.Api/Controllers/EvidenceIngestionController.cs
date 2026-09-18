@@ -1,4 +1,4 @@
-// Purpose: Exposes E vi de nc eI ng es ti on Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for E vi de nc eI ng es ti on Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Evidence;
 using Dip.Application.Features.Authorization;

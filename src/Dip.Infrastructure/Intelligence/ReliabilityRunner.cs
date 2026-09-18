@@ -1,4 +1,4 @@
-// Purpose: Provides the R el ia bi li ty Ru nn er infrastructure implementation.
+// Purpose: Executes the infrastructure workflow represented by R el ia bi li ty Ru nn er.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

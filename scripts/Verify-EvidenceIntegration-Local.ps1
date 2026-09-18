@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-E vi de nc eI nt eg ra ti on-L oc al repository workflow.
+# Purpose: Verifies E vi de nc eI nt eg ra ti on L oc al requirements for DIP.
 [CmdletBinding()]
 param()
 

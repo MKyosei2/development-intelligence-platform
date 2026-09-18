@@ -1,4 +1,4 @@
-// Purpose: Represents G ol de nM as te rP ro fi le in the Artifacts domain.
+// Purpose: Represents G ol de nM as te rP ro fi le in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class GoldenMasterProfile

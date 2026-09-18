@@ -1,4 +1,4 @@
-// Purpose: Exposes L oc al Co ll ec to rC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for L oc al Co ll ec to rC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;

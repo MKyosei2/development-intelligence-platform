@@ -1,4 +1,4 @@
-// Purpose: Exposes W eb ho ok sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for W eb ho ok sC on tr ol le r.
 using System.Text;using System.Text.Json;using Dip.Application.Abstractions.GitHub;using Dip.Application.Features.GitHub;using Microsoft.AspNetCore.Mvc;using Microsoft.AspNetCore.Authorization;using Microsoft.AspNetCore.RateLimiting;
 namespace Dip.Api.Controllers;
 [ApiController][Route("api/v1/webhooks/github")][AllowAnonymous][EnableRateLimiting("github-webhook")][Consumes("application/json")]

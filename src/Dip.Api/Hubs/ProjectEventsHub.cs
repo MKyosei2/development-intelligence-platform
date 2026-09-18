@@ -1,4 +1,4 @@
-// Purpose: Configures P ro je ct Ev en ts Hu b for the DIP API.
+// Purpose: Defines the DIP responsibility represented by P ro je ct Ev en ts Hu b.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Authorization;

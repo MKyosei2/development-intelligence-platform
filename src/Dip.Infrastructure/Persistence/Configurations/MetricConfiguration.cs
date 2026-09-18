@@ -1,4 +1,4 @@
-// Purpose: Implements M et ri cC on fi gu ra ti on persistence behavior.
+// Purpose: Configures EF Core persistence for M et ri cC on fi gu ra ti on.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

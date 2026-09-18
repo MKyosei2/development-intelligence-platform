@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-D is as te rR ec ov er y repository workflow.
+# Purpose: Verifies D is as te rR ec ov er y requirements for DIP.
 [CmdletBinding()]
 param(
     [string]$DatabaseUser=$(if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}),

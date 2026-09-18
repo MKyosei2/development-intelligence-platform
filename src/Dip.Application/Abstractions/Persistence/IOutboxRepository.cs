@@ -1,4 +1,4 @@
-// Purpose: Defines the I Ou tb ox Re po si to ry application boundary.
+// Purpose: Persists and queries I Ou tb ox Re po si to ry data.
 using Dip.Domain.Entities;
 namespace Dip.Application.Abstractions.Persistence;
 public interface IOutboxRepository

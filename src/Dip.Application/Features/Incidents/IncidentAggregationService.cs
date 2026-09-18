@@ -1,4 +1,4 @@
-// Purpose: Coordinates I nc id en tA gg re ga ti on Se rv ic e application behavior for Incidents.
+// Purpose: Orchestrates the DIP workflow for I nc ID en tA gg re ga ti on Se rv ic e.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

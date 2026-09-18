@@ -1,1 +1,1 @@
-// Purpose: Provides the Q ue ue Op ti on s infrastructure implementation.
+// Purpose: Defines configuration options for Q ue ue Op ti on s.

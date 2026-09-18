@@ -1,4 +1,4 @@
-// Purpose: Represents D ur ab le Jo b in the Operations domain.
+// Purpose: Runs the background job for D ur ab le Jo b.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

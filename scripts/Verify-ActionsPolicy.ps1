@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-A ct io ns Po li cy repository workflow.
+# Purpose: Verifies A ct io ns Po li cy requirements for DIP.
 [CmdletBinding()]
 param()
 

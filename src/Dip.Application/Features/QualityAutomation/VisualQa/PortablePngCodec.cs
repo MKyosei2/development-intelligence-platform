@@ -1,4 +1,4 @@
-// Purpose: Coordinates P or ta bl eP ng Co de c application behavior for QualityAutomation.
+// Purpose: Implements application behavior for P or ta bl eP ng Co de c.
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;

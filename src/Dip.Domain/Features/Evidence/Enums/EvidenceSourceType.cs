@@ -1,4 +1,4 @@
-// Purpose: Defines E vi de nc eS ou rc eT yp e states used by Evidence.
+// Purpose: Defines the allowed E vi de nc eS ou rc eT yp e states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum EvidenceSourceType

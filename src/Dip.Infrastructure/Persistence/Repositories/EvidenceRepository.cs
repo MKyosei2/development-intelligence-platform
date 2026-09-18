@@ -1,4 +1,4 @@
-// Purpose: Implements E vi de nc eR ep os it or y persistence behavior.
+// Purpose: Persists and queries E vi de nc eR ep os it or y data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

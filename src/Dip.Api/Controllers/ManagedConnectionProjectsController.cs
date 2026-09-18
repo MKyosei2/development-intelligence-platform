@@ -1,4 +1,4 @@
-// Purpose: Exposes M an ag ed Co nn ec ti on Pr oj ec ts Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for M an ag ed Co nn ec ti on Pr oj ec ts Co nt ro ll er.
 using System.Text.Json;
 using Dip.Api.Authorization;
 using Dip.Application.Features.Integrations;

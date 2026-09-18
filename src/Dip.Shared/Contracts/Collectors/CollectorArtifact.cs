@@ -1,1 +1,1 @@
-// Purpose: Defines C ol le ct or Ar ti fa ct repository behavior.
+// Purpose: Defines the shared contract represented by C ol le ct or Ar ti fa ct.

@@ -1,1 +1,1 @@
-// Purpose: Configures R at eL im it Mi dd le wa re for the DIP API.
+// Purpose: Defines the DIP responsibility represented by R at eL im it Mi dd le wa re.

@@ -1,4 +1,4 @@
-// Purpose: Coordinates W or kM an ag em en tS er vi ce application behavior for Management.
+// Purpose: Orchestrates the DIP workflow for W or kM an ag em en tS er vi ce.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;

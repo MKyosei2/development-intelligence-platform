@@ -1,2 +1,2 @@
-// Purpose: Represents Q ua li ty Ru le in the Quality domain.
+// Purpose: Represents Q ua li ty Ru le in the DIP domain.
 namespace Dip.Domain.Entities; public sealed class QualityRule { public Guid Id {get;set;} public Guid ProjectId{get;set;} public string RuleKey{get;set;}=""; public string MetricName{get;set;}=""; public decimal? WarningThreshold{get;set;} public decimal? CriticalThreshold{get;set;} public bool Enabled{get;set;}=true; }

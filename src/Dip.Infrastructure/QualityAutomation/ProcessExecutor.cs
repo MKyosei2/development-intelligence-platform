@@ -1,4 +1,4 @@
-// Purpose: Provides the P ro ce ss Ex ec ut or infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by P ro ce ss Ex ec ut or.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;

@@ -1,4 +1,4 @@
-// Purpose: Implements C la im Ev id en ce Li nk Co nf ig ur at io n persistence behavior.
+// Purpose: Configures EF Core persistence for C la im Ev ID en ce Li nk Co nf ig ur at io n.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

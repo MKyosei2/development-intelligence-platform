@@ -1,4 +1,4 @@
-// Purpose: Defines Q aG ov er na nc eE nu ms states used by Quality.
+// Purpose: Defines the allowed Q aG ov er na nc eE nu ms states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum FindingLifecycleStatus{New,Confirmed,Assigned,InProgress,Fixed,Verified,Closed,Suppressed,AcceptedRisk,Duplicate,WontFix}

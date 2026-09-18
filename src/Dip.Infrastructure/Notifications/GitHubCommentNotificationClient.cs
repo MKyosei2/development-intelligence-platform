@@ -1,1 +1,1 @@
-// Purpose: Provides the G it Hu bC om me nt No ti fi ca ti on Cl ie nt infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through G it Hu bC om me nt No ti fi ca ti on Cl ie nt.

@@ -1,1 +1,1 @@
-// Purpose: Implements N ot if ic at io nC on fi gu ra ti on persistence behavior.
+// Purpose: Configures EF Core persistence for N ot if ic at io nC on fi gu ra ti on.

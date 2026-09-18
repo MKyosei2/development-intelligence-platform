@@ -1,4 +1,4 @@
-// Purpose: Registers D ep en de nc yI nj ec ti on.G it Hu b infrastructure dependencies.
+// Purpose: Provides the infrastructure capability represented by G it Hu bD ep en de nc yI nj ec ti on.
 using Dip.Application.Abstractions.GitHub;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Infrastructure.GitHub;

@@ -1,1 +1,1 @@
-// Purpose: Defines the T ea mL oa dR ul e domain rule.
+// Purpose: Encapsulates the domain rule represented by T ea mL oa dR ul e.

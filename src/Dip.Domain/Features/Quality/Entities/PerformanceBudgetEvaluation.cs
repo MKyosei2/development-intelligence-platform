@@ -1,4 +1,4 @@
-// Purpose: Represents P er fo rm an ce Bu dg et Ev al ua ti on in the Quality domain.
+// Purpose: Represents P er fo rm an ce Bu dg et Ev al ua ti on in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class PerformanceBudgetEvaluation

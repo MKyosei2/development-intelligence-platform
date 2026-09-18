@@ -1,4 +1,4 @@
-// Purpose: Provides the P os tg re sQ ue ue Cl ie nt infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through P os tg re sQ ue ue Cl ie nt.
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;

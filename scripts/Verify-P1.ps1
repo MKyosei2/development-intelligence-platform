@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-P1 repository workflow.
+# Purpose: Verifies P1 requirements for DIP.
 [CmdletBinding()]
 param([switch]$SkipBugZoo)
 

@@ -1,4 +1,4 @@
-// Purpose: Coordinates A da pt iv eQ aP la nn er application behavior for P2Intelligence.
+// Purpose: Implements application behavior for A da pt iv eQ aP la nn er.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-S ol ut io n repository workflow.
+# Purpose: Verifies S ol ut io n requirements for DIP.
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release')][string]$Configuration='Release',

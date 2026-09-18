@@ -1,1 +1,1 @@
-// Purpose: Defines Q ua li ty Ga te Fa il ed Me ss ag e repository behavior.
+// Purpose: Defines the shared contract represented by Q ua li ty Ga te Fa il ed Me ss ag e.

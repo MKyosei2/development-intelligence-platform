@@ -1,1 +1,1 @@
-// Purpose: Provides the C ir cu it Br ea ke rP ol ic ie s infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by C ir cu it Br ea ke rP ol ic ie s.

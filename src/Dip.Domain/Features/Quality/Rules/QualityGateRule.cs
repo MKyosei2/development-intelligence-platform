@@ -1,1 +1,1 @@
-// Purpose: Defines the Q ua li ty Ga te Ru le domain rule.
+// Purpose: Encapsulates the domain rule represented by Q ua li ty Ga te Ru le.

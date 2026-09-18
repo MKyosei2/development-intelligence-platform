@@ -1,4 +1,4 @@
-// Purpose: Represents G am eR ep la yM et ri c in the Quality domain.
+// Purpose: Represents G am eR ep la yM et ri c in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class GameReplayMetric
 {

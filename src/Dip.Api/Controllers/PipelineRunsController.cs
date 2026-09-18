@@ -1,4 +1,4 @@
-// Purpose: Exposes P ip el in eR un sC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for P ip el in eR un sC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Authorization;

@@ -1,4 +1,4 @@
-# Purpose: Automates the G en er at e-E vi de nc eI nt eg ra ti on-M ig ra ti on repository workflow.
+# Purpose: Generates E vi de nc eI nt eg ra ti on M ig ra ti on artifacts required by DIP.
 [CmdletBinding()]
 param(
     [string]$MigrationName = 'AddDifficulty1Foundation'

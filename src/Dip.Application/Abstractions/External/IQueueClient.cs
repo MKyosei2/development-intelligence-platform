@@ -1,1 +1,1 @@
-// Purpose: Defines the I Qu eu eC li en t application boundary.
+// Purpose: Defines the application boundary represented by I Qu eu eC li en t.

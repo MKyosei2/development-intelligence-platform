@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro du ct io nT oo lE ve nt Ma pp in g application behavior for ProductionTools.
+// Purpose: Implements application behavior for P ro du ct io nT oo lE ve nt Ma pp in g.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProductionTools;

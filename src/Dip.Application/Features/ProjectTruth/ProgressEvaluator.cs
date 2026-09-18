@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro gr es sE va lu at or application behavior for ProjectTruth.
+// Purpose: Evaluates P ro gr es sE va lu at or using DIP project evidence and policy.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 

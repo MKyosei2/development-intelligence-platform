@@ -1,4 +1,4 @@
-// Purpose: Represents A rt if ac tR ec or d in the Artifacts domain.
+// Purpose: Represents A rt if ac tR ec or d in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class ArtifactRecord

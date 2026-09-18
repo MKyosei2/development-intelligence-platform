@@ -1,4 +1,4 @@
-// Purpose: Implements P2 Re po si to ri es persistence behavior.
+// Purpose: Provides the infrastructure capability represented by P2 Re po si to ri es.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

@@ -1,4 +1,4 @@
-// Purpose: Coordinates M il es to ne In te ll ig en ce Se rv ic e application behavior for Milestones.
+// Purpose: Orchestrates the DIP workflow for M il es to ne In te ll ig en ce Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

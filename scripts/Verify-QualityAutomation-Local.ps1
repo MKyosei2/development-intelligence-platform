@@ -1,4 +1,4 @@
-# Purpose: Automates the V er if y-Q ua li ty Au to ma ti on-L oc al repository workflow.
+# Purpose: Verifies Q ua li ty Au to ma ti on L oc al requirements for DIP.
 [CmdletBinding()]
 param()
 

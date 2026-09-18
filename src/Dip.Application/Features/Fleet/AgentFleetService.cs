@@ -1,4 +1,4 @@
-// Purpose: Coordinates A ge nt Fl ee tS er vi ce application behavior for Fleet.
+// Purpose: Orchestrates the DIP workflow for A ge nt Fl ee tS er vi ce.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;

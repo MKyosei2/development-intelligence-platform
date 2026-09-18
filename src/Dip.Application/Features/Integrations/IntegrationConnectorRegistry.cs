@@ -1,4 +1,4 @@
-// Purpose: Coordinates I nt eg ra ti on Co nn ec to rR eg is tr y application behavior for Integrations.
+// Purpose: Defines the application boundary represented by I nt eg ra ti on Co nn ec to rR eg is tr y.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Features.Integrations;

@@ -1,4 +1,4 @@
-// Purpose: Represents Q aG ov er na nc eE nt it ie s in the Evidence domain.
+// Purpose: Represents Q aG ov er na nc eE nt it ie s in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Exposes I nt el li ge nc eC on tr ol le r HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for I nt el li ge nc eC on tr ol le r.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Intelligence;
 using Microsoft.AspNetCore.Authorization;

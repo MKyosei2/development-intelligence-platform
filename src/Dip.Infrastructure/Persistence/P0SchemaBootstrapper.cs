@@ -1,4 +1,4 @@
-// Purpose: Implements P0 Sc he ma Bo ot st ra pp er persistence behavior.
+// Purpose: Provides the infrastructure capability represented by P0 Sc he ma Bo ot st ra pp er.
 using Microsoft.EntityFrameworkCore;
 
 namespace Dip.Infrastructure.Persistence;

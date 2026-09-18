@@ -1,4 +1,4 @@
-// Purpose: Provides the J en ki ns Ci Co nn ec to r infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through J en ki ns CI Co nn ec to r.
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;

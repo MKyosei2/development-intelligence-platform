@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Mu ta ti on Co or di na to r persistence behavior.
+// Purpose: Provides the infrastructure capability represented by P ro je ct Mu ta ti on Co or di na to r.
 using System.Collections.Concurrent;
 using System.Data;
 using Dip.Application.Features.Authorization;

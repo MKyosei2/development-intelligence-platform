@@ -1,4 +1,4 @@
-// Purpose: Represents T ra ck ed Ar ti fa ct Ve rs io n in the Artifacts domain.
+// Purpose: Represents T ra ck ed Ar ti fa ct Ve rs io n in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

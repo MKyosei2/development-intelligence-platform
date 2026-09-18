@@ -1,4 +1,4 @@
-// Purpose: Coordinates V is ua lQ aS er vi ce application behavior for QualityAutomation.
+// Purpose: Orchestrates the DIP workflow for V is ua lQ aS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

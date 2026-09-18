@@ -1,4 +1,4 @@
-// Purpose: Coordinates G am eR ep la yS er vi ce application behavior for Replay.
+// Purpose: Orchestrates the DIP workflow for G am eR ep la yS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Replay;

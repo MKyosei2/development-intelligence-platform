@@ -1,4 +1,4 @@
-// Purpose: Implements Q ua li ty Au to ma ti on Co nf ig ur at io ns persistence behavior.
+// Purpose: Configures EF Core persistence for Q ua li ty Au to ma ti on Co nf ig ur at io ns.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

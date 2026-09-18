@@ -1,4 +1,4 @@
-// Purpose: Verifies Q aC ap ab il it yP la nn er Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by Q aC ap ab il it yP la nn er Te st s.
 using Dip.Application.Features.QualityAutomation;using Dip.Domain.ValueObjects;using Dip.Infrastructure.QualityAutomation;
 namespace Dip.Infrastructure.Tests.QualityAutomation;
 public sealed class QaCapabilityPlannerTests

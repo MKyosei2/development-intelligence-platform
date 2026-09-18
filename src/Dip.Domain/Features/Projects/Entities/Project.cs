@@ -1,4 +1,4 @@
-// Purpose: Represents P ro je ct in the Projects domain.
+// Purpose: Represents P ro je ct in the DIP domain.
 using Dip.Domain.ValueObjects;
 
 namespace Dip.Domain.Entities;

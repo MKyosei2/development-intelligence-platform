@@ -1,4 +1,4 @@
-// Purpose: Exposes N ot if ic at io ns Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for N ot if ic at io ns Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Management;
 using Microsoft.AspNetCore.Authorization;

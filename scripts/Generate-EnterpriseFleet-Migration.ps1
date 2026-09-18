@@ -1,4 +1,4 @@
-# Purpose: Automates the G en er at e-E nt er pr is eF le et-M ig ra ti on repository workflow.
+# Purpose: Generates E nt er pr is eF le et M ig ra ti on artifacts required by DIP.
 [CmdletBinding()]
 param([string]$MigrationName='AddDifficulty5EnterpriseFoundation')
 Set-StrictMode -Version Latest

@@ -1,4 +1,4 @@
-// Purpose: Implements D ev el op me nt Gr ap hR ep os it or y persistence behavior.
+// Purpose: Persists and queries D ev el op me nt Gr ap hR ep os it or y data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

@@ -1,1 +1,1 @@
-// Purpose: Defines I nv al id Pr oj ec tS ta te Ex ce pt io n for the Projects domain.
+// Purpose: Represents the domain error condition described by I nv al ID Pr oj ec tS ta te Ex ce pt io n.

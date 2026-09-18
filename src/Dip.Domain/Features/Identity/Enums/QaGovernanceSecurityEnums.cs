@@ -1,4 +1,4 @@
-// Purpose: Defines Q aG ov er na nc eS ec ur it yE nu ms states used by Identity.
+// Purpose: Defines the allowed Q aG ov er na nc eS ec ur it yE nu ms states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum ProjectMembershipRole { Viewer, Member, Maintainer, Owner }

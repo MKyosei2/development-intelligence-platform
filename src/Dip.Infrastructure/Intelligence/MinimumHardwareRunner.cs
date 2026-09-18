@@ -1,4 +1,4 @@
-// Purpose: Provides the M in im um Ha rd wa re Ru nn er infrastructure implementation.
+// Purpose: Executes the infrastructure workflow represented by M in im um Ha rd wa re Ru nn er.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.Hardware;

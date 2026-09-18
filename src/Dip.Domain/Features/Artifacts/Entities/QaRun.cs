@@ -1,4 +1,4 @@
-// Purpose: Represents Q aR un in the Artifacts domain.
+// Purpose: Represents Q aR un in the DIP domain.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 

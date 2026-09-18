@@ -1,1 +1,1 @@
-// Purpose: Provides the R ed is Qu eu eC li en t infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through R ed is Qu eu eC li en t.

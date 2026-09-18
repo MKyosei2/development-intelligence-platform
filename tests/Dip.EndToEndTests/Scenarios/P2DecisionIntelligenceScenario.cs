@@ -1,4 +1,4 @@
-// Purpose: Verifies P2 De ci si on In te ll ig en ce Sc en ar io behavior.
+// Purpose: Verifies behavior and invariants covered by P2 De CI si on In te ll ig en ce Sc en ar io.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

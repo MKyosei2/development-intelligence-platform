@@ -1,4 +1,4 @@
-// Purpose: Provides the D ep en de nc yI nj ec ti on infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by D ep en de nc yI nj ec ti on.
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

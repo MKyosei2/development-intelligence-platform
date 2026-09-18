@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Tr ut hS ce na ri o behavior.
+// Purpose: Verifies behavior and invariants covered by P ro je ct Tr ut hS ce na ri o.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

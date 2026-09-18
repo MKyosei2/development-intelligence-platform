@@ -1,4 +1,4 @@
-// Purpose: Implements S ql it eA ge nt St at eS to re agent behavior.
+// Purpose: Implements endpoint-agent behavior for S ql it eA ge nt St at eS to re.
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 

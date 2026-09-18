@@ -1,4 +1,4 @@
-// Purpose: Provides the M in io Ar ti fa ct St or e infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by M in io Ar ti fa ct St or e.
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;

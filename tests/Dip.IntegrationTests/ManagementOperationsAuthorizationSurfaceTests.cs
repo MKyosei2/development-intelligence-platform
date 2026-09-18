@@ -1,4 +1,4 @@
-// Purpose: Verifies M an ag em en tO pe ra ti on sA ut ho ri za ti on Su rf ac eT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by M an ag em en tO pe ra ti on sA ut ho ri za ti on Su rf ac eT es ts.
 using System.Reflection;
 using Dip.Api.Authorization;
 using Dip.Api.Controllers;

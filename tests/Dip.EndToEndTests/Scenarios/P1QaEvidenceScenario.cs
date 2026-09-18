@@ -1,4 +1,4 @@
-// Purpose: Verifies P1 Qa Ev id en ce Sc en ar io behavior.
+// Purpose: Verifies behavior and invariants covered by P1 QA Ev ID en ce Sc en ar io.
 using System.Diagnostics;
 using Dip.EndToEndTests.Support;
 using FluentAssertions;

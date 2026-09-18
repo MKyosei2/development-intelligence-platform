@@ -1,1 +1,1 @@
-// Purpose: Provides the A na ly si sC li en t infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through A na ly si sC li en t.

@@ -1,4 +1,4 @@
-// Purpose: Coordinates O ut bo xW ri te r application behavior for Operations.
+// Purpose: Implements application behavior for O ut bo xW ri te r.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;

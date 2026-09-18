@@ -1,4 +1,4 @@
-// Purpose: Provides the G it Hu bR ep os it or yC at al og infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by G it Hu bR ep os it or yC at al og.
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;

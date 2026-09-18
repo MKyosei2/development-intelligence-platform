@@ -1,4 +1,4 @@
-// Purpose: Exposes C ol la bo ra ti on Ev id en ce We bh oo ks Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for C ol la bo ra ti on Ev ID en ce We bh oo ks Co nt ro ll er.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.ProjectIntelligence;

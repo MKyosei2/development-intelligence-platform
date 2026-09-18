@@ -1,4 +1,4 @@
-// Purpose: Represents I nc id en tE ve nt in the Operations domain.
+// Purpose: Represents I nc ID en tE ve nt in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class IncidentEvent

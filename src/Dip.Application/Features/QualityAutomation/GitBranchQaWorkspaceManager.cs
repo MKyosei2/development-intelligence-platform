@@ -1,4 +1,4 @@
-// Purpose: Coordinates G it Br an ch Qa Wo rk sp ac eM an ag er application behavior for QualityAutomation.
+// Purpose: Implements application behavior for G it Br an ch QA Wo rk sp ac eM an ag er.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

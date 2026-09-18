@@ -1,4 +1,4 @@
-// Purpose: Provides the C pp Qa En gi ne infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by C pp QA En gi ne.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

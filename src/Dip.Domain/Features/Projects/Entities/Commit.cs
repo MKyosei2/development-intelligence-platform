@@ -1,1 +1,1 @@
-// Purpose: Represents C om mi t in the Projects domain.
+// Purpose: Represents C om mi t in the DIP domain.

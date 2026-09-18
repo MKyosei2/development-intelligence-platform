@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro du ct io nM ed ia Se rv ic e application behavior for ProductionTools.
+// Purpose: Orchestrates the DIP workflow for P ro du ct io nM ed ia Se rv ic e.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Policies;

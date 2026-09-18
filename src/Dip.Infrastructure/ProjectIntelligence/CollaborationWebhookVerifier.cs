@@ -1,4 +1,4 @@
-// Purpose: Provides the C ol la bo ra ti on We bh oo kV er if ie r infrastructure implementation.
+// Purpose: Verifies external input or runtime state through C ol la bo ra ti on We bh oo kV er if ie r.
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;

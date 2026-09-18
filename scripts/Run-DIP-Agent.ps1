@@ -1,4 +1,4 @@
-# Purpose: Automates the R un-D IP-A ge nt repository workflow.
+# Purpose: Runs the DIP D IP A ge nt workflow.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,

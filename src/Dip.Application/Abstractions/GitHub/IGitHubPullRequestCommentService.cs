@@ -1,4 +1,4 @@
-// Purpose: Defines the I Gi tH ub Pu ll Re qu es tC om me nt Se rv ic e application boundary.
+// Purpose: Orchestrates the DIP workflow for I Gi tH ub Pu ll Re qu es tC om me nt Se rv ic e.
 namespace Dip.Application.Abstractions.GitHub;
 
 public interface IGitHubPullRequestCommentService

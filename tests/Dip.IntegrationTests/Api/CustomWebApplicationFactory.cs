@@ -1,4 +1,4 @@
-// Purpose: Verifies C us to mW eb Ap pl ic at io nF ac to ry behavior.
+// Purpose: Verifies behavior and invariants covered by C us to mW eb Ap pl ic at io nF ac to ry.
 using Dip.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;

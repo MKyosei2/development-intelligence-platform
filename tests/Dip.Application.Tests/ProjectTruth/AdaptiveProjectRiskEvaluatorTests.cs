@@ -1,4 +1,4 @@
-// Purpose: Verifies A da pt iv eP ro je ct Ri sk Ev al ua to rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by A da pt iv eP ro je ct Ri sk Ev al ua to rT es ts.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

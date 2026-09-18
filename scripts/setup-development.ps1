@@ -1,4 +1,4 @@
-# Purpose: Automates the s et up-d ev el op me nt repository workflow.
+# Purpose: Sets up the local DIP development environment and required tools.
 param([switch]$SkipInstall,[switch]$SkipDocker)
 $ErrorActionPreference="Stop"
 Set-StrictMode -Version Latest

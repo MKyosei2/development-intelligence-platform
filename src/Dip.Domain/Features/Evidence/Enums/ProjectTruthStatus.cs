@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Tr ut hS ta tu s states used by Evidence.
+// Purpose: Defines the allowed P ro je ct Tr ut hS ta tu s states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum ProjectTruthStatus

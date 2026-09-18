@@ -1,4 +1,4 @@
-// Purpose: Represents I nt el li ge nc eR un in the Operations domain.
+// Purpose: Represents I nt el li ge nc eR un in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class IntelligenceRun

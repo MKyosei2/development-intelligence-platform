@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Op er at io nF lo wR es ol ve r web UI behavior.
+// Purpose: Implements DIP web behavior for P ro je ct Op er at io nF lo wR es ol ve r.
 using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.GitHubIntegration;
 

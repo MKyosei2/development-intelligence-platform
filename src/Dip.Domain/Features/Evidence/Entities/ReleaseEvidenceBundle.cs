@@ -1,4 +1,4 @@
-// Purpose: Represents R el ea se Ev id en ce Bu nd le in the Evidence domain.
+// Purpose: Represents R el ea se Ev ID en ce Bu nd le in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ReleaseEvidenceBundle

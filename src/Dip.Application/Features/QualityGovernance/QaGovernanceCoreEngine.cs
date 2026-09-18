@@ -1,4 +1,4 @@
-// Purpose: Coordinates Q aG ov er na nc eC or eE ng in e application behavior for QualityGovernance.
+// Purpose: Implements application behavior for Q aG ov er na nc eC or eE ng in e.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

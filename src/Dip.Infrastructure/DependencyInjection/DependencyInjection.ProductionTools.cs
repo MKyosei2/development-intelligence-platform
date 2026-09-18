@@ -1,4 +1,4 @@
-// Purpose: Registers D ep en de nc yI nj ec ti on.P ro du ct io nT oo ls infrastructure dependencies.
+// Purpose: Provides the infrastructure capability represented by P ro du ct io nT oo ls De pe nd en cy In je ct io n.
 using Dip.Application.Features.ProductionTools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

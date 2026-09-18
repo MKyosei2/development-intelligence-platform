@@ -1,4 +1,4 @@
-// Purpose: Verifies L an gu ag eI dT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by L an gu ag eI dT es ts.
 using System.Text.Json;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

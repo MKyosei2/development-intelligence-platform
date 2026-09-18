@@ -1,4 +1,4 @@
-// Purpose: Implements P er fo rm an ce Si mu la ti on Ru nC on fi gu ra ti on persistence behavior.
+// Purpose: Configures EF Core persistence for P er fo rm an ce Si mu la ti on Ru nC on fi gu ra ti on.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

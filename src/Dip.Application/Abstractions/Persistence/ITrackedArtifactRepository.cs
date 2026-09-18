@@ -1,4 +1,4 @@
-// Purpose: Defines the I Tr ac ke dA rt if ac tR ep os it or y application boundary.
+// Purpose: Persists and queries I Tr ac ke dA rt if ac tR ep os it or y data.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Abstractions.Persistence;

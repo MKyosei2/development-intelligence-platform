@@ -1,4 +1,4 @@
-// Purpose: Represents D ev el op me nt Gr ap hE dg e in the Projects domain.
+// Purpose: Represents D ev el op me nt Gr ap hE dg e in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

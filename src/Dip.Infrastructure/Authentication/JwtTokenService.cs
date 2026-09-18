@@ -1,1 +1,1 @@
-// Purpose: Provides the J wt To ke nS er vi ce infrastructure implementation.
+// Purpose: Implements infrastructure support for J wt To ke nS er vi ce.

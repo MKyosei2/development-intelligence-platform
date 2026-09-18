@@ -1,4 +1,4 @@
-// Purpose: Coordinates C ha ng eI mp ac tA na ly si sS er vi ce application behavior for ChangeImpact.
+// Purpose: Orchestrates the DIP workflow for C ha ng eI mp ac tA na ly si sS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

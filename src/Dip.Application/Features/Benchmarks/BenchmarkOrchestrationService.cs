@@ -1,4 +1,4 @@
-// Purpose: Coordinates B en ch ma rk Or ch es tr at io nS er vi ce application behavior for Benchmarks.
+// Purpose: Orchestrates the DIP workflow for B en ch ma rk Or ch es tr at io nS er vi ce.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

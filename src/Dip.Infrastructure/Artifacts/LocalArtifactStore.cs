@@ -1,4 +1,4 @@
-// Purpose: Provides the L oc al Ar ti fa ct St or e infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by L oc al Ar ti fa ct St or e.
 using System.Security.Cryptography;
 using Dip.Application.Abstractions.Artifacts;
 using Microsoft.Extensions.Options;

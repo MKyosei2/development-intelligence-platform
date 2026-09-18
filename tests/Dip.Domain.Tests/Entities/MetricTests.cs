@@ -1,4 +1,4 @@
-// Purpose: Verifies M et ri cT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by M et ri cT es ts.
 using Dip.Domain.Entities;
 using FluentAssertions;
 

@@ -1,4 +1,4 @@
-// Purpose: Represents D ec is io nT ra ce in the Projects domain.
+// Purpose: Represents D ec is io nT ra ce in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class DecisionTrace

@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct Ri sk Ev al ua to r application behavior for ProjectTruth.
+// Purpose: Evaluates P ro je ct Ri sk Ev al ua to r using DIP project evidence and policy.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectTruth;

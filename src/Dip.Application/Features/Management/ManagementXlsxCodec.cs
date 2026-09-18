@@ -1,4 +1,4 @@
-// Purpose: Coordinates M an ag em en tX ls xC od ec application behavior for Management.
+// Purpose: Implements application behavior for M an ag em en tX ls xC od ec.
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;

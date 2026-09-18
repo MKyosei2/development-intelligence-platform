@@ -1,4 +1,4 @@
-// Purpose: Represents R eg re ss io nT ri ag e in the Quality domain.
+// Purpose: Represents R eg re ss io nT ri ag e in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class RegressionTriage
 {

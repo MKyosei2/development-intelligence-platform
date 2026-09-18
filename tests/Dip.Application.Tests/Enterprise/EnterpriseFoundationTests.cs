@@ -1,4 +1,4 @@
-// Purpose: Verifies D if fi cu lt yF iv eF ou nd at io nT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by E nt er pr is eF ou nd at io nT es ts.
 using Dip.Application.Features.Enterprise;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

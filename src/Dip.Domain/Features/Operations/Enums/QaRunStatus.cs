@@ -1,4 +1,4 @@
-// Purpose: Defines Q aR un St at us states used by Operations.
+// Purpose: Defines the allowed Q aR un St at us states used by the DIP domain.
 namespace Dip.Domain.Enums;
 
 public enum QaRunStatus

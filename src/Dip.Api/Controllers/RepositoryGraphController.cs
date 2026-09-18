@@ -1,4 +1,4 @@
-// Purpose: Exposes R ep os it or yG ra ph Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for R ep os it or yG ra ph Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Repositories;
 using Microsoft.AspNetCore.Authorization;

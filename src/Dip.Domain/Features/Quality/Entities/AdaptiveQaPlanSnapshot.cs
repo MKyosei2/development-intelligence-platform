@@ -1,4 +1,4 @@
-// Purpose: Represents A da pt iv eQ aP la nS na ps ho t in the Quality domain.
+// Purpose: Represents A da pt iv eQ aP la nS na ps ho t in the DIP domain.
 namespace Dip.Domain.Entities;
 
 public sealed class AdaptiveQaPlanSnapshot

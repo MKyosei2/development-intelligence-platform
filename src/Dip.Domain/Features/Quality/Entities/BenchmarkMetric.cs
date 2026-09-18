@@ -1,4 +1,4 @@
-// Purpose: Represents B en ch ma rk Me tr ic in the Quality domain.
+// Purpose: Represents B en ch ma rk Me tr ic in the DIP domain.
 namespace Dip.Domain.Entities;
 public sealed class BenchmarkMetric
 {

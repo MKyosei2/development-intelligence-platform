@@ -1,4 +1,4 @@
-// Purpose: Provides the M an if es tQ aA da pt er infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through M an if es tQ aA da pt er.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;

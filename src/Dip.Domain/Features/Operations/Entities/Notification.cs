@@ -1,1 +1,1 @@
-// Purpose: Represents N ot if ic at io n in the Operations domain.
+// Purpose: Represents N ot if ic at io n in the DIP domain.

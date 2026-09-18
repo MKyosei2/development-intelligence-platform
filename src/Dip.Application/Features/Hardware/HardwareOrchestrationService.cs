@@ -1,4 +1,4 @@
-// Purpose: Coordinates H ar dw ar eO rc he st ra ti on Se rv ic e application behavior for Hardware.
+// Purpose: Orchestrates the DIP workflow for H ar dw ar eO rc he st ra ti on Se rv ic e.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

@@ -1,1 +1,1 @@
-// Purpose: Defines the R eg re ss io nR ul e domain rule.
+// Purpose: Encapsulates the domain rule represented by R eg re ss io nR ul e.

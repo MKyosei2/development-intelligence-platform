@@ -1,4 +1,4 @@
-// Purpose: Represents I nt eg ra ti on Co nn ec ti on in the Integrations domain.
+// Purpose: Represents I nt eg ra ti on Co nn ec ti on in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

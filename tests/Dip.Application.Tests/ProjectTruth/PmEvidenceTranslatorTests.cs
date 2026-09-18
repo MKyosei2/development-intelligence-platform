@@ -1,4 +1,4 @@
-// Purpose: Verifies P mE vi de nc eT ra ns la to rT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by P mE vi de nc eT ra ns la to rT es ts.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Represents R el ea se Re ad in es sS na ps ho t in the Operations domain.
+// Purpose: Represents R el ea se Re ad in es sS na ps ho t in the DIP domain.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ReleaseReadinessSnapshot

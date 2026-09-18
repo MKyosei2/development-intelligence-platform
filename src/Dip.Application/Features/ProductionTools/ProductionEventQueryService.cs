@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro du ct io nE ve nt Qu er yS er vi ce application behavior for ProductionTools.
+// Purpose: Orchestrates the DIP workflow for P ro du ct io nE ve nt Qu er yS er vi ce.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Enums;
 

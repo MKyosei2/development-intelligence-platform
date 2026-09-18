@@ -1,4 +1,4 @@
-// Purpose: Implements T ra ck ed Ar ti fa ct Re po si to ry persistence behavior.
+// Purpose: Persists and queries T ra ck ed Ar ti fa ct Re po si to ry data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

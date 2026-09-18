@@ -1,1 +1,1 @@
-// Purpose: Represents the P er ce nt ag e value object.
+// Purpose: Defines and validates the P er ce nt ag e value object.

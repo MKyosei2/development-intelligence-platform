@@ -1,4 +1,4 @@
-// Purpose: Represents A ss et Qa Fi nd in gR ec or d in the Artifacts domain.
+// Purpose: Represents A ss et QA Fi nd in gR ec or d in the DIP domain.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

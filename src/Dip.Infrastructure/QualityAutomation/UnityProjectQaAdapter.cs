@@ -1,4 +1,4 @@
-// Purpose: Provides the U ni ty Pr oj ec tQ aA da pt er infrastructure implementation.
+// Purpose: Integrates external or runtime capabilities through U ni ty Pr oj ec tQ aA da pt er.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

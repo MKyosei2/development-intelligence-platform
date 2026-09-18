@@ -1,4 +1,4 @@
-// Purpose: Verifies M ed ia Sp oo lT es ts behavior.
+// Purpose: Verifies behavior and invariants covered by M ed ia Sp oo lT es ts.
 using System.Text.Json;
 using Dip.Agent.Core;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-// Purpose: Implements D ev el op me nt In te ll ig en ce Co nf ig ur at io ns persistence behavior.
+// Purpose: Configures EF Core persistence for D ev el op me nt In te ll ig en ce Co nf ig ur at io ns.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

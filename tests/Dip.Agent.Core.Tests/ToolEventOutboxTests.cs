@@ -1,4 +1,4 @@
-// Purpose: Verifies T oo lE ve nt Ou tb ox Te st s behavior.
+// Purpose: Verifies behavior and invariants covered by T oo lE ve nt Ou tb ox Te st s.
 using System.Text.Json;
 using Dip.Agent.Core;
 using FluentAssertions;

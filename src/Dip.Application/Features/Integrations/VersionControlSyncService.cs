@@ -1,4 +1,4 @@
-// Purpose: Coordinates V er si on Co nt ro lS yn cS er vi ce application behavior for Integrations.
+// Purpose: Orchestrates the DIP workflow for V er si on Co nt ro lS yn cS er vi ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Abstractions.Persistence;

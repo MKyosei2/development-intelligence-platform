@@ -1,1 +1,1 @@
-// Purpose: Defines Q ue ue Na me s repository behavior.
+// Purpose: Defines shared constants for Q ue ue Na me s.

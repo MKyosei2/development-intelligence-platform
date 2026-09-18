@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct Re so ur ce Au th or iz at io n application behavior for Authorization.
+// Purpose: Implements application behavior for P ro je ct Re so ur ce Au th or iz at io n.
 namespace Dip.Application.Features.Authorization;
 
 public enum ProjectResourceKind{QaRun,Incident,DurableJob,BenchmarkRun,ReplaySession,ReplayRun,Artifact,PipelineRun}

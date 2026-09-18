@@ -1,1 +1,1 @@
-// Purpose: Coordinates P ip el in eR un Dt o application behavior for PipelineRuns.
+// Purpose: Defines data exchanged for P ip el in eR un Dt o.

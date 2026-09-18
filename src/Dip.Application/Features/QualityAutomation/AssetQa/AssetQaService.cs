@@ -1,4 +1,4 @@
-// Purpose: Coordinates A ss et Qa Se rv ic e application behavior for QualityAutomation.
+// Purpose: Orchestrates the DIP workflow for A ss et QA Se rv ic e.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

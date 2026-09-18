@@ -1,4 +1,4 @@
-// Purpose: Provides the Q aA da pt er Re gi st ry infrastructure implementation.
+// Purpose: Provides the infrastructure capability represented by Q aA da pt er Re gi st ry.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 

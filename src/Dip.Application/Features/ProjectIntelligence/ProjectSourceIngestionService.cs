@@ -1,4 +1,4 @@
-// Purpose: Coordinates P ro je ct So ur ce In ge st io nS er vi ce application behavior for ProjectIntelligence.
+// Purpose: Orchestrates the DIP workflow for P ro je ct So ur ce In ge st io nS er vi ce.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

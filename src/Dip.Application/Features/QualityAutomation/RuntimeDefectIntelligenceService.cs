@@ -1,4 +1,4 @@
-// Purpose: Coordinates R un ti me De fe ct In te ll ig en ce Se rv ic e application behavior for QualityAutomation.
+// Purpose: Orchestrates the DIP workflow for R un ti me De fe ct In te ll ig en ce Se rv ic e.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

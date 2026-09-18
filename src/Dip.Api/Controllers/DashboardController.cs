@@ -1,4 +1,4 @@
-// Purpose: Exposes D as hb oa rd Co nt ro ll er HTTP endpoints.
+// Purpose: Exposes HTTP endpoints for D as hb oa rd Co nt ro ll er.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Dashboard;
 using Microsoft.AspNetCore.Authorization;
