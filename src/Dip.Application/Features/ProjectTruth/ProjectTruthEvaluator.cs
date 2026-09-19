@@ -1,4 +1,4 @@
-// Purpose: Evaluates P ro je ct Tr ut hE va lu at or using DIP project evidence and policy.
+// Purpose: Evaluates project truth from reported claims, objective evidence, progress, blockers, and risk.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -37,7 +37,8 @@ public sealed class ProjectTruthEvaluator
         ProjectRiskEvaluator risk,
         ProjectTruthPolicy policy)
     {
-        _claimVerification = claimVerification ?? throw new ArgumentNullException(nameof(claimVerification));
+        _claimVerification =
+            claimVerification ?? throw new ArgumentNullException(nameof(claimVerification));
         _confidence = confidence ?? throw new ArgumentNullException(nameof(confidence));
         _progress = progress ?? throw new ArgumentNullException(nameof(progress));
         _blockers = blockers ?? throw new ArgumentNullException(nameof(blockers));
@@ -66,20 +67,30 @@ public sealed class ProjectTruthEvaluator
         var confidence = _confidence.Evaluate(evidence, now);
         var progress = _progress.Evaluate(latestClaims, assessmentMap);
         var blockers = _blockers.Evaluate(latestClaims, assessmentMap, evidence, now);
+
         var contradictions = claimAssessments.Count(item =>
             item.Status == ClaimVerificationStatus.Contradicted);
         var unverified = claimAssessments.Count(item =>
             item.Status is ClaimVerificationStatus.Unverified or ClaimVerificationStatus.Stale);
-        var risk = _risk.Evaluate(progress, confidence, blockers, contradictions, unverified);
+
+        var risk = _risk.Evaluate(
+            progress,
+            confidence,
+            blockers,
+            contradictions,
+            unverified);
 
         var truthStatus = risk switch
         {
             ProjectRiskLevel.Critical => ProjectTruthStatus.Blocked,
             ProjectRiskLevel.High => ProjectTruthStatus.AtRisk,
             ProjectRiskLevel.Medium => ProjectTruthStatus.Attention,
-            _ when latestClaims.Length == 0 && evidence.Count > 0 => ProjectTruthStatus.Attention,
-            _ when confidence >= EvidenceConfidence.High => ProjectTruthStatus.Healthy,
-            _ when evidence.Count > 0 => ProjectTruthStatus.Attention,
+            _ when latestClaims.Length == 0 && evidence.Count > 0 =>
+                ProjectTruthStatus.Attention,
+            _ when confidence >= EvidenceConfidence.High =>
+                ProjectTruthStatus.Healthy,
+            _ when evidence.Count > 0 =>
+                ProjectTruthStatus.Attention,
             _ => ProjectTruthStatus.Unknown
         };
 
@@ -90,7 +101,12 @@ public sealed class ProjectTruthEvaluator
             contradictions,
             unverified);
 
-        var topActions = BuildTopActions(blockers, confidence, progress, contradictions);
+        var topActions = BuildTopActions(
+            blockers,
+            confidence,
+            progress,
+            contradictions);
+
         var summary = BuildSummary(
             truthStatus,
             progress,
@@ -121,8 +137,10 @@ public sealed class ProjectTruthEvaluator
         int unverifiedClaimCount)
     {
         var score = 100m;
-        score -= blockers.Count(item => item.Severity == "Critical") * _policy.CriticalBlockerHealthPenalty;
-        score -= blockers.Count(item => item.Severity == "Blocker") * _policy.BlockerHealthPenalty;
+        score -= blockers.Count(item => item.Severity == "Critical")
+                 * _policy.CriticalBlockerHealthPenalty;
+        score -= blockers.Count(item => item.Severity == "Blocker")
+                 * _policy.BlockerHealthPenalty;
         score -= contradictionCount * _policy.ContradictionHealthPenalty;
         score -= Math.Min(
             _policy.MaxUnverifiedClaimHealthPenalty,
@@ -160,16 +178,23 @@ public sealed class ProjectTruthEvaluator
             .ToList();
 
         if (contradictionCount > 0 && actions.Count < 3)
-            actions.Add("Resolve report-versus-evidence mismatches before relying on the reported status.");
+        {
+            actions.Add(
+                "Resolve report-versus-evidence mismatches before relying on the reported status.");
+        }
 
         if (confidence < EvidenceConfidence.High && actions.Count < 3)
-            actions.Add("Collect fresh automated evidence for the most important project areas.");
+        {
+            actions.Add(
+                "Collect fresh automated evidence for the most important project areas.");
+        }
 
         if (progress.ReportedProgress is { } reported
             && reported - progress.VerifiedProgress >= _policy.MediumRiskProgressGapThreshold
             && actions.Count < 3)
         {
-            actions.Add("Verify the large gap between reported and evidence-backed progress.");
+            actions.Add(
+                "Verify the large gap between reported and evidence-backed progress.");
         }
 
         if (actions.Count == 0)
