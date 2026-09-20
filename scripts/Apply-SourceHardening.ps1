@@ -1,19 +1,14 @@
 #requires -Version 5.1
-# Purpose: Applies repository-wide Purpose normalization and then verifies first-party source readability.
+# Purpose: Applies the requested source refactor, repository-wide Purpose normalization, and strict readability verification.
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
+    [switch]$SkipDotNetFormat
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-& (Join-Path $PSScriptRoot 'Repair-SourcePurposeComments.ps1') -RepositoryRoot $RepositoryRoot
-
-& (Join-Path $PSScriptRoot 'Verify-SourceReadability.ps1') `
+& (Join-Path $PSScriptRoot 'Apply-RequestedPortfolioRefactor.ps1') `
     -RepositoryRoot $RepositoryRoot `
-    -Strict `
-    -ReportPath (Join-Path $RepositoryRoot 'artifacts\source-readability\report.md') `
-    -InventoryPath (Join-Path $RepositoryRoot 'artifacts\source-readability\inventory.csv')
-
-Write-Host 'PASS: repository-wide Purpose normalization and readability verification completed.' -ForegroundColor Green
+    -SkipDotNetFormat:$SkipDotNetFormat
