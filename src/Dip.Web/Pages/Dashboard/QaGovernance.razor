@@ -1,3 +1,4 @@
+@* Purpose: Renders and coordinates QA governance findings, waivers, policies, release overrides, membership, and audit evidence. *@
 @page "/dashboard/{ProjectId:guid}/qa-governance"
 @using Dip.Application.Features.QualityGovernance
 @using Dip.Application.Features.Authorization
@@ -5,37 +6,533 @@
 @inject Dip.Web.Services.ApiClient Api
 
 <PageTitle>QA Governance</PageTitle>
-<div class="d-flex justify-content-between align-items-center mb-3"><div><h1 class="mb-0">QA Governance</h1><div class="text-muted">Release control, waivers, policies, ownership and audit evidence.</div></div><a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/intelligence")">Back to Intelligence</a></div>
-@if(_busy){<div class="alert alert-info">Loading governance state…</div>}
-@if(_error is not null){<div class="alert alert-danger">@_error</div>}
-@if(_overview is not null)
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-0">QA Governance</h1>
+        <div class="text-muted">Release control, waivers, policies, ownership and audit evidence.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="@($"/dashboard/{ProjectId}/intelligence")">Back to Intelligence</a>
+</div>
+
+@if (_busy)
 {
-<div class="row g-3 mb-4"><div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">Release Gate</div><div class="h3">@_overview.GateVerdict</div><div class="small">@_overview.GateSummary</div></div></div></div><div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">Open findings</div><div class="h3">@_overview.OpenFindings</div><div>@_overview.FlakyTests flaky</div></div></div></div><div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">Evidence</div><div class="h4">@_overview.Freshness</div><div>@_overview.EvidenceConfidence @_overview.EvidenceConfidencePercent.ToString("0")%</div></div></div></div><div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">QA self-health</div><div class="h4">@_overview.SystemHealth</div><div>Debt @_overview.TechnicalDebtScore.ToString("0.#")</div></div></div></div></div>
+    <div class="alert alert-info">Loading governance state…</div>
 }
-<ul class="nav nav-tabs mb-3"><li class="nav-item"><button class="@FindingsClass" @onclick="ShowFindings">Findings</button></li><li class="nav-item"><button class="@WaiversClass" @onclick="ShowWaivers">Waivers</button></li><li class="nav-item"><button class="@PoliciesClass" @onclick="ShowPolicies">Policies</button></li><li class="nav-item"><button class="@OverridesClass" @onclick="ShowOverrides">Release overrides</button></li><li class="nav-item"><button class="@MembersClass" @onclick="ShowMembers">Membership</button></li><li class="nav-item"><button class="@AuditClass" @onclick="ShowAudit">Audit / DR</button></li></ul>
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+@if (_overview is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Release Gate</div>
+                    <div class="h3">@_overview.GateVerdict</div>
+                    <div class="small">@_overview.GateSummary</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Open findings</div>
+                    <div class="h3">@_overview.OpenFindings</div>
+                    <div>@_overview.FlakyTests flaky</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Evidence</div>
+                    <div class="h4">@_overview.Freshness</div>
+                    <div>@_overview.EvidenceConfidence @_overview.EvidenceConfidencePercent.ToString("0")%</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">QA self-health</div>
+                    <div class="h4">@_overview.SystemHealth</div>
+                    <div>Debt @_overview.TechnicalDebtScore.ToString("0.#")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
-@if(_tab=="findings"){
-<div class="card"><div class="card-header"><strong>Finding lifecycle</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Fingerprint</th><th>Status</th><th>Owner</th><th>Occurrences</th><th>Commit</th><th>Version</th></tr></thead><tbody>@foreach(var x in _findings){<tr><td><code>@Short(x.Fingerprint)</code></td><td>@x.Status</td><td>@(x.Team??"Unassigned") / @(x.Workstream??"—")</td><td>@x.Occurrences</td><td><code>@Short(x.LastCommitSha)</code></td><td>@x.Version</td></tr>}</tbody></table></div>@if(_nextCursor is not null){<div class="card-footer"><button class="btn btn-sm btn-outline-primary" @onclick="LoadNext">Next page</button></div>}</div>}
-@if(_tab=="waivers"){
-<div class="row g-3"><div class="col-lg-4"><div class="card"><div class="card-header">Request waiver</div><div class="card-body"><label class="form-label">Finding fingerprint</label><input class="form-control mb-2" @bind="_waiverFingerprint"/><label class="form-label">Reason</label><textarea class="form-control mb-2" @bind="_waiverReason"></textarea><button class="btn btn-primary" @onclick="RequestWaiver">Request (7 days)</button></div></div></div><div class="col-lg-8"><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Name</th><th>Status</th><th>Requester / approver</th><th>Expires</th><th></th></tr></thead><tbody>@foreach(var x in _waivers){<tr><td>@x.Name<br/><small>@x.Reason</small></td><td>@x.Status</td><td>@x.RequestedBy<br/><small>@(x.ApprovedBy??"awaiting independent approval")</small></td><td>@x.ExpiresAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td><td>@if(x.Status==WaiverStatus.Requested){<button class="btn btn-sm btn-success me-1" @onclick="()=>ApproveWaiver(x)">Approve</button><button class="btn btn-sm btn-outline-danger" @onclick="()=>RejectWaiver(x)">Reject</button>}</td></tr>}</tbody></table></div></div></div>}
-@if(_tab=="policies"){
-<div class="row g-3"><div class="col-lg-4"><div class="card"><div class="card-header">Create policy draft</div><div class="card-body"><input class="form-control mb-2" placeholder="Policy name" @bind="_policyName"/><input class="form-control mb-2" placeholder="Version e.g. 2.1" @bind="_policyVersion"/><div class="small text-muted mb-2">Creation never activates directly. Maintainer approval and Owner activation are separate audited actions.</div><button class="btn btn-primary" @onclick="CreatePolicy">Create Draft</button></div></div></div><div class="col-lg-8"><table class="table table-sm"><thead><tr><th>Policy</th><th>Lifecycle</th><th>Revision</th><th>Audit</th><th></th></tr></thead><tbody>@foreach(var x in _policies){<tr><td>@x.Name <code>@x.Version</code></td><td>@x.LifecycleStatus</td><td>@x.Revision</td><td><small>approved: @(x.ApprovedBy??"—")<br/>activated: @(x.ActivatedBy??"—")</small></td><td>@if(x.LifecycleStatus==QaPolicyLifecycleStatus.Draft){<button class="btn btn-sm btn-outline-primary" @onclick="()=>ApprovePolicy(x)">Approve</button>}else if(x.LifecycleStatus==QaPolicyLifecycleStatus.Approved){<button class="btn btn-sm btn-success" @onclick="()=>ActivatePolicy(x)">Activate</button>}</td></tr>}</tbody></table></div></div>}
-@if(_tab=="overrides"){
-<div class="row g-3"><div class="col-lg-4"><div class="card border-warning"><div class="card-header">Request temporary gate override</div><div class="card-body"><textarea class="form-control mb-2" placeholder="Risk acceptance reason" @bind="_overrideReason"></textarea><div class="small text-muted mb-2">Bound server-side to the latest gate evaluation and exact QA provenance commit. Expires after 4 hours.</div><button class="btn btn-warning" @onclick="RequestOverride">Request override</button></div></div></div><div class="col-lg-8"><table class="table table-sm"><thead><tr><th>Commit</th><th>Status</th><th>Requester / approver</th><th>Expires</th><th></th></tr></thead><tbody>@foreach(var x in _overrides){<tr><td><code>@Short(x.CommitSha)</code></td><td>@x.Status</td><td>@x.RequestedBy<br/><small>@(x.ApprovedBy??"awaiting independent owner")</small></td><td>@x.ExpiresAtUtc.ToLocalTime().ToString("MM-dd HH:mm")</td><td>@if(x.Status==QaReleaseOverrideStatus.Requested){<button class="btn btn-sm btn-success" @onclick="()=>ApproveOverride(x)">Approve</button>}</td></tr>}</tbody></table></div></div>}
-@if(_tab=="members"){
-<div class="row g-3"><div class="col-lg-4"><div class="card"><div class="card-header">Grant / update membership</div><div class="card-body"><input class="form-control mb-2" placeholder="JWT subject id" @bind="_memberSubject"/><input class="form-control mb-2" placeholder="Login" @bind="_memberLogin"/><select class="form-select mb-2" @bind="_memberRole">@foreach(var r in Enum.GetValues<ProjectMembershipRole>()){<option value="@r">@r</option>}</select><input class="form-control mb-2" placeholder="Reason" @bind="_memberReason"/><button class="btn btn-primary" @onclick="SaveMember">Save membership</button></div></div></div><div class="col-lg-8"><table class="table table-sm"><thead><tr><th>Login</th><th>Subject</th><th>Role</th><th>Granted by</th></tr></thead><tbody>@foreach(var x in _members){<tr><td>@x.Login</td><td><code>@x.SubjectId</code></td><td>@x.Role</td><td>@x.GrantedBy</td></tr>}</tbody></table></div></div>}
-@if(_tab=="audit"){
-<div class="row g-3"><div class="col-lg-8"><div class="card"><div class="card-header">Authenticated governance audit</div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Reason</th></tr></thead><tbody>@foreach(var x in _audit){<tr><td>@x.CreatedAtUtc.ToLocalTime().ToString("MM-dd HH:mm:ss")</td><td>@x.Actor</td><td>@x.Category / @x.Action</td><td>@x.SubjectKey</td><td>@x.Reason</td></tr>}</tbody></table></div></div></div><div class="col-lg-4"><div class="card"><div class="card-header">Backup / restore evidence</div><div class="card-body">@if(!_backups.Any()){<p class="text-muted">No formal DR evidence recorded yet.</p>}@foreach(var x in _backups){<div class="border-bottom py-2"><strong>@x.Status</strong> @x.BackupKind<br/><small><code>@Short(x.SourceCommit)</code> · @x.VerifiedAtUtc.ToLocalTime()</small><div>@x.Detail</div></div>}</div></div></div></div>}
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><button class="@FindingsClass" @onclick="ShowFindings">Findings</button></li>
+    <li class="nav-item"><button class="@WaiversClass" @onclick="ShowWaivers">Waivers</button></li>
+    <li class="nav-item"><button class="@PoliciesClass" @onclick="ShowPolicies">Policies</button></li>
+    <li class="nav-item"><button class="@OverridesClass" @onclick="ShowOverrides">Release overrides</button></li>
+    <li class="nav-item"><button class="@MembersClass" @onclick="ShowMembers">Membership</button></li>
+    <li class="nav-item"><button class="@AuditClass" @onclick="ShowAudit">Audit / DR</button></li>
+</ul>
 
-@code{
-[Parameter]public Guid ProjectId{get;set;}bool _busy=true;string? _error;string _tab="findings";QaGovernanceOverviewDto? _overview;List<QaFindingStateDto> _findings=[];string? _nextCursor;IReadOnlyList<QaWaiverDto> _waivers=[];IReadOnlyList<QaPolicyDto> _policies=[];IReadOnlyList<QaReleaseGateOverrideDto> _overrides=[];IReadOnlyList<ProjectMembershipDto> _members=[];IReadOnlyList<GovernanceAuditLogDto> _audit=[];IReadOnlyList<QaBackupVerificationDto> _backups=[];
-string _waiverFingerprint="",_waiverReason="Temporary exception requires independent approval",_policyName="Default QA policy",_policyVersion="2.1",_overrideReason="Documented temporary release risk",_memberSubject="",_memberLogin="",_memberReason="Project access granted for current responsibility";ProjectMembershipRole _memberRole=ProjectMembershipRole.Viewer;
-protected override async Task OnParametersSetAsync()=>await Reload();
-async Task Reload(){_busy=true;_error=null;try{_overview=await Api.GetQaGovernanceOverviewAsync(ProjectId);var page=await Api.GetQaGovernanceFindingsAsync(ProjectId);_findings=page.Items.ToList();_nextCursor=page.NextCursor;_waivers=await Api.GetQaWaiversAsync(ProjectId);_policies=await Api.GetQaPoliciesAsync(ProjectId);_overrides=await Api.GetQaReleaseOverridesAsync(ProjectId);try{_members=await Api.GetProjectMembershipsAsync(ProjectId);}catch{_members=[];}try{_audit=await Api.GetQaAuditAsync(ProjectId);_backups=await Api.GetQaBackupVerificationsAsync(ProjectId);}catch{_audit=[];_backups=[];}}catch(Exception ex){_error=ex.Message;}finally{_busy=false;}}
-async Task LoadNext(){if(_nextCursor is null)return;var p=await Api.GetQaGovernanceFindingsAsync(ProjectId,_nextCursor);_findings.AddRange(p.Items);_nextCursor=p.NextCursor;}
-async Task RequestWaiver(){await Guard(async()=>{await Api.RequestWaiverAsync(ProjectId,"UI waiver",_waiverReason,_waiverFingerprint,DateTimeOffset.UtcNow.AddDays(7));await Reload();});}async Task ApproveWaiver(QaWaiverDto x)=>await Guard(async()=>{await Api.ApproveWaiverAsync(ProjectId,x.Id,x.Version,"Independent owner review from Governance UI");await Reload();});async Task RejectWaiver(QaWaiverDto x)=>await Guard(async()=>{await Api.RejectWaiverAsync(ProjectId,x.Id,x.Version,"Rejected after owner review");await Reload();});
-async Task CreatePolicy()=>await Guard(async()=>{await Api.CreateQaPolicyAsync(ProjectId,_policyName,_policyVersion,new QaPolicyRules());await Reload();});async Task ApprovePolicy(QaPolicyDto x)=>await Guard(async()=>{await Api.ApproveQaPolicyAsync(ProjectId,x.Id,x.ConcurrencyVersion,"Maintainer policy review");await Reload();});async Task ActivatePolicy(QaPolicyDto x)=>await Guard(async()=>{await Api.ActivateQaPolicyAsync(ProjectId,x.Id,x.ConcurrencyVersion,"Owner activation");await Reload();});
-async Task RequestOverride()=>await Guard(async()=>{await Api.RequestQaReleaseOverrideAsync(ProjectId,_overrideReason,DateTimeOffset.UtcNow.AddHours(4));await Reload();});async Task ApproveOverride(QaReleaseGateOverrideDto x)=>await Guard(async()=>{await Api.ApproveQaReleaseOverrideAsync(ProjectId,x.Id,x.Version,"Independent owner accepts time-bounded risk");await Reload();});
-async Task SaveMember()=>await Guard(async()=>{await Api.UpsertProjectMembershipAsync(ProjectId,_memberSubject,_memberLogin,_memberRole,_memberReason);await Reload();});async Task Guard(Func<Task> action){_error=null;try{await action();}catch(Exception ex){_error=ex.Message;}}
-string FindingsClass=>Nav("findings");string WaiversClass=>Nav("waivers");string PoliciesClass=>Nav("policies");string OverridesClass=>Nav("overrides");string MembersClass=>Nav("members");string AuditClass=>Nav("audit");string Nav(string t)=>_tab==t?"nav-link active":"nav-link";void ShowFindings()=>_tab="findings";void ShowWaivers()=>_tab="waivers";void ShowPolicies()=>_tab="policies";void ShowOverrides()=>_tab="overrides";void ShowMembers()=>_tab="members";void ShowAudit()=>_tab="audit";static string Short(string? s)=>string.IsNullOrWhiteSpace(s)?"—":s.Length<=12?s:s[..12];
+@if (_tab == "findings")
+{
+    <div class="card">
+        <div class="card-header"><strong>Finding lifecycle</strong></div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                <tr><th>Fingerprint</th><th>Status</th><th>Owner</th><th>Occurrences</th><th>Commit</th><th>Version</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var finding in _findings)
+                {
+                    <tr>
+                        <td><code>@Short(finding.Fingerprint)</code></td>
+                        <td>@finding.Status</td>
+                        <td>@(finding.Team ?? "Unassigned") / @(finding.Workstream ?? "—")</td>
+                        <td>@finding.Occurrences</td>
+                        <td><code>@Short(finding.LastCommitSha)</code></td>
+                        <td>@finding.Version</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (_nextCursor is not null)
+        {
+            <div class="card-footer">
+                <button class="btn btn-sm btn-outline-primary" @onclick="LoadNext">Next page</button>
+            </div>
+        }
+    </div>
+}
+
+@if (_tab == "waivers")
+{
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Request waiver</div>
+                <div class="card-body">
+                    <label class="form-label">Finding fingerprint</label>
+                    <input class="form-control mb-2" @bind="_waiverFingerprint" />
+                    <label class="form-label">Reason</label>
+                    <textarea class="form-control mb-2" @bind="_waiverReason"></textarea>
+                    <button class="btn btn-primary" @onclick="RequestWaiver">Request (7 days)</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Name</th><th>Status</th><th>Requester / approver</th><th>Expires</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var waiver in _waivers)
+                    {
+                        <tr>
+                            <td>@waiver.Name<br /><small>@waiver.Reason</small></td>
+                            <td>@waiver.Status</td>
+                            <td>@waiver.RequestedBy<br /><small>@(waiver.ApprovedBy ?? "awaiting independent approval")</small></td>
+                            <td>@waiver.ExpiresAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                @if (waiver.Status == WaiverStatus.Requested)
+                                {
+                                    <button class="btn btn-sm btn-success me-1" @onclick="() => ApproveWaiver(waiver)">Approve</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RejectWaiver(waiver)">Reject</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_tab == "policies")
+{
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Create policy draft</div>
+                <div class="card-body">
+                    <input class="form-control mb-2" placeholder="Policy name" @bind="_policyName" />
+                    <input class="form-control mb-2" placeholder="Version e.g. 2.1" @bind="_policyVersion" />
+                    <div class="small text-muted mb-2">Creation never activates directly. Maintainer approval and Owner activation are separate audited actions.</div>
+                    <button class="btn btn-primary" @onclick="CreatePolicy">Create Draft</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <table class="table table-sm">
+                <thead><tr><th>Policy</th><th>Lifecycle</th><th>Revision</th><th>Audit</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var policy in _policies)
+                {
+                    <tr>
+                        <td>@policy.Name <code>@policy.Version</code></td>
+                        <td>@policy.LifecycleStatus</td>
+                        <td>@policy.Revision</td>
+                        <td><small>approved: @(policy.ApprovedBy ?? "—")<br />activated: @(policy.ActivatedBy ?? "—")</small></td>
+                        <td>
+                            @if (policy.LifecycleStatus == QaPolicyLifecycleStatus.Draft)
+                            {
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ApprovePolicy(policy)">Approve</button>
+                            }
+                            else if (policy.LifecycleStatus == QaPolicyLifecycleStatus.Approved)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="() => ActivatePolicy(policy)">Activate</button>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (_tab == "overrides")
+{
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card border-warning">
+                <div class="card-header">Request temporary gate override</div>
+                <div class="card-body">
+                    <textarea class="form-control mb-2" placeholder="Risk acceptance reason" @bind="_overrideReason"></textarea>
+                    <div class="small text-muted mb-2">Bound server-side to the latest gate evaluation and exact QA provenance commit. Expires after 4 hours.</div>
+                    <button class="btn btn-warning" @onclick="RequestOverride">Request override</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <table class="table table-sm">
+                <thead><tr><th>Commit</th><th>Status</th><th>Requester / approver</th><th>Expires</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var item in _overrides)
+                {
+                    <tr>
+                        <td><code>@Short(item.CommitSha)</code></td>
+                        <td>@item.Status</td>
+                        <td>@item.RequestedBy<br /><small>@(item.ApprovedBy ?? "awaiting independent owner")</small></td>
+                        <td>@item.ExpiresAtUtc.ToLocalTime().ToString("MM-dd HH:mm")</td>
+                        <td>
+                            @if (item.Status == QaReleaseOverrideStatus.Requested)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="() => ApproveOverride(item)">Approve</button>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (_tab == "members")
+{
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Grant / update membership</div>
+                <div class="card-body">
+                    <input class="form-control mb-2" placeholder="JWT subject id" @bind="_memberSubject" />
+                    <input class="form-control mb-2" placeholder="Login" @bind="_memberLogin" />
+                    <select class="form-select mb-2" @bind="_memberRole">
+                        @foreach (var role in Enum.GetValues<ProjectMembershipRole>())
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                    <input class="form-control mb-2" placeholder="Reason" @bind="_memberReason" />
+                    <button class="btn btn-primary" @onclick="SaveMember">Save membership</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            @if (_membersError is not null)
+            {
+                <div class="alert alert-warning">Membership data unavailable: @_membersError</div>
+            }
+            <table class="table table-sm">
+                <thead><tr><th>Login</th><th>Subject</th><th>Role</th><th>Granted by</th></tr></thead>
+                <tbody>
+                @foreach (var member in _members)
+                {
+                    <tr>
+                        <td>@member.Login</td>
+                        <td><code>@member.SubjectId</code></td>
+                        <td>@member.Role</td>
+                        <td>@member.GrantedBy</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (_tab == "audit")
+{
+    <div class="row g-3">
+        <div class="col-lg-8">
+            @if (_auditError is not null)
+            {
+                <div class="alert alert-warning">Audit evidence unavailable: @_auditError</div>
+            }
+            <div class="card">
+                <div class="card-header">Authenticated governance audit</div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Reason</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in _audit)
+                        {
+                            <tr>
+                                <td>@item.CreatedAtUtc.ToLocalTime().ToString("MM-dd HH:mm:ss")</td>
+                                <td>@item.Actor</td>
+                                <td>@item.Category / @item.Action</td>
+                                <td>@item.SubjectKey</td>
+                                <td>@item.Reason</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Backup / restore evidence</div>
+                <div class="card-body">
+                    @if (!_backups.Any())
+                    {
+                        <p class="text-muted">No formal DR evidence recorded yet.</p>
+                    }
+                    @foreach (var backup in _backups)
+                    {
+                        <div class="border-bottom py-2">
+                            <strong>@backup.Status</strong> @backup.BackupKind<br />
+                            <small><code>@Short(backup.SourceCommit)</code> · @backup.VerifiedAtUtc.ToLocalTime()</small>
+                            <div>@backup.Detail</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    private bool _busy = true;
+    private string? _error;
+    private string? _membersError;
+    private string? _auditError;
+    private string _tab = "findings";
+    private QaGovernanceOverviewDto? _overview;
+    private List<QaFindingStateDto> _findings = [];
+    private string? _nextCursor;
+    private IReadOnlyList<QaWaiverDto> _waivers = [];
+    private IReadOnlyList<QaPolicyDto> _policies = [];
+    private IReadOnlyList<QaReleaseGateOverrideDto> _overrides = [];
+    private IReadOnlyList<ProjectMembershipDto> _members = [];
+    private IReadOnlyList<GovernanceAuditLogDto> _audit = [];
+    private IReadOnlyList<QaBackupVerificationDto> _backups = [];
+
+    private string _waiverFingerprint = string.Empty;
+    private string _waiverReason = "Temporary exception requires independent approval";
+    private string _policyName = "Default QA policy";
+    private string _policyVersion = "2.1";
+    private string _overrideReason = "Documented temporary release risk";
+    private string _memberSubject = string.Empty;
+    private string _memberLogin = string.Empty;
+    private string _memberReason = "Project access granted for current responsibility";
+    private ProjectMembershipRole _memberRole = ProjectMembershipRole.Viewer;
+
+    protected override async Task OnParametersSetAsync() => await Reload();
+
+    private async Task Reload()
+    {
+        _busy = true;
+        _error = null;
+        _membersError = null;
+        _auditError = null;
+
+        try
+        {
+            _overview = await Api.GetQaGovernanceOverviewAsync(ProjectId);
+            var page = await Api.GetQaGovernanceFindingsAsync(ProjectId);
+            _findings = page.Items.ToList();
+            _nextCursor = page.NextCursor;
+            _waivers = await Api.GetQaWaiversAsync(ProjectId);
+            _policies = await Api.GetQaPoliciesAsync(ProjectId);
+            _overrides = await Api.GetQaReleaseOverridesAsync(ProjectId);
+
+            try
+            {
+                _members = await Api.GetProjectMembershipsAsync(ProjectId);
+            }
+            catch (Exception ex)
+            {
+                _members = [];
+                _membersError = ex.Message;
+            }
+
+            try
+            {
+                _audit = await Api.GetQaAuditAsync(ProjectId);
+                _backups = await Api.GetQaBackupVerificationsAsync(ProjectId);
+            }
+            catch (Exception ex)
+            {
+                _audit = [];
+                _backups = [];
+                _auditError = ex.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task LoadNext()
+    {
+        if (_nextCursor is null)
+            return;
+
+        var page = await Api.GetQaGovernanceFindingsAsync(ProjectId, _nextCursor);
+        _findings.AddRange(page.Items);
+        _nextCursor = page.NextCursor;
+    }
+
+    private Task RequestWaiver() => Guard(async () =>
+    {
+        await Api.RequestWaiverAsync(
+            ProjectId,
+            "UI waiver",
+            _waiverReason,
+            _waiverFingerprint,
+            DateTimeOffset.UtcNow.AddDays(7));
+        await Reload();
+    });
+
+    private Task ApproveWaiver(QaWaiverDto waiver) => Guard(async () =>
+    {
+        await Api.ApproveWaiverAsync(
+            ProjectId,
+            waiver.Id,
+            waiver.Version,
+            "Independent owner review from Governance UI");
+        await Reload();
+    });
+
+    private Task RejectWaiver(QaWaiverDto waiver) => Guard(async () =>
+    {
+        await Api.RejectWaiverAsync(
+            ProjectId,
+            waiver.Id,
+            waiver.Version,
+            "Rejected after owner review");
+        await Reload();
+    });
+
+    private Task CreatePolicy() => Guard(async () =>
+    {
+        await Api.CreateQaPolicyAsync(ProjectId, _policyName, _policyVersion, new QaPolicyRules());
+        await Reload();
+    });
+
+    private Task ApprovePolicy(QaPolicyDto policy) => Guard(async () =>
+    {
+        await Api.ApproveQaPolicyAsync(
+            ProjectId,
+            policy.Id,
+            policy.ConcurrencyVersion,
+            "Maintainer policy review");
+        await Reload();
+    });
+
+    private Task ActivatePolicy(QaPolicyDto policy) => Guard(async () =>
+    {
+        await Api.ActivateQaPolicyAsync(
+            ProjectId,
+            policy.Id,
+            policy.ConcurrencyVersion,
+            "Owner activation");
+        await Reload();
+    });
+
+    private Task RequestOverride() => Guard(async () =>
+    {
+        await Api.RequestQaReleaseOverrideAsync(
+            ProjectId,
+            _overrideReason,
+            DateTimeOffset.UtcNow.AddHours(4));
+        await Reload();
+    });
+
+    private Task ApproveOverride(QaReleaseGateOverrideDto item) => Guard(async () =>
+    {
+        await Api.ApproveQaReleaseOverrideAsync(
+            ProjectId,
+            item.Id,
+            item.Version,
+            "Independent owner accepts time-bounded risk");
+        await Reload();
+    });
+
+    private Task SaveMember() => Guard(async () =>
+    {
+        await Api.UpsertProjectMembershipAsync(
+            ProjectId,
+            _memberSubject,
+            _memberLogin,
+            _memberRole,
+            _memberReason);
+        await Reload();
+    });
+
+    private async Task Guard(Func<Task> action)
+    {
+        _error = null;
+        try
+        {
+            await action();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private string FindingsClass => Nav("findings");
+    private string WaiversClass => Nav("waivers");
+    private string PoliciesClass => Nav("policies");
+    private string OverridesClass => Nav("overrides");
+    private string MembersClass => Nav("members");
+    private string AuditClass => Nav("audit");
+
+    private string Nav(string tab) => _tab == tab ? "nav-link active" : "nav-link";
+    private void ShowFindings() => _tab = "findings";
+    private void ShowWaivers() => _tab = "waivers";
+    private void ShowPolicies() => _tab = "policies";
+    private void ShowOverrides() => _tab = "overrides";
+    private void ShowMembers() => _tab = "members";
+    private void ShowAudit() => _tab = "audit";
+    private static string Short(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? "—"
+            : value.Length <= 12
+                ? value
+                : value[..12];
 }

@@ -87,12 +87,14 @@ jobs:
   portfolio-evidence-tooling:
     name: Validate exact-revision evidence tooling
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: Install evidence-tooling test dependency
+        run: python -m pip install pytest
       - name: Compile portfolio evidence tools
         run: |
           python -m py_compile \
@@ -108,3 +110,13 @@ jobs:
           python tools/verify_unreal_real_project.py --help >/dev/null
           python tools/publish_real_project_evidence.py --help >/dev/null
           python tools/finalize_portfolio_evidence.py --help >/dev/null
+      - name: Fail-closed evidence regression tests
+        run: python -m pytest tools/tests/test_portfolio_evidence_tools.py -q --junitxml=portfolio-evidence-tooling-tests.xml
+      - name: Upload evidence-tooling tests
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: portfolio-evidence-tooling-tests
+          path: portfolio-evidence-tooling-tests.xml
+          if-no-files-found: warn
+          retention-days: 14

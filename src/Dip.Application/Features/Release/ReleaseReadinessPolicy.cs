@@ -1,8 +1,11 @@
-// Purpose: Centralizes deterministic release-readiness scoring constants.
+// Purpose: Centralizes deterministic release-readiness heuristic scoring while keeping it distinct from statistical probability.
 namespace Dip.Application.Features.Release;
 
 internal static class ReleaseReadinessPolicy
 {
+    // This score is an explainable deterministic heuristic used for relative readiness,
+    // not a probability that a release will succeed. Keep the weights centralized so
+    // reviewers can inspect and change the policy without altering orchestration code.
     private const decimal BaseConfidence = 45m;
     private const decimal MaximumEvidenceContribution = 35m;
     private const decimal EvidenceContributionPerItem = 2m;

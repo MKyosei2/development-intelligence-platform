@@ -1,4 +1,4 @@
-// Purpose: Defines the allowed P ro je ct Tr ut hS ta tu s states used by the DIP domain.
+// Purpose: Defines the Project Truth health states emitted by evidence-backed project evaluation.
 namespace Dip.Domain.Enums;
 
 public enum ProjectTruthStatus

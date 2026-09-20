@@ -1,5 +1,5 @@
 #requires -Version 5.1
-# Purpose: Repairs missing, duplicate, malformed, and unreadable Purpose comments in first-party handwritten source.
+# Purpose: Repairs missing, duplicate, malformed, and unreadable Purpose comments in first-party handwritten source, including Razor components.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
@@ -44,6 +44,14 @@ function Get-DeclaredTypeNames {
         ForEach-Object { $_.Groups[1].Value } |
         Select-Object -Unique
     )
+}
+
+function Get-PurposeMatch {
+    param([string]$Line, [string]$Extension)
+    if ($Extension -eq '.razor') {
+        return [regex]::Match($Line, '^\s*@\*\s*Purpose\s*:\s*(.*?)\s*\*@\s*$')
+    }
+    return [regex]::Match($Line, '^\s*(?://|#)\s*Purpose\s*:\s*(.*?)\s*$')
 }
 
 function Test-FragmentedName {
@@ -100,9 +108,10 @@ function Get-ReplacementPurpose {
     $human = ConvertTo-HumanName $name
 
     if ($baseName -eq 'Program') { return 'Composes and starts this DIP host.' }
-    if ($relative -match '^tests/') { return "Verifies behavior covered by $human." }
-    if ($relative -match '^scripts/') { return "Automates the repository workflow for $human." }
-    if ($name -match 'Controller$') { return "Exposes HTTP endpoints implemented by $human." }
+    if ($relative -match '^tests/') { return "Verifies the behavior and invariants exercised by $human." }
+    if ($relative -match '^scripts/') { return "Automates the repository workflow represented by $human." }
+    if ($relative -match '^src/Dip\.Web/.+\.razor$') { return "Renders and coordinates the $human web surface." }
+    if ($name -match 'Controller$') { return "Exposes the HTTP boundary implemented by $human." }
     if ($name -match '^I[A-Z].*Repository$') { return "Defines the persistence boundary represented by $human." }
     if ($name -match 'Repository$') { return "Persists and queries data through $human." }
     if ($name -match 'Worker$|Job$') { return "Runs background processing through $human." }
@@ -114,10 +123,11 @@ function Get-ReplacementPurpose {
     return "Defines the DIP responsibility represented by $human."
 }
 
-function Get-Prefix {
-    param([string]$Extension)
-    if ($Extension -in @('.ps1', '.py')) { return '# Purpose: ' }
-    return '// Purpose: '
+function Get-PurposeLine {
+    param([string]$Extension, [string]$Purpose)
+    if ($Extension -eq '.razor') { return "@* Purpose: $Purpose *@" }
+    if ($Extension -in @('.ps1', '.py')) { return "# Purpose: $Purpose" }
+    return "// Purpose: $Purpose"
 }
 
 function Get-InsertionIndex {
@@ -133,6 +143,10 @@ function Get-InsertionIndex {
         if ($index -lt $Lines.Count -and $Lines[$index] -match '^#!') { $index++ }
         if ($index -lt $Lines.Count -and $Lines[$index] -match '^#.*coding[:=]') { $index++ }
     }
+    elseif ($Extension -eq '.razor') {
+        # Razor comments are legal before directives and keep Purpose discoverable at the top of the file.
+        return 0
+    }
 
     # Preserve a leading first-party license block; do not exempt the file from validation.
     while ($index -lt $Lines.Count -and
@@ -143,7 +157,7 @@ function Get-InsertionIndex {
     return $index
 }
 
-$extensions = @('.cs', '.ps1', '.py', '.cpp', '.c', '.h', '.hpp', '.js', '.ts', '.tsx', '.jsx')
+$extensions = @('.cs', '.razor', '.ps1', '.py', '.cpp', '.c', '.h', '.hpp', '.js', '.ts', '.tsx', '.jsx')
 foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'plugins')) {
     $root = Join-Path $Repo $rootName
     if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
@@ -162,27 +176,26 @@ foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'pl
 
         $indexes = New-Object 'System.Collections.Generic.List[int]'
         for ($i = 0; $i -lt [Math]::Min(80, $lines.Count); $i++) {
-            if ($lines[$i] -match '^\s*(?://|#)\s*Purpose\s*:\s*(.*?)\s*$') {
-                $indexes.Add($i) | Out-Null
-            }
+            $match = Get-PurposeMatch -Line $lines[$i] -Extension $extension
+            if ($match.Success) { $indexes.Add($i) | Out-Null }
         }
 
         $replacement = Get-ReplacementPurpose -FilePath $file.FullName -Content $content
-        $prefix = Get-Prefix $extension
+        $replacementLine = Get-PurposeLine -Extension $extension -Purpose $replacement
         $needsChange = $false
 
         if ($indexes.Count -eq 0) {
             $insertAt = Get-InsertionIndex -Lines $lines -Extension $extension
-            $lines.Insert($insertAt, $prefix + $replacement)
+            $lines.Insert($insertAt, $replacementLine)
             $needsChange = $true
         }
         else {
             $first = $indexes[0]
-            $match = [regex]::Match($lines[$first], '^\s*(?://|#)\s*Purpose\s*:\s*(.*?)\s*$')
+            $match = Get-PurposeMatch -Line $lines[$first] -Extension $extension
             $purpose = $match.Groups[1].Value.Trim()
             if ($purpose.Length -lt 12 -or $purpose.Length -gt 180 -or
                 (Test-BrokenPurpose -Purpose $purpose -FilePath $file.FullName -Content $content)) {
-                $lines[$first] = $prefix + $replacement
+                $lines[$first] = $replacementLine
                 $needsChange = $true
             }
             if ($indexes.Count -gt 1) {

@@ -1,12 +1,13 @@
-// Purpose: Implements application behavior for P ro je ct Tr ut hP ol ic y.
+// Purpose: Defines the deterministic, configurable heuristic policy used to score Project Truth health and risk.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectTruth;
 
 /// <summary>
 /// Versionable policy for deterministic Project Truth scoring and risk thresholds.
-/// Defaults intentionally preserve stable historical semantics where they are
-/// defensible while making previously implicit progress heuristics explicit.
+/// These values form an explainable heuristic policy, not a statistical probability model.
+/// Defaults intentionally preserve stable historical semantics where they are defensible
+/// while making previously implicit progress heuristics explicit.
 /// </summary>
 public sealed record ProjectTruthPolicy
 {
@@ -43,13 +44,15 @@ public sealed record ProjectTruthPolicy
     public decimal InferredInProgressReportedProgress { get; init; } = 50m;
     public decimal InferredBlockedReportedProgress { get; init; } = 0m;
     public decimal InferredFailedReportedProgress { get; init; } = 0m;
+
     // null means the source did not provide enough information to infer a percentage.
     // Integrations that have a documented mapping may opt in to an explicit fallback.
     public decimal? InferredUnknownReportedProgress { get; init; } = null;
 
     /// <summary>
     /// Failure kinds that should be treated as project-level critical blockers.
-    /// Includes software, media-production and construction verification gates.
+    /// The vocabulary is cross-domain so software/game/media evidence can be normalized
+    /// without pretending that all evidence sources are equivalent.
     /// </summary>
     public IReadOnlyList<string> CriticalEvidenceKindTokens { get; init; } =
     [

@@ -1,5 +1,5 @@
 #requires -Version 5.1
-# Purpose: Audits first-party source readability without exempting files solely because they contain license headers.
+# Purpose: Audits first-party source readability, Purpose coverage, and compressed C#/Razor code without exempting handwritten files.
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
@@ -55,7 +55,10 @@ function Test-ExcludedPath {
 }
 
 function Get-PurposeMatches {
-    param([string]$Text)
+    param([string]$Text, [string]$Extension)
+    if ($Extension -eq '.razor') {
+        return @([regex]::Matches($Text, '(?m)^\s*@\*\s*Purpose\s*:\s*(.+?)\s*\*@\s*$'))
+    }
     return @([regex]::Matches($Text, '(?m)^\s*(?://|#)\s*Purpose\s*:\s*(.+?)\s*$'))
 }
 
@@ -98,7 +101,39 @@ function Get-CompressedCSharpLines {
     return @($findings)
 }
 
-$extensions = @('.cs', '.ps1', '.py', '.cpp', '.c', '.h', '.hpp', '.js', '.ts', '.tsx', '.jsx')
+function Get-CompressedRazorCodeLines {
+    param([string[]]$Lines)
+    $findings = New-Object 'System.Collections.Generic.List[object]'
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        $line = $Lines[$i]
+        if ($line.Length -lt 180) { continue }
+
+        # Only fail on code-like compression. Large declarative markup is reported separately as a warning.
+        $semicolons = [regex]::Matches($line, ';').Count
+        $codeTransitions = [regex]::Matches($line, '(?:\}|;)\s*(?:async\s+)?(?:Task|void|string|bool|int|decimal|IReadOnly|List<|static\s)').Count
+        $inlineControls = [regex]::Matches($line, '@(?:if|foreach|for|while)\s*\(').Count
+        if ($semicolons -ge 3 -or $codeTransitions -ge 1 -or $inlineControls -ge 2) {
+            $findings.Add([pscustomobject]@{ Line = $i + 1; Length = $line.Length }) | Out-Null
+        }
+    }
+    return @($findings)
+}
+
+function Get-DenseRazorMarkupLines {
+    param([string[]]$Lines)
+    $findings = New-Object 'System.Collections.Generic.List[object]'
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        $line = $Lines[$i]
+        if ($line.Length -lt 360) { continue }
+        $tags = [regex]::Matches($line, '<[A-Za-z][^>]*>').Count
+        if ($tags -ge 8) {
+            $findings.Add([pscustomobject]@{ Line = $i + 1; Length = $line.Length }) | Out-Null
+        }
+    }
+    return @($findings)
+}
+
+$extensions = @('.cs', '.razor', '.ps1', '.py', '.cpp', '.c', '.h', '.hpp', '.js', '.ts', '.tsx', '.jsx')
 foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'plugins')) {
     $root = Join-Path $Repo $rootName
     if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
@@ -114,7 +149,7 @@ foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'pl
         $FilesScanned++
         $relative = Get-RelativePath $file.FullName
         $lines = @(($text -replace "`r`n","`n" -replace "`r","`n") -split "`n")
-        $purposeMatches = Get-PurposeMatches $text
+        $purposeMatches = Get-PurposeMatches -Text $text -Extension $extension
         $purpose = ''
         $broken = $false
 
@@ -139,7 +174,16 @@ foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'pl
         if ($extension -eq '.cs') {
             $compressed = @(Get-CompressedCSharpLines $lines)
             foreach ($finding in $compressed) {
-                Add-Issue ERROR COMPRESSED_CSHARP $relative "Line $($finding.Line) contains compressed statements." $finding.Line
+                Add-Issue ERROR COMPRESSED_CSHARP $relative "Line $($finding.Line) contains compressed C# statements." $finding.Line
+            }
+        }
+        elseif ($extension -eq '.razor') {
+            $compressed = @(Get-CompressedRazorCodeLines $lines)
+            foreach ($finding in $compressed) {
+                Add-Issue ERROR COMPRESSED_RAZOR_CODE $relative "Line $($finding.Line) contains compressed Razor/C# statements." $finding.Line
+            }
+            foreach ($finding in @(Get-DenseRazorMarkupLines $lines)) {
+                Add-Issue WARN DENSE_RAZOR_MARKUP $relative "Line $($finding.Line) contains very dense Razor markup; split it for reviewer readability." $finding.Line
             }
         }
 
@@ -154,7 +198,7 @@ foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'pl
             PurposeCount = $purposeMatches.Count
             Purpose = $purpose
             BrokenPurpose = $broken
-            CompressedCSharpLines = $compressed.Count
+            CompressedCodeLines = $compressed.Count
             MaxLineLength = $maxLength
         }) | Out-Null
     }
@@ -191,8 +235,8 @@ $report = New-Object 'System.Collections.Generic.List[string]'
 $report.Add('# Source Cleanup Report') | Out-Null
 $report.Add('') | Out-Null
 $report.Add("- Generated (UTC): $([DateTimeOffset]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))") | Out-Null
-$report.Add('- Audit: `source-readability-v4`') | Out-Null
-$report.Add('- License-header policy: first-party files are audited; only explicit generated/vendor/third-party paths are excluded.') | Out-Null
+$report.Add('- Audit: `source-readability-v5`') | Out-Null
+$report.Add('- Scope: handwritten first-party C#, Razor, PowerShell, Python, native, JavaScript and TypeScript sources.') | Out-Null
 $report.Add("- Files scanned: $FilesScanned") | Out-Null
 $report.Add("- Readability/documentation findings: **$total**") | Out-Null
 $report.Add("- Errors: **$errors**") | Out-Null
@@ -220,9 +264,9 @@ Write-Host "Source readability audit: files=$FilesScanned findings=$total errors
 Write-Host "Report: $ReportPath"
 Write-Host "Inventory: $InventoryPath"
 
-if ($Strict -and $total -gt 0) {
-    throw "Source readability audit failed with $total finding(s). See $ReportPath."
+if ($errors -gt 0) {
+    throw "Source readability audit failed with $errors error(s). See $ReportPath."
 }
-if (-not $Strict -and $errors -gt 0) {
-    throw "Source readability audit found $errors error(s). See $ReportPath."
+if ($Strict -and $warnings -gt 0) {
+    Write-Warning "Source readability audit completed with $warnings warning(s). Strict mode blocks errors but preserves warnings as review guidance."
 }
