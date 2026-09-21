@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for T ra ck ed Ar ti fa ct sC on tr ol le r.
+// Purpose: Exposes HTTP endpoints for tracked artifacts and their version history.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;
@@ -31,7 +31,13 @@ public sealed class TrackedArtifactsController(TrackedArtifactService service) :
         [FromQuery] int take = 100,
         CancellationToken ct = default)
     {
-        try { return Ok(await service.ListVersionsAsync(projectId, artifactId, take, ct)); }
-        catch (KeyNotFoundException) { return NotFound(); }
+        try
+        {
+            return Ok(await service.ListVersionsAsync(projectId, artifactId, take, ct));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 }

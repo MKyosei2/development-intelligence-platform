@@ -1,63 +1,81 @@
 #!/usr/bin/env python3
-# Purpose: Enforces a focused line-coverage floor for Project Truth, Release, and game-development QA core code.
+# Purpose: Enforces independent line-coverage floors for Project Truth, Release, and game-development QA core code.
 from __future__ import annotations
+
 import argparse
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-CORE_MARKERS = (
-    "/Features/ProjectTruth/",
-    "/Features/Release/",
-    "/Features/QualityAutomation/",
-    "/Features/QualityGovernance/",
-)
+AREAS = {
+    "ProjectTruth": ("/Features/ProjectTruth/",),
+    "Release": ("/Features/Release/",),
+    "QA": ("/Features/QualityAutomation/", "/Features/QualityGovernance/"),
+}
+
 
 def normalize(value: str) -> str:
     return "/" + value.replace("\\", "/").lstrip("./")
 
-def collect(files: list[Path]) -> tuple[int, int, dict[str, tuple[int, int]]]:
-    covered = valid = 0
-    by_file: dict[str, tuple[int, int]] = {}
+
+def area_for(filename: str) -> str | None:
+    for name, markers in AREAS.items():
+        if any(marker in filename for marker in markers):
+            return name
+    return None
+
+
+def collect(files: list[Path]) -> dict[str, dict[str, tuple[int, int]]]:
+    by_area: dict[str, dict[str, tuple[int, int]]] = {name: {} for name in AREAS}
     for path in files:
         root = ET.parse(path).getroot()
         for cls in root.findall(".//class"):
             filename = normalize(cls.attrib.get("filename", ""))
-            if not any(marker in filename for marker in CORE_MARKERS):
+            area = area_for(filename)
+            if area is None:
                 continue
-            file_valid = file_covered = 0
+            valid = covered = 0
             for line in cls.findall("./lines/line"):
-                hits = int(line.attrib.get("hits", "0"))
-                file_valid += 1
-                file_covered += int(hits > 0)
-            if file_valid:
-                old_cov, old_valid = by_file.get(filename, (0, 0))
-                # Test projects can emit duplicate class entries. Keep the strongest observation per file.
-                if file_valid > old_valid or (file_valid == old_valid and file_covered > old_cov):
-                    by_file[filename] = (file_covered, file_valid)
-    for file_covered, file_valid in by_file.values():
-        covered += file_covered
-        valid += file_valid
-    return covered, valid, by_file
+                valid += 1
+                covered += int(int(line.attrib.get("hits", "0")) > 0)
+            if valid == 0:
+                continue
+            old_covered, old_valid = by_area[area].get(filename, (0, 0))
+            if valid > old_valid or (valid == old_valid and covered > old_covered):
+                by_area[area][filename] = (covered, valid)
+    return by_area
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--results", default="TestResults")
     parser.add_argument("--minimum", type=float, default=50.0)
     args = parser.parse_args()
-    files = sorted(Path(args.results).rglob("coverage.cobertura.xml"))
-    if not files:
+
+    reports = sorted(Path(args.results).rglob("coverage.cobertura.xml"))
+    if not reports:
         raise SystemExit("Core coverage gate failed: no coverage.cobertura.xml files were found.")
-    covered, valid, by_file = collect(files)
-    if valid == 0:
-        raise SystemExit("Core coverage gate failed: no ProjectTruth/Release/QA core lines were found in coverage reports.")
-    pct = covered * 100.0 / valid
-    print(f"Core coverage: {covered}/{valid} lines = {pct:.2f}% (minimum {args.minimum:.2f}%)")
-    for name, (c, v) in sorted(by_file.items(), key=lambda item: (item[1][0] / item[1][1], item[0]))[:15]:
-        print(f"  {c * 100.0 / v:6.2f}%  {name}")
-    if pct + 1e-9 < args.minimum:
-        raise SystemExit(f"Core coverage gate failed: {pct:.2f}% < {args.minimum:.2f}%")
-    print("PASS: focused core coverage gate satisfied.")
+
+    by_area = collect(reports)
+    failures: list[str] = []
+    for area, by_file in by_area.items():
+        covered = sum(c for c, _ in by_file.values())
+        valid = sum(v for _, v in by_file.values())
+        if valid == 0:
+            failures.append(f"{area}: no core lines were found")
+            print(f"{area}: no covered source lines were discovered")
+            continue
+        pct = covered * 100.0 / valid
+        print(f"{area} coverage: {covered}/{valid} lines = {pct:.2f}% (minimum {args.minimum:.2f}%)")
+        for name, (c, v) in sorted(by_file.items(), key=lambda item: (item[1][0] / item[1][1], item[0]))[:10]:
+            print(f"  {c * 100.0 / v:6.2f}%  {name}")
+        if pct + 1e-9 < args.minimum:
+            failures.append(f"{area}: {pct:.2f}% < {args.minimum:.2f}%")
+
+    if failures:
+        raise SystemExit("Core coverage gate failed: " + "; ".join(failures))
+    print("PASS: Project Truth, Release, and QA each satisfy the focused coverage floor.")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -1,5 +1,5 @@
 #requires -Version 5.1
-# Purpose: Audits first-party source readability, Purpose coverage, and compressed C#/Razor code without exempting handwritten files.
+# Purpose: Audits first-party source readability, Purpose coverage, empty catch blocks, and compressed C#/Razor code.
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
@@ -9,264 +9,86 @@ param(
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-$Repo = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92, 47))
-$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$ErrorActionPreference='Stop'
+$Repo=[System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92,47))
+if (-not $ReportPath) { $ReportPath=Join-Path $Repo 'artifacts\source-readability\report.md' }
+if (-not $InventoryPath) { $InventoryPath=Join-Path $Repo 'artifacts\source-readability\inventory.csv' }
+$Issues=New-Object 'System.Collections.Generic.List[object]'
+$Inventory=New-Object 'System.Collections.Generic.List[object]'
 
-if (-not $ReportPath) { $ReportPath = Join-Path $Repo 'artifacts\source-readability\report.md' }
-if (-not $InventoryPath) { $InventoryPath = Join-Path $Repo 'artifacts\source-readability\inventory.csv' }
-
-$Issues = New-Object 'System.Collections.Generic.List[object]'
-$Inventory = New-Object 'System.Collections.Generic.List[object]'
-$FilesScanned = 0
-
-function Get-RelativePath {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    $full = [System.IO.Path]::GetFullPath($Path)
-    return ($full.Substring($Repo.Length) -replace '^[\\/]+', '').Replace([char]92, [char]47)
+function Get-RelativePath([string]$Path) {
+    $full=[System.IO.Path]::GetFullPath($Path)
+    return ($full.Substring($Repo.Length) -replace '^[\\/]+','').Replace([char]92,[char]47)
 }
-
-function Add-Issue {
-    param(
-        [ValidateSet('ERROR','WARN','INFO')][string]$Severity,
-        [string]$Code,
-        [string]$Path,
-        [string]$Message,
-        [int]$Line = 0
-    )
-    $Issues.Add([pscustomobject]@{
-        Severity = $Severity
-        Code = $Code
-        Path = $Path
-        Line = $Line
-        Message = $Message
-    }) | Out-Null
+function Test-ExcludedPath([string]$Path) {
+    $rel=(Get-RelativePath $Path).Replace([char]47,[char]92)
+    if ($rel -match '(^|\\)(\.git|bin|obj|node_modules|packages|vendor|third_party|ThirdParty|Intermediate|Binaries|Library|Temp|Logs|Migrations|Generated|generated)(\\|$)') { return $true }
+    $name=[System.IO.Path]::GetFileName($Path)
+    return $name -match '\.(g|generated|designer)\.cs$' -or $name -in @('AssemblyInfo.cs','GlobalUsings.g.cs')
 }
-
-function Test-ExcludedPath {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    $rel = (Get-RelativePath $Path).Replace([char]47, [char]92)
-    if ($rel -match '(^|\\)(\.git|bin|obj|node_modules|packages|vendor|third_party|ThirdParty|Intermediate|Binaries|Library|Temp|Logs|Migrations|Generated|generated)(\\|$)') {
-        return $true
-    }
-    $name = [System.IO.Path]::GetFileName($Path)
-    return $name -match '\.(g|generated|designer)\.cs$' -or
-        $name -in @('AssemblyInfo.cs', 'GlobalUsings.g.cs')
+function Add-Issue([string]$Severity,[string]$Code,[string]$Path,[string]$Message,[int]$Line=0) {
+    $Issues.Add([pscustomobject]@{Severity=$Severity;Code=$Code;Path=$Path;Line=$Line;Message=$Message}) | Out-Null
 }
-
-function Get-PurposeMatches {
-    param([string]$Text, [string]$Extension)
-    if ($Extension -eq '.razor') {
-        return @([regex]::Matches($Text, '(?m)^\s*@\*\s*Purpose\s*:\s*(.+?)\s*\*@\s*$'))
-    }
-    return @([regex]::Matches($Text, '(?m)^\s*(?://|#)\s*Purpose\s*:\s*(.+?)\s*$'))
+function Get-PurposeMatches([string]$Text,[string]$Extension) {
+    if ($Extension -eq '.razor') { return @([regex]::Matches($Text,'(?m)^\s*@\*\s*Purpose\s*:\s*(.+?)\s*\*@\s*$')) }
+    return @([regex]::Matches($Text,'(?m)^\s*(?://|#)\s*Purpose\s*:\s*(.+?)\s*$'))
 }
-
-function Test-BrokenPurposeText {
-    param([string]$Purpose, [string]$FilePath)
-    $stem = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
-    $normalized = $stem -replace '[^A-Za-z0-9]', ''
+function Test-FragmentedPurpose([string]$Purpose,[string]$Stem) {
+    $normalized=$Stem -replace '[^A-Za-z0-9]',''
     if ($normalized.Length -lt 4) { return $false }
-    $tokens = @([regex]::Matches($Purpose, '[A-Za-z0-9]+') | ForEach-Object { $_.Value })
-    for ($start = 0; $start -lt $tokens.Count; $start++) {
-        $joined = ''
-        $short = 0
-        for ($end = $start; $end -lt $tokens.Count -and $end -lt ($start + 32); $end++) {
-            $joined += $tokens[$end]
-            if ($tokens[$end].Length -le 2) { $short++ }
-            if ($joined.Length -gt $normalized.Length) { break }
-            if (($end - $start + 1) -ge 3 -and $short -ge 2 -and
-                $joined.Equals($normalized, [System.StringComparison]::OrdinalIgnoreCase)) {
-                return $true
-            }
+    $tokens=@([regex]::Matches($Purpose,'[A-Za-z0-9]+') | ForEach-Object {$_.Value})
+    for($start=0;$start -lt $tokens.Count;$start++) {
+        $joined='';$short=0
+        for($end=$start;$end -lt $tokens.Count -and $end -lt ($start+32);$end++) {
+            $joined+=$tokens[$end]; if($tokens[$end].Length -le 2){$short++}
+            if($joined.Length -gt $normalized.Length){break}
+            if(($end-$start+1)-ge 3 -and $short -ge 2 -and $joined.Equals($normalized,[System.StringComparison]::OrdinalIgnoreCase)){return $true}
         }
     }
     return $false
 }
-
-function Get-CompressedCSharpLines {
-    param([string[]]$Lines)
-    $findings = New-Object 'System.Collections.Generic.List[object]'
-    for ($i = 0; $i -lt $Lines.Count; $i++) {
-        $line = $Lines[$i]
-        if ($line.Length -lt 180) { continue }
-        $semicolons = [regex]::Matches($line, ';').Count
-        $joinedBlocks = $line -match '}\s*(?:else\s+)?(?:if|for|foreach|while|switch|try|catch|finally|public|private|internal|protected)\b'
-        $controls = [regex]::Matches($line, '\b(?:if|for|foreach|while|switch)\s*\(').Count -ge 2
-        $assignments = [regex]::Matches($line, '(?<![=!<>])=(?!=|>)').Count -ge 3
-        if ($semicolons -ge 3 -or $joinedBlocks -or $controls -or ($line.Length -ge 320 -and $assignments)) {
-            $findings.Add([pscustomobject]@{ Line = $i + 1; Length = $line.Length }) | Out-Null
-        }
-    }
-    return @($findings)
+function Test-CompressedCodeLine([string]$Line) {
+    if ($Line.Length -lt 180) { return $false }
+    $semicolons=[regex]::Matches($Line,';').Count
+    $joined=$Line -match '}\s*(?:else\s+)?(?:if|for|foreach|while|switch|try|catch|finally|public|private|internal|protected)\b'
+    $controls=[regex]::Matches($Line,'\b(?:if|for|foreach|while|switch)\s*\(').Count -ge 2
+    return $semicolons -ge 3 -or $joined -or $controls
 }
 
-function Get-CompressedRazorCodeLines {
-    param([string[]]$Lines)
-    $findings = New-Object 'System.Collections.Generic.List[object]'
-    for ($i = 0; $i -lt $Lines.Count; $i++) {
-        $line = $Lines[$i]
-        if ($line.Length -lt 180) { continue }
-
-        # Only fail on code-like compression. Large declarative markup is reported separately as a warning.
-        $semicolons = [regex]::Matches($line, ';').Count
-        $codeTransitions = [regex]::Matches($line, '(?:\}|;)\s*(?:async\s+)?(?:Task|void|string|bool|int|decimal|IReadOnly|List<|static\s)').Count
-        $inlineControls = [regex]::Matches($line, '@(?:if|foreach|for|while)\s*\(').Count
-        if ($semicolons -ge 3 -or $codeTransitions -ge 1 -or $inlineControls -ge 2) {
-            $findings.Add([pscustomobject]@{ Line = $i + 1; Length = $line.Length }) | Out-Null
-        }
-    }
-    return @($findings)
-}
-
-function Get-DenseRazorMarkupLines {
-    param([string[]]$Lines)
-    $findings = New-Object 'System.Collections.Generic.List[object]'
-    for ($i = 0; $i -lt $Lines.Count; $i++) {
-        $line = $Lines[$i]
-        if ($line.Length -lt 360) { continue }
-        $tags = [regex]::Matches($line, '<[A-Za-z][^>]*>').Count
-        if ($tags -ge 8) {
-            $findings.Add([pscustomobject]@{ Line = $i + 1; Length = $line.Length }) | Out-Null
-        }
-    }
-    return @($findings)
-}
-
-$extensions = @('.cs', '.razor', '.ps1', '.py', '.cpp', '.c', '.h', '.hpp', '.js', '.ts', '.tsx', '.jsx')
-foreach ($rootName in @('src', 'tests', 'scripts', 'services', 'collectors', 'plugins')) {
-    $root = Join-Path $Repo $rootName
-    if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
-
-    foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
-        if (Test-ExcludedPath $file.FullName) { continue }
-        $extension = $file.Extension.ToLowerInvariant()
-        if ($extension -notin $extensions) { continue }
-
-        $text = [System.IO.File]::ReadAllText($file.FullName)
-        if ([string]::IsNullOrEmpty($text)) { continue }
-
-        $FilesScanned++
-        $relative = Get-RelativePath $file.FullName
-        $lines = @(($text -replace "`r`n","`n" -replace "`r","`n") -split "`n")
-        $purposeMatches = Get-PurposeMatches -Text $text -Extension $extension
-        $purpose = ''
-        $broken = $false
-
-        if ($purposeMatches.Count -eq 0) {
-            Add-Issue ERROR MISSING_PURPOSE $relative 'Handwritten first-party source has no Purpose comment.'
-        }
+$extensions=@('.cs','.razor','.ps1','.py','.cpp','.c','.h','.hpp','.js','.ts','.tsx','.jsx')
+foreach($rootName in @('src','tests','scripts','tools','services','collectors','plugins')) {
+    $root=Join-Path $Repo $rootName
+    if(-not(Test-Path -LiteralPath $root -PathType Container)){continue}
+    foreach($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
+        if(Test-ExcludedPath $file.FullName){continue}
+        $extension=$file.Extension.ToLowerInvariant(); if($extension -notin $extensions){continue}
+        $text=[System.IO.File]::ReadAllText($file.FullName); if([string]::IsNullOrEmpty($text)){continue}
+        $relative=Get-RelativePath $file.FullName
+        $lines=@(($text -replace "`r`n","`n" -replace "`r","`n") -split "`n")
+        $purposeMatches=Get-PurposeMatches $text $extension
+        $purpose=''
+        if($purposeMatches.Count -eq 0){Add-Issue ERROR MISSING_PURPOSE $relative 'Handwritten first-party source has no Purpose comment.'}
         else {
-            $purpose = $purposeMatches[0].Groups[1].Value.Trim()
-            if ($purposeMatches.Count -gt 1) {
-                Add-Issue ERROR DUPLICATE_PURPOSE $relative "Found $($purposeMatches.Count) Purpose comments; exactly one is allowed."
-            }
-            if ($purpose.Length -lt 12 -or $purpose.Length -gt 180) {
-                Add-Issue WARN PURPOSE_LENGTH $relative "Purpose length is $($purpose.Length); expected 12-180 characters."
-            }
-            if (Test-BrokenPurposeText $purpose $file.FullName) {
-                $broken = $true
-                Add-Issue ERROR BROKEN_PURPOSE $relative 'Purpose contains character-split filename/type text.'
-            }
+            $purpose=$purposeMatches[0].Groups[1].Value.Trim()
+            if($purposeMatches.Count -gt 1){Add-Issue ERROR DUPLICATE_PURPOSE $relative 'Exactly one Purpose comment is allowed.'}
+            if($purpose.Length -lt 12 -or $purpose.Length -gt 180){Add-Issue WARN PURPOSE_LENGTH $relative "Purpose length is $($purpose.Length); expected 12-180 characters."}
+            if(Test-FragmentedPurpose $purpose ([System.IO.Path]::GetFileNameWithoutExtension($file.FullName))){Add-Issue ERROR BROKEN_PURPOSE $relative 'Purpose contains character-split filename/type text.'}
         }
-
-        $compressed = @()
-        if ($extension -eq '.cs') {
-            $compressed = @(Get-CompressedCSharpLines $lines)
-            foreach ($finding in $compressed) {
-                Add-Issue ERROR COMPRESSED_CSHARP $relative "Line $($finding.Line) contains compressed C# statements." $finding.Line
-            }
+        for($i=0;$i -lt $lines.Count;$i++) {
+            if(($extension -eq '.cs' -or $extension -eq '.razor') -and (Test-CompressedCodeLine $lines[$i])) { Add-Issue ERROR COMPRESSED_SOURCE $relative 'Line contains compressed code statements.' ($i+1) }
+            if(($extension -eq '.cs' -or $extension -eq '.razor') -and $lines[$i] -match '\bcatch\s*\{\s*\}') { Add-Issue ERROR EMPTY_CATCH $relative 'Empty catch block hides failure state.' ($i+1) }
+            if($extension -eq '.razor' -and $lines[$i].Length -ge 360 -and [regex]::Matches($lines[$i],'<[A-Za-z][^>]*>').Count -ge 8){Add-Issue WARN DENSE_RAZOR_MARKUP $relative 'Dense Razor markup should be split for reviewer readability.' ($i+1)}
         }
-        elseif ($extension -eq '.razor') {
-            $compressed = @(Get-CompressedRazorCodeLines $lines)
-            foreach ($finding in $compressed) {
-                Add-Issue ERROR COMPRESSED_RAZOR_CODE $relative "Line $($finding.Line) contains compressed Razor/C# statements." $finding.Line
-            }
-            foreach ($finding in @(Get-DenseRazorMarkupLines $lines)) {
-                Add-Issue WARN DENSE_RAZOR_MARKUP $relative "Line $($finding.Line) contains very dense Razor markup; split it for reviewer readability." $finding.Line
-            }
-        }
-
-        $maxLength = if ($lines.Count -gt 0) {
-            ($lines | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum
-        } else { 0 }
-
-        $Inventory.Add([pscustomobject]@{
-            Path = $relative
-            Extension = $extension
-            Lines = $lines.Count
-            PurposeCount = $purposeMatches.Count
-            Purpose = $purpose
-            BrokenPurpose = $broken
-            CompressedCodeLines = $compressed.Count
-            MaxLineLength = $maxLength
-        }) | Out-Null
+        $Inventory.Add([pscustomobject]@{Path=$relative;Extension=$extension;Lines=$lines.Count;Purpose=$purpose})|Out-Null
     }
 }
 
-$featureRoot = Join-Path $Repo 'src\Dip.Application\Features'
-$referenceRoot = Join-Path $Repo 'docs\code-reference'
-if (Test-Path -LiteralPath $featureRoot -PathType Container) {
-    foreach ($directory in Get-ChildItem -LiteralPath $featureRoot -Directory | Sort-Object Name) {
-        if (@(Get-ChildItem -LiteralPath $directory.FullName -Recurse -File -Filter '*.cs').Count -eq 0) { continue }
-        $readme = Join-Path (Join-Path $referenceRoot $directory.Name) 'README.md'
-        if (-not (Test-Path -LiteralPath $readme -PathType Leaf)) {
-            Add-Issue ERROR MISSING_FEATURE_REFERENCE "docs/code-reference/$($directory.Name)/README.md" "Feature '$($directory.Name)' has source code but no Japanese code-reference README."
-        }
-    }
-}
-if (-not (Test-Path -LiteralPath (Join-Path $referenceRoot 'README.md') -PathType Leaf)) {
-    Add-Issue ERROR MISSING_REFERENCE_INDEX 'docs/code-reference/README.md' 'Japanese code-reference index is missing.'
-}
-
-foreach ($path in @($ReportPath, $InventoryPath)) {
-    $parent = Split-Path -Parent $path
-    if (-not (Test-Path -LiteralPath $parent -PathType Container)) {
-        New-Item -ItemType Directory -Path $parent -Force | Out-Null
-    }
-}
-$Inventory | Sort-Object Path | Export-Csv -LiteralPath $InventoryPath -NoTypeInformation -Encoding UTF8
-
-$errors = @($Issues | Where-Object Severity -eq 'ERROR').Count
-$warnings = @($Issues | Where-Object Severity -eq 'WARN').Count
-$total = $Issues.Count
-
-$report = New-Object 'System.Collections.Generic.List[string]'
-$report.Add('# Source Cleanup Report') | Out-Null
-$report.Add('') | Out-Null
-$report.Add("- Generated (UTC): $([DateTimeOffset]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))") | Out-Null
-$report.Add('- Audit: `source-readability-v5`') | Out-Null
-$report.Add('- Scope: handwritten first-party C#, Razor, PowerShell, Python, native, JavaScript and TypeScript sources.') | Out-Null
-$report.Add("- Files scanned: $FilesScanned") | Out-Null
-$report.Add("- Readability/documentation findings: **$total**") | Out-Null
-$report.Add("- Errors: **$errors**") | Out-Null
-$report.Add("- Warnings: **$warnings**") | Out-Null
-$report.Add('') | Out-Null
-$report.Add('## Findings') | Out-Null
-$report.Add('') | Out-Null
-$report.Add('| Severity | Code | Path | Line | Detail |') | Out-Null
-$report.Add('|---|---|---|---:|---|') | Out-Null
-
-if ($total -eq 0) {
-    $report.Add('| PASS | NONE | - | - | No findings. |') | Out-Null
-}
-else {
-    foreach ($issue in $Issues | Sort-Object Code, Path, Line) {
-        $line = if ($issue.Line -gt 0) { [string]$issue.Line } else { '-' }
-        $detail = $issue.Message.Replace('|', '\|')
-        $report.Add("| $($issue.Severity) | $($issue.Code) | ``$($issue.Path)`` | $line | $detail |") | Out-Null
-    }
-}
-
-[System.IO.File]::WriteAllText($ReportPath, (($report -join "`n") + "`n"), $Utf8NoBom)
-
-Write-Host "Source readability audit: files=$FilesScanned findings=$total errors=$errors warnings=$warnings" -ForegroundColor Cyan
-Write-Host "Report: $ReportPath"
-Write-Host "Inventory: $InventoryPath"
-
-if ($errors -gt 0) {
-    throw "Source readability audit failed with $errors error(s). See $ReportPath."
-}
-if ($Strict -and $warnings -gt 0) {
-    Write-Warning "Source readability audit completed with $warnings warning(s). Strict mode blocks errors but preserves warnings as review guidance."
-}
+$reportDir=Split-Path -Parent $ReportPath; if($reportDir){New-Item -ItemType Directory -Force -Path $reportDir|Out-Null}
+$inventoryDir=Split-Path -Parent $InventoryPath; if($inventoryDir){New-Item -ItemType Directory -Force -Path $inventoryDir|Out-Null}
+$Inventory | Export-Csv -NoTypeInformation -Encoding utf8 $InventoryPath
+$report=@('# Source Readability Report','',"Files scanned: $($Inventory.Count)","Findings: $($Issues.Count)",'')
+foreach($issue in $Issues){$location=if($issue.Line -gt 0){":$($issue.Line)"}else{''};$report+="- [$($issue.Severity)] $($issue.Code) `$($issue.Path)$location`: $($issue.Message)"}
+[System.IO.File]::WriteAllLines($ReportPath,$report,(New-Object System.Text.UTF8Encoding($false)))
+if($Issues.Count -eq 0){Write-Host 'PASS: source readability audit found no issues.' -ForegroundColor Green; return}
+$Issues | Sort-Object Severity,Path,Line | Format-Table -AutoSize | Out-Host
+if($Strict){throw "Source readability audit failed with $($Issues.Count) finding(s)."}

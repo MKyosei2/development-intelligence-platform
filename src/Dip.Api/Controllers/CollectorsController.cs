@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for C ol le ct or sC on tr ol le r.
+// Purpose: Exposes the collector-report ingestion boundary and returns idempotent processing results.
 using Dip.Application.Features.Collectors;
 using Dip.Shared.Contracts.Collectors;
 using Microsoft.AspNetCore.Mvc;
@@ -43,9 +43,7 @@ public sealed class CollectorsController : ControllerBase
                 detail: "Collector reports must use application/json.");
         }
 
-        var result = await _service.ProcessAsync(
-            report,
-            cancellationToken);
+        var result = await _service.ProcessAsync(report, cancellationToken);
 
         _logger.LogInformation(
             "Collector report {ReportId} processed. PipelineRunId={PipelineRunId}, Duplicate={WasDuplicate}",
@@ -53,13 +51,10 @@ public sealed class CollectorsController : ControllerBase
             result.PipelineRunId,
             result.WasDuplicate);
 
-        Response.Headers["X-Pipeline-Run-Id"] =
-            result.PipelineRunId.ToString();
+        Response.Headers["X-Pipeline-Run-Id"] = result.PipelineRunId.ToString();
 
         return result.WasDuplicate
             ? Ok(result)
-            : Created(
-                $"/api/v1/pipeline-runs/{result.PipelineRunId}",
-                result);
+            : Created($"/api/v1/pipeline-runs/{result.PipelineRunId}", result);
     }
 }
