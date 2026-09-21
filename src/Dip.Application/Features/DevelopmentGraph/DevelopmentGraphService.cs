@@ -8,7 +8,7 @@ using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.DevelopmentGraph;
 
-public sealed class DevelopmentGraphService
+public sealed partial class DevelopmentGraphService
 {
     private const int MaxFilesPerVersionControlChange = 5000;
 
@@ -186,7 +186,6 @@ public sealed class DevelopmentGraphService
 
         foreach (var entity in await _repo.ListEdgesAsync(projectId, ct))
         {
-            // A filtered graph must never expose an edge whose endpoint is absent.
             if (!ids.Contains(entity.SourceNodeId)
                 || !ids.Contains(entity.TargetNodeId))
             {
@@ -224,16 +223,11 @@ public sealed class DevelopmentGraphService
         var ids = nodes.Select(x => x.Id).ToHashSet();
 
         var edges = (await _repo.ListEdgesAsync(projectId, ct))
-            .Where(
-                x => ids.Contains(x.SourceNodeId)
-                     && ids.Contains(x.TargetNodeId))
+            .Where(x => ids.Contains(x.SourceNodeId) && ids.Contains(x.TargetNodeId))
             .Select(Map)
             .ToArray();
 
-        return new(
-            projectId,
-            nodes.Select(Map).ToArray(),
-            edges);
+        return new(projectId, nodes.Select(Map).ToArray(), edges);
     }
 
     public async Task IngestVersionControlChangeAsync(
@@ -249,45 +243,24 @@ public sealed class DevelopmentGraphService
         }
 
         var nodes = new Dictionary<(DevelopmentGraphNodeType Type, string Key), DevelopmentGraphNode>();
-        var edges = new Dictionary<
-            (Guid Source, Guid Target, DevelopmentGraphEdgeType Type),
-            DevelopmentGraphEdge>();
+        var edges = new Dictionary<(Guid Source, Guid Target, DevelopmentGraphEdgeType Type), DevelopmentGraphEdge>();
 
         var repository = await UpsertNodeCoreAsync(
-            new(
-                change.ProjectId,
-                DevelopmentGraphNodeType.Repository,
-                $"repo:{change.RepositoryKey}",
-                change.RepositoryKey,
-                "Active",
-                change.Provider.ToString(),
-                change.RepositoryLocator,
+            new(change.ProjectId, DevelopmentGraphNodeType.Repository, $"repo:{change.RepositoryKey}", change.RepositoryKey,
+                "Active", change.Provider.ToString(), change.RepositoryLocator,
                 JsonSerializer.Serialize(new { change.RepositoryLocator })),
             nodes,
             ct);
 
         var branch = await UpsertNodeCoreAsync(
-            new(
-                change.ProjectId,
-                DevelopmentGraphNodeType.Branch,
-                $"branch:{change.RepositoryKey}:{change.Branch}",
-                change.Branch,
-                "Active",
-                change.Provider.ToString(),
-                null,
+            new(change.ProjectId, DevelopmentGraphNodeType.Branch, $"branch:{change.RepositoryKey}:{change.Branch}",
+                change.Branch, "Active", change.Provider.ToString(), null,
                 JsonSerializer.Serialize(new { change.RepositoryKey })),
             nodes,
             ct);
 
         await LinkCoreAsync(
-            new(
-                change.ProjectId,
-                repository.Id,
-                branch.Id,
-                DevelopmentGraphEdgeType.Contains,
-                70m,
-                false,
-                "{}"),
+            new(change.ProjectId, repository.Id, branch.Id, DevelopmentGraphEdgeType.Contains, 70m, false, "{}"),
             repository,
             branch,
             edges,
@@ -299,31 +272,15 @@ public sealed class DevelopmentGraphService
                 DevelopmentGraphNodeType.Commit,
                 $"commit:{change.RepositoryKey}:{change.Revision}",
                 change.Title,
-                string.IsNullOrWhiteSpace(change.ReleaseTag)
-                    ? "Observed"
-                    : "Released",
+                string.IsNullOrWhiteSpace(change.ReleaseTag) ? "Observed" : "Released",
                 change.Provider.ToString(),
                 change.Url,
-                JsonSerializer.Serialize(
-                    new
-                    {
-                        change.Revision,
-                        change.Branch,
-                        change.IsMerge,
-                        change.ReleaseTag
-                    })),
+                JsonSerializer.Serialize(new { change.Revision, change.Branch, change.IsMerge, change.ReleaseTag })),
             nodes,
             ct);
 
         await LinkCoreAsync(
-            new(
-                change.ProjectId,
-                branch.Id,
-                commit.Id,
-                DevelopmentGraphEdgeType.Contains,
-                80m,
-                false,
-                "{}"),
+            new(change.ProjectId, branch.Id, commit.Id, DevelopmentGraphEdgeType.Contains, 80m, false, "{}"),
             branch,
             commit,
             edges,
@@ -340,13 +297,7 @@ public sealed class DevelopmentGraphService
                     file.Status,
                     change.Provider.ToString(),
                     null,
-                    JsonSerializer.Serialize(
-                        new
-                        {
-                            file.Status,
-                            file.Additions,
-                            file.Deletions
-                        })),
+                    JsonSerializer.Serialize(new { file.Status, file.Additions, file.Deletions })),
                 nodes,
                 ct);
 
@@ -356,10 +307,7 @@ public sealed class DevelopmentGraphService
                     commit.Id,
                     fileNode.Id,
                     DevelopmentGraphEdgeType.Changes,
-                    Math.Clamp(
-                        30m + (file.Additions + file.Deletions) / 10m,
-                        30m,
-                        100m),
+                    Math.Clamp(30m + (file.Additions + file.Deletions) / 10m, 30m, 100m),
                     false,
                     "{}"),
                 commit,
@@ -369,9 +317,7 @@ public sealed class DevelopmentGraphService
 
             var componentKey = InferComponent(file.Path);
             if (componentKey is null)
-            {
                 continue;
-            }
 
             var component = await UpsertNodeCoreAsync(
                 new(
@@ -387,14 +333,7 @@ public sealed class DevelopmentGraphService
                 ct);
 
             await LinkCoreAsync(
-                new(
-                    change.ProjectId,
-                    fileNode.Id,
-                    component.Id,
-                    DevelopmentGraphEdgeType.BelongsTo,
-                    70m,
-                    false,
-                    "{}"),
+                new(change.ProjectId, fileNode.Id, component.Id, DevelopmentGraphEdgeType.BelongsTo, 70m, false, "{}"),
                 fileNode,
                 component,
                 edges,
@@ -412,20 +351,12 @@ public sealed class DevelopmentGraphService
                     "Open",
                     change.Provider.ToString(),
                     change.Url,
-                    JsonSerializer.Serialize(
-                        new { change.PullRequestNumber })),
+                    JsonSerializer.Serialize(new { change.PullRequestNumber })),
                 nodes,
                 ct);
 
             await LinkCoreAsync(
-                new(
-                    change.ProjectId,
-                    pullRequest.Id,
-                    commit.Id,
-                    DevelopmentGraphEdgeType.Contains,
-                    85m,
-                    false,
-                    "{}"),
+                new(change.ProjectId, pullRequest.Id, commit.Id, DevelopmentGraphEdgeType.Contains, 85m, false, "{}"),
                 pullRequest,
                 commit,
                 edges,
@@ -433,9 +364,7 @@ public sealed class DevelopmentGraphService
 
             foreach (var review in change.Reviews ?? Array.Empty<NormalizedReview>())
             {
-                var key =
-                    $"review:{change.RepositoryKey}:{change.PullRequestNumber.Value}:{review.Reviewer}";
-
+                var key = $"review:{change.RepositoryKey}:{change.PullRequestNumber.Value}:{review.Reviewer}";
                 var reviewNode = await UpsertNodeCoreAsync(
                     new(
                         change.ProjectId,
@@ -450,14 +379,7 @@ public sealed class DevelopmentGraphService
                     ct);
 
                 await LinkCoreAsync(
-                    new(
-                        change.ProjectId,
-                        reviewNode.Id,
-                        pullRequest.Id,
-                        DevelopmentGraphEdgeType.Reviews,
-                        75m,
-                        false,
-                        "{}"),
+                    new(change.ProjectId, reviewNode.Id, pullRequest.Id, DevelopmentGraphEdgeType.Reviews, 75m, false, "{}"),
                     reviewNode,
                     pullRequest,
                     edges,
@@ -476,42 +398,25 @@ public sealed class DevelopmentGraphService
                     "Candidate",
                     change.Provider.ToString(),
                     change.Url,
-                    JsonSerializer.Serialize(
-                        new
-                        {
-                            change.ReleaseTag,
-                            change.Revision
-                        })),
+                    JsonSerializer.Serialize(new { change.ReleaseTag, change.Revision })),
                 nodes,
                 ct);
 
             await LinkCoreAsync(
-                new(
-                    change.ProjectId,
-                    release.Id,
-                    commit.Id,
-                    DevelopmentGraphEdgeType.Targets,
-                    100m,
-                    true,
-                    "{}"),
+                new(change.ProjectId, release.Id, commit.Id, DevelopmentGraphEdgeType.Targets, 100m, true, "{}"),
                 release,
                 commit,
                 edges,
                 ct);
         }
 
-        // One unit-of-work commit keeps this evidence event transaction-bounded.
         await _uow.SaveChangesAsync(ct);
     }
 
-    public async Task IngestCiRunAsync(
-        NormalizedCiRun run,
-        CancellationToken ct)
+    public async Task IngestCiRunAsync(NormalizedCiRun run, CancellationToken ct)
     {
         var nodes = new Dictionary<(DevelopmentGraphNodeType Type, string Key), DevelopmentGraphNode>();
-        var edges = new Dictionary<
-            (Guid Source, Guid Target, DevelopmentGraphEdgeType Type),
-            DevelopmentGraphEdge>();
+        var edges = new Dictionary<(Guid Source, Guid Target, DevelopmentGraphEdgeType Type), DevelopmentGraphEdge>();
 
         var ci = await UpsertNodeCoreAsync(
             new(
@@ -522,16 +427,15 @@ public sealed class DevelopmentGraphService
                 run.Status,
                 run.Provider.ToString(),
                 run.Url,
-                JsonSerializer.Serialize(
-                    new
-                    {
-                        run.Revision,
-                        run.Branch,
-                        run.PassedTests,
-                        run.FailedTests,
-                        run.SkippedTests,
-                        run.MetadataJson
-                    })),
+                JsonSerializer.Serialize(new
+                {
+                    run.Revision,
+                    run.Branch,
+                    run.PassedTests,
+                    run.FailedTests,
+                    run.SkippedTests,
+                    run.MetadataJson
+                })),
             nodes,
             ct);
 
@@ -546,14 +450,7 @@ public sealed class DevelopmentGraphService
             if (commit is not null)
             {
                 await LinkCoreAsync(
-                    new(
-                        run.ProjectId,
-                        commit.Id,
-                        ci.Id,
-                        DevelopmentGraphEdgeType.BuiltBy,
-                        90m,
-                        run.FailedTests > 0,
-                        "{}"),
+                    new(run.ProjectId, commit.Id, ci.Id, DevelopmentGraphEdgeType.BuiltBy, 90m, run.FailedTests > 0, "{}"),
                     commit,
                     ci,
                     edges,
@@ -588,9 +485,7 @@ public sealed class DevelopmentGraphService
         CancellationToken ct)
     {
         var cacheKey = (command.Type, command.Key);
-
-        if (cache is not null
-            && cache.TryGetValue(cacheKey, out var cached))
+        if (cache is not null && cache.TryGetValue(cacheKey, out var cached))
         {
             cached.Observe(
                 command.Name,
@@ -602,12 +497,7 @@ public sealed class DevelopmentGraphService
             return cached;
         }
 
-        var node = await _repo.FindNodeAsync(
-            command.ProjectId,
-            command.Type,
-            command.Key,
-            ct);
-
+        var node = await _repo.FindNodeAsync(command.ProjectId, command.Type, command.Key, ct);
         if (node is null)
         {
             node = new DevelopmentGraphNode(
@@ -621,7 +511,6 @@ public sealed class DevelopmentGraphService
                 command.ExternalReference,
                 Json(command.MetadataJson),
                 _clock.UtcNow);
-
             await _repo.AddNodeAsync(node, ct);
         }
         else
@@ -636,9 +525,7 @@ public sealed class DevelopmentGraphService
         }
 
         if (cache is not null)
-        {
             cache[cacheKey] = node;
-        }
 
         return node;
     }
@@ -647,31 +534,19 @@ public sealed class DevelopmentGraphService
         LinkDevelopmentGraphNodesCommand command,
         DevelopmentGraphNode source,
         DevelopmentGraphNode target,
-        Dictionary<
-            (Guid Source, Guid Target, DevelopmentGraphEdgeType Type),
-            DevelopmentGraphEdge>? cache,
+        Dictionary<(Guid Source, Guid Target, DevelopmentGraphEdgeType Type), DevelopmentGraphEdge>? cache,
         CancellationToken ct)
     {
-        if (source.ProjectId != command.ProjectId
-            || target.ProjectId != command.ProjectId)
+        if (source.ProjectId != command.ProjectId || target.ProjectId != command.ProjectId)
         {
             throw new InvalidOperationException(
                 "Graph edge endpoints must belong to the requested project.");
         }
 
-        var cacheKey = (
-            command.SourceNodeId,
-            command.TargetNodeId,
-            command.Type);
-
-        if (cache is not null
-            && cache.TryGetValue(cacheKey, out var cached))
+        var cacheKey = (command.SourceNodeId, command.TargetNodeId, command.Type);
+        if (cache is not null && cache.TryGetValue(cacheKey, out var cached))
         {
-            cached.Observe(
-                command.Weight,
-                command.Critical,
-                Json(command.MetadataJson),
-                _clock.UtcNow);
+            cached.Observe(command.Weight, command.Critical, Json(command.MetadataJson), _clock.UtcNow);
             return cached;
         }
 
@@ -694,35 +569,24 @@ public sealed class DevelopmentGraphService
                 command.Critical,
                 Json(command.MetadataJson),
                 _clock.UtcNow);
-
             await _repo.AddEdgeAsync(edge, ct);
         }
         else
         {
-            edge.Observe(
-                command.Weight,
-                command.Critical,
-                Json(command.MetadataJson),
-                _clock.UtcNow);
+            edge.Observe(command.Weight, command.Critical, Json(command.MetadataJson), _clock.UtcNow);
         }
 
         if (cache is not null)
-        {
             cache[cacheKey] = edge;
-        }
 
         return edge;
     }
 
     private static string? InferComponent(string path)
     {
-        var parts = Normalize(path)
-            .Split('/', StringSplitOptions.RemoveEmptyEntries);
-
+        var parts = Normalize(path).Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2)
-        {
             return null;
-        }
 
         if (parts[0].Equals("src", StringComparison.OrdinalIgnoreCase)
             || parts[0].Equals("tests", StringComparison.OrdinalIgnoreCase)
@@ -732,8 +596,7 @@ public sealed class DevelopmentGraphService
             return $"{parts[0]}/{parts[1]}";
         }
 
-        return parts.Length >= 3
-               && parts[0].Equals("Assets", StringComparison.OrdinalIgnoreCase)
+        return parts.Length >= 3 && parts[0].Equals("Assets", StringComparison.OrdinalIgnoreCase)
             ? $"Assets/{parts[1]}"
             : parts[0];
     }
@@ -744,7 +607,6 @@ public sealed class DevelopmentGraphService
     private static string Json(string value)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? "{}" : value;
-
         try
         {
             using var _ = JsonDocument.Parse(normalized);
@@ -752,10 +614,7 @@ public sealed class DevelopmentGraphService
         }
         catch (JsonException ex)
         {
-            throw new ArgumentException(
-                "MetadataJson must contain valid JSON.",
-                nameof(value),
-                ex);
+            throw new ArgumentException("MetadataJson must contain valid JSON.", nameof(value), ex);
         }
     }
 
@@ -764,18 +623,13 @@ public sealed class DevelopmentGraphService
         IReadOnlyDictionary<string, string?> fields)
     {
         JsonNode? parsed;
-
         try
         {
-            parsed = JsonNode.Parse(
-                string.IsNullOrWhiteSpace(json) ? "{}" : json);
+            parsed = JsonNode.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
         }
         catch (JsonException ex)
         {
-            throw new ArgumentException(
-                "MetadataJson must contain valid JSON.",
-                nameof(json),
-                ex);
+            throw new ArgumentException("MetadataJson must contain valid JSON.", nameof(json), ex);
         }
 
         var obj = parsed as JsonObject;
@@ -783,94 +637,60 @@ public sealed class DevelopmentGraphService
         {
             obj = new JsonObject();
             if (parsed is not null)
-            {
                 obj["payload"] = parsed.DeepClone();
-            }
         }
 
         foreach (var pair in fields)
         {
             if (pair.Value is null)
-            {
                 obj.Remove(pair.Key);
-            }
             else
-            {
                 obj[pair.Key] = pair.Value;
-            }
         }
 
         return obj.ToJsonString();
     }
 
-    private static string Identifier(
-        string value,
-        int max,
-        string name)
+    private static string Identifier(string value, int max, string name)
     {
         var normalized = value?.Trim() ?? string.Empty;
-
         if (normalized.Length is < 1 || normalized.Length > max)
         {
-            throw new ArgumentException(
-                $"{name} must be 1-{max} characters.",
-                name);
+            throw new ArgumentException($"{name} must be 1-{max} characters.", name);
         }
 
-        if (normalized.Any(
-                ch => !(char.IsLetterOrDigit(ch)
-                        || ch is '.' or '-' or '_' or ':' or '/')))
+        if (normalized.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '.' or '-' or '_' or ':' or '/')))
         {
-            throw new ArgumentException(
-                $"{name} contains unsupported characters.",
-                name);
+            throw new ArgumentException($"{name} contains unsupported characters.", name);
         }
 
         return normalized;
     }
 
-    private static string? Optional(
-        string? value,
-        int max,
-        string name)
+    private static string? Optional(string? value, int max, string name)
     {
         if (string.IsNullOrWhiteSpace(value))
-        {
             return null;
-        }
 
         var normalized = value.Trim();
-
         if (normalized.Length > max)
-        {
-            throw new ArgumentException(
-                $"{name} must be at most {max} characters.",
-                name);
-        }
+            throw new ArgumentException($"{name} must be at most {max} characters.", name);
 
         return normalized;
     }
 
-    private static string? MetadataString(
-        string json,
-        string name,
-        string context)
+    private static string? MetadataString(string json, string name, string context)
     {
         try
         {
             using var document = JsonDocument.Parse(json);
-
             if (document.RootElement.ValueKind != JsonValueKind.Object)
-            {
                 return null;
-            }
-
             if (!document.RootElement.TryGetProperty(name, out var value)
                 || value.ValueKind != JsonValueKind.String)
             {
                 return null;
             }
-
             return value.GetString();
         }
         catch (JsonException ex)
@@ -881,8 +701,7 @@ public sealed class DevelopmentGraphService
         }
     }
 
-    private static DevelopmentGraphNodeDto Map(
-        DevelopmentGraphNode node) =>
+    private static DevelopmentGraphNodeDto Map(DevelopmentGraphNode node) =>
         new(
             node.Id,
             node.Type.ToString(),
@@ -894,8 +713,7 @@ public sealed class DevelopmentGraphService
             node.MetadataJson,
             node.LastObservedAtUtc);
 
-    private static DevelopmentGraphEdgeDto Map(
-        DevelopmentGraphEdge edge) =>
+    private static DevelopmentGraphEdgeDto Map(DevelopmentGraphEdge edge) =>
         new(
             edge.Id,
             edge.SourceNodeId,

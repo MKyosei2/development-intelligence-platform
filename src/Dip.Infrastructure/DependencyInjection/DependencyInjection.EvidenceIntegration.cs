@@ -1,4 +1,5 @@
-// Purpose: Provides the infrastructure capability represented by E vi de nc eI nt eg ra ti on De pe nd en cy In je ct io n.
+// Purpose: Registers evidence, integration, credential, policy, and artifact-tracking infrastructure boundaries.
+using System.Net.Http.Headers;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Security;
 using Dip.Application.Features.Evidence;
@@ -9,6 +10,7 @@ using Dip.Infrastructure.Persistence.Repositories;
 using Dip.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Dip.Infrastructure;
 
@@ -26,8 +28,44 @@ public static class EvidenceIntegrationDependencyInjection
         services.AddScoped<IProjectSourceBindingRepository, ProjectSourceBindingRepository>();
         services.AddScoped<IPolicyProfileRepository, PolicyProfileRepository>();
 
+        services
+            .AddOptions<SecretsBrokerOptions>()
+            .Bind(configuration.GetSection(SecretsBrokerOptions.SectionName))
+            .PostConfigure(options =>
+            {
+                options.Provider = FirstNonEmpty(
+                    Environment.GetEnvironmentVariable("DIP_SECRET_PROVIDER"),
+                    options.Provider,
+                    "local") ?? "local";
+                options.BrokerUrl = FirstNonEmpty(
+                    Environment.GetEnvironmentVariable("DIP_SECRET_BROKER_URL"),
+                    options.BrokerUrl);
+                options.BrokerToken = FirstNonEmpty(
+                    Environment.GetEnvironmentVariable("DIP_SECRET_BROKER_TOKEN"),
+                    options.BrokerToken);
+            })
+            .Validate(
+                options => options.IsValid(out _),
+                "Invalid DIP secrets broker configuration. Check Provider and BrokerUrl.")
+            .ValidateOnStart();
+
         services.AddSingleton<LocalIntegrationCredentialStore>();
-        services.AddSingleton<IIntegrationCredentialStore, EnterpriseIntegrationCredentialStore>();
+        services.AddHttpClient<EnterpriseIntegrationCredentialStore>((provider, client) =>
+        {
+            var options = provider.GetRequiredService<IOptions<SecretsBrokerOptions>>().Value;
+            if (!options.UseBroker)
+                return;
+
+            client.BaseAddress = EnsureTrailingSlash(options.BrokerUrl!);
+            client.Timeout = TimeSpan.FromSeconds(30);
+            if (!string.IsNullOrWhiteSpace(options.BrokerToken))
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", options.BrokerToken);
+            }
+        });
+        services.AddTransient<IIntegrationCredentialStore>(provider =>
+            provider.GetRequiredService<EnterpriseIntegrationCredentialStore>());
 
         services.AddScoped<IIntegrationConnector, GitHubConnector>();
         services.AddScoped<IntegrationConnectorRegistry>();
@@ -37,8 +75,16 @@ public static class EvidenceIntegrationDependencyInjection
         services.AddScoped<EvidenceIngestionService>();
         services.AddScoped<IntegrationConnectionService>();
 
-        // Phase 2 builds on the Phase 1 contracts without replacing them.
         services.AddArtifactTrackingFoundation(configuration);
         return services;
     }
+
+    private static Uri EnsureTrailingSlash(string value)
+    {
+        var normalized = value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+        return new Uri(normalized, UriKind.Absolute);
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 }

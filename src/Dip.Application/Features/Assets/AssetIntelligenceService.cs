@@ -1,4 +1,4 @@
-// Purpose: Evaluates deterministic asset-pipeline quality and dependency risk signals.
+// Purpose: Evaluates deterministic asset-pipeline quality and dependency risk signals with one unit-of-work commit per observation.
 using System.IO;
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
@@ -41,65 +41,45 @@ public sealed class AssetIntelligenceService
             .ToList();
 
         decimal score = 0m;
-
         if (!command.ImportSucceeded)
         {
             score += 45m;
             issues.Add("Asset import failed.");
         }
-
         if (command.MissingReference)
         {
             score += 40m;
             issues.Add("Asset has a missing/broken reference.");
         }
-
         if (command.PlatformIncompatible)
         {
             score += 35m;
             issues.Add("Asset is incompatible with at least one target platform.");
         }
-
         if (command.SizeBytes > 256L * 1024 * 1024)
         {
             score += 30m;
-            issues.Add(
-                $"Very large asset: {command.SizeBytes / 1024d / 1024d:0.#} MiB.");
+            issues.Add($"Very large asset: {command.SizeBytes / 1024d / 1024d:0.#} MiB.");
         }
         else if (command.SizeBytes > 64L * 1024 * 1024)
         {
             score += 12m;
-            issues.Add(
-                $"Large asset: {command.SizeBytes / 1024d / 1024d:0.#} MiB.");
+            issues.Add($"Large asset: {command.SizeBytes / 1024d / 1024d:0.#} MiB.");
         }
 
-        var all = await _repo.ListNodesAsync(
-            command.ProjectId,
-            DevelopmentGraphNodeType.Asset,
-            ct);
-
+        var all = await _repo.ListNodesAsync(command.ProjectId, DevelopmentGraphNodeType.Asset, ct);
         var duplicate = !string.IsNullOrWhiteSpace(command.ContentHash)
-                        && all.Any(node =>
-                            !node.Key.Equals(
-                                Key(command.RepositoryKey, command.Path),
-                                StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(
-                                ReadHash(node.MetadataJson),
-                                command.ContentHash,
-                                StringComparison.OrdinalIgnoreCase));
+            && all.Any(node =>
+                !node.Key.Equals(Key(command.RepositoryKey, command.Path), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(ReadHash(node.MetadataJson), command.ContentHash, StringComparison.OrdinalIgnoreCase));
 
         if (duplicate)
         {
             score += 15m;
-            issues.Add(
-                "Another asset node has the same content hash; duplicate content may be present.");
+            issues.Add("Another asset node has the same content hash; duplicate content may be present.");
         }
 
-        score = Math.Clamp(
-            decimal.Round(score + Math.Min(20m, issues.Count * 2m), 2),
-            0m,
-            100m);
-
+        score = Math.Clamp(decimal.Round(score + Math.Min(20m, issues.Count * 2m), 2), 0m, 100m);
         var state = score >= 80m
             ? "Critical"
             : score >= 50m
@@ -107,92 +87,95 @@ public sealed class AssetIntelligenceService
                 : score >= 20m
                     ? "Warning"
                     : "Healthy";
-
         var key = Key(command.RepositoryKey, command.Path);
 
-        var assetNode = await _graph.UpsertNodeAsync(
-            new(
-                command.ProjectId,
-                DevelopmentGraphNodeType.Asset,
-                key,
-                command.Path,
-                state,
-                "AssetPipeline",
-                null,
-                JsonSerializer.Serialize(new
-                {
-                    command.RepositoryKey,
-                    command.Path,
-                    command.AssetType,
-                    command.SizeBytes,
-                    command.ContentHash,
-                    command.CommitSha,
-                    command.Platform,
-                    command.ImportSucceeded,
-                    command.MissingReference,
-                    command.PlatformIncompatible,
-                    Issues = issues
-                })),
-            ct);
-
-        foreach (var dependencyPath in command.Dependencies ?? Array.Empty<string>())
-        {
-            if (string.IsNullOrWhiteSpace(dependencyPath))
-                continue;
-
-            var dependency = await _graph.UpsertNodeAsync(
-                new(
-                    command.ProjectId,
-                    DevelopmentGraphNodeType.Asset,
-                    Key(command.RepositoryKey, dependencyPath),
-                    dependencyPath,
-                    "Observed",
-                    "AssetPipeline",
-                    null,
-                    JsonSerializer.Serialize(new
-                    {
-                        RepositoryKey = command.RepositoryKey,
-                        Path = dependencyPath
-                    })),
-                ct);
-
-            await _graph.LinkAsync(
-                new(
-                    command.ProjectId,
-                    assetNode.Id,
-                    dependency.Id,
-                    DevelopmentGraphEdgeType.DependsOn,
-                    75m,
-                    command.MissingReference,
-                    JsonSerializer.Serialize(new { kind = "asset-reference" })),
-                ct);
-        }
-
-        if (!string.IsNullOrWhiteSpace(command.CommitSha))
-        {
-            var commit = await _repo.FindNodeAsync(
+        var commit = string.IsNullOrWhiteSpace(command.CommitSha)
+            ? null
+            : await _repo.FindNodeAsync(
                 command.ProjectId,
                 DevelopmentGraphNodeType.Commit,
                 $"commit:{command.RepositoryKey}:{command.CommitSha}",
                 ct);
 
-            if (commit is not null)
+        await _graph.StageMutationAsync(
+            async (graph, token) =>
             {
-                await _graph.LinkAsync(
+                var assetNode = await graph.UpsertNodeAsync(
                     new(
                         command.ProjectId,
-                        commit.Id,
-                        assetNode.Id,
-                        DevelopmentGraphEdgeType.Changes,
-                        80m,
-                        state == "Critical",
-                        "{}"),
-                    ct);
-            }
-        }
+                        DevelopmentGraphNodeType.Asset,
+                        key,
+                        command.Path,
+                        state,
+                        "AssetPipeline",
+                        null,
+                        JsonSerializer.Serialize(new
+                        {
+                            command.RepositoryKey,
+                            command.Path,
+                            command.AssetType,
+                            command.SizeBytes,
+                            command.ContentHash,
+                            command.CommitSha,
+                            command.Platform,
+                            command.ImportSucceeded,
+                            command.MissingReference,
+                            command.PlatformIncompatible,
+                            Issues = issues
+                        })),
+                    token);
+
+                foreach (var dependencyPath in command.Dependencies ?? Array.Empty<string>())
+                {
+                    if (string.IsNullOrWhiteSpace(dependencyPath))
+                        continue;
+
+                    var dependency = await graph.UpsertNodeAsync(
+                        new(
+                            command.ProjectId,
+                            DevelopmentGraphNodeType.Asset,
+                            Key(command.RepositoryKey, dependencyPath),
+                            dependencyPath,
+                            "Observed",
+                            "AssetPipeline",
+                            null,
+                            JsonSerializer.Serialize(new
+                            {
+                                RepositoryKey = command.RepositoryKey,
+                                Path = dependencyPath
+                            })),
+                        token);
+                    await graph.LinkAsync(
+                        new(
+                            command.ProjectId,
+                            assetNode.Id,
+                            dependency.Id,
+                            DevelopmentGraphEdgeType.DependsOn,
+                            75m,
+                            command.MissingReference,
+                            JsonSerializer.Serialize(new { kind = "asset-reference" })),
+                        token);
+                }
+
+                if (commit is not null)
+                {
+                    await graph.LinkAsync(
+                        new(
+                            command.ProjectId,
+                            commit.Id,
+                            assetNode.Id,
+                            DevelopmentGraphEdgeType.Changes,
+                            80m,
+                            state == "Critical",
+                            "{}"),
+                        token);
+                }
+
+                return true;
+            },
+            ct);
 
         var actions = new List<string>();
-
         if (!command.ImportSucceeded)
             actions.Add("Fix import settings/source data and re-import the asset.");
         if (command.MissingReference)
@@ -207,7 +190,6 @@ public sealed class AssetIntelligenceService
         var summary =
             $"Asset '{command.Path}' is {state} with risk {score:0.##}/100 "
             + $"and {issues.Count} issue(s).";
-
         var result = new AssetIntelligenceResult(
             key,
             state,
@@ -223,9 +205,7 @@ public sealed class AssetIntelligenceService
                 command.ProjectId,
                 key,
                 P2IntelligenceKind.AssetIntelligence,
-                score >= 50m
-                    ? P2IntelligenceStatus.Warning
-                    : P2IntelligenceStatus.Informational,
+                score >= 50m ? P2IntelligenceStatus.Warning : P2IntelligenceStatus.Informational,
                 score,
                 EvidenceConfidence.High,
                 summary,
@@ -247,9 +227,9 @@ public sealed class AssetIntelligenceService
         {
             using var document = JsonDocument.Parse(json);
             return document.RootElement.TryGetProperty("ContentHash", out var hash)
-                   && hash.ValueKind == JsonValueKind.String
-                ? hash.GetString()
-                : null;
+                && hash.ValueKind == JsonValueKind.String
+                    ? hash.GetString()
+                    : null;
         }
         catch (JsonException ex)
         {
