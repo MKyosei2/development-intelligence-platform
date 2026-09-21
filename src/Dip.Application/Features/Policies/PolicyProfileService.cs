@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ol ic yP ro fi le Se rv ic e.
+// Purpose: Manages reusable project policy profiles and their validated configuration.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

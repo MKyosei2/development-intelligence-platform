@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for C ol le ct or Re po rt Se rv ic e.
+// Purpose: Ingests collector reports and maps them into pipeline, evidence, and quality records.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

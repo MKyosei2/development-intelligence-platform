@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for A ut on om ou sD eb ug Se rv ic e.
+// Purpose: Generates and verifies bounded debug candidates from evidence without treating hypotheses as truth.
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text.Json;

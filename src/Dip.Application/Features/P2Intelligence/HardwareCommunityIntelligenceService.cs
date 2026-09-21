@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for H ar dw ar eC om mu ni ty In te ll ig en ce Se rv ic e.
+// Purpose: Analyzes community hardware evidence for compatibility, reliability, and performance signals.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

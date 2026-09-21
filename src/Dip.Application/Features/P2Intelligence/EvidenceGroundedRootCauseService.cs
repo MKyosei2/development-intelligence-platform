@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for E vi de nc eG ro un de dR oo tC au se Se rv ic e.
+// Purpose: Builds bounded root-cause candidates from project truth, incident, and change evidence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

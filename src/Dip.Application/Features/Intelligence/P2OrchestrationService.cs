@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P2 Or ch es tr at io nS er vi ce.
+// Purpose: Coordinates P2 intelligence analyses and combines their evidence-backed outputs.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for R oo tC au se In te ll ig en ce Se rv ic e.
+// Purpose: Correlates failure evidence with bounded root-cause candidates without asserting unverified causes.
 using System.Text.RegularExpressions;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Enums;

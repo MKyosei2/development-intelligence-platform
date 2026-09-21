@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for D as hb oa rd Qu er yS er vi ce.
+// Purpose: Provides project dashboard summaries from project, pipeline, and quality data.
 namespace Dip.Application.Features.Dashboard;
 
 public sealed record ProjectDashboardSummary(

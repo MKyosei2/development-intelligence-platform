@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro je ct Co nt ro lT es tI mp ac tS er vi ce.
+// Purpose: Maps project-control changes to test-impact selections and development-graph relationships.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Enums;
 

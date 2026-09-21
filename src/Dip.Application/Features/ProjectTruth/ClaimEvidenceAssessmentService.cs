@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for C la im Ev ID en ce As se ss me nt Se rv ic e.
+// Purpose: Assesses project claims against current evidence, freshness, provenance, and contradictions.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro du ct io nM ed ia Se rv ic e.
+// Purpose: Registers production media observations and preserves their project and evidence relationships.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Policies;

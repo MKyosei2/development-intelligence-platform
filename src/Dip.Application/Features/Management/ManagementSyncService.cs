@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for M an ag em en tS yn cS er vi ce.
+// Purpose: Synchronizes management data with project state and development-graph projections.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

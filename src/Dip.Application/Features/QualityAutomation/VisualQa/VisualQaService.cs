@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for V is ua lQ aS er vi ce.
+// Purpose: Evaluates visual QA inputs and converts detected differences into normalized findings.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

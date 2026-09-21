@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro du ce rI nt el li ge nc eS er vi ce.
+// Purpose: Produces producer-facing project health, delivery, and risk insights from management evidence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Enums;

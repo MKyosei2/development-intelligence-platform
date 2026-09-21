@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro je ct Cl ai mS er vi ce.
+// Purpose: Manages project claims and their evidence-backed verification state.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

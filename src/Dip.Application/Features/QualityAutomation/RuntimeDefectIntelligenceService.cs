@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for R un ti me De fe ct In te ll ig en ce Se rv ic e.
+// Purpose: Correlates runtime defects with QA and development evidence to support reproducible triage.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro du ct io nT oo lE ve nt Se rv ic e.
+// Purpose: Ingests production-tool events and connects them to project evidence and development-graph state.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Evidence;

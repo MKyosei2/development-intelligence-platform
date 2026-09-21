@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for B ra nc hQ ua li ty Op er at io ns Se rv ic e.
+// Purpose: Builds branch-scoped quality summaries and promotion signals from current QA evidence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Enums;

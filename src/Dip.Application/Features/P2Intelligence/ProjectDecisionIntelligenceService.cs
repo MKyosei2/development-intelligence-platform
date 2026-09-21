@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro je ct De CI si on In te ll ig en ce Se rv ic e.
+// Purpose: Builds project decision intelligence from evidence, confidence, risk, and operational context.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

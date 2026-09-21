@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for C om mu ni ty Ha rd wa re Se rv ic e.
+// Purpose: Aggregates consent-scoped community hardware observations for compatibility and performance analysis.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;

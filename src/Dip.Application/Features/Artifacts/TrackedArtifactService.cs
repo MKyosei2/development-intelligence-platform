@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for T ra ck ed Ar ti fa ct Se rv ic e.
+// Purpose: Tracks project artifacts together with their evidence, provenance, and policy relationships.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

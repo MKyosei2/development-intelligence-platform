@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for E vi de nc eI ng es ti on Se rv ic e.
+// Purpose: Ingests project evidence while preserving provenance, policy context, and verification state.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Policies;

@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro je ct Co nt ro lD as hb oa rd Se rv ic e.
+// Purpose: Builds project-control dashboard aggregates from operational, planning, and evidence data.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Decisions;
 using Dip.Domain.Enums;

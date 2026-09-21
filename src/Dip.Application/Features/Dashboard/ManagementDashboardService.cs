@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for M an ag em en tD as hb oa rd Se rv ic e.
+// Purpose: Builds management dashboard views from project planning, delivery, and risk information.
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Management;
 

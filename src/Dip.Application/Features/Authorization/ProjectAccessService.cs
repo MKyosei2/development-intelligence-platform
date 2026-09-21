@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro je ct Ac ce ss Se rv ic e.
+// Purpose: Resolves project access decisions from identity, membership, and authorization evidence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

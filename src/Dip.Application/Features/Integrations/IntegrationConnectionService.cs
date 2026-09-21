@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for I nt eg ra ti on Co nn ec ti on Se rv ic e.
+// Purpose: Manages external integration connections, credentials metadata, and connection validation.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Security;

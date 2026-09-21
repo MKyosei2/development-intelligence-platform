@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for A ss et QA Se rv ic e.
+// Purpose: Evaluates asset-specific quality signals and produces normalized QA findings.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

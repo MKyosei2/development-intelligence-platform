@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for P ro du ct io nE ve nt Qu er yS er vi ce.
+// Purpose: Queries production-tool events for project review, traceability, and downstream intelligence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Enums;
 

@@ -1,4 +1,4 @@
-// Purpose: Orchestrates the DIP workflow for F or ec as tA nd De CI si on Se rv ic e.
+// Purpose: Produces forecasts and decision-support outputs from project metrics, history, and evidence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
