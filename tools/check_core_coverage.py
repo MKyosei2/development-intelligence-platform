@@ -6,6 +6,11 @@ import argparse
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+# Keep the guardrail conservative until a final exact-revision run provides
+# measured coverage for all three portfolio-critical areas. CI may override it
+# explicitly with --minimum, but the default is intentionally not inflated.
+DEFAULT_MINIMUM = 50.0
+
 AREAS = {
     "ProjectTruth": ("/Features/ProjectTruth/",),
     "Release": ("/Features/Release/",),
@@ -48,8 +53,11 @@ def collect(files: list[Path]) -> dict[str, dict[str, tuple[int, int]]]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--results", default="TestResults")
-    parser.add_argument("--minimum", type=float, default=50.0)
+    parser.add_argument("--minimum", type=float, default=DEFAULT_MINIMUM)
     args = parser.parse_args()
+
+    if not 0.0 <= args.minimum <= 100.0:
+        raise SystemExit("Core coverage gate failed: --minimum must be between 0 and 100.")
 
     reports = sorted(Path(args.results).rglob("coverage.cobertura.xml"))
     if not reports:
@@ -57,6 +65,7 @@ def main() -> int:
 
     by_area = collect(reports)
     failures: list[str] = []
+    measured: dict[str, float] = {}
     for area, by_file in by_area.items():
         covered = sum(c for c, _ in by_file.values())
         valid = sum(v for _, v in by_file.values())
@@ -65,6 +74,7 @@ def main() -> int:
             print(f"{area}: no covered source lines were discovered")
             continue
         pct = covered * 100.0 / valid
+        measured[area] = pct
         print(f"{area} coverage: {covered}/{valid} lines = {pct:.2f}% (minimum {args.minimum:.2f}%)")
         for name, (c, v) in sorted(by_file.items(), key=lambda item: (item[1][0] / item[1][1], item[0]))[:10]:
             print(f"  {c * 100.0 / v:6.2f}%  {name}")
@@ -73,7 +83,9 @@ def main() -> int:
 
     if failures:
         raise SystemExit("Core coverage gate failed: " + "; ".join(failures))
-    print("PASS: Project Truth, Release, and QA each satisfy the focused coverage floor.")
+
+    summary = ", ".join(f"{name}={measured[name]:.2f}%" for name in AREAS)
+    print(f"PASS: each focused area satisfies the {args.minimum:.2f}% floor ({summary}).")
     return 0
 
 

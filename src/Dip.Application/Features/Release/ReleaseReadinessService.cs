@@ -19,6 +19,9 @@ public sealed class ReleaseReadinessService
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
 
+    // This service intentionally remains the composition boundary for focused
+    // release evaluators. Avoid adding another abstraction solely to reduce the
+    // constructor parameter count; each evaluator owns one release-readiness concern.
     public ReleaseReadinessService(
         IIncidentRepository incidents,
         IDurableJobRepository jobs,

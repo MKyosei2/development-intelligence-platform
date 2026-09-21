@@ -115,6 +115,33 @@ function Get-InsertionIndex {
     return $index
 }
 
+function Assert-PurposeIntegrity {
+    $failures=New-Object 'System.Collections.Generic.List[string]'
+    $extensions = @('.cs','.razor','.ps1','.py','.cpp','.c','.h','.hpp','.js','.ts','.tsx','.jsx')
+    foreach ($rootName in @('src','tests','scripts','tools','services','collectors','plugins')) {
+        $root = Join-Path $Repo $rootName
+        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
+        foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
+            if (Test-ExcludedPath $file.FullName) { continue }
+            $extension=$file.Extension.ToLowerInvariant()
+            if ($extension -notin $extensions) { continue }
+            $content=[System.IO.File]::ReadAllText($file.FullName)
+            if ([string]::IsNullOrEmpty($content)) { continue }
+            $matches=New-Object 'System.Collections.Generic.List[object]'
+            foreach($line in (($content -replace "`r`n","`n" -replace "`r","`n") -split "`n")) {
+                $match=Get-PurposeMatch -Line $line -Extension $extension
+                if($match.Success){$matches.Add($match) | Out-Null}
+            }
+            $relative=Get-RelativePath $file.FullName
+            if($matches.Count -ne 1){$failures.Add("${relative}: expected exactly one Purpose comment; found $($matches.Count)") | Out-Null; continue}
+            $purpose=$matches[0].Groups[1].Value.Trim()
+            if(Test-BrokenPurpose -Purpose $purpose -FilePath $file.FullName -Content $content){$failures.Add("${relative}: Purpose comment is still fragmented") | Out-Null}
+        }
+    }
+    if($failures.Count -gt 0){throw "Purpose integrity verification failed:`n$($failures -join "`n")"}
+    Write-Host 'PASS: Purpose comments are present, unique, and non-fragmented.' -ForegroundColor Green
+}
+
 $extensions = @('.cs','.razor','.ps1','.py','.cpp','.c','.h','.hpp','.js','.ts','.tsx','.jsx')
 foreach ($rootName in @('src','tests','scripts','tools','services','collectors','plugins')) {
     $root = Join-Path $Repo $rootName
@@ -161,3 +188,4 @@ foreach ($rootName in @('src','tests','scripts','tools','services','collectors',
     }
 }
 Write-Host "Purpose normalization complete. Changed: $($Changed.Count)" -ForegroundColor Cyan
+if(-not $WhatIfReport -and -not $WhatIfPreference){Assert-PurposeIntegrity}

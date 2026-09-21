@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for G it Hu bR ep os it or ie sC on tr ol le r.
+// Purpose: Exposes the GitHub repository integration HTTP boundary, including repository discovery, import, synchronization, pull-request evidence, and capability diagnostics.
 using System.Text.Json;
 using Dip.Api.Authorization;
 using Dip.Api.Hubs;
@@ -864,33 +864,48 @@ public sealed class GitHubRepositoriesController(
 
     private static int? MetaInt(string json, string property)
     {
-        try
+        if (!TryParseMetadata(json, out var document) || document is null)
+            return null;
+
+        using (document)
         {
-            using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
             if (document.RootElement.TryGetProperty(property, out var value)
                 && value.TryGetInt32(out var result))
             {
                 return result;
             }
         }
-        catch (JsonException)
-        {
-        }
         return null;
     }
 
     private static string? MetaString(string json, string property)
     {
-        try
+        if (!TryParseMetadata(json, out var document) || document is null)
+            return null;
+
+        using (document)
         {
-            using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
             if (document.RootElement.TryGetProperty(property, out var value))
                 return value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
         }
+        return null;
+    }
+
+    private static bool TryParseMetadata(string json, out JsonDocument? document)
+    {
+        try
+        {
+            document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
+            return true;
+        }
         catch (JsonException)
         {
+            // Malformed graph metadata is intentionally treated as unavailable.
+            // Callers can fall back to stable node keys instead of silently
+            // assuming malformed JSON was valid metadata.
+            document = null;
+            return false;
         }
-        return null;
     }
 
     private static string StripKeyTail(string key)

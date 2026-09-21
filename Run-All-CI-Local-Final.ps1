@@ -67,6 +67,11 @@ try{
     Add-Result "Source Cleanup" "FAIL" $_.Exception.Message
 }
 
+# Fail locally before consuming hosted CI if first-party source is unreadable.
+Invoke-Stage "Source Readability" {
+    & (Join-Path $Repo "scripts\Verify-SourceReadability.ps1") -Strict
+} "01-source-readability.log" | Out-Null
+
 $Sha=(git rev-parse HEAD).Trim()
 $changes=@(git status --porcelain)
 if($changes.Count -eq 0){Add-Result "Git Working Tree" "PASS" "Clean; SHA=$Sha"}
@@ -77,6 +82,7 @@ $required=@(
     "DevelopmentIntelligencePlatform.sln",
     "tools\verify_publication_safety.py",
     "tools\validate_portfolio_readiness.py",
+    "scripts\Verify-SourceReadability.ps1",
     "scripts\Verify-SelfHostedWindowsRuntime.ps1",
     "scripts\Verify-GuiRuntime.ps1",
     "scripts\Verify-DatabaseMigrations.ps1",

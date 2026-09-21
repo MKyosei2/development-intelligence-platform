@@ -33,17 +33,33 @@ function Get-PurposeMatches([string]$Text,[string]$Extension) {
     if ($Extension -eq '.razor') { return @([regex]::Matches($Text,'(?m)^\s*@\*\s*Purpose\s*:\s*(.+?)\s*\*@\s*$')) }
     return @([regex]::Matches($Text,'(?m)^\s*(?://|#)\s*Purpose\s*:\s*(.+?)\s*$'))
 }
-function Test-FragmentedPurpose([string]$Purpose,[string]$Stem) {
-    $normalized=$Stem -replace '[^A-Za-z0-9]',''
+function Get-DeclaredTypeNames([string]$Text) {
+    $pattern='(?m)^(?:public|internal)\s+(?:(?:sealed|static|abstract|partial|readonly)\s+)*(?:class|record(?:\s+(?:class|struct))?|interface|enum|struct)\s+([A-Za-z_][A-Za-z0-9_]*)'
+    return @([regex]::Matches($Text,$pattern) | ForEach-Object {$_.Groups[1].Value} | Select-Object -Unique)
+}
+function Test-FragmentedPurpose([string]$Purpose,[string]$Candidate) {
+    $normalized=$Candidate -replace '[^A-Za-z0-9]',''
     if ($normalized.Length -lt 4) { return $false }
     $tokens=@([regex]::Matches($Purpose,'[A-Za-z0-9]+') | ForEach-Object {$_.Value})
     for($start=0;$start -lt $tokens.Count;$start++) {
         $joined='';$short=0
         for($end=$start;$end -lt $tokens.Count -and $end -lt ($start+32);$end++) {
-            $joined+=$tokens[$end]; if($tokens[$end].Length -le 2){$short++}
+            $joined+=$tokens[$end]
+            if($tokens[$end].Length -le 2){$short++}
             if($joined.Length -gt $normalized.Length){break}
             if(($end-$start+1)-ge 3 -and $short -ge 2 -and $joined.Equals($normalized,[System.StringComparison]::OrdinalIgnoreCase)){return $true}
         }
+    }
+    return $false
+}
+function Test-BrokenPurpose([string]$Purpose,[string]$FilePath,[string]$Text) {
+    $candidates=New-Object 'System.Collections.Generic.List[string]'
+    $candidates.Add([System.IO.Path]::GetFileNameWithoutExtension($FilePath)) | Out-Null
+    foreach($typeName in @(Get-DeclaredTypeNames $Text)) {
+        if(-not $candidates.Contains($typeName)){$candidates.Add($typeName) | Out-Null}
+    }
+    foreach($candidate in $candidates) {
+        if(Test-FragmentedPurpose $Purpose $candidate){return $true}
     }
     return $false
 }
@@ -53,6 +69,10 @@ function Test-CompressedCodeLine([string]$Line) {
     $joined=$Line -match '}\s*(?:else\s+)?(?:if|for|foreach|while|switch|try|catch|finally|public|private|internal|protected)\b'
     $controls=[regex]::Matches($Line,'\b(?:if|for|foreach|while|switch)\s*\(').Count -ge 2
     return $semicolons -ge 3 -or $joined -or $controls
+}
+function Get-LineNumberFromIndex([string]$Text,[int]$Index) {
+    if($Index -le 0){return 1}
+    return ([regex]::Matches($Text.Substring(0,$Index),"`n").Count + 1)
 }
 
 $extensions=@('.cs','.razor','.ps1','.py','.cpp','.c','.h','.hpp','.js','.ts','.tsx','.jsx')
@@ -64,7 +84,8 @@ foreach($rootName in @('src','tests','scripts','tools','services','collectors','
         $extension=$file.Extension.ToLowerInvariant(); if($extension -notin $extensions){continue}
         $text=[System.IO.File]::ReadAllText($file.FullName); if([string]::IsNullOrEmpty($text)){continue}
         $relative=Get-RelativePath $file.FullName
-        $lines=@(($text -replace "`r`n","`n" -replace "`r","`n") -split "`n")
+        $normalizedText=$text -replace "`r`n","`n" -replace "`r","`n"
+        $lines=@($normalizedText -split "`n")
         $purposeMatches=Get-PurposeMatches $text $extension
         $purpose=''
         if($purposeMatches.Count -eq 0){Add-Issue ERROR MISSING_PURPOSE $relative 'Handwritten first-party source has no Purpose comment.'}
@@ -72,12 +93,16 @@ foreach($rootName in @('src','tests','scripts','tools','services','collectors','
             $purpose=$purposeMatches[0].Groups[1].Value.Trim()
             if($purposeMatches.Count -gt 1){Add-Issue ERROR DUPLICATE_PURPOSE $relative 'Exactly one Purpose comment is allowed.'}
             if($purpose.Length -lt 12 -or $purpose.Length -gt 180){Add-Issue WARN PURPOSE_LENGTH $relative "Purpose length is $($purpose.Length); expected 12-180 characters."}
-            if(Test-FragmentedPurpose $purpose ([System.IO.Path]::GetFileNameWithoutExtension($file.FullName))){Add-Issue ERROR BROKEN_PURPOSE $relative 'Purpose contains character-split filename/type text.'}
+            if(Test-BrokenPurpose $purpose $file.FullName $text){Add-Issue ERROR BROKEN_PURPOSE $relative 'Purpose contains character-split filename/type text.'}
         }
         for($i=0;$i -lt $lines.Count;$i++) {
             if(($extension -eq '.cs' -or $extension -eq '.razor') -and (Test-CompressedCodeLine $lines[$i])) { Add-Issue ERROR COMPRESSED_SOURCE $relative 'Line contains compressed code statements.' ($i+1) }
-            if(($extension -eq '.cs' -or $extension -eq '.razor') -and $lines[$i] -match '\bcatch\s*\{\s*\}') { Add-Issue ERROR EMPTY_CATCH $relative 'Empty catch block hides failure state.' ($i+1) }
             if($extension -eq '.razor' -and $lines[$i].Length -ge 360 -and [regex]::Matches($lines[$i],'<[A-Za-z][^>]*>').Count -ge 8){Add-Issue WARN DENSE_RAZOR_MARKUP $relative 'Dense Razor markup should be split for reviewer readability.' ($i+1)}
+        }
+        if($extension -eq '.cs' -or $extension -eq '.razor') {
+            foreach($match in [regex]::Matches($normalizedText,'(?s)\bcatch\s*(?:\([^)]*\))?\s*\{\s*\}')) {
+                Add-Issue ERROR EMPTY_CATCH $relative 'Empty catch block hides failure state.' (Get-LineNumberFromIndex $normalizedText $match.Index)
+            }
         }
         $Inventory.Add([pscustomobject]@{Path=$relative;Extension=$extension;Lines=$lines.Count;Purpose=$purpose})|Out-Null
     }
