@@ -95,7 +95,7 @@ function Split-CSharpStatements([string]$Line,[string]$Indent) {
         elseif($ch -eq '['){$bracket++}
         elseif($ch -eq ']'){$bracket=[Math]::Max(0,$bracket-1)}
         [void]$builder.Append($ch)
-        if($ch -eq ';' -and $paren -eq 0 -and $bracket -eq 0){
+        if($ch -eq ';'){
             [void]$builder.Append("`n"+$Indent)
         }
     }
