@@ -121,6 +121,74 @@ function Expand-CSharpLine([string]$Line) {
     return $candidate
 }
 
+function Wrap-ResidualCompressedLine([string]$Line) {
+    if(-not(Test-CompressedCodeLine $Line)){return $Line}
+
+    $indent=[regex]::Match($Line,'^\s*').Value
+    $safe=New-Object 'System.Collections.Generic.List[int]'
+    $inDouble=$false
+    $inSingle=$false
+    $escape=$false
+    $verbatim=$false
+
+    for($i=0;$i -lt $Line.Length;$i++){
+        $ch=$Line[$i]
+        $next=if($i+1 -lt $Line.Length){$Line[$i+1]}else{[char]0}
+
+        if($inDouble){
+            if($verbatim){
+                if($ch -eq '"' -and $next -eq '"'){$i++;continue}
+                if($ch -eq '"'){$inDouble=$false;$verbatim=$false}
+                continue
+            }
+            if($escape){$escape=$false;continue}
+            if($ch -eq [char]92){$escape=$true;continue}
+            if($ch -eq '"'){$inDouble=$false}
+            continue
+        }
+
+        if($inSingle){
+            if($escape){$escape=$false;continue}
+            if($ch -eq [char]92){$escape=$true;continue}
+            if($ch -eq "'"){$inSingle=$false}
+            continue
+        }
+
+        if($ch -eq '/' -and $next -eq '/'){break}
+        if($ch -eq '"'){
+            $verbatim=($i -gt 0 -and $Line[$i-1] -eq '@')
+            $inDouble=$true
+            continue
+        }
+        if($ch -eq "'"){$inSingle=$true;continue}
+
+        if([char]::IsWhiteSpace($ch)){$safe.Add($i)|Out-Null}
+    }
+
+    $segments=New-Object 'System.Collections.Generic.List[string]'
+    $start=0
+    while(($Line.Length-$start) -gt 170){
+        $limit=[Math]::Min($Line.Length-1,$start+160)
+        $minimum=$start+80
+        $break=-1
+        foreach($index in $safe){
+            if($index -gt $limit){break}
+            if($index -ge $minimum){$break=$index}
+        }
+        if($break -lt 0){break}
+
+        $piece=$Line.Substring($start,$break-$start).TrimEnd()
+        if($segments.Count -gt 0){$piece=$indent+$piece.TrimStart()}
+        $segments.Add($piece)|Out-Null
+        $start=$break+1
+        while($start -lt $Line.Length -and [char]::IsWhiteSpace($Line[$start])){$start++}
+    }
+
+    if($segments.Count -eq 0){return $Line}
+    $tail=$Line.Substring($start).TrimEnd()
+    if($tail.Length -gt 0){$segments.Add($indent+$tail.TrimStart())|Out-Null}
+    return ($segments -join "`n")
+}
 function Expand-RazorLine([string]$Line) {
     $indent=[regex]::Match($Line,'^\s*').Value
     $expanded=$Line
@@ -163,7 +231,10 @@ foreach($rootName in $roots){
             }else{
                 Expand-CSharpLine -Line $line
             }
-            foreach($item in ($expanded -split "`n")){$out.Add($item)|Out-Null}
+            foreach($item in ($expanded -split "`n")){
+                $final=Wrap-ResidualCompressedLine -Line $item
+                foreach($wrapped in ($final -split "`n")){$out.Add($wrapped)|Out-Null}
+            }
         }
         $updated=(($out -join "`n").TrimEnd("`n")+"`n")
 
