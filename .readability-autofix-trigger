@@ -5,3 +5,4 @@ retry=compressed-csharp-164e3b56c618552f6e74dce7f8e9a800479a96e7
 retry=regex-escape-6c3696096343c7e64315b30da8cf583fcf60a6ce
 run=requested-direct-main-abd6baa027b6
 retry=full-semicolon-expansion-e22265ed3eb0
+retry=wrap-residual-compressed-fde2ec946af0
