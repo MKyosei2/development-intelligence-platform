@@ -48,14 +48,20 @@ public sealed class ProjectIntelligenceSourcesController(
     [RequestSizeLimit(ProjectPlanIngestionService.MaxUploadBytes+1024*1024)]
     [HttpPost("projects/{projectId:guid}/plans/analyze")]
     public async Task<ProjectPlanAnalysisDto> AnalyzePlan(Guid projectId,IFormFile file,CancellationToken ct)
-    {if(file is null||file.Length<=0)throw new ArgumentException("Plan file is required.",nameof(file));await using var stream=file.OpenReadStream();return await plans.AnalyzeAsync(file.FileName,stream,ct);}
+    {if(file is null||file.Length<=0)throw new ArgumentException("Plan file is required.",nameof(file));
+        await using var stream=file.OpenReadStream();
+        return await plans.AnalyzeAsync(file.FileName,stream,ct);
+        }
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [RequireProjectRole(ProjectMembershipRole.Maintainer,"projectId")]
     [RequestSizeLimit(ProjectPlanIngestionService.MaxUploadBytes+1024*1024)]
     [HttpPost("projects/{projectId:guid}/plans/import")]
     public async Task<ProjectPlanImportResult> ImportPlan(Guid projectId,IFormFile file,[FromForm]string? mappingJson,CancellationToken ct)
-    {if(file is null||file.Length<=0)throw new ArgumentException("Plan file is required.",nameof(file));await using var stream=file.OpenReadStream();return await plans.ImportAsync(projectId,file.FileName,stream,ProjectPlanIngestionService.ParseMappingJson(mappingJson),ct);}
+    {if(file is null||file.Length<=0)throw new ArgumentException("Plan file is required.",nameof(file));
+        await using var stream=file.OpenReadStream();
+        return await plans.ImportAsync(projectId,file.FileName,stream,ProjectPlanIngestionService.ParseMappingJson(mappingJson),ct);
+        }
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [RequireProjectRole(ProjectMembershipRole.Member,"projectId")]

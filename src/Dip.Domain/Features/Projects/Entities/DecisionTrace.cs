@@ -31,5 +31,8 @@ public sealed class DecisionTrace
     public string EvidenceIdsJson{get;private set;}=string.Empty;
     public string DetailJson{get;private set;}=string.Empty;
     public DateTimeOffset CreatedAtUtc{get;private set;}
-    private static string Required(string? value,int max,string name){var text=value?.Trim()??string.Empty;if(text.Length is <1||text.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);return text;}
+    private static string Required(string? value,int max,string name){var text=value?.Trim()??string.Empty;
+        if(text.Length is <1||text.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);
+        return text;
+        }
 }

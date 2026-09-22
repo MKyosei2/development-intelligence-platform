@@ -33,7 +33,9 @@ public sealed class CSharpQaEngine(ProcessExecutor executor,UniversalDiagnosticN
         return new(LanguageId.CSharp,tools,findings,QaToolSupport.JsonSummary(LanguageId.CSharp,tools,findings));
         async Task Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category)
         {
-            var result=await QaToolSupport.ExecuteAsync(executor,normalizer,name,executable,args,workspace,artifactRoot,null,timeout,LanguageId.CSharp,fallback,category,ct);tools.Add(result.Tool);findings.AddRange(result.Findings);
+            var result=await QaToolSupport.ExecuteAsync(executor,normalizer,name,executable,args,workspace,artifactRoot,null,timeout,LanguageId.CSharp,fallback,category,ct);
+                tools.Add(result.Tool);
+                findings.AddRange(result.Findings);
         }
         async Task RunOptional(string name,string executable,IEnumerable<string> args,Severity fallback,string category)
         {

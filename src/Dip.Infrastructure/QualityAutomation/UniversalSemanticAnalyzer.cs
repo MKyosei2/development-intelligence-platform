@@ -31,11 +31,17 @@ public sealed class UniversalSemanticAnalyzer:IUniversalSemanticAnalyzer
 
     public async Task<QaSemanticAnalysisResult> AnalyzeAsync(QaSemanticAnalysisRequest request,CancellationToken ct)
     {
-        var findings=new List<QaFindingCandidate>();var evidence=new List<string>();var files=EnumerateFiles(request.Workspace,request.Language).Take(Math.Clamp(request.MaximumFiles,1,5000)).ToArray();
+        var findings=new List<QaFindingCandidate>();
+            var evidence=new List<string>();
+            var files=EnumerateFiles(request.Workspace,request.Language).Take(Math.Clamp(request.MaximumFiles,1,5000)).ToArray();
         foreach(var file in files)
         {
             ct.ThrowIfCancellationRequested();string text;try{text=await File.ReadAllTextAsync(file,ct);}catch{continue;}if(text.Length>2_000_000)continue;
-            var relative=Path.GetRelativePath(request.Workspace,file).Replace('\\','/');var lines=text.Split('\n');var tree=UniversalSyntaxTree.Parse(text);var syntaxNodes=UniversalSyntaxTree.CountNodes(tree);var tainted=new Dictionary<string,(int Line,string Source)>(StringComparer.Ordinal);
+            var relative=Path.GetRelativePath(request.Workspace,file).Replace('\\','/');
+                var lines=text.Split('\n');
+                var tree=UniversalSyntaxTree.Parse(text);
+                var syntaxNodes=UniversalSyntaxTree.CountNodes(tree);
+                var tainted=new Dictionary<string,(int Line,string Source)>(StringComparer.Ordinal);
             for(var i=0;i<lines.Length;i++)
             {
                 var line=lines[i];var lineNo=i+1;var assignment=Assignment.Match(line);

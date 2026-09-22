@@ -22,11 +22,21 @@ public sealed class ProjectTenantBinding
 {
     private ProjectTenantBinding() { }
     public ProjectTenantBinding(Guid id,Guid organizationId,Guid projectId,string? portfolioKey,DateTimeOffset now)
-    { if(organizationId==Guid.Empty||projectId==Guid.Empty)throw new ArgumentException("OrganizationId and ProjectId are required.");Id=id==Guid.Empty?Guid.NewGuid():id;OrganizationId=organizationId;ProjectId=projectId;PortfolioKey=Clean(portfolioKey,120);CreatedAtUtc=now; }
+    { if(organizationId==Guid.Empty||projectId==Guid.Empty)throw new ArgumentException("OrganizationId and ProjectId are required.");
+        Id=id==Guid.Empty?Guid.NewGuid():id;
+        OrganizationId=organizationId;
+        ProjectId=projectId;
+        PortfolioKey=Clean(portfolioKey,120);
+        CreatedAtUtc=now;
+        }
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
     public Guid ProjectId { get; private set; }
     public string? PortfolioKey { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
-    private static string? Clean(string? v,int max){if(string.IsNullOrWhiteSpace(v))return null;var x=v.Trim();if(x.Length>max)throw new ArgumentException($"Value must be <= {max} characters.");return x;}
+    private static string? Clean(string? v,int max){if(string.IsNullOrWhiteSpace(v))return null;
+        var x=v.Trim();
+        if(x.Length>max)throw new ArgumentException($"Value must be <= {max} characters.");
+        return x;
+        }
 }

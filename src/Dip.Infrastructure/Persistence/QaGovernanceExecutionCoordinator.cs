@@ -23,7 +23,10 @@ public sealed class QaGovernanceExecutionCoordinator(DipDbContext db):IQaGoverna
             var existing=await db.QaGovernanceProcessedRuns.SingleOrDefaultAsync(x=>x.QaRunId==qaRunId,ct);
             if(existing is not null)ValidateExisting(existing,projectId,governanceVersion,inputHash);
             if(existing?.Status==Dip.Domain.Enums.QaProcessedRunStatus.Completed){await tx.CommitAsync(ct);return;}
-            if(existing is null){existing=new QaGovernanceProcessedRun(Guid.NewGuid(),projectId,qaRunId,governanceVersion,inputHash,DateTimeOffset.UtcNow);await db.QaGovernanceProcessedRuns.AddAsync(existing,ct);await db.SaveChangesAsync(ct);}
+            if(existing is null){existing=new QaGovernanceProcessedRun(Guid.NewGuid(),projectId,qaRunId,governanceVersion,inputHash,DateTimeOffset.UtcNow);
+                await db.QaGovernanceProcessedRuns.AddAsync(existing,ct);
+                await db.SaveChangesAsync(ct);
+                }
             var resultHash=await action(ct);existing.Complete(resultHash,DateTimeOffset.UtcNow);await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);executed=true;
         });
         return executed;
@@ -37,6 +40,20 @@ public sealed class QaGovernanceExecutionCoordinator(DipDbContext db):IQaGoverna
 
     private async Task<bool> ExecuteLocalAsync(Guid projectId,Guid qaRunId,string governanceVersion,string inputHash,Func<CancellationToken,Task<string>> action,CancellationToken ct)
     {
-        var gate=LocalLocks.GetOrAdd(qaRunId,_=>new SemaphoreSlim(1,1));await gate.WaitAsync(ct);try{var existing=await db.QaGovernanceProcessedRuns.SingleOrDefaultAsync(x=>x.QaRunId==qaRunId,ct);if(existing is not null)ValidateExisting(existing,projectId,governanceVersion,inputHash);if(existing?.Status==Dip.Domain.Enums.QaProcessedRunStatus.Completed)return false;if(existing is null){existing=new QaGovernanceProcessedRun(Guid.NewGuid(),projectId,qaRunId,governanceVersion,inputHash,DateTimeOffset.UtcNow);await db.QaGovernanceProcessedRuns.AddAsync(existing,ct);await db.SaveChangesAsync(ct);}var hash=await action(ct);existing.Complete(hash,DateTimeOffset.UtcNow);await db.SaveChangesAsync(ct);return true;}finally{gate.Release();}
+        var gate=LocalLocks.GetOrAdd(qaRunId,_=>new SemaphoreSlim(1,1));
+            await gate.WaitAsync(ct);
+            try{var existing=await db.QaGovernanceProcessedRuns.SingleOrDefaultAsync(x=>x.QaRunId==qaRunId,ct);
+            if(existing is not null)ValidateExisting(existing,projectId,governanceVersion,inputHash);
+            if(existing?.Status==Dip.Domain.Enums.QaProcessedRunStatus.Completed)return false;
+            if(existing is null){existing=new QaGovernanceProcessedRun(Guid.NewGuid(),projectId,qaRunId,governanceVersion,inputHash,DateTimeOffset.UtcNow);
+            await db.QaGovernanceProcessedRuns.AddAsync(existing,ct);
+            await db.SaveChangesAsync(ct);
+            }var hash=await action(ct);
+            existing.Complete(hash,DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync(ct);
+            return true;
+            }
+            finally{gate.Release();
+            }
     }
 }

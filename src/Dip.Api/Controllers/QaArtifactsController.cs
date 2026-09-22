@@ -17,7 +17,10 @@ public sealed class QaArtifactsController(IQaRunRepository runs):ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<Dip.Application.Features.QualityAutomation.QaArtifactDto>>> List(Guid runId,CancellationToken ct)
     {
-        var run=await runs.GetAsync(runId,ct);if(run is null)return NotFound();var root=Path.GetFullPath(run.ArtifactRoot);if(!Directory.Exists(root))return Ok(Array.Empty<Dip.Application.Features.QualityAutomation.QaArtifactDto>());
+        var run=await runs.GetAsync(runId,ct);
+            if(run is null)return NotFound();
+            var root=Path.GetFullPath(run.ArtifactRoot);
+            if(!Directory.Exists(root))return Ok(Array.Empty<Dip.Application.Features.QualityAutomation.QaArtifactDto>());
         var items=Directory.EnumerateFiles(root,"*",SearchOption.AllDirectories).Select(path=>new FileInfo(path)).OrderBy(x=>x.FullName).Take(500).Select(info=>
         {
             var relative=Path.GetRelativePath(root,info.FullName).Replace(Path.DirectorySeparatorChar,'/');var kind=Path.GetExtension(info.Name).ToLowerInvariant() switch{".mp4"=>"video",".wav"=>"audio",".dmp"=>"dump",".json"=>"json",".log" or ".txt"=>"log",_=>"file"};

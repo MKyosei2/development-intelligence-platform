@@ -30,6 +30,8 @@ public sealed class GameReplayController(GameReplayService service,ArtifactServi
     {
         if(file.Length<=0)return BadRequest(new{error="Replay input file is empty."});
         var extension=Path.GetExtension(file.FileName).ToLowerInvariant();if(extension is not ".json" and not ".jsonl")return BadRequest(new{error="Replay input must be JSON or JSONL."});
-        await using var stream=file.OpenReadStream();var record=await artifacts.StoreAsync(projectId,"replay-input",Path.GetFileName(file.FileName),stream,"application/json",new ArtifactLinkContext(),"replay",TimeSpan.FromDays(3650),ct);return Created($"/api/v1/artifacts/{record.Id}",new{artifactId=record.Id,record.FileName,record.CreatedAtUtc});
+        await using var stream=file.OpenReadStream();
+            var record=await artifacts.StoreAsync(projectId,"replay-input",Path.GetFileName(file.FileName),stream,"application/json",new ArtifactLinkContext(),"replay",TimeSpan.FromDays(3650),ct);
+            return Created($"/api/v1/artifacts/{record.Id}",new{artifactId=record.Id,record.FileName,record.CreatedAtUtc});
     }
 }

@@ -78,6 +78,13 @@ public sealed class DevelopmentGraphNode
         }
     }
 
-    private static string Required(string? value,int max,string name){var v=value?.Trim()??string.Empty;if(v.Length is <1||v.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);return v;}
-    private static string? Optional(string? value,int max,string name){if(string.IsNullOrWhiteSpace(value))return null;var v=value.Trim();if(v.Length>max)throw new ArgumentException($"{name} must be at most {max} characters.",name);return v;}
+    private static string Required(string? value,int max,string name){var v=value?.Trim()??string.Empty;
+        if(v.Length is <1||v.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);
+        return v;
+        }
+    private static string? Optional(string? value,int max,string name){if(string.IsNullOrWhiteSpace(value))return null;
+        var v=value.Trim();
+        if(v.Length>max)throw new ArgumentException($"{name} must be at most {max} characters.",name);
+        return v;
+        }
 }

@@ -77,7 +77,8 @@
             <section class="pm-card schedule-card">
                 <div class="card-head"><div><div class="eyebrow">Delivery control</div><h2>Schedule & critical path</h2></div><span class="status-pill @StatusClass(_data.Schedule.Status)">@_data.Schedule.Status</span></div>
                 <div class="schedule-dates"><div><span>Planned finish</span><strong>@Date(_data.Schedule.PlannedFinishUtc)</strong></div><div><span>Forecast finish</span><strong>@Date(_data.Schedule.ForecastFinishUtc)</strong></div><div><span>Delay</span><strong>@_data.Schedule.DelayDays d</strong></div></div>
-                <div class="critical-path"><span>Critical path</span>@if(_data.Schedule.CriticalPath.Count==0){<small>No critical path items.</small>}else{@foreach(var node in _data.Schedule.CriticalPath.Take(10)){<code>@node</code>}}</div>
+                <div class="critical-path"><span>Critical path</span>@if(_data.Schedule.CriticalPath.Count==0){<small>No critical path items.</small>}
+                    else{@foreach(var node in _data.Schedule.CriticalPath.Take(10)){<code>@node</code>}}</div>
                 @if(_data.Schedule.Warnings.Count>0){<ul class="warning-list">@foreach(var warning in _data.Schedule.Warnings.Take(6)){<li>@warning</li>}</ul>}
                 <a class="text-link" href="@($"/dashboard/{ProjectId}/management")">Edit tasks, dependencies and schedule →</a>
             </section>

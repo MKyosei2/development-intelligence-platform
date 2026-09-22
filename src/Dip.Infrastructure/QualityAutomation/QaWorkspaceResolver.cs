@@ -25,6 +25,10 @@ public sealed class QaWorkspaceResolver:IQaWorkspaceResolver
     {
         var path=Path.Combine(_artifactRoot,projectId.ToString("N"),$"run-{qaRunId:N}");Directory.CreateDirectory(path);return path;
     }
-    private static string CanonicalDirectory(string path){var full=Path.GetFullPath(path);try{return new DirectoryInfo(full).ResolveLinkTarget(true)?.FullName??full;}catch{return full;}}
+    private static string CanonicalDirectory(string path){var full=Path.GetFullPath(path);
+        try{return new DirectoryInfo(full).ResolveLinkTarget(true)?.FullName??full;
+        }
+        catch{return full;
+        }}
     private static bool IsInside(string root,string path){var comparison=OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal;return path.Equals(root,comparison)||path.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar)+Path.DirectorySeparatorChar,comparison);}
 }

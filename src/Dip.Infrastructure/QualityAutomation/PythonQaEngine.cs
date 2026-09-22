@@ -42,15 +42,29 @@ public sealed class PythonQaEngine(ProcessExecutor executor,UniversalDiagnosticN
         async Task<(QaToolExecution Tool,IReadOnlyList<QaFindingCandidate> Findings,ProcessExecutionResult? Process)> Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category)
         {
             var result=await QaToolSupport.ExecuteAsync(executor,normalizer,name,executable,args,workspace,artifactRoot,env,timeout,LanguageId.Python,fallback,category,ct);
-            tools.Add(result.Tool);findings.AddRange(result.Findings);return result;
+            tools.Add(result.Tool);
+            findings.AddRange(result.Findings);
+            return result;
         }
         async Task RunMemoryProbe(string target,IReadOnlyList<string> runtimeArgs)
         {
             const string probe="import runpy,sys,tracemalloc; target=sys.argv[1]; sys.argv=[target,*sys.argv[2:]]; tracemalloc.start(5); before=tracemalloc.take_snapshot(); state=runpy.run_path(target,run_name='__main__'); after=tracemalloc.take_snapshot(); net=sum(max(0,s.size_diff) for s in after.compare_to(before,'lineno')); current,peak=tracemalloc.get_traced_memory(); print(f'DIP_TRACEMALLOC_NET_BYTES={net}'); print(f'DIP_TRACEMALLOC_PEAK_BYTES={peak}')";
-            var args=new List<string>{"-X","tracemalloc=5","-c",probe,target};args.AddRange(runtimeArgs);
+            var args = new List<string>
+            {
+                "-X",
+                "tracemalloc=5",
+                "-c",
+                probe,
+                target
+            };
+            args.AddRange(runtimeArgs);
             var result=await QaToolSupport.ExecuteAsync(executor,normalizer,"python-tracemalloc",python,args,workspace,artifactRoot,env,timeout,LanguageId.Python,Severity.Warning,"memory-growth",ct);
-            tools.Add(result.Tool);findings.AddRange(result.Findings);
-            if(result.Process is null||!result.Tool.Succeeded)return;
+            tools.Add(result.Tool);
+            findings.AddRange(result.Findings);
+            if (result.Process is null || !result.Tool.Succeeded)
+            {
+                return;
+            }
             var net=Marker(result.Process.StandardOutput,"DIP_TRACEMALLOC_NET_BYTES");
             if(net>=64L*1024*1024)
                 findings.Add(new("memory-growth",net>=256L*1024*1024?Severity.Critical:Severity.Warning,"python-tracemalloc","Python retained a large amount of newly allocated memory",$"Net live allocation growth during the QA scenario was {net/1024/1024} MB.",RuleId:"python-tracemalloc-growth"));

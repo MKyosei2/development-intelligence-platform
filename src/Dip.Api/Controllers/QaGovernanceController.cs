@@ -29,11 +29,20 @@ public sealed class QaGovernanceController(QaGovernanceQueryService query,QaGove
     public async Task<object> RequestWaiver([FromBody]CreateWaiverCommand command,CancellationToken ct)=>new{id=await admin.RequestWaiverAsync(command,Actor(),ct)};
 
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/waivers/{id:guid}/approve")]
-    public async Task<IActionResult> ApproveWaiver(Guid projectId,Guid id,[FromBody]DecideWaiverCommand command,CancellationToken ct){await EnsureWaiverProject(projectId,id,ct);await admin.ApproveWaiverAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> ApproveWaiver(Guid projectId,Guid id,[FromBody]DecideWaiverCommand command,CancellationToken ct){await EnsureWaiverProject(projectId,id,ct);
+        await admin.ApproveWaiverAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/waivers/{id:guid}/reject")]
-    public async Task<IActionResult> RejectWaiver(Guid projectId,Guid id,[FromBody]DecideWaiverCommand command,CancellationToken ct){await EnsureWaiverProject(projectId,id,ct);await admin.RejectWaiverAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> RejectWaiver(Guid projectId,Guid id,[FromBody]DecideWaiverCommand command,CancellationToken ct){await EnsureWaiverProject(projectId,id,ct);
+        await admin.RejectWaiverAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/waivers/{id:guid}/revoke")]
-    public async Task<IActionResult> RevokeWaiver(Guid projectId,Guid id,[FromBody]DecideWaiverCommand command,CancellationToken ct){await EnsureWaiverProject(projectId,id,ct);await admin.RevokeWaiverAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> RevokeWaiver(Guid projectId,Guid id,[FromBody]DecideWaiverCommand command,CancellationToken ct){await EnsureWaiverProject(projectId,id,ct);
+        await admin.RevokeWaiverAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
 
     [Authorize(Policy=Policies.ProjectRead)][HttpGet("projects/{projectId:guid}/reliability")]
     public Task<IReadOnlyList<QaReliabilityDto>> Reliability(Guid projectId,[FromQuery]int take=500,CancellationToken ct=default)=>query.ListReliabilityAsync(projectId,take,ct);
@@ -62,11 +71,20 @@ public sealed class QaGovernanceController(QaGovernanceQueryService query,QaGove
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Maintainer)][HttpPost("policies")]
     public async Task<object> Policy([FromBody]CreateQaPolicyCommand command,CancellationToken ct)=>new{id=await admin.CreatePolicyAsync(command,Actor(),ct)};
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Maintainer)][HttpPost("projects/{projectId:guid}/policies/{id:guid}/approve")]
-    public async Task<IActionResult> ApprovePolicy(Guid projectId,Guid id,[FromBody]PolicyLifecycleCommand command,CancellationToken ct){await EnsurePolicyProject(projectId,id,ct);await admin.ApprovePolicyAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> ApprovePolicy(Guid projectId,Guid id,[FromBody]PolicyLifecycleCommand command,CancellationToken ct){await EnsurePolicyProject(projectId,id,ct);
+        await admin.ApprovePolicyAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/policies/{id:guid}/activate")]
-    public async Task<IActionResult> ActivatePolicy(Guid projectId,Guid id,[FromBody]PolicyLifecycleCommand command,CancellationToken ct){await EnsurePolicyProject(projectId,id,ct);await admin.ActivatePolicyAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> ActivatePolicy(Guid projectId,Guid id,[FromBody]PolicyLifecycleCommand command,CancellationToken ct){await EnsurePolicyProject(projectId,id,ct);
+        await admin.ActivatePolicyAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/policies/{id:guid}/archive")]
-    public async Task<IActionResult> ArchivePolicy(Guid projectId,Guid id,[FromBody]PolicyLifecycleCommand command,CancellationToken ct){await EnsurePolicyProject(projectId,id,ct);await admin.ArchivePolicyAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> ArchivePolicy(Guid projectId,Guid id,[FromBody]PolicyLifecycleCommand command,CancellationToken ct){await EnsurePolicyProject(projectId,id,ct);
+        await admin.ArchivePolicyAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
 
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Maintainer)][HttpPost("test-impact-rules")]
     public async Task<object> TestImpact([FromBody]CreateTestImpactRuleCommand command,CancellationToken ct)=>new{id=await admin.AddTestImpactRuleAsync(command,Actor(),ct)};
@@ -97,11 +115,20 @@ public sealed class QaGovernanceController(QaGovernanceQueryService query,QaGove
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Maintainer)][HttpPost("release-overrides")]
     public async Task<object> RequestOverride([FromBody]RequestReleaseGateOverrideCommand command,CancellationToken ct)=>new{id=await admin.RequestOverrideAsync(command,Actor(),ct)};
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/release-overrides/{id:guid}/approve")]
-    public async Task<IActionResult> ApproveOverride(Guid projectId,Guid id,[FromBody]DecideReleaseGateOverrideCommand command,CancellationToken ct){await EnsureOverrideProject(projectId,id,ct);await admin.ApproveOverrideAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> ApproveOverride(Guid projectId,Guid id,[FromBody]DecideReleaseGateOverrideCommand command,CancellationToken ct){await EnsureOverrideProject(projectId,id,ct);
+        await admin.ApproveOverrideAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/release-overrides/{id:guid}/reject")]
-    public async Task<IActionResult> RejectOverride(Guid projectId,Guid id,[FromBody]DecideReleaseGateOverrideCommand command,CancellationToken ct){await EnsureOverrideProject(projectId,id,ct);await admin.RejectOverrideAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> RejectOverride(Guid projectId,Guid id,[FromBody]DecideReleaseGateOverrideCommand command,CancellationToken ct){await EnsureOverrideProject(projectId,id,ct);
+        await admin.RejectOverrideAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
     [Authorize(Policy=Policies.ProjectWrite)][RequireProjectRole(ProjectMembershipRole.Owner)][HttpPost("projects/{projectId:guid}/release-overrides/{id:guid}/revoke")]
-    public async Task<IActionResult> RevokeOverride(Guid projectId,Guid id,[FromBody]DecideReleaseGateOverrideCommand command,CancellationToken ct){await EnsureOverrideProject(projectId,id,ct);await admin.RevokeOverrideAsync(id,command,Actor(),ct);return NoContent();}
+    public async Task<IActionResult> RevokeOverride(Guid projectId,Guid id,[FromBody]DecideReleaseGateOverrideCommand command,CancellationToken ct){await EnsureOverrideProject(projectId,id,ct);
+        await admin.RevokeOverrideAsync(id,command,Actor(),ct);
+        return NoContent();
+        }
 
     [Authorize(Policy=Policies.ProjectRead)][RequireProjectRole(ProjectMembershipRole.Maintainer)][HttpGet("projects/{projectId:guid}/audit")]
     public Task<IReadOnlyList<GovernanceAuditLogDto>> Audit(Guid projectId,[FromQuery]int take=200,CancellationToken ct=default)=>query.ListAuditAsync(projectId,take,ct);

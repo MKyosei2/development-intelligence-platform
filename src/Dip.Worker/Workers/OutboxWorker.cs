@@ -24,7 +24,10 @@ public sealed class OutboxWorker(
         {
             try
             {
-                using var s=scopes.CreateScope();var repo=s.ServiceProvider.GetRequiredService<IOutboxRepository>();var uow=s.ServiceProvider.GetRequiredService<IUnitOfWork>();var pending=await repo.GetPendingAsync(Math.Clamp(_w.BatchSize,1,500),DateTimeOffset.UtcNow,stop);
+                using var s=scopes.CreateScope();
+                    var repo=s.ServiceProvider.GetRequiredService<IOutboxRepository>();
+                    var uow=s.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var pending=await repo.GetPendingAsync(Math.Clamp(_w.BatchSize,1,500),DateTimeOffset.UtcNow,stop);
                 foreach(var m in pending)
                 {
                     try
@@ -33,7 +36,10 @@ public sealed class OutboxWorker(
                         await queue.PublishAsync(stream,new{messageId=m.Id.ToString("N"),messageType=m.MessageType,payloadVersion="1.0",correlationId=m.CorrelationId,causationId=m.CausationId,attempt=0,createdAtUtc=m.CreatedAtUtc,payload=doc.RootElement.Clone()},stop);
                         m.MarkProcessed(DateTimeOffset.UtcNow);await uow.SaveChangesAsync(stop);
                     }
-                    catch(Exception ex)when(ex is not OperationCanceledException){m.MarkFailed(ex.Message,DateTimeOffset.UtcNow.AddSeconds(2));await uow.SaveChangesAsync(stop);logger.LogError(ex,"Failed to publish outbox message {Id}",m.Id);}
+                    catch(Exception ex)when(ex is not OperationCanceledException){m.MarkFailed(ex.Message,DateTimeOffset.UtcNow.AddSeconds(2));
+                        await uow.SaveChangesAsync(stop);
+                        logger.LogError(ex,"Failed to publish outbox message {Id}",m.Id);
+                        }
                 }
             }
             catch(OperationCanceledException)when(stop.IsCancellationRequested){break;}catch(Exception ex){logger.LogError(ex,"Outbox polling cycle failed.");}

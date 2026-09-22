@@ -13,8 +13,27 @@ public sealed class CommunityHardwareSample
     }
     public Guid Id{get;private set;} public string HardwareKey{get;private set;}=string.Empty; public string Platform{get;private set;}=string.Empty;
     public string CpuArch{get;private set;}=string.Empty;public string GpuVendor{get;private set;}=string.Empty;public string OsFamily{get;private set;}=string.Empty;
-    public string? DriverFamily{get;private set;} public decimal CpuSingleScore{get;private set;} public decimal CpuMultiScore{get;private set;} public decimal GpuScore{get;private set;}
+    public string? DriverFamily{get;
+        private set;
+        }
+        public decimal CpuSingleScore{get;
+        private set;
+        }
+        public decimal CpuMultiScore{get;
+        private set;
+        }
+        public decimal GpuScore{get;
+        private set;
+        }
     public decimal MemoryScore{get;private set;}public decimal StorageScore{get;private set;}public decimal ThermalScore{get;private set;}public long MemoryMb{get;private set;}
     public string SourceFingerprint{get;private set;}=string.Empty;public DateTimeOffset MeasuredAtUtc{get;private set;}
-    static decimal NN(decimal x)=>x<0?throw new ArgumentOutOfRangeException():decimal.Round(x,3);static string Req(string? x,int m){var s=x?.Trim()??"";if(s.Length<1||s.Length>m)throw new ArgumentException();return s;}static string? Opt(string?x,int m){if(string.IsNullOrWhiteSpace(x))return null;var s=x.Trim();if(s.Length>m)throw new ArgumentException();return s;}
+    static decimal NN(decimal x)=>x<0?throw new ArgumentOutOfRangeException():decimal.Round(x,3);
+        static string Req(string? x,int m){var s=x?.Trim()??"";
+        if(s.Length<1||s.Length>m)throw new ArgumentException();
+        return s;
+        }static string? Opt(string?x,int m){if(string.IsNullOrWhiteSpace(x))return null;
+        var s=x.Trim();
+        if(s.Length>m)throw new ArgumentException();
+        return s;
+        }
 }

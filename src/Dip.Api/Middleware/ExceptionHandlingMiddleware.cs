@@ -3,8 +3,35 @@ using System.Diagnostics;using System.Text.Json;
 namespace Dip.Api.Middleware;
 public sealed class ExceptionHandlingMiddleware
 {
- readonly RequestDelegate _next;readonly ILogger<ExceptionHandlingMiddleware> _logger;public ExceptionHandlingMiddleware(RequestDelegate next,ILogger<ExceptionHandlingMiddleware> logger){_next=next;_logger=logger;}
- public async Task InvokeAsync(HttpContext context){try{await _next(context);}catch(OperationCanceledException)when(context.RequestAborted.IsCancellationRequested){if(!context.Response.HasStarted)context.Response.StatusCode=499;}catch(JsonException ex){await Write(context,400,"invalid_json","The request contains invalid JSON.",ex.Message);}catch(KeyNotFoundException ex){await Write(context,404,"not_found",ex.Message,ex.Message);}catch(ArgumentException ex){await Write(context,400,"validation_error","Request validation failed.",ex.Message);}catch(UnauthorizedAccessException ex){await Write(context,403,"forbidden","Access is forbidden.",ex.Message);}catch(InvalidOperationException ex){await Write(context,409,"conflict","The request conflicts with the current resource state.",ex.Message);}catch(Exception ex){_logger.LogError(ex,"Unhandled exception. TraceId={TraceId}",Trace(context));await Write(context,500,"internal_error","An unexpected error occurred.",null);}}
- static async Task Write(HttpContext c,int status,string type,string title,string? detail){if(c.Response.HasStarted)return;c.Response.Clear();c.Response.StatusCode=status;c.Response.ContentType="application/problem+json";var t=Trace(c);c.Response.Headers["X-Trace-Id"]=t;await c.Response.WriteAsJsonAsync(new{type,title,status,detail,traceId=t,instance=c.Request.Path.Value},cancellationToken:c.RequestAborted);}
+ readonly RequestDelegate _next;
+     readonly ILogger<ExceptionHandlingMiddleware> _logger;
+     public ExceptionHandlingMiddleware(RequestDelegate next,ILogger<ExceptionHandlingMiddleware> logger){_next=next;
+     _logger=logger;
+     }
+ public async Task InvokeAsync(HttpContext context){try{await _next(context);
+     }
+     catch(OperationCanceledException)when(context.RequestAborted.IsCancellationRequested){if(!context.Response.HasStarted)context.Response.StatusCode=499;
+     }
+     catch(JsonException ex){await Write(context,400,"invalid_json","The request contains invalid JSON.",ex.Message);
+     }
+     catch(KeyNotFoundException ex){await Write(context,404,"not_found",ex.Message,ex.Message);
+     }
+     catch(ArgumentException ex){await Write(context,400,"validation_error","Request validation failed.",ex.Message);
+     }
+     catch(UnauthorizedAccessException ex){await Write(context,403,"forbidden","Access is forbidden.",ex.Message);
+     }
+     catch(InvalidOperationException ex){await Write(context,409,"conflict","The request conflicts with the current resource state.",ex.Message);
+     }
+     catch(Exception ex){_logger.LogError(ex,"Unhandled exception. TraceId={TraceId}",Trace(context));
+     await Write(context,500,"internal_error","An unexpected error occurred.",null);
+     }}
+ static async Task Write(HttpContext c,int status,string type,string title,string? detail){if(c.Response.HasStarted)return;
+     c.Response.Clear();
+     c.Response.StatusCode=status;
+     c.Response.ContentType="application/problem+json";
+     var t=Trace(c);
+     c.Response.Headers["X-Trace-Id"]=t;
+     await c.Response.WriteAsJsonAsync(new{type,title,status,detail,traceId=t,instance=c.Request.Path.Value},cancellationToken:c.RequestAborted);
+     }
  static string Trace(HttpContext c)=>Activity.Current?.TraceId.ToString()??c.TraceIdentifier;
 }

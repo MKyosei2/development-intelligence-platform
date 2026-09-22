@@ -14,6 +14,9 @@ public sealed class ArtifactsController(ArtifactService artifacts):ControllerBas
     [Authorize(Policy=Policies.ProjectRead)][RequireProjectResource(ProjectMembershipRole.Viewer,ProjectResourceKind.Artifact,"artifactId")][HttpGet("{artifactId:guid}")]
     public async Task<IActionResult> Download(Guid artifactId,CancellationToken ct)
     {
-        var opened=await artifacts.OpenAsync(artifactId,ct);if(opened is null)return NotFound();var(record,blob,content)=opened.Value;return File(content,blob.ContentType,record.FileName,enableRangeProcessing:true);
+        var opened=await artifacts.OpenAsync(artifactId,ct);
+            if(opened is null)return NotFound();
+            var(record,blob,content)=opened.Value;
+            return File(content,blob.ContentType,record.FileName,enableRangeProcessing:true);
     }
 }

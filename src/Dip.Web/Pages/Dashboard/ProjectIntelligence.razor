@@ -150,8 +150,42 @@ else
 <div class="mt-4"><a href="@($"/dashboard/{ProjectId}")">← Project Truth</a></div>
 
 @code {
-    [Parameter] public Guid ProjectId{get;set;} private bool _loading=true;private string? _error;private ForecastResult? _forecast;private PmDecisionBrief? _brief;private IntelligenceDashboardDto? _overview;private ReleaseReadinessDto? _readiness;private ChangeRiskDto? _risk;private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();private ProjectControlDashboardDto? _projectControl;private ManagementDashboardDto? _management;private QaGovernanceOverviewDto? _qaGovernance;
-    protected override async Task OnParametersSetAsync(){_loading=true;_error=null;try{_forecast=await Api.GetForecastAsync(ProjectId);_brief=await Api.GetDecisionBriefAsync(ProjectId);_overview=await Api.GetIntelligenceDashboardAsync(ProjectId);_readiness=await Api.GetReleaseReadinessAsync(ProjectId);_risk=await Api.GetLatestChangeRiskAsync(ProjectId);_jobs=await Api.GetJobsAsync(ProjectId);_incidents=await Api.GetIncidentsAsync(ProjectId);_replays=await Api.GetReplaySessionsAsync(ProjectId);_budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);_projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);_management=await Api.GetManagementDashboardAsync(ProjectId);_qaGovernance=await Api.GetQaGovernanceOverviewAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+    [Parameter] public Guid ProjectId{get;
+        set;
+        }
+        private bool _loading=true;
+        private string? _error;
+        private ForecastResult? _forecast;
+        private PmDecisionBrief? _brief;
+        private IntelligenceDashboardDto? _overview;
+        private ReleaseReadinessDto? _readiness;
+        private ChangeRiskDto? _risk;
+        private IReadOnlyList<DurableJobDto> _jobs=Array.Empty<DurableJobDto>();
+        private IReadOnlyList<IncidentSummaryDto> _incidents=Array.Empty<IncidentSummaryDto>();
+        private IReadOnlyList<ReplaySessionDto> _replays=Array.Empty<ReplaySessionDto>();
+        private IReadOnlyList<PerformanceBudgetProfileDto> _budgets=Array.Empty<PerformanceBudgetProfileDto>();
+        private ProjectControlDashboardDto? _projectControl;
+        private ManagementDashboardDto? _management;
+        private QaGovernanceOverviewDto? _qaGovernance;
+    protected override async Task OnParametersSetAsync(){_loading=true;
+        _error=null;
+        try{_forecast=await Api.GetForecastAsync(ProjectId);
+        _brief=await Api.GetDecisionBriefAsync(ProjectId);
+        _overview=await Api.GetIntelligenceDashboardAsync(ProjectId);
+        _readiness=await Api.GetReleaseReadinessAsync(ProjectId);
+        _risk=await Api.GetLatestChangeRiskAsync(ProjectId);
+        _jobs=await Api.GetJobsAsync(ProjectId);
+        _incidents=await Api.GetIncidentsAsync(ProjectId);
+        _replays=await Api.GetReplaySessionsAsync(ProjectId);
+        _budgets=await Api.GetPerformanceBudgetsAsync(ProjectId);
+        _projectControl=await Api.GetProjectControlDashboardAsync(ProjectId);
+        _management=await Api.GetManagementDashboardAsync(ProjectId);
+        _qaGovernance=await Api.GetQaGovernanceOverviewAsync(ProjectId);
+        }
+        catch(Exception ex){_error=ex.Message;
+        }
+        finally{_loading=false;
+        }}
     private string Window()=>_forecast?.EarliestCompletionUtc is null||_forecast.LatestCompletionUtc is null?"Not enough evidence":$"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} – {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
     private static bool Done(string status)=>status.Equals("Done",StringComparison.OrdinalIgnoreCase)||status.Equals("Completed",StringComparison.OrdinalIgnoreCase)||status.Equals("Closed",StringComparison.OrdinalIgnoreCase)||status.Equals("Resolved",StringComparison.OrdinalIgnoreCase);
     private static string GateBadge(string verdict)=>verdict.Equals("Go",StringComparison.OrdinalIgnoreCase)?"bg-success":verdict.Equals("NoGo",StringComparison.OrdinalIgnoreCase)?"bg-danger":verdict.Equals("ReviewRequired",StringComparison.OrdinalIgnoreCase)?"bg-warning text-dark":"bg-secondary";

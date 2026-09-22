@@ -10,11 +10,31 @@ public sealed class WorkerMetricsEndpoint(IDipOperationalMetrics metrics,IConfig
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var port=Math.Clamp(configuration.GetValue<int?>("OperationalMetrics:Port")??9091,1024,65535);var listener=new TcpListener(IPAddress.Any,port);listener.Start();logger.LogInformation("Worker metrics endpoint listening on port {Port}.",port);
-        try{while(!stoppingToken.IsCancellationRequested){TcpClient client;try{client=await listener.AcceptTcpClientAsync(stoppingToken);}catch(OperationCanceledException)when(stoppingToken.IsCancellationRequested){break;}_=HandleAsync(client,stoppingToken);}}finally{listener.Stop();}
+        var port=Math.Clamp(configuration.GetValue<int?>("OperationalMetrics:Port")??9091,1024,65535);
+            var listener=new TcpListener(IPAddress.Any,port);
+            listener.Start();
+            logger.LogInformation("Worker metrics endpoint listening on port {Port}.",port);
+        try{while(!stoppingToken.IsCancellationRequested){TcpClient client;
+            try{client=await listener.AcceptTcpClientAsync(stoppingToken);
+            }
+            catch(OperationCanceledException)when(stoppingToken.IsCancellationRequested){break;
+            }_=HandleAsync(client,stoppingToken);
+            }}
+            finally{listener.Stop();
+            }
     }
     private async Task HandleAsync(TcpClient client,CancellationToken ct)
     {
-        using(client){try{await using var stream=client.GetStream();var buffer=new byte[4096];_ = await stream.ReadAsync(buffer.AsMemory(0,buffer.Length),ct);var body=metrics.RenderPrometheus();var bytes=Encoding.UTF8.GetBytes(body);var header=Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");await stream.WriteAsync(header,ct);await stream.WriteAsync(bytes,ct);}catch(Exception ex)when(ex is IOException or SocketException){logger.LogDebug(ex,"Worker metrics client disconnected.");}}
+        using(client){try{await using var stream=client.GetStream();
+            var buffer=new byte[4096];
+            _ = await stream.ReadAsync(buffer.AsMemory(0,buffer.Length),ct);
+            var body=metrics.RenderPrometheus();
+            var bytes=Encoding.UTF8.GetBytes(body);
+            var header=Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");
+            await stream.WriteAsync(header,ct);
+            await stream.WriteAsync(bytes,ct);
+            }
+            catch(Exception ex)when(ex is IOException or SocketException){logger.LogDebug(ex,"Worker metrics client disconnected.");
+            }}
     }
 }

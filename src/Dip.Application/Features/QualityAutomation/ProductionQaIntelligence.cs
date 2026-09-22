@@ -245,7 +245,10 @@ public static class ProductionQaIntelligence
         }
         else if (Has(text, "maya", "dcc", "missing reference", "asset reference", "frame sequence", "asset-integrity", "unity-meta", "unity-guid", "guid collision", "meta file"))
         {
-            defectClass = "content-pipeline-integrity"; impact = "asset/media production"; strategy = "reference-resolution-and-publish-validation"; owner = "Technical Art/Pipeline";
+            defectClass = "content-pipeline-integrity";
+            impact = "asset/media production";
+            strategy = "reference-resolution-and-publish-validation";
+            owner = "Technical Art/Pipeline";
             signals.Add("content pipeline signature"); experiments = [DebugExperimentKind.StaticAnalysis, DebugExperimentKind.RuntimeReplay];
         }
         else if (Has(text, "sql", "database", "dead tuple", "transaction", "constraint"))

@@ -25,9 +25,13 @@ public sealed class CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNorm
         var flags=OperatingSystem.IsWindows()?"/W4 /fsanitize=address /Zi":"-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";
         await Run("cmake-configure",cmake,["-S",workspace,"-B",build,"-DCMAKE_BUILD_TYPE=RelWithDebInfo",$"-DCMAKE_CXX_FLAGS={flags}"],Severity.Critical,"configure");
         await Run("cmake-build",cmake,["--build",build,"--config","RelWithDebInfo","--parallel"],Severity.Critical,"compile");
-        var ctest=ProcessExecutor.FindExecutable("ctest");if(ctest is not null)await Run("ctest",ctest,["--test-dir",build,"-C","RelWithDebInfo","--output-on-failure"],Severity.Warning,"test",sanitizerEnvironment);else AddUnavailable("ctest");
+        var ctest=ProcessExecutor.FindExecutable("ctest");
+            if(ctest is not null)await Run("ctest",ctest,["--test-dir",build,"-C","RelWithDebInfo","--output-on-failure"],Severity.Warning,"test",sanitizerEnvironment);
+            else AddUnavailable("ctest");
         var clangTidy=ProcessExecutor.FindExecutable("clang-tidy");if(clangTidy is not null)await RunClangTidy(clangTidy,build);else AddUnavailable("clang-tidy");
-        var cppcheck=ProcessExecutor.FindExecutable("cppcheck");if(cppcheck is not null)await Run("cppcheck",cppcheck,["--enable=warning,performance,portability","--inline-suppr","--quiet",workspace],Severity.Warning,"static-analysis");else AddUnavailable("cppcheck");
+        var cppcheck=ProcessExecutor.FindExecutable("cppcheck");
+            if(cppcheck is not null)await Run("cppcheck",cppcheck,["--enable=warning,performance,portability","--inline-suppr","--quiet",workspace],Severity.Warning,"static-analysis");
+            else AddUnavailable("cppcheck");
         if(!string.IsNullOrWhiteSpace(command.RuntimeExecutable))
         {
             var executable=Path.IsPathRooted(command.RuntimeExecutable!)?command.RuntimeExecutable!:Path.GetFullPath(Path.Combine(workspace,command.RuntimeExecutable!));
@@ -47,7 +51,9 @@ public sealed class CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNorm
 
         async Task Run(string name,string executable,IEnumerable<string> args,Severity fallback,string category,IReadOnlyDictionary<string,string>? environment=null)
         {
-            var result=await QaToolSupport.ExecuteAsync(executor,normalizer,name,executable,args,workspace,artifactRoot,environment,timeout,LanguageId.Cpp,fallback,category,ct);tools.Add(result.Tool);findings.AddRange(result.Findings);
+            var result=await QaToolSupport.ExecuteAsync(executor,normalizer,name,executable,args,workspace,artifactRoot,environment,timeout,LanguageId.Cpp,fallback,category,ct);
+                tools.Add(result.Tool);
+                findings.AddRange(result.Findings);
         }
         void AddUnavailable(string name)=>tools.Add(new(name,false,false,null,0,string.Empty,string.Empty,$"{name} is unavailable; optional analysis was skipped."));
         async Task RunClangTidy(string executable,string buildDir)
@@ -55,7 +61,9 @@ public sealed class CppQaEngine(ProcessExecutor executor,UniversalDiagnosticNorm
             var sources=Directory.EnumerateFiles(workspace,"*.*",SearchOption.AllDirectories).Where(x=>x.EndsWith(".cpp",StringComparison.OrdinalIgnoreCase)||x.EndsWith(".cc",StringComparison.OrdinalIgnoreCase)||x.EndsWith(".cxx",StringComparison.OrdinalIgnoreCase)).Where(x=>!x.Contains(Path.DirectorySeparatorChar+".dipqa"+Path.DirectorySeparatorChar)).Take(100).ToArray();
             foreach(var source in sources)
             {
-                var result=await QaToolSupport.ExecuteAsync(executor,normalizer,"clang-tidy",executable,[source,"-p",buildDir,"--quiet"],workspace,artifactRoot,null,timeout,LanguageId.Cpp,Severity.Warning,"static-analysis",ct);tools.Add(result.Tool);findings.AddRange(result.Findings);
+                var result=await QaToolSupport.ExecuteAsync(executor,normalizer,"clang-tidy",executable,[source,"-p",buildDir,"--quiet"],workspace,artifactRoot,null,timeout,LanguageId.Cpp,Severity.Warning,"static-analysis",ct);
+                    tools.Add(result.Tool);
+                    findings.AddRange(result.Findings);
             }
         }
     }

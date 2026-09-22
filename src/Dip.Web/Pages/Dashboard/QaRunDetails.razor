@@ -10,10 +10,12 @@ else{
 <div class="alert @(_run.CriticalFindingCount>0?"alert-danger":_run.WarningFindingCount>0?"alert-warning":"alert-success")"><strong>@_run.Status</strong> — @_run.FindingCount finding(s), @_run.CriticalFindingCount critical, @_run.WarningFindingCount warning.@if(_run.PipelineRunId is { } pipelineId){<text> Linked pipeline: <a href="@($"/dashboard/{ProjectId}/ci?run={pipelineId}")"><code>@(pipelineId.ToString("N")[..8])</code></a>.</text>}</div>
 <div class="row g-4">
 <div class="col-12 col-xl-7"><section class="card shadow-sm"><div class="card-header"><h2 class="h5 mb-0">Findings</h2></div><div class="list-group list-group-flush">
-@if(_run.Findings.Count==0){<div class="list-group-item text-muted">No findings.</div>}else{@foreach(var f in _run.Findings){<div class="list-group-item"><div class="d-flex justify-content-between"><strong>@f.Title</strong><span class="badge @(f.Severity=="Critical"?"text-bg-danger":f.Severity=="Warning"?"text-bg-warning":"text-bg-secondary")">@f.Severity</span></div><div class="small mt-1">@f.Message</div>@if(!string.IsNullOrWhiteSpace(f.FilePath)){<div class="small text-muted mt-1">@f.FilePath@if(f.Line is not null){<text>:@f.Line</text>}</div>}<div class="small mt-2">Reproduction: <strong>@f.ReproductionStatus</strong> @f.ReproducedAttempts/@f.TotalAttempts</div><div class="small text-muted">Fingerprint: <code>@f.Fingerprint</code></div></div>}}
+@if(_run.Findings.Count==0){<div class="list-group-item text-muted">No findings.</div>}
+    else{@foreach(var f in _run.Findings){<div class="list-group-item"><div class="d-flex justify-content-between"><strong>@f.Title</strong><span class="badge @(f.Severity=="Critical"?"text-bg-danger":f.Severity=="Warning"?"text-bg-warning":"text-bg-secondary")">@f.Severity</span></div><div class="small mt-1">@f.Message</div>@if(!string.IsNullOrWhiteSpace(f.FilePath)){<div class="small text-muted mt-1">@f.FilePath@if(f.Line is not null){<text>:@f.Line</text>}</div>}<div class="small mt-2">Reproduction: <strong>@f.ReproductionStatus</strong> @f.ReproducedAttempts/@f.TotalAttempts</div><div class="small text-muted">Fingerprint: <code>@f.Fingerprint</code></div></div>}}
 </div></section></div>
 <div class="col-12 col-xl-5"><section class="card shadow-sm"><div class="card-header"><h2 class="h5 mb-0">Evidence artifacts</h2></div><div class="list-group list-group-flush">
-@if(_artifacts.Count==0){<div class="list-group-item text-muted">No artifacts were stored.</div>}else{@foreach(var a in _artifacts){<div class="list-group-item"><div class="d-flex justify-content-between gap-2"><a href="@Api.QaArtifactUrl(RunId,a.RelativePath)" target="_blank" rel="noopener noreferrer">@a.RelativePath</a><span class="badge text-bg-secondary">@a.Kind</span></div><div class="small text-muted">@FormatBytes(a.Length)</div></div>}}
+@if(_artifacts.Count==0){<div class="list-group-item text-muted">No artifacts were stored.</div>}
+    else{@foreach(var a in _artifacts){<div class="list-group-item"><div class="d-flex justify-content-between gap-2"><a href="@Api.QaArtifactUrl(RunId,a.RelativePath)" target="_blank" rel="noopener noreferrer">@a.RelativePath</a><span class="badge text-bg-secondary">@a.Kind</span></div><div class="small text-muted">@FormatBytes(a.Length)</div></div>}}
 </div></section>
 @if(!string.IsNullOrWhiteSpace(_run.SummaryJson))
 {
@@ -22,7 +24,19 @@ else{
 <div class="alert alert-info mt-3 small">Video/audio/dumps are evidence for debugging. They support Project Truth but do not replace real-device verification when the issue is hardware-specific.</div></div>
 </div>}
 @code{
- [Parameter]public Guid ProjectId{get;set;}[Parameter]public Guid RunId{get;set;}private QaRunResultDto?_run;private IReadOnlyList<QaArtifactDto>_artifacts=Array.Empty<QaArtifactDto>();private bool _loading=true;
- protected override async Task OnParametersSetAsync(){_loading=true;try{_run=await Api.GetQaRunAsync(RunId);if(_run is not null)_artifacts=await Api.GetQaArtifactsAsync(RunId);}finally{_loading=false;}}
+ [Parameter]public Guid ProjectId{get;
+     set;
+     }[Parameter]public Guid RunId{get;
+     set;
+     }
+     private QaRunResultDto?_run;
+     private IReadOnlyList<QaArtifactDto>_artifacts=Array.Empty<QaArtifactDto>();
+     private bool _loading=true;
+ protected override async Task OnParametersSetAsync(){_loading=true;
+     try{_run=await Api.GetQaRunAsync(RunId);
+     if(_run is not null)_artifacts=await Api.GetQaArtifactsAsync(RunId);
+     }
+     finally{_loading=false;
+     }}
  private static string FormatBytes(long value)=>value<1024?$"{value} B":value<1024*1024?$"{value/1024d:0.0} KB":$"{value/1024d/1024d:0.0} MB";
 }

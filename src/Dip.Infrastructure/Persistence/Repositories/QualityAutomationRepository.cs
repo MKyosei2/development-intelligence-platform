@@ -17,5 +17,8 @@ public sealed class QualityAutomationRepository(DipDbContext db) : IQualityAutom
     public async Task<IReadOnlyList<VisualComparisonRecord>> ListComparisonsAsync(Guid projectId,int take,CancellationToken ct)=>await db.VisualComparisonRecords.AsNoTracking().Where(x=>x.ProjectId==projectId).OrderByDescending(x=>x.ComparedAtUtc).Take(Math.Clamp(take,1,1000)).ToListAsync(ct);
     public Task<AssetQaFindingRecord?> FindOpenFindingAsync(Guid projectId,string fingerprint,CancellationToken ct)=>db.AssetQaFindingRecords.FirstOrDefaultAsync(x=>x.ProjectId==projectId&&x.Fingerprint==fingerprint&&x.State==AssetQaFindingState.Open,ct);
     public Task AddFindingAsync(AssetQaFindingRecord finding,CancellationToken ct)=>db.AssetQaFindingRecords.AddAsync(finding,ct).AsTask();
-    public async Task<IReadOnlyList<AssetQaFindingRecord>> ListFindingsAsync(Guid projectId,AssetQaFindingState? state,int take,CancellationToken ct){var query=db.AssetQaFindingRecords.AsNoTracking().Where(x=>x.ProjectId==projectId);if(state.HasValue)query=query.Where(x=>x.State==state.Value);return await query.OrderByDescending(x=>x.ObservedAtUtc).Take(Math.Clamp(take,1,2000)).ToListAsync(ct);}
+    public async Task<IReadOnlyList<AssetQaFindingRecord>> ListFindingsAsync(Guid projectId,AssetQaFindingState? state,int take,CancellationToken ct){var query=db.AssetQaFindingRecords.AsNoTracking().Where(x=>x.ProjectId==projectId);
+        if(state.HasValue)query=query.Where(x=>x.State==state.Value);
+        return await query.OrderByDescending(x=>x.ObservedAtUtc).Take(Math.Clamp(take,1,2000)).ToListAsync(ct);
+        }
 }

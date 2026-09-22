@@ -100,7 +100,9 @@ public sealed class UnityProjectQaAdapter(
     private static string? ResolveWorkspaceFile(string workspace,string value)
     {
         if(Path.IsPathRooted(value))return null;
-        var root=Path.GetFullPath(workspace);var candidate=Path.GetFullPath(Path.Combine(root,value));var prefix=root.TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+        var root=Path.GetFullPath(workspace);
+            var candidate=Path.GetFullPath(Path.Combine(root,value));
+            var prefix=root.TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
         return candidate.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)&&File.Exists(candidate)?candidate:null;
     }
 
@@ -116,12 +118,18 @@ public sealed class UnityProjectQaAdapter(
         if(OperatingSystem.IsWindows())
         {
             var hub=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Unity","Hub","Editor");
-            try{return Directory.Exists(hub)?Directory.EnumerateFiles(hub,"Unity.exe",SearchOption.AllDirectories).OrderByDescending(x=>x,StringComparer.OrdinalIgnoreCase).FirstOrDefault():null;}catch{return null;}
+            try{return Directory.Exists(hub)?Directory.EnumerateFiles(hub,"Unity.exe",SearchOption.AllDirectories).OrderByDescending(x=>x,StringComparer.OrdinalIgnoreCase).FirstOrDefault():null;
+                }
+                catch{return null;
+                }
         }
         if(OperatingSystem.IsMacOS())
         {
             var path="/Applications/Unity/Hub/Editor";
-            try{return Directory.Exists(path)?Directory.EnumerateFiles(path,"Unity",SearchOption.AllDirectories).FirstOrDefault(x=>x.EndsWith("/Unity.app/Contents/MacOS/Unity",StringComparison.Ordinal)):null;}catch{return null;}
+            try{return Directory.Exists(path)?Directory.EnumerateFiles(path,"Unity",SearchOption.AllDirectories).FirstOrDefault(x=>x.EndsWith("/Unity.app/Contents/MacOS/Unity",StringComparison.Ordinal)):null;
+                }
+                catch{return null;
+                }
         }
         return null;
     }

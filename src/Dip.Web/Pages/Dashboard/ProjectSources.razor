@@ -51,7 +51,10 @@ else
     @if(_layer is not null)
     {
         <div class="card mb-4"><div class="card-header"><strong>Plan vs actual — evidence-backed progress</strong></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>WBS item</th><th>Plan</th><th>Operational</th><th>Evidence readiness</th><th>Confidence</th><th>Status</th><th>Why</th></tr></thead><tbody>
-            @foreach(var item in _layer.Progress.Items){<tr><td><strong>@item.Name</strong><div class="small text-muted">@item.PlanKey · @(item.CanonicalTarget??"not linked") · @(item.Owner??"owner —")</div></td><td>@Pct(item.PlannedPercent)</td><td>@Pct(item.OperationalPercent)</td><td>@Pct(item.EvidenceReadinessPercent)</td><td>@item.ReadinessConfidence</td><td><StatusBadge Status="@item.Status" /></td><td class="small">@if(item.Contradictions.Count>0){<div class="text-danger">@item.Contradictions[0]</div>}else if(item.StaleSignals.Count>0){<div class="text-warning">@item.StaleSignals[0]</div>}else{<span class="text-muted">No material mismatch detected.</span>}@if(item.Evidence.Count>0){<details class="mt-1"><summary>@item.Evidence.Count evidence/source signal(s)</summary>@foreach(var e in item.Evidence.Take(10)){<div>• @e.Provider / @e.Kind — @e.Summary (@e.Confidence) @if(IsHttp(e.Url)){<a href="@e.Url" target="_blank" rel="noopener noreferrer">source ↗</a>}@foreach(var reference in (e.References??Array.Empty<string>()).Where(x=>!string.Equals(x,e.Url,StringComparison.OrdinalIgnoreCase)).Take(5)){@if(IsHttp(reference)){<a class="ms-1" href="@reference" target="_blank" rel="noopener noreferrer">evidence ↗</a>}else{<code class="ms-1">@reference</code>}}</div>}</details>}</td></tr>}
+            @foreach(var item in _layer.Progress.Items){<tr><td><strong>@item.Name</strong><div class="small text-muted">@item.PlanKey · @(item.CanonicalTarget??"not linked") · @(item.Owner??"owner —")</div></td><td>@Pct(item.PlannedPercent)</td><td>@Pct(item.OperationalPercent)</td><td>@Pct(item.EvidenceReadinessPercent)</td><td>@item.ReadinessConfidence</td><td><StatusBadge Status="@item.Status" /></td><td class="small">@if(item.Contradictions.Count>0){<div class="text-danger">@item.Contradictions[0]</div>}
+                else if(item.StaleSignals.Count>0){<div class="text-warning">@item.StaleSignals[0]</div>}
+                else{<span class="text-muted">No material mismatch detected.</span>}@if(item.Evidence.Count>0){<details class="mt-1"><summary>@item.Evidence.Count evidence/source signal(s)</summary>@foreach(var e in item.Evidence.Take(10)){<div>• @e.Provider / @e.Kind — @e.Summary (@e.Confidence) @if(IsHttp(e.Url)){<a href="@e.Url" target="_blank" rel="noopener noreferrer">source ↗</a>}@foreach(var reference in (e.References??Array.Empty<string>()).Where(x=>!string.Equals(x,e.Url,StringComparison.OrdinalIgnoreCase)).Take(5)){@if(IsHttp(reference)){<a class="ms-1" href="@reference" target="_blank" rel="noopener noreferrer">evidence ↗</a>}
+                else{<code class="ms-1">@reference</code>}}</div>}</details>}</td></tr>}
         </tbody></table></div></div>
 
         <div class="card mb-4"><div class="card-header"><strong>WBS / Gantt intelligence viewer</strong></div><div class="card-body">
@@ -67,15 +70,71 @@ else
 
 @code {
     [Parameter] public Guid ProjectId{get;set;}
-    private bool _loading=true,_busy;private string? _error,_notice;private ProjectIntelligenceLayerDto? _layer;private IReadOnlyList<ProjectSourceProviderDto> _providers=[];private IBrowserFile? _selectedFile;private ProjectPlanAnalysisDto? _analysis;private ProjectPlanImportResult? _lastImport;private ProjectSourceSyncResult? _lastSync;
+    private bool _loading=true,_busy;
+        private string? _error,_notice;
+        private ProjectIntelligenceLayerDto? _layer;
+        private IReadOnlyList<ProjectSourceProviderDto> _providers=[];
+        private IBrowserFile? _selectedFile;
+        private ProjectPlanAnalysisDto? _analysis;
+        private ProjectPlanImportResult? _lastImport;
+        private ProjectSourceSyncResult? _lastSync;
     protected override Task OnParametersSetAsync()=>LoadAsync();
-    private async Task LoadAsync(){_loading=true;_error=null;try{_layer=await Api.GetProjectIntelligenceLayerAsync(ProjectId);_providers=await Api.GetProjectSourceProvidersAsync(ProjectId);}catch(Exception ex){_error=ex.Message;}finally{_loading=false;}}
+    private async Task LoadAsync(){_loading=true;
+        _error=null;
+        try{_layer=await Api.GetProjectIntelligenceLayerAsync(ProjectId);
+        _providers=await Api.GetProjectSourceProvidersAsync(ProjectId);
+        }
+        catch(Exception ex){_error=ex.Message;
+        }
+        finally{_loading=false;
+        }}
     private void SelectFile(InputFileChangeEventArgs e){_selectedFile=e.File;_analysis=null;_lastImport=null;_notice=null;}
-    private async Task AnalyzePlan(){if(_selectedFile is null)return;await Run(async()=>{await using var s=_selectedFile.OpenReadStream(12*1024*1024);_analysis=await Api.AnalyzeProjectPlanAsync(ProjectId,_selectedFile.Name,_selectedFile.ContentType,s);_notice=$"Detected {_analysis.CandidateItems} WBS/Gantt item(s). Review the mapping before import.";},false);}
-    private async Task ImportPlan(){if(_selectedFile is null||_analysis is null)return;await Run(async()=>{await using var s=_selectedFile.OpenReadStream(12*1024*1024);_lastImport=await Api.ImportProjectPlanAsync(ProjectId,_selectedFile.Name,_selectedFile.ContentType,s,_analysis.Sheets.Select(x=>x.Mapping).ToArray());_notice="Plan imported as a separate planning layer; operational task data was not overwritten.";},true);}
-    private Task SyncSource(string provider,bool dry)=>Run(async()=>{_lastSync=await Api.SyncProjectSourceAsync(ProjectId,provider,dry);_notice=dry?$"{provider} dry run completed.":$"{provider} synchronized into the evidence/source layer.";},!dry);
-    private Task BindSuggestion(EntityMatchDto x)=>Run(async()=>{if(x.TargetNodeType is null||x.TargetKey is null)return;await Api.BindProjectEntityAsync(ProjectId,new(ProjectId,x.SourceNodeType,x.SourceKey,x.TargetNodeType,x.TargetKey,"web","Confirmed from Plan & Sources UI"));_notice="Cross-source entity link confirmed.";},true);
-    private async Task Run(Func<Task> action,bool reload){_busy=true;_error=null;try{await action();if(reload){_layer=await Api.GetProjectIntelligenceLayerAsync(ProjectId);_providers=await Api.GetProjectSourceProvidersAsync(ProjectId);}}catch(Exception ex){_error=ex.Message;}finally{_busy=false;}}
-    private string BarStyle(GanttIntelligenceItemDto item){if(_layer?.Gantt.RangeStartUtc is null||_layer.Gantt.RangeEndUtc is null||item.StartUtc is null||item.DueAtUtc is null)return "left:0%;width:3%";var total=Math.Max(1d,(_layer.Gantt.RangeEndUtc.Value-_layer.Gantt.RangeStartUtc.Value).TotalDays);var left=Math.Clamp((item.StartUtc.Value-_layer.Gantt.RangeStartUtc.Value).TotalDays/total*100d,0d,99d);var width=Math.Clamp((item.DueAtUtc.Value-item.StartUtc.Value).TotalDays/total*100d,1d,100d-left);return $"left:{left:0.##}%;width:{width:0.##}%";}
-    private static string Date(DateTimeOffset? x)=>x?.ToLocalTime().ToString("yyyy-MM-dd")??"—";private static string Pct(decimal? x)=>x.HasValue?$"{x.Value:0.#}%":"—";private static bool IsHttp(string? value)=>Uri.TryCreate(value,UriKind.Absolute,out var uri)&&uri.Scheme is "http" or "https";private static string ShortHash(string value)=>string.IsNullOrEmpty(value)?"—":value[..Math.Min(12,value.Length)];private static string CssStatus(string? value)=>string.IsNullOrWhiteSpace(value)?"unknown":new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());private static string Col(int? i)=>i.HasValue?ExcelCol(i.Value+1):"—";private static string ExcelCol(int n){var s="";while(n>0){n--;s=(char)('A'+n%26)+s;n/=26;}return s;}
+    private async Task AnalyzePlan(){if(_selectedFile is null)return;
+        await Run(async()=>{await using var s=_selectedFile.OpenReadStream(12*1024*1024);_analysis=await Api.AnalyzeProjectPlanAsync(ProjectId,_selectedFile.Name,_selectedFile.ContentType,s);_notice=$"Detected {_analysis.CandidateItems} WBS/Gantt item(s). Review the mapping before import.";},false);
+        }
+    private async Task ImportPlan(){if(_selectedFile is null||_analysis is null)return;
+        await Run(async()=>{await using var s=_selectedFile.OpenReadStream(12*1024*1024);_lastImport=await Api.ImportProjectPlanAsync(ProjectId,_selectedFile.Name,_selectedFile.ContentType,s,_analysis.Sheets.Select(x=>x.Mapping).ToArray());_notice="Plan imported as a separate planning layer; operational task data was not overwritten.";},true);
+        }
+    private Task SyncSource(string provider,
+        bool dry)=>Run(async()=>{_lastSync=await Api.SyncProjectSourceAsync(ProjectId,
+        provider,
+        dry);_notice=dry?$"{provider} dry run completed.":$"{provider} synchronized into the evidence/source layer.";},
+        !dry);
+    private Task BindSuggestion(EntityMatchDto x)=>Run(async()=>{if(x.TargetNodeType is null||x.TargetKey is null)return;await Api.BindProjectEntityAsync(ProjectId,
+        new(ProjectId,
+        x.SourceNodeType,
+        x.SourceKey,
+        x.TargetNodeType,
+        x.TargetKey,
+        "web",
+        "Confirmed from Plan & Sources UI"));_notice="Cross-source entity link confirmed.";},
+        true);
+    private async Task Run(Func<Task> action,bool reload){_busy=true;
+        _error=null;
+        try{await action();
+        if(reload){_layer=await Api.GetProjectIntelligenceLayerAsync(ProjectId);
+        _providers=await Api.GetProjectSourceProvidersAsync(ProjectId);
+        }}
+        catch(Exception ex){_error=ex.Message;
+        }
+        finally{_busy=false;
+        }}
+    private string BarStyle(GanttIntelligenceItemDto item){if(_layer?.Gantt.RangeStartUtc is null||_layer.Gantt.RangeEndUtc is null||item.StartUtc is null||item.DueAtUtc is null)return "left:0%;width:3%";
+        var total=Math.Max(1d,(_layer.Gantt.RangeEndUtc.Value-_layer.Gantt.RangeStartUtc.Value).TotalDays);
+        var left=Math.Clamp((item.StartUtc.Value-_layer.Gantt.RangeStartUtc.Value).TotalDays/total*100d,0d,99d);
+        var width=Math.Clamp((item.DueAtUtc.Value-item.StartUtc.Value).TotalDays/total*100d,1d,100d-left);
+        return $"left:{left:0.##}%;width:{width:0.##}%";
+        }
+    private static string Date(DateTimeOffset? x)=>x?.ToLocalTime().ToString("yyyy-MM-dd")??"—";
+        private static string Pct(decimal? x)=>x.HasValue?$"{x.Value:0.#}%":"—";
+        private static bool IsHttp(string? value)=>Uri.TryCreate(value,UriKind.Absolute,out var uri)&&uri.Scheme is "http" or "https";
+        private static string ShortHash(string value)=>string.IsNullOrEmpty(value)?"—":value[..Math.Min(12,value.Length)];
+        private static string CssStatus(string? value)=>string.IsNullOrWhiteSpace(value)?"unknown":new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+        private static string Col(int? i)=>i.HasValue?ExcelCol(i.Value+1):"—";
+        private static string ExcelCol(int n){var s="";
+        while(n>0){n--;
+        s=(char)('A'+n%26)+s;
+        n/=26;
+        }return s;
+        }
 }

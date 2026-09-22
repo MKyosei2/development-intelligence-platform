@@ -1,10 +1,44 @@
 // Purpose: Runs background processing for C ol le ct or Re po rt Pr oc es se dW or ke r.
-using System.Text.Json;using Dip.Application.Abstractions.Messaging;using Dip.Application.Features.Quality;using Dip.Infrastructure.Messaging;using Dip.Infrastructure.Persistence;using Microsoft.EntityFrameworkCore;using Microsoft.Extensions.Options;
+using System.Text.Json;
+    using Dip.Application.Abstractions.Messaging;
+    using Dip.Application.Features.Quality;
+    using Dip.Infrastructure.Messaging;
+    using Dip.Infrastructure.Persistence;
+    using Microsoft.EntityFrameworkCore;
+    using Microsoft.Extensions.Options;
 namespace Dip.Worker.Workers;
 public sealed class CollectorReportProcessedWorker(IServiceScopeFactory scopes,IQueueClient queue,IOptions<QueueOptions> options,ILogger<CollectorReportProcessedWorker> logger):BackgroundService
 {
  readonly QueueOptions _o=options.Value;readonly string _name=$"{Environment.MachineName}-{Guid.NewGuid():N}";string Group=>$"{_o.ConsumerGroup}:quality-gate";
- protected override async Task ExecuteAsync(CancellationToken stop){while(!stop.IsCancellationRequested){try{var e=await queue.ReadAsync(_o.StreamName,Group,_name,TimeSpan.FromMilliseconds(Math.Max(100,_o.BlockMilliseconds)),stop);if(e is null)continue;if(!IsCollector(e.MessageType)){await queue.AcknowledgeAsync(_o.StreamName,Group,e.MessageId,stop);continue;}try{await Process(e,stop);await queue.AcknowledgeAsync(_o.StreamName,Group,e.MessageId,stop);}catch(Exception ex)when(ex is not OperationCanceledException){logger.LogError(ex,"Collector report processing failed");if(e.Attempt+1>=Math.Max(1,_o.MaxDeliveryCount))await queue.MoveToDeadLetterAsync(_o.StreamName,Group,_o.DeadLetterStreamName,e,ex.Message,stop);else await queue.RetryAsync(_o.StreamName,Group,e,stop);}}catch(OperationCanceledException)when(stop.IsCancellationRequested){break;}catch(Exception ex){logger.LogError(ex,"Quality-gate worker loop failed");await Task.Delay(1000,stop);}}}
- async Task Process(QueueEnvelope e,CancellationToken ct){using var d=JsonDocument.Parse(e.PayloadJson);var p=d.RootElement.TryGetProperty("payload",out var nested)?nested:d.RootElement;if(!p.TryGetProperty("pipelineRunId",out var idNode)||!Guid.TryParse(idNode.GetString(),out var id))throw new InvalidDataException("pipelineRunId is missing.");using var s=scopes.CreateScope();var db=s.ServiceProvider.GetRequiredService<DipDbContext>();var evaluator=s.ServiceProvider.GetRequiredService<QualityGateEvaluator>();if(await db.QualityGateResults.AnyAsync(x=>x.PipelineRunId==id,ct))return;var run=await db.PipelineRuns.AsNoTracking().SingleAsync(x=>x.Id==id,ct);var metrics=await db.Metrics.AsNoTracking().Where(x=>x.PipelineRunId==id).ToListAsync(ct);var issues=await db.QualityIssues.AsNoTracking().Where(x=>x.PipelineRunId==id).ToListAsync(ct);var r=evaluator.Evaluate(metrics,issues);db.QualityGateResults.Add(Dip.Domain.Entities.QualityGateResult.Create(Guid.NewGuid(),run.ProjectId,id,r.Status,r.CriticalIssueCount,r.WarningIssueCount,r.Score,r.Reasons,DateTimeOffset.UtcNow));await db.SaveChangesAsync(ct);}
+ protected override async Task ExecuteAsync(CancellationToken stop){while(!stop.IsCancellationRequested){try{var e=await queue.ReadAsync(_o.StreamName,Group,_name,TimeSpan.FromMilliseconds(Math.Max(100,_o.BlockMilliseconds)),stop);
+     if(e is null)continue;
+     if(!IsCollector(e.MessageType)){await queue.AcknowledgeAsync(_o.StreamName,Group,e.MessageId,stop);
+     continue;
+     }try{await Process(e,stop);
+     await queue.AcknowledgeAsync(_o.StreamName,Group,e.MessageId,stop);
+     }
+     catch(Exception ex)when(ex is not OperationCanceledException){logger.LogError(ex,"Collector report processing failed");
+     if(e.Attempt+1>=Math.Max(1,_o.MaxDeliveryCount))await queue.MoveToDeadLetterAsync(_o.StreamName,Group,_o.DeadLetterStreamName,e,ex.Message,stop);
+     else await queue.RetryAsync(_o.StreamName,Group,e,stop);
+     }}
+     catch(OperationCanceledException)when(stop.IsCancellationRequested){break;
+     }
+     catch(Exception ex){logger.LogError(ex,"Quality-gate worker loop failed");
+     await Task.Delay(1000,stop);
+     }}}
+ async Task Process(QueueEnvelope e,CancellationToken ct){using var d=JsonDocument.Parse(e.PayloadJson);
+     var p=d.RootElement.TryGetProperty("payload",out var nested)?nested:d.RootElement;
+     if(!p.TryGetProperty("pipelineRunId",out var idNode)||!Guid.TryParse(idNode.GetString(),out var id))throw new InvalidDataException("pipelineRunId is missing.");
+     using var s=scopes.CreateScope();
+     var db=s.ServiceProvider.GetRequiredService<DipDbContext>();
+     var evaluator=s.ServiceProvider.GetRequiredService<QualityGateEvaluator>();
+     if(await db.QualityGateResults.AnyAsync(x=>x.PipelineRunId==id,ct))return;
+     var run=await db.PipelineRuns.AsNoTracking().SingleAsync(x=>x.Id==id,ct);
+     var metrics=await db.Metrics.AsNoTracking().Where(x=>x.PipelineRunId==id).ToListAsync(ct);
+     var issues=await db.QualityIssues.AsNoTracking().Where(x=>x.PipelineRunId==id).ToListAsync(ct);
+     var r=evaluator.Evaluate(metrics,issues);
+     db.QualityGateResults.Add(Dip.Domain.Entities.QualityGateResult.Create(Guid.NewGuid(),run.ProjectId,id,r.Status,r.CriticalIssueCount,r.WarningIssueCount,r.Score,r.Reasons,DateTimeOffset.UtcNow));
+     await db.SaveChangesAsync(ct);
+     }
  static bool IsCollector(string t)=>t.Equals("CollectorReportProcessed",StringComparison.OrdinalIgnoreCase)||t.EndsWith(".CollectorReportProcessed",StringComparison.OrdinalIgnoreCase);
 }

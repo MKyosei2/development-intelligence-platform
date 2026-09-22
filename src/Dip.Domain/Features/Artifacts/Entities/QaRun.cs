@@ -20,13 +20,28 @@ public sealed class QaRun
     public string ArtifactRoot{get;private set;}=string.Empty; public QaRunStatus Status{get;private set;} public int FindingCount{get;private set;}
     public int CriticalFindingCount{get;private set;} public int WarningFindingCount{get;private set;} public string? SummaryJson{get;private set;}
     public DateTimeOffset CreatedAtUtc{get;private set;} public DateTimeOffset? StartedAtUtc{get;private set;} public DateTimeOffset? FinishedAtUtc{get;private set;}
-    public void Start(DateTimeOffset at){if(Status!=QaRunStatus.Queued)throw new InvalidOperationException($"Cannot start QA run from {Status}.");Status=QaRunStatus.Running;StartedAtUtc=at;}
+    public void Start(DateTimeOffset at){if(Status!=QaRunStatus.Queued)throw new InvalidOperationException($"Cannot start QA run from {Status}.");
+        Status=QaRunStatus.Running;
+        StartedAtUtc=at;
+    }
     public void Complete(QaRunStatus status,int findings,int critical,int warning,string summaryJson,DateTimeOffset at)
     {
         if(Status!=QaRunStatus.Running)throw new InvalidOperationException($"Cannot complete QA run from {Status}.");
         if(status is not(QaRunStatus.Succeeded or QaRunStatus.Failed or QaRunStatus.Partial or QaRunStatus.InfrastructureFailure or QaRunStatus.Cancelled))throw new ArgumentOutOfRangeException(nameof(status));
-        Status=status;FindingCount=Math.Max(0,findings);CriticalFindingCount=Math.Max(0,critical);WarningFindingCount=Math.Max(0,warning);SummaryJson=Optional(summaryJson,32000,nameof(summaryJson));FinishedAtUtc=at;
+        Status=status;
+        FindingCount=Math.Max(0,findings);
+        CriticalFindingCount=Math.Max(0,critical);
+        WarningFindingCount=Math.Max(0,warning);
+        SummaryJson=Optional(summaryJson,32000,nameof(summaryJson));
+        FinishedAtUtc=at;
     }
-    private static string Required(string? value,int max,string name){var text=value?.Trim()??string.Empty;if(text.Length is<1||text.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);return text;}
-    private static string? Optional(string? value,int max,string name){if(string.IsNullOrWhiteSpace(value))return null;var text=value.Trim();if(text.Length>max)throw new ArgumentException($"{name} must be at most {max} characters.",name);return text;}
+    private static string Required(string? value,int max,string name){var text=value?.Trim()??string.Empty;
+        if(text.Length is<1||text.Length>max)throw new ArgumentException($"{name} must be 1-{max} characters.",name);
+        return text;
+    }
+    private static string? Optional(string? value,int max,string name){if(string.IsNullOrWhiteSpace(value))return null;
+        var text=value.Trim();
+        if(text.Length>max)throw new ArgumentException($"{name} must be at most {max} characters.",name);
+        return text;
+    }
 }

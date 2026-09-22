@@ -300,19 +300,28 @@ public sealed class ProjectControlController(
     [HttpPost("projects/{projectId:guid}/management.xlsx/import")]
     [RequestSizeLimit(25_000_000)]
     public async Task<SpreadsheetImportResult> ImportManagementWorkbook(Guid projectId,IFormFile file,CancellationToken ct)
-    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheets.ImportXlsxAsync(projectId,stream,ct); }
+    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));
+        await using var stream=file.OpenReadStream();
+        return await spreadsheets.ImportXlsxAsync(projectId,stream,ct);
+        }
 
     [Authorize(Policy=Policies.ProjectRead)]
     [HttpPost("projects/{projectId:guid}/management.xlsx/analyze")]
     [RequestSizeLimit(25_000_000)]
     public async Task<SpreadsheetSchemaAnalysisDto> AnalyzeManagementWorkbook(Guid projectId,IFormFile file,CancellationToken ct)
-    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheetInference.AnalyzeXlsxAsync(projectId,stream,ct); }
+    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));
+        await using var stream=file.OpenReadStream();
+        return await spreadsheetInference.AnalyzeXlsxAsync(projectId,stream,ct);
+        }
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [HttpPost("projects/{projectId:guid}/management.xlsx/import-flexible")]
     [RequestSizeLimit(25_000_000)]
     public async Task<FlexibleSpreadsheetImportResult> ImportFlexibleManagementWorkbook(Guid projectId,IFormFile file,[FromQuery]string? domainId=null,[FromQuery]bool dryRun=true,CancellationToken ct=default)
-    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));await using var stream=file.OpenReadStream();return await spreadsheetInference.ImportFlexibleXlsxAsync(projectId,stream,domainId,dryRun,ct); }
+    { if(file is null||file.Length==0)throw new ArgumentException("An .xlsx file is required.",nameof(file));
+        await using var stream=file.OpenReadStream();
+        return await spreadsheetInference.ImportFlexibleXlsxAsync(projectId,stream,domainId,dryRun,ct);
+        }
 
     [Authorize(Policy=Policies.ProjectWrite)]
     [RequireProjectRole(ProjectMembershipRole.Maintainer)]

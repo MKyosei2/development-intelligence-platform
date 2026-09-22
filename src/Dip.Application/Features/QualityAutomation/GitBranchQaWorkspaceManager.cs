@@ -359,15 +359,32 @@ public sealed class GitBranchQaWorkspaceManager : IBranchQaWorkspaceManager
             throw new ArgumentException("Invalid Git branch name.",nameof(branch));
         if(branch.IndexOfAny([' ', '~', '^', ':', '?', '*', '[', '\\'])>=0||branch.Any(char.IsControl))
             throw new ArgumentException("Invalid Git branch name.",nameof(branch));
-        foreach(var part in branch.Split('/'))
-            if(part.Length==0||part.StartsWith('.')||part.EndsWith(".lock",StringComparison.OrdinalIgnoreCase))throw new ArgumentException("Invalid Git branch name.",nameof(branch));
+        foreach (var part in branch.Split('/'))
+        {
+            if (part.Length == 0 ||
+                part.StartsWith('.') ||
+                part.EndsWith(".lock", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Invalid Git branch name.", nameof(branch));
+            }
+        }
     }
 
     private static string ResolveWorkspaceRoot(string sourceWorkspace,string sourceRelative)
     {
         var root=Path.GetFullPath(sourceWorkspace);
-        var parts=(sourceRelative??string.Empty).Replace('\\','/').Split('/',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
-        for(var i=0;i<parts.Length;i++)root=Directory.GetParent(root)?.FullName??throw new InvalidOperationException("Could not resolve QA workspace root from synchronization provenance.");
+        var parts = (sourceRelative ?? string.Empty)
+            .Replace('\\', '/')
+            .Split(
+                '/',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        for (var i = 0; i < parts.Length; i++)
+        {
+            root = Directory.GetParent(root)?.FullName
+                ?? throw new InvalidOperationException(
+                    "Could not resolve QA workspace root from synchronization provenance.");
+        }
         return Path.GetFullPath(root);
     }
 
