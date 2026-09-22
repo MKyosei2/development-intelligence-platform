@@ -30,7 +30,27 @@ else
         <div class="card-header"><strong>Top evidence-backed risks</strong><button class="btn btn-outline-secondary btn-sm" @onclick="LoadAsync">Refresh</button></div>
         <div class="card-body p-0">
             @if (_model.TopRisks.Count == 0) { <div class="p-3 text-muted">No Phase-4 risk signal currently requires attention.</div> }
-            else { <div class="list-group list-group-flush">@foreach (var r in _model.TopRisks) { <div class="list-group-item"><div class="d-flex justify-content-between"><strong>@r.Title</strong><span class="badge text-bg-secondary">@r.Severity · @r.Category</span></div><div>@r.Detail</div>@if(!string.IsNullOrWhiteSpace(r.Reference)){<a class="small" href="@r.Reference">Open evidence →</a>}</div> }</div> }
+            else
+            {
+                <div class="list-group list-group-flush">
+                    @foreach (var risk in _model.TopRisks)
+                    {
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <strong>@risk.Title</strong>
+                                <span class="badge text-bg-secondary">
+                                    @risk.Severity · @risk.Category
+                                </span>
+                            </div>
+                            <div>@risk.Detail</div>
+                            @if (!string.IsNullOrWhiteSpace(risk.Reference))
+                            {
+                                <a class="small" href="@risk.Reference">Open evidence →</a>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
     </section>
 }
@@ -39,5 +59,17 @@ else
     [Parameter] public Guid ProjectId { get; set; }
     private ProducerIntelligenceDto? _model; private string? _error;
     protected override Task OnInitializedAsync() => LoadAsync();
-    private async Task LoadAsync() { _error = null; try { _model = await Http.GetFromJsonAsync<ProducerIntelligenceDto>($"api/v1/projects/{ProjectId}/producer-intelligence"); } catch(Exception ex) { _error = ex.Message; } }
+    private async Task LoadAsync()
+    {
+        _error = null;
+        try
+        {
+            _model = await Http.GetFromJsonAsync<ProducerIntelligenceDto>(
+                $"api/v1/projects/{ProjectId}/producer-intelligence");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
 }
