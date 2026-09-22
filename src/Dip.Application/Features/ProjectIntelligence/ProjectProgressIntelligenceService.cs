@@ -247,14 +247,12 @@ public sealed class ProjectProgressIntelligenceService
         foreach (var o in obs)
         {
             var m = Meta(o);
-            yield return new(o.Provider ?? "Unknown", Str(m, "Kind") ?? "source", $"{o.Status}{(Dec(m, "ProgressPercent") is { } p ? $" {p:0.#
-            }
-            % ":"")}", o.Provider?.Equals("Redmine", StringComparison.OrdinalIgnoreCase) == true ? "Medium" : "Low", o.ExternalReference, o.LastObservedAtUtc, false, Strings(m, "References"));
+            yield return new(o.Provider ?? "Unknown", Str(m, "Kind") ?? "source", $"{o.Status}{(Dec(m, "ProgressPercent") is { } p ? $" {p:0.#}% " : "")}", o.Provider?.Equals("Redmine", StringComparison.OrdinalIgnoreCase) == true ? "Medium" : "Low", o.ExternalReference, o.LastObservedAtUtc, false, Strings(m, "References"));
         }
         foreach (var pr in related.Where(x => x.Type == DevelopmentGraphNodeType.PullRequest)) yield return new(pr.Provider ?? "GitHub", "pull-request", $"{pr.Name} [{pr.Status}]", "High", pr.ExternalReference, pr.LastObservedAtUtc, true, string.IsNullOrWhiteSpace(pr.ExternalReference) ? [] : [pr.ExternalReference]);
-        }
+    }
 
-        private static IEnumerable<SourceProvenanceDto> BuildSources(DevelopmentGraphNode plan, IReadOnlyList<DevelopmentGraphNode> obs)
+    private static IEnumerable<SourceProvenanceDto> BuildSources(DevelopmentGraphNode plan, IReadOnlyList<DevelopmentGraphNode> obs)
         {
             var pm = Meta(plan);
             yield return new("Excel/WBS", Str(pm, "SourceReference") ?? Strip(plan.Key), Str(pm, "SourceSha256") ?? "", plan.ExternalReference, plan.LastObservedAtUtc, "High", Str(pm, "SourceSha256") ?? "");
