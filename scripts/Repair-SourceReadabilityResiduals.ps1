@@ -102,6 +102,25 @@ function Split-CSharpStatements([string]$Line,[string]$Indent) {
     return $builder.ToString().TrimEnd()
 }
 
+function Expand-CSharpLine([string]$Line) {
+    if(-not(Test-CompressedCodeLine $Line)){return $Line}
+    $indent=[regex]::Match($Line,'^\\s*').Value
+    $candidate=Split-CSharpStatements -Line $Line -Indent $indent
+
+    # Newlines are whitespace in C#, so these rewrites preserve behavior while
+    # separating adjacent blocks and control statements for reviewer readability.
+    $candidate=[regex]::Replace(
+        $candidate,
+        '}\\s*(?=(?:else\\s+)?(?:if|for|foreach|while|switch|try|catch|finally|public|private|internal|protected)\\b)',
+        "}`n$indent")
+    $candidate=[regex]::Replace(
+        $candidate,
+        '(?<=[;)])\\s+(?=(?:if|for|foreach|while|switch)\\s*\\()',
+        "`n$indent")
+
+    return $candidate
+}
+
 function Expand-RazorLine([string]$Line) {
     $indent=[regex]::Match($Line,'^\s*').Value
     $expanded=$Line
@@ -136,15 +155,17 @@ foreach($rootName in $roots){
         if([string]::IsNullOrEmpty($content)){continue}
         $updated=Add-IntentionalCatchComments -Content $content
 
-        if($extension -eq '.razor'){
-            $normalized=$updated -replace "`r`n","`n" -replace "`r","`n"
-            $out=New-Object 'System.Collections.Generic.List[string]'
-            foreach($line in ($normalized -split "`n")){
-                $expanded=Expand-RazorLine -Line $line
-                foreach($item in ($expanded -split "`n")){$out.Add($item)|Out-Null}
+        $normalized=$updated -replace "`r`n","`n" -replace "`r","`n"
+        $out=New-Object 'System.Collections.Generic.List[string]'
+        foreach($line in ($normalized -split "`n")){
+            $expanded=if($extension -eq '.razor'){
+                Expand-RazorLine -Line $line
+            }else{
+                Expand-CSharpLine -Line $line
             }
-            $updated=(($out -join "`n").TrimEnd("`n")+"`n")
+            foreach($item in ($expanded -split "`n")){$out.Add($item)|Out-Null}
         }
+        $updated=(($out -join "`n").TrimEnd("`n")+"`n")
 
         if($updated -eq $content){continue}
         $relative=Get-RelativePath $file.FullName
