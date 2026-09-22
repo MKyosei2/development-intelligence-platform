@@ -30,7 +30,12 @@ public sealed class WorkerMetricsEndpoint(IDipOperationalMetrics metrics,IConfig
             _ = await stream.ReadAsync(buffer.AsMemory(0,buffer.Length),ct);
             var body=metrics.RenderPrometheus();
             var bytes=Encoding.UTF8.GetBytes(body);
-            var header=Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");
+            var headerText =
+                "HTTP/1.1 200 OK\r\n"
+                + "Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n"
+                + $"Content-Length: {bytes.Length}\r\n"
+                + "Connection: close\r\n\r\n";
+            var header = Encoding.ASCII.GetBytes(headerText);
             await stream.WriteAsync(header,ct);
             await stream.WriteAsync(bytes,ct);
             }
