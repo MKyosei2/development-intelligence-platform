@@ -45,8 +45,13 @@ jobs:
       - name: Infrastructure tests
         run: dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=infrastructure-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
       - name: Project Truth / Release / QA coverage gates
-        run: python tools/check_core_coverage.py --results TestResults --minimum 50
-      - name: Upload test results
+        run: >
+          python tools/check_core_coverage.py
+          --results TestResults
+          --minimum 50
+          --critical-minimum 0
+          --summary-json TestResults/core-coverage-summary.json
+      - name: Upload test results and coverage summary
         if: always()
         uses: actions/upload-artifact@v7
         with:

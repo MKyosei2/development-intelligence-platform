@@ -1,20 +1,35 @@
 #!/usr/bin/env python3
-# Purpose: Enforces independent line-coverage floors for Project Truth, Release, and game-development QA core code.
+# Purpose: Enforces aggregate and critical-file line-coverage floors for portfolio-critical core code.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-# Keep the guardrail conservative until a final exact-revision run provides
-# measured coverage for all three portfolio-critical areas. CI may override it
-# explicitly with --minimum, but the default is intentionally not inflated.
 DEFAULT_MINIMUM = 50.0
+DEFAULT_CRITICAL_MINIMUM = 0.0
 
 AREAS = {
     "ProjectTruth": ("/Features/ProjectTruth/",),
     "Release": ("/Features/Release/",),
     "QA": ("/Features/QualityAutomation/", "/Features/QualityGovernance/"),
+}
+
+CRITICAL_FILES = {
+    "QaExecutionPlanner.cs",
+    "QaAdapterExecutionCoordinator.cs",
+    "QaResultMaterializer.cs",
+    "QaFindingProcessor.cs",
+    "QaPostRunProcessor.cs",
+    "QaFindingLifecycleProcessor.cs",
+    "QaReliabilityProcessor.cs",
+    "QaBaselineProcessor.cs",
+    "QaPolicyEvaluator.cs",
+    "QaProvenanceBuilder.cs",
+    "QaHealthEvaluator.cs",
+    "QaCostEvaluator.cs",
+    "QaBenchmarkComparisonService.cs",
 }
 
 
@@ -50,14 +65,21 @@ def collect(files: list[Path]) -> dict[str, dict[str, tuple[int, int]]]:
     return by_area
 
 
+def percentage(covered: int, valid: int) -> float:
+    return covered * 100.0 / valid if valid else 0.0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--results", default="TestResults")
     parser.add_argument("--minimum", type=float, default=DEFAULT_MINIMUM)
+    parser.add_argument("--critical-minimum", type=float, default=DEFAULT_CRITICAL_MINIMUM)
+    parser.add_argument("--summary-json", default="TestResults/core-coverage-summary.json")
     args = parser.parse_args()
 
-    if not 0.0 <= args.minimum <= 100.0:
-        raise SystemExit("Core coverage gate failed: --minimum must be between 0 and 100.")
+    for name, value in (("--minimum", args.minimum), ("--critical-minimum", args.critical_minimum)):
+        if not 0.0 <= value <= 100.0:
+            raise SystemExit(f"Core coverage gate failed: {name} must be between 0 and 100.")
 
     reports = sorted(Path(args.results).rglob("coverage.cobertura.xml"))
     if not reports:
@@ -65,27 +87,57 @@ def main() -> int:
 
     by_area = collect(reports)
     failures: list[str] = []
-    measured: dict[str, float] = {}
+    summary: dict[str, object] = {
+        "aggregateMinimumPercent": args.minimum,
+        "criticalMinimumPercent": args.critical_minimum,
+        "areas": {},
+        "criticalFiles": {},
+    }
+
     for area, by_file in by_area.items():
         covered = sum(c for c, _ in by_file.values())
         valid = sum(v for _, v in by_file.values())
         if valid == 0:
             failures.append(f"{area}: no core lines were found")
-            print(f"{area}: no covered source lines were discovered")
             continue
-        pct = covered * 100.0 / valid
-        measured[area] = pct
+        pct = percentage(covered, valid)
+        summary["areas"][area] = {"covered": covered, "valid": valid, "percent": round(pct, 2)}
         print(f"{area} coverage: {covered}/{valid} lines = {pct:.2f}% (minimum {args.minimum:.2f}%)")
-        for name, (c, v) in sorted(by_file.items(), key=lambda item: (item[1][0] / item[1][1], item[0]))[:10]:
-            print(f"  {c * 100.0 / v:6.2f}%  {name}")
         if pct + 1e-9 < args.minimum:
             failures.append(f"{area}: {pct:.2f}% < {args.minimum:.2f}%")
+
+    qa_files = by_area["QA"]
+    by_basename = {Path(name).name: (name, counts) for name, counts in qa_files.items()}
+    for critical in sorted(CRITICAL_FILES):
+        entry = by_basename.get(critical)
+        if entry is None:
+            failures.append(f"{critical}: no coverage entry was found")
+            summary["criticalFiles"][critical] = {"present": False}
+            continue
+        full_name, (covered, valid) = entry
+        pct = percentage(covered, valid)
+        summary["criticalFiles"][critical] = {
+            "present": True,
+            "path": full_name,
+            "covered": covered,
+            "valid": valid,
+            "percent": round(pct, 2),
+        }
+        print(f"critical {critical}: {covered}/{valid} = {pct:.2f}% (minimum {args.critical_minimum:.2f}%)")
+        if covered == 0:
+            failures.append(f"{critical}: present in coverage report but no executable line was covered")
+        elif pct + 1e-9 < args.critical_minimum:
+            failures.append(f"{critical}: {pct:.2f}% < {args.critical_minimum:.2f}%")
+
+    summary_path = Path(args.summary_json)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary["failures"] = failures
+    summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
 
     if failures:
         raise SystemExit("Core coverage gate failed: " + "; ".join(failures))
 
-    summary = ", ".join(f"{name}={measured[name]:.2f}%" for name in AREAS)
-    print(f"PASS: each focused area satisfies the {args.minimum:.2f}% floor ({summary}).")
+    print("PASS: aggregate portfolio areas and every split QA critical file satisfy their coverage floors.")
     return 0
 
 
