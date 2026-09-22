@@ -19,7 +19,17 @@ public sealed class GoogleSheetsRestConnector:IGoogleSheetsConnector
             await Ensure(response,ct);
             using var doc=JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
             var existing=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if(doc.RootElement.TryGetProperty("sheets",out var sheets)){foreach(var s in sheets.EnumerateArray()){if(s.TryGetProperty("properties",out var p)&&p.TryGetProperty("title",out var t)&&t.GetString() is {Length:>0} title)existing.Add(title);
+            if (doc.RootElement.TryGetProperty("sheets", out var sheets))
+            {
+                foreach (var sheetElement in sheets.EnumerateArray())
+                {
+                    if (sheetElement.TryGetProperty("properties", out var properties)
+                        && properties.TryGetProperty("title", out var titleElement)
+                        && titleElement.GetString() is { Length: > 0 } title)
+                    {
+                        existing.Add(title);
+                    }
+                }
             }}
         var missing=sheetNames.Where(x=>!existing.Contains(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             if(missing.Length==0)return;
@@ -33,14 +43,63 @@ public sealed class GoogleSheetsRestConnector:IGoogleSheetsConnector
     public async Task PushAsync(string spreadsheetId,string accessToken,IReadOnlyList<GoogleSheetGrid> sheets,CancellationToken ct)
     {
         Validate(spreadsheetId,accessToken);await EnsureSheetsAsync(spreadsheetId,accessToken,sheets.Select(x=>x.Name).ToArray(),ct);
-        foreach(var sheet in sheets){var range=$"'{sheet.Name.Replace("'","''",StringComparison.Ordinal)}'!A1";var url=$"{Base}/{Uri.EscapeDataString(spreadsheetId)}/values/{Uri.EscapeDataString(range)}?valueInputOption=RAW";using var req=Create(HttpMethod.Put,url,accessToken);req.Content=JsonContent.Create(new{range,majorDimension="ROWS",values=sheet.Rows});using var response=await Http.SendAsync(req,ct);await Ensure(response,ct);}
+        foreach (var sheet in sheets)
+        {
+            var escapedName = sheet.Name.Replace("'", "''", StringComparison.Ordinal);
+            var range = $"'{escapedName}'!A1";
+            var url =
+                $"{Base}/{Uri.EscapeDataString(spreadsheetId)}/values/"
+                + $"{Uri.EscapeDataString(range)}?valueInputOption=RAW";
+            using var request = Create(HttpMethod.Put, url, accessToken);
+            request.Content = JsonContent.Create(new
+            {
+                range,
+                majorDimension = "ROWS",
+                values = sheet.Rows
+            });
+            using var response = await Http.SendAsync(request, ct);
+            await Ensure(response, ct);
+        }
         await FormatSheetsAsync(spreadsheetId,accessToken,sheets.Select(x=>x.Name).ToArray(),ct);
     }
 
     public async Task<IReadOnlyDictionary<string,IReadOnlyList<IReadOnlyList<string>>>> PullAsync(string spreadsheetId,string accessToken,IReadOnlyList<string> sheetNames,CancellationToken ct)
     {
         Validate(spreadsheetId,accessToken);var result=new Dictionary<string,IReadOnlyList<IReadOnlyList<string>>>(StringComparer.OrdinalIgnoreCase);
-        foreach(var name in sheetNames){var range=$"'{name.Replace("'","''",StringComparison.Ordinal)}'!A:ZZ";var url=$"{Base}/{Uri.EscapeDataString(spreadsheetId)}/values/{Uri.EscapeDataString(range)}?majorDimension=ROWS";using var req=Create(HttpMethod.Get,url,accessToken);using var response=await Http.SendAsync(req,ct);if(response.StatusCode==System.Net.HttpStatusCode.BadRequest||response.StatusCode==System.Net.HttpStatusCode.NotFound){result[name]=[];continue;}await Ensure(response,ct);using var doc=JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));var rows=new List<IReadOnlyList<string>>();if(doc.RootElement.TryGetProperty("values",out var values)&&values.ValueKind==JsonValueKind.Array){foreach(var row in values.EnumerateArray())rows.Add(row.ValueKind==JsonValueKind.Array?row.EnumerateArray().Select(v=>v.ToString()).ToArray():[]);}result[name]=rows;}
+        foreach (var name in sheetNames)
+        {
+            var escapedName = name.Replace("'", "''", StringComparison.Ordinal);
+            var range = $"'{escapedName}'!A:ZZ";
+            var url =
+                $"{Base}/{Uri.EscapeDataString(spreadsheetId)}/values/"
+                + $"{Uri.EscapeDataString(range)}?majorDimension=ROWS";
+            using var request = Create(HttpMethod.Get, url, accessToken);
+            using var response = await Http.SendAsync(request, ct);
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest
+                || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                result[name] = [];
+                continue;
+            }
+
+            await Ensure(response, ct);
+            using var document =
+                JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            var rows = new List<IReadOnlyList<string>>();
+            if (document.RootElement.TryGetProperty("values", out var values)
+                && values.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var row in values.EnumerateArray())
+                {
+                    rows.Add(
+                        row.ValueKind == JsonValueKind.Array
+                            ? row.EnumerateArray().Select(value => value.ToString()).ToArray()
+                            : []);
+                }
+            }
+
+            result[name] = rows;
+        }
         return result;
     }
 
