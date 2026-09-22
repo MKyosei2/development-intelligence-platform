@@ -1,0 +1,51 @@
+name: Source Readability Autofix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".readability-autofix-trigger"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: source-readability-autofix
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+      - name: Normalize Purpose comments
+        shell: pwsh
+        run: ./scripts/Repair-SourcePurposeComments.ps1
+      - name: Restore
+        run: dotnet restore DevelopmentIntelligencePlatform.sln
+      - name: Format CSharp
+        run: dotnet format DevelopmentIntelligencePlatform.sln --no-restore --verbosity minimal
+      - name: Repair residual readability findings
+        shell: pwsh
+        run: ./scripts/Repair-SourceReadabilityResiduals.ps1
+      - name: Verify strict readability
+        shell: pwsh
+        run: ./scripts/Verify-SourceReadability.ps1 -Strict
+      - name: Commit repairs directly to main
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No readability changes were required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests scripts tools services collectors plugins
+          git commit -m "refactor: eliminate source readability findings"
+          git push origin HEAD:main
