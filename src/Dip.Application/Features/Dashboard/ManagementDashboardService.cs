@@ -53,7 +53,12 @@ public sealed class ManagementDashboardService
         dims.Add(new("Scope",ScoreStatus(scopeScore),scopeScore,$"Scope growth is {scope.ScopeGrowthPercent:0.#}% from baseline; {scope.IncompleteHighPriority} high-priority requirement(s) incomplete."));
 
         var milestoneScore=milestones.Total==0?75m:milestones.Blocked>0?Math.Max(25m,75m-milestones.Blocked*15m):milestones.AtRisk>0?Math.Max(55m,90m-milestones.AtRisk*8m):100m;
-        dims.Add(new("Milestones",ScoreStatus(milestoneScore),milestoneScore,$"{milestones.Completed}/{milestones.Total} completed; {milestones.AtRisk} at risk; {milestones.Blocked} blocked."));
+        dims.Add(new(
+            "Milestones",
+            ScoreStatus(milestoneScore),
+            milestoneScore,
+            $"{milestones.Completed}/{milestones.Total} completed; "
+            + $"{milestones.AtRisk} at risk; {milestones.Blocked} blocked."));
 
         var riskScore=risks.Open==0?100m:Math.Max(20m,100m-risks.Critical*25m-risks.ReviewOverdue*8m-Math.Min(30m,risks.TotalExposure/20m));
         dims.Add(new("Risks",ScoreStatus(riskScore),riskScore,$"{risks.Open} open risk(s), {risks.Critical} critical, {risks.ReviewOverdue} review overdue."));
@@ -62,7 +67,12 @@ public sealed class ManagementDashboardService
         dims.Add(new("Decisions & actions",ScoreStatus(actionScore),actionScore,$"{decisions.DecisionsPending} decision(s) pending, {decisions.OpenActions} open action(s), {decisions.OverdueActions} overdue."));
 
         var changeScore=scopeChanges.Proposed==0?100m:Math.Max(35m,100m-Math.Min(40m,scopeChanges.PendingScheduleDays*3m)-Math.Min(25m,scopeChanges.PendingRiskDeltaPercent/2m));
-        dims.Add(new("Scope changes",ScoreStatus(changeScore),changeScore,$"{scopeChanges.Proposed} change request(s) awaiting resolution; pending schedule impact is {scopeChanges.PendingScheduleDays:+#;-#;0} day(s)."));
+        dims.Add(new(
+            "Scope changes",
+            ScoreStatus(changeScore),
+            changeScore,
+            $"{scopeChanges.Proposed} change request(s) awaiting resolution; "
+            + $"pending schedule impact is {scopeChanges.PendingScheduleDays:+#;-#;0} day(s)."));
 
         var alertScore=alerts.Total==0?100m:Math.Max(15m,100m-alerts.Critical*25m-alerts.High*10m);
         dims.Add(new("Escalation",ScoreStatus(alertScore),alertScore,$"{alerts.Total} management alert(s): {alerts.Critical} critical and {alerts.High} high."));
