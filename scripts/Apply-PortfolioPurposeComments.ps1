@@ -1,8 +1,16 @@
 #requires -Version 5.1
 # Purpose: Replaces generic portfolio-critical Purpose comments with file-specific responsibility descriptions.
 [CmdletBinding()]
-param([string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path)
+param([string]$RepositoryRoot)
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $invocationScriptPath = $MyInvocation.MyCommand.Path
+    if ([string]::IsNullOrWhiteSpace($invocationScriptPath)) {
+        throw 'Unable to resolve the script path. Supply -RepositoryRoot explicitly.'
+    }
+    $scriptDirectory = Split-Path -Parent $invocationScriptPath
+    $RepositoryRoot = (Resolve-Path (Join-Path $scriptDirectory '..')).Path
+}
 $generic = 'Purpose: Defines a focused responsibility within the development intelligence platform.'
 $changes = @(
     @{ Path = 'src/Dip.Application/Features/P2Intelligence/AdaptiveQaPlanner.cs'; Purpose = '// Purpose: Plans adaptive QA work from project risk, repository signals, and prior execution evidence.' }

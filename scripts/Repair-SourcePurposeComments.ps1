@@ -2,12 +2,20 @@
 # Purpose: Repairs missing, duplicate, malformed, and unreadable Purpose comments in first-party handwritten source, including Razor and tooling source.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
+    [string]$RepositoryRoot,
     [switch]$WhatIfReport
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $invocationScriptPath = $MyInvocation.MyCommand.Path
+    if ([string]::IsNullOrWhiteSpace($invocationScriptPath)) {
+        throw 'Unable to resolve the script path. Supply -RepositoryRoot explicitly.'
+    }
+    $scriptDirectory = Split-Path -Parent $invocationScriptPath
+    $RepositoryRoot = (Resolve-Path (Join-Path $scriptDirectory '..')).Path
+}
 $Repo = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92, 47))
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $Changed = New-Object 'System.Collections.Generic.List[string]'

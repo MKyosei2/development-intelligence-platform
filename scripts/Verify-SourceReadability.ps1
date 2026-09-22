@@ -2,7 +2,7 @@
 # Purpose: Audits first-party source readability, Purpose coverage, empty catch blocks, and compressed C#/Razor code.
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
+    [string]$RepositoryRoot,
     [string]$ReportPath,
     [string]$InventoryPath,
     [switch]$Strict
@@ -10,6 +10,14 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $invocationScriptPath = $MyInvocation.MyCommand.Path
+    if ([string]::IsNullOrWhiteSpace($invocationScriptPath)) {
+        throw 'Unable to resolve the script path. Supply -RepositoryRoot explicitly.'
+    }
+    $scriptDirectory = Split-Path -Parent $invocationScriptPath
+    $RepositoryRoot = (Resolve-Path (Join-Path $scriptDirectory '..')).Path
+}
 $Repo=[System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92,47))
 if (-not $ReportPath) { $ReportPath=Join-Path $Repo 'artifacts\source-readability\report.md' }
 if (-not $InventoryPath) { $InventoryPath=Join-Path $Repo 'artifacts\source-readability\inventory.csv' }

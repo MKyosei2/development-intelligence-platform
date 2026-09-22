@@ -2,11 +2,19 @@
 # Purpose: Repairs residual Source Readability findings that remain after Purpose normalization and C# formatting.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+    [string]$RepositoryRoot
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $invocationScriptPath = $MyInvocation.MyCommand.Path
+    if ([string]::IsNullOrWhiteSpace($invocationScriptPath)) {
+        throw 'Unable to resolve the script path. Supply -RepositoryRoot explicitly.'
+    }
+    $scriptDirectory = Split-Path -Parent $invocationScriptPath
+    $RepositoryRoot = (Resolve-Path (Join-Path $scriptDirectory '..')).Path
+}
 $Repo = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92,47))
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $Changed = New-Object 'System.Collections.Generic.List[string]'
