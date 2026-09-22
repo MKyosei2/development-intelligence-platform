@@ -1,1 +1,1 @@
-// Purpose: Integrates external or runtime capabilities through S la ck No ti fi ca ti on Cl ie nt.
+// Purpose: Provides infrastructure behavior for this application boundary.

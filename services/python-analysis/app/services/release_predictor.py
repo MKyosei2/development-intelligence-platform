@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 import math
 
 from app.core.config import Settings

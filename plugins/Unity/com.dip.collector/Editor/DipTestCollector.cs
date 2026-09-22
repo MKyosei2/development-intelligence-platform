@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 #if UNITY_INCLUDE_TESTS
 using System;
 using UnityEditor;
@@ -25,7 +26,9 @@ namespace DIP.Collector
         static DipTestCollector()
         {
             try { ScriptableObject.CreateInstance<TestRunnerApi>().RegisterCallbacks(new Callbacks()); }
-            catch (Exception) { }
+            catch (Exception) {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-// Purpose: Evaluates P ro je ct Ri sk Ev al ua to r using DIP project evidence and policy.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectTruth;
@@ -7,8 +7,8 @@ public sealed class ProjectRiskEvaluator
 {
     private readonly ProjectTruthPolicy _policy;
 
-    public ProjectRiskEvaluator():this(ProjectTruthPolicy.Default){}
-    public ProjectRiskEvaluator(ProjectTruthPolicy policy){_policy=(policy??throw new ArgumentNullException(nameof(policy))).Validate();}
+    public ProjectRiskEvaluator() : this(ProjectTruthPolicy.Default) { }
+    public ProjectRiskEvaluator(ProjectTruthPolicy policy) { _policy = (policy ?? throw new ArgumentNullException(nameof(policy))).Validate(); }
 
     public ProjectRiskLevel Evaluate(
         ProgressAssessment progress,
@@ -20,10 +20,10 @@ public sealed class ProjectRiskEvaluator
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(blockers);
 
-        if (blockers.Any(item => SeverityIs(item.Severity,"Critical","SafetyCritical","ReleaseCritical")))
+        if (blockers.Any(item => SeverityIs(item.Severity, "Critical", "SafetyCritical", "ReleaseCritical")))
             return ProjectRiskLevel.Critical;
 
-        if (blockers.Any(item => SeverityIs(item.Severity,"Blocker","High","Rejected","Failed")))
+        if (blockers.Any(item => SeverityIs(item.Severity, "Blocker", "High", "Rejected", "Failed")))
             return ProjectRiskLevel.High;
 
         if (contradictionCount >= _policy.HighRiskContradictionThreshold)
@@ -42,6 +42,6 @@ public sealed class ProjectRiskEvaluator
         return ProjectRiskLevel.Low;
     }
 
-    private static bool SeverityIs(string value,params string[] expected)
-        =>expected.Any(x=>value.Equals(x,StringComparison.OrdinalIgnoreCase));
+    private static bool SeverityIs(string value, params string[] expected)
+        => expected.Any(x => value.Equals(x, StringComparison.OrdinalIgnoreCase));
 }

@@ -1,11 +1,11 @@
-// Purpose: Defines the application boundary represented by I Go og le Sh ee ts Co nn ec to r.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 namespace Dip.Application.Abstractions.Spreadsheets;
 
-public sealed record GoogleSheetGrid(string Name,IReadOnlyList<IReadOnlyList<string>> Rows);
+public sealed record GoogleSheetGrid(string Name, IReadOnlyList<IReadOnlyList<string>> Rows);
 
 public interface IGoogleSheetsConnector
 {
-    Task EnsureSheetsAsync(string spreadsheetId,string accessToken,IReadOnlyList<string> sheetNames,CancellationToken ct);
-    Task PushAsync(string spreadsheetId,string accessToken,IReadOnlyList<GoogleSheetGrid> sheets,CancellationToken ct);
-    Task<IReadOnlyDictionary<string,IReadOnlyList<IReadOnlyList<string>>>> PullAsync(string spreadsheetId,string accessToken,IReadOnlyList<string> sheetNames,CancellationToken ct);
+    Task EnsureSheetsAsync(string spreadsheetId, string accessToken, IReadOnlyList<string> sheetNames, CancellationToken ct);
+    Task PushAsync(string spreadsheetId, string accessToken, IReadOnlyList<GoogleSheetGrid> sheets, CancellationToken ct);
+    Task<IReadOnlyDictionary<string, IReadOnlyList<IReadOnlyList<string>>>> PullAsync(string spreadsheetId, string accessToken, IReadOnlyList<string> sheetNames, CancellationToken ct);
 }

@@ -1,1 +1,1 @@
-// Purpose: Defines configuration options for Q ue ue Op ti on s.
+// Purpose: Provides infrastructure behavior for this application boundary.

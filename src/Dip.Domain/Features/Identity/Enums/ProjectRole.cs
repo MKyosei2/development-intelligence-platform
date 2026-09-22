@@ -1,1 +1,1 @@
-// Purpose: Defines the allowed P ro je ct Ro le states used by the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.

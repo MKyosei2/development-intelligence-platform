@@ -9,6 +9,6 @@ namespace Dip.Application.Features.Jobs;
 
 public interface IDurableJobHandler
 {
-    DurableJobType Type{get;}
-    Task<DurableJobExecutionResult> ExecuteAsync(DurableJob job,CancellationToken cancellationToken);
+    DurableJobType Type { get; }
+    Task<DurableJobExecutionResult> ExecuteAsync(DurableJob job, CancellationToken cancellationToken);
 }

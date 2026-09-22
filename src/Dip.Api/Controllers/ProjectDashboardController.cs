@@ -8,8 +8,8 @@ using Dip.Application.Features.Decisions;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Features.FeatureControl;
 using Dip.Application.Features.Integrations;
-using Dip.Application.Features.Milestones;
 using Dip.Application.Features.Management;
+using Dip.Application.Features.Milestones;
 using Dip.Application.Features.P2Intelligence;
 using Dip.Application.Features.Review;
 using Dip.Application.Features.Scenarios;
@@ -24,8 +24,8 @@ namespace Dip.Api.Controllers;
 [Route("api/v1/project-control")]
 public sealed class ProjectDashboardController(ProjectControlDashboardService dashboard) : ControllerBase
 {
-    [Authorize(Policy=Policies.ProjectRead)]
-        [HttpGet("projects/{projectId:guid}/dashboard")]
-        public Task<ProjectControlDashboardDto> GetDashboard(Guid projectId,CancellationToken ct)
-            =>dashboard.GetAsync(projectId,ct);
+    [Authorize(Policy = Policies.ProjectRead)]
+    [HttpGet("projects/{projectId:guid}/dashboard")]
+    public Task<ProjectControlDashboardDto> GetDashboard(Guid projectId, CancellationToken ct)
+            => dashboard.GetAsync(projectId, ct);
 }

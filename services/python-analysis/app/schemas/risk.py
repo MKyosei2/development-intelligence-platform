@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from pydantic import BaseModel, Field
 
 from app.schemas.common import EvidenceItem

@@ -1,4 +1,4 @@
-// Purpose: Represents P2 In te ll ig en ce Re co rd in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;
@@ -55,17 +55,17 @@ public sealed class P2IntelligenceRecord
     public string? SourceReference { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
-    private static string Required(string? value,int max,string name)
+    private static string Required(string? value, int max, string name)
     {
-        var text=value?.Trim()??string.Empty;
-        if(text.Length is < 1 || text.Length>max) throw new ArgumentException($"{name} must be 1-{max} characters.",name);
+        var text = value?.Trim() ?? string.Empty;
+        if (text.Length is < 1 || text.Length > max) throw new ArgumentException($"{name} must be 1-{max} characters.", name);
         return text;
     }
-    private static string? Optional(string? value,int max,string name)
+    private static string? Optional(string? value, int max, string name)
     {
-        if(string.IsNullOrWhiteSpace(value)) return null;
-        var text=value.Trim();
-        if(text.Length>max) throw new ArgumentException($"{name} must be at most {max} characters.",name);
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var text = value.Trim();
+        if (text.Length > max) throw new ArgumentException($"{name} must be at most {max} characters.", name);
         return text;
     }
 }

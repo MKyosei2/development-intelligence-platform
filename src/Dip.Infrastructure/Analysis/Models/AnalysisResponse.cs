@@ -1,1 +1,1 @@
-// Purpose: Provides the infrastructure capability represented by A na ly si sR es po ns e.
+// Purpose: Defines data exchanged across this application boundary.

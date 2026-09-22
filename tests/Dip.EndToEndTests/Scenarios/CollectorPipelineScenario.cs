@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by C ol le ct or Pi pe li ne Sc en ar io.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

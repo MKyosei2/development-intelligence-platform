@@ -1,4 +1,4 @@
-// Purpose: Represents C la im Ev ID en ce Li nk in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

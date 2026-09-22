@@ -1,4 +1,4 @@
-// Purpose: Represents T ra ck ed Ar ti fa ct in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

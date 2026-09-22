@@ -1,1 +1,1 @@
-// Purpose: Defines the shared contract represented by Q ua li ty Ga te Fa il ed Me ss ag e.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

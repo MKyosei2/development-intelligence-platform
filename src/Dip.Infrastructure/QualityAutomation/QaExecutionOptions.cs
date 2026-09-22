@@ -1,9 +1,9 @@
-// Purpose: Defines configuration options for Q aE xe cu ti on Op ti on s.
+// Purpose: Provides infrastructure behavior for this application boundary.
 namespace Dip.Infrastructure.QualityAutomation;
 
 public sealed class QaExecutionOptions
 {
-    public const string SectionName="Qa";
+    public const string SectionName = "Qa";
     public string WorkspaceRoot { get; set; } = ".";
     public string ArtifactRoot { get; set; } = "artifacts/qa";
     public string CaptureAgentPath { get; set; } = "collectors/capture-agent/build/Release/dip-capture-agent.exe";

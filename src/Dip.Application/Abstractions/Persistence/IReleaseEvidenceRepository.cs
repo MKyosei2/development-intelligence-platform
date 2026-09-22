@@ -4,7 +4,7 @@ namespace Dip.Application.Abstractions.Persistence;
 
 public interface IReleaseEvidenceRepository
 {
-    Task AddAsync(ReleaseEvidenceBundle bundle,CancellationToken ct);
-    Task<ReleaseEvidenceBundle?> GetLatestAsync(Guid projectId,CancellationToken ct);
-    Task<IReadOnlyList<ReleaseEvidenceBundle>> ListAsync(Guid projectId,int take,CancellationToken ct);
+    Task AddAsync(ReleaseEvidenceBundle bundle, CancellationToken ct);
+    Task<ReleaseEvidenceBundle?> GetLatestAsync(Guid projectId, CancellationToken ct);
+    Task<IReadOnlyList<ReleaseEvidenceBundle>> ListAsync(Guid projectId, int take, CancellationToken ct);
 }

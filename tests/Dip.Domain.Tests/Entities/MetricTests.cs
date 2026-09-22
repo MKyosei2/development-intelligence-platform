@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by M et ri cT es ts.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Domain.Entities;
 using FluentAssertions;
 

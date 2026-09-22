@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 import json
 import logging
 from datetime import UTC, datetime

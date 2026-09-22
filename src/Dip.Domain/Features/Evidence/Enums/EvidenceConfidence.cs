@@ -1,4 +1,4 @@
-// Purpose: Defines the allowed E vi de nc eC on fi de nc e states used by the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Enums;
 
 public enum EvidenceConfidence

@@ -81,7 +81,7 @@ public static class EvidenceIntegrationDependencyInjection
 
     private static Uri EnsureTrailingSlash(string value)
     {
-        var normalized = value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+        var normalized = value.EndsWith('/') ? value : value + "/";
         return new Uri(normalized, UriKind.Absolute);
     }
 

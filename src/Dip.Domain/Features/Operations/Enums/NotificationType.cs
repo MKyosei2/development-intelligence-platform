@@ -1,1 +1,1 @@
-// Purpose: Defines the allowed N ot if ic at io nT yp e states used by the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.

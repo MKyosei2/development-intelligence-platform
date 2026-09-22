@@ -1,4 +1,4 @@
-// Purpose: Implements application behavior for P ro du ct io nT oo lE ve nt Ma pp in g.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProductionTools;

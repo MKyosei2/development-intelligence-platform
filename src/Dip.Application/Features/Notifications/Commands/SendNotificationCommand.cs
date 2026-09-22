@@ -1,1 +1,1 @@
-// Purpose: Defines the application command for S en dN ot if ic at io nC om ma nd.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

@@ -1,1 +1,1 @@
-// Purpose: Configures EF Core persistence for N ot if ic at io nC on fi gu ra ti on.
+// Purpose: Provides infrastructure behavior for this application boundary.

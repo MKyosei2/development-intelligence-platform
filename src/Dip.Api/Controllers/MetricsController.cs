@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for M et ri cs Co nt ro ll er.
+// Purpose: Exposes HTTP endpoints for this API responsibility.
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
@@ -14,16 +14,16 @@ public sealed class MetricsController : ControllerBase
     private readonly ApiMetricsRegistry _metrics;
     private readonly IDipOperationalMetrics _operational;
 
-    public MetricsController(ApiMetricsRegistry metrics,IDipOperationalMetrics operational)
+    public MetricsController(ApiMetricsRegistry metrics, IDipOperationalMetrics operational)
     {
-        _metrics = metrics;_operational=operational;
+        _metrics = metrics; _operational = operational;
     }
 
     [AllowAnonymous]
     [HttpGet("/metrics")]
     [Produces("text/plain")]
     public ContentResult GetMetrics() => Content(
-        _metrics.Render()+_operational.RenderPrometheus(),
+        _metrics.Render() + _operational.RenderPrometheus(),
         "text/plain; version=0.0.4; charset=utf-8",
         Encoding.UTF8);
 }

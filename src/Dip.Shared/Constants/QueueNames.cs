@@ -1,1 +1,1 @@
-// Purpose: Defines shared constants for Q ue ue Na me s.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

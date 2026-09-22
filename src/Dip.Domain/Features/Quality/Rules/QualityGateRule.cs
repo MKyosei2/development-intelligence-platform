@@ -1,1 +1,1 @@
-// Purpose: Encapsulates the domain rule represented by Q ua li ty Ga te Ru le.
+// Purpose: Defines domain behavior and state for this feature area.

@@ -1,4 +1,4 @@
-// Purpose: Defines the allowed Q aL an gu ag e states used by the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Enums;
 
 public enum QaLanguage

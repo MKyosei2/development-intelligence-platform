@@ -1,2 +1,2 @@
-// Purpose: Defines the shared contract represented by A pi Er ro r.
-namespace Dip.Shared.Contracts.Api; public sealed record ApiError(string Type,string Title,int Status,string TraceId,IReadOnlyDictionary<string,string[]>? Errors=null);
+// Purpose: Defines a focused responsibility within the development intelligence platform.
+namespace Dip.Shared.Contracts.Api; public sealed record ApiError(string Type, string Title, int Status, string TraceId, IReadOnlyDictionary<string, string[]>? Errors = null);

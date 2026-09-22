@@ -1,4 +1,4 @@
-// Purpose: Represents A rt if ac tD ep en de nc y in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;
@@ -23,8 +23,8 @@ public sealed class ArtifactDependency
     public DateTimeOffset ObservedAtUtc { get; private set; }
     private static string Required(string? value, int max, string name)
     {
-        var normalized=value?.Trim()??string.Empty;
-        if(normalized.Length is <1 || normalized.Length>max) throw new ArgumentException($"{name} must be 1-{max} characters.",name);
+        var normalized = value?.Trim() ?? string.Empty;
+        if (normalized.Length is < 1 || normalized.Length > max) throw new ArgumentException($"{name} must be 1-{max} characters.", name);
         return normalized;
     }
 }

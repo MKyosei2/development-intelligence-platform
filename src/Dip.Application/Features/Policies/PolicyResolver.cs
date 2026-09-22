@@ -1,4 +1,4 @@
-// Purpose: Implements application behavior for P ol ic yR es ol ve r.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;

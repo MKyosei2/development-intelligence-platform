@@ -1,4 +1,4 @@
-// Purpose: Represents P ro je ct So ur ce Bi nd in g in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Entities;
 
 public sealed class ProjectSourceBinding

@@ -1,4 +1,4 @@
-// Purpose: Defines the application boundary represented by I In te gr at io nC re de nt ia lS to re.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 namespace Dip.Application.Abstractions.Security;
 
 public interface IIntegrationCredentialStore

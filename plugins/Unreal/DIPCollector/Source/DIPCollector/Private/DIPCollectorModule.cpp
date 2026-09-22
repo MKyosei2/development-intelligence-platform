@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 #include "DIPCollectorModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dom/JsonObject.h"

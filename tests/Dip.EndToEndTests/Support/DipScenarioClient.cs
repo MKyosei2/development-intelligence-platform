@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by D ip Sc en ar io Cl ie nt.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;

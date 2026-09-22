@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by C la im Ev ID en ce As se ss me nt Sc or in gT es ts.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Enums;
 using FluentAssertions;

@@ -6,16 +6,16 @@ namespace Dip.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(DipDbContext))]
 [Migration("202608120003_AddDevelopmentIntelligenceExpansion")]
-public sealed class AddDevelopmentIntelligenceExpansion:Migration
+public sealed class AddDevelopmentIntelligenceExpansion : Migration
 {
-    public const string MigrationId="202608120003_AddDevelopmentIntelligenceExpansion";
-    protected override void Up(MigrationBuilder migrationBuilder){foreach(var sql in Statements)migrationBuilder.Sql(sql);}
+    public const string MigrationId = "202608120003_AddDevelopmentIntelligenceExpansion";
+    protected override void Up(MigrationBuilder migrationBuilder) { foreach (var sql in Statements) migrationBuilder.Sql(sql); }
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("ALTER TABLE artifact_records DROP COLUMN IF EXISTS game_replay_run_id;");
-        foreach(var table in new[]{"cross_repository_impacts","repository_dependencies","repository_nodes","release_evidence_bundles","external_work_item_links","release_readiness_snapshots","regression_triages","change_risk_assessments","hardware_backtests","performance_budget_evaluations","performance_budget_profiles","game_replay_metrics","game_replay_runs","game_replay_sessions"})migrationBuilder.Sql($"DROP TABLE IF EXISTS {table} CASCADE;");
+        foreach (var table in new[] { "cross_repository_impacts", "repository_dependencies", "repository_nodes", "release_evidence_bundles", "external_work_item_links", "release_readiness_snapshots", "regression_triages", "change_risk_assessments", "hardware_backtests", "performance_budget_evaluations", "performance_budget_profiles", "game_replay_metrics", "game_replay_runs", "game_replay_sessions" }) migrationBuilder.Sql($"DROP TABLE IF EXISTS {table} CASCADE;");
     }
-    private static readonly string[] Statements=
+    private static readonly string[] Statements =
     [
         """
         CREATE TABLE IF NOT EXISTS game_replay_sessions (

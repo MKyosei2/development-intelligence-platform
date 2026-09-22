@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.QualityGovernance;
 
-public sealed record TestRecommendationDto(string TestKey,string Reason,string Priority,string? CommandJson);
+public sealed record TestRecommendationDto(string TestKey, string Reason, string Priority, string? CommandJson);

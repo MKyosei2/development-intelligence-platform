@@ -1,1 +1,1 @@
-// Purpose: Provides the infrastructure capability represented by O pe nT el em et ry Ex te ns io ns.
+// Purpose: Provides infrastructure behavior for this application boundary.

@@ -1,1 +1,1 @@
-// Purpose: Encapsulates the domain rule represented by R eg re ss io nR ul e.
+// Purpose: Defines domain behavior and state for this feature area.

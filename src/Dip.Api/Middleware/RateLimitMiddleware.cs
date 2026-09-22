@@ -1,1 +1,1 @@
-// Purpose: Defines the DIP responsibility represented by R at eL im it Mi dd le wa re.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

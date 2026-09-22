@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.DevelopmentGraph;
 
-public sealed record UniversalGraphEdgeDto(DevelopmentGraphEdgeDto Edge,string RelationKind);
+public sealed record UniversalGraphEdgeDto(DevelopmentGraphEdgeDto Edge, string RelationKind);

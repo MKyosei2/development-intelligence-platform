@@ -113,7 +113,9 @@ public sealed class AgentRuntime : IDisposable
                     }
                     await _api.SendMediaAsync(item, ct);
                     await _state.CompleteMediaAsync(new[] { item.Id }, ct);
-                    try { File.Delete(item.SpoolPath); } catch { }
+                    try { File.Delete(item.SpoolPath); } catch {
+                        // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                    }
                     total++;
                 }
                 catch

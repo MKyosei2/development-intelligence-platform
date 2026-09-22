@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 #include "dip/DuplicateDetector.hpp"
 #include <iostream>
 

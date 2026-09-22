@@ -1,4 +1,4 @@
-// Purpose: Implements application behavior for G it Hu bW eb ho ok Pr oc es so r.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -129,7 +129,7 @@ public sealed class GitHubWebhookProcessor
             // while refreshing Project Truth, a GitHub retry repairs the view.
             if (project is not null)
             {
-                await _developmentGraph.IngestAsync(project.Id,eventName,payloadJson,cancellationToken);
+                await _developmentGraph.IngestAsync(project.Id, eventName, payloadJson, cancellationToken);
                 await _truth.RecalculateAsync(project.Id, cancellationToken);
             }
 
@@ -192,7 +192,7 @@ public sealed class GitHubWebhookProcessor
 
         if (project is not null)
         {
-            await _developmentGraph.IngestAsync(project.Id,eventName,payloadJson,cancellationToken);
+            await _developmentGraph.IngestAsync(project.Id, eventName, payloadJson, cancellationToken);
             await _truth.RecalculateAsync(project.Id, cancellationToken);
         }
 
@@ -247,93 +247,93 @@ public sealed class GitHubWebhookProcessor
                 break;
 
             case "pull_request":
-            {
-                var merged = false;
-                if (root.TryGetProperty("pull_request", out var pr)
-                    && pr.TryGetProperty("merged", out var mergedNode)
-                    && mergedNode.ValueKind is JsonValueKind.True or JsonValueKind.False)
                 {
-                    merged = mergedNode.GetBoolean();
-                }
+                    var merged = false;
+                    if (root.TryGetProperty("pull_request", out var pr)
+                        && pr.TryGetProperty("merged", out var mergedNode)
+                        && mergedNode.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    {
+                        merged = mergedNode.GetBoolean();
+                    }
 
-                if (string.Equals(action, "closed", StringComparison.OrdinalIgnoreCase) && merged)
-                {
-                    kind = "integration";
-                    outcome = EvidenceOutcome.Succeeded;
-                    title = $"Pull request #{pullRequestNumber} merged";
-                    summary = "A pull request was merged into the repository, providing objective integration evidence.";
+                    if (string.Equals(action, "closed", StringComparison.OrdinalIgnoreCase) && merged)
+                    {
+                        kind = "integration";
+                        outcome = EvidenceOutcome.Succeeded;
+                        title = $"Pull request #{pullRequestNumber} merged";
+                        summary = "A pull request was merged into the repository, providing objective integration evidence.";
+                    }
+                    else
+                    {
+                        kind = "pull-request";
+                        outcome = EvidenceOutcome.Changed;
+                        title = $"Pull request #{pullRequestNumber} {action}";
+                        summary = $"Pull request activity was observed: {action}.";
+                    }
+                    break;
                 }
-                else
-                {
-                    kind = "pull-request";
-                    outcome = EvidenceOutcome.Changed;
-                    title = $"Pull request #{pullRequestNumber} {action}";
-                    summary = $"Pull request activity was observed: {action}.";
-                }
-                break;
-            }
 
             case "workflow_run":
-            {
-                kind = "ci-workflow";
-                var conclusion = ReadNestedString(root, "workflow_run", "conclusion");
-                outcome = OutcomeFromConclusion(conclusion);
-                var workflowName = ReadNestedString(root, "workflow_run", "name") ?? "workflow";
-                title = $"CI workflow {workflowName}: {conclusion ?? "updated"}";
-                summary = $"GitHub Actions workflow '{workflowName}' concluded '{conclusion ?? "unknown"}'.";
-                break;
-            }
+                {
+                    kind = "ci-workflow";
+                    var conclusion = ReadNestedString(root, "workflow_run", "conclusion");
+                    outcome = OutcomeFromConclusion(conclusion);
+                    var workflowName = ReadNestedString(root, "workflow_run", "name") ?? "workflow";
+                    title = $"CI workflow {workflowName}: {conclusion ?? "updated"}";
+                    summary = $"GitHub Actions workflow '{workflowName}' concluded '{conclusion ?? "unknown"}'.";
+                    break;
+                }
 
             case "check_run":
-            {
-                kind = "ci-check";
-                var conclusion = ReadNestedString(root, "check_run", "conclusion");
-                outcome = OutcomeFromConclusion(conclusion);
-                var checkName = ReadNestedString(root, "check_run", "name") ?? "check";
-                title = $"CI check {checkName}: {conclusion ?? "updated"}";
-                summary = $"GitHub check '{checkName}' concluded '{conclusion ?? "unknown"}'.";
-                break;
-            }
+                {
+                    kind = "ci-check";
+                    var conclusion = ReadNestedString(root, "check_run", "conclusion");
+                    outcome = OutcomeFromConclusion(conclusion);
+                    var checkName = ReadNestedString(root, "check_run", "name") ?? "check";
+                    title = $"CI check {checkName}: {conclusion ?? "updated"}";
+                    summary = $"GitHub check '{checkName}' concluded '{conclusion ?? "unknown"}'.";
+                    break;
+                }
 
             case "pull_request_review":
-            {
-                kind = "pull-request-review";
-                var state = ReadNestedString(root, "review", "state") ?? action;
-                outcome = state.Equals("approved", StringComparison.OrdinalIgnoreCase)
-                    ? EvidenceOutcome.Succeeded
-                    : state.Equals("changes_requested", StringComparison.OrdinalIgnoreCase)
-                        ? EvidenceOutcome.Warning
-                        : EvidenceOutcome.Changed;
-                title = $"Pull request #{pullRequestNumber} review: {state}";
-                summary = $"GitHub review state '{state}' was observed for pull request #{pullRequestNumber}.";
-                break;
-            }
+                {
+                    kind = "pull-request-review";
+                    var state = ReadNestedString(root, "review", "state") ?? action;
+                    outcome = state.Equals("approved", StringComparison.OrdinalIgnoreCase)
+                        ? EvidenceOutcome.Succeeded
+                        : state.Equals("changes_requested", StringComparison.OrdinalIgnoreCase)
+                            ? EvidenceOutcome.Warning
+                            : EvidenceOutcome.Changed;
+                    title = $"Pull request #{pullRequestNumber} review: {state}";
+                    summary = $"GitHub review state '{state}' was observed for pull request #{pullRequestNumber}.";
+                    break;
+                }
 
             case "release":
-            {
-                kind = "release";
-                outcome = action.Equals("published", StringComparison.OrdinalIgnoreCase)
-                    ? EvidenceOutcome.Succeeded
-                    : EvidenceOutcome.Changed;
-                var tag = ReadNestedString(root, "release", "tag_name") ?? "untagged";
-                title = $"GitHub release {tag}: {action}";
-                summary = $"Release tag '{tag}' emitted GitHub action '{action}'.";
-                break;
-            }
+                {
+                    kind = "release";
+                    outcome = action.Equals("published", StringComparison.OrdinalIgnoreCase)
+                        ? EvidenceOutcome.Succeeded
+                        : EvidenceOutcome.Changed;
+                    var tag = ReadNestedString(root, "release", "tag_name") ?? "untagged";
+                    title = $"GitHub release {tag}: {action}";
+                    summary = $"Release tag '{tag}' emitted GitHub action '{action}'.";
+                    break;
+                }
 
             case "deployment":
             case "deployment_status":
-            {
-                kind = "deployment";
-                var state = normalizedEvent == "deployment_status"
-                    ? ReadNestedString(root, "deployment_status", "state") ?? action
-                    : action;
-                outcome = OutcomeFromConclusion(state);
-                if (outcome == EvidenceOutcome.Unknown) outcome = EvidenceOutcome.Changed;
-                title = $"GitHub deployment: {state}";
-                summary = $"Deployment activity was observed with state '{state}'.";
-                break;
-            }
+                {
+                    kind = "deployment";
+                    var state = normalizedEvent == "deployment_status"
+                        ? ReadNestedString(root, "deployment_status", "state") ?? action
+                        : action;
+                    outcome = OutcomeFromConclusion(state);
+                    if (outcome == EvidenceOutcome.Unknown) outcome = EvidenceOutcome.Changed;
+                    title = $"GitHub deployment: {state}";
+                    summary = $"Deployment activity was observed with state '{state}'.";
+                    break;
+                }
 
             case "ping":
                 kind = "github-connection";

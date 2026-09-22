@@ -1,2 +1,2 @@
-// Purpose: Implements DIP web behavior for G lo ba lU si ng s.
+// Purpose: Implements web-facing behavior for this application surface.
 global using Dip.Web.Services;

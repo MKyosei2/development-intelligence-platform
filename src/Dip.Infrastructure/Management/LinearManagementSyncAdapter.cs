@@ -1,4 +1,4 @@
-// Purpose: Integrates external or runtime capabilities through L in ea rM an ag em en tS yn cA da pt er.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Net.Http.Json;
 using System.Text.Json;
 using Dip.Application.Features.Management;
@@ -140,9 +140,22 @@ public sealed class LinearManagementSyncAdapter : IManagementSyncAdapter, IDispo
     }
 
     private static void ThrowErrors(JsonDocument doc) { if (doc.RootElement.TryGetProperty("errors", out var e) && e.ValueKind == JsonValueKind.Array && e.GetArrayLength() > 0) throw new InvalidOperationException("Linear API returned errors: " + Clip(e.GetRawText())); }
-    private static string ProjectMarker(string body) { const string p = "<!-- dip-project:"; var i = body.IndexOf(p, StringComparison.OrdinalIgnoreCase); if (i < 0) return string.Empty; var e = body.IndexOf(" -->", i, StringComparison.OrdinalIgnoreCase); return e < 0 ? string.Empty : body[(i + p.Length)..e].Trim(); }
-    private static string? Marker(string body) { const string p = "<!-- dip-key:"; var i = body.IndexOf(p, StringComparison.OrdinalIgnoreCase); if (i < 0) return null; var e = body.IndexOf(" -->", i, StringComparison.OrdinalIgnoreCase); return e < 0 ? null : body[(i + p.Length)..e].Trim(); }
-    private static string? Field(string body, string prefix) { foreach (var line in body.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n')) if (line.TrimStart().StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return line.Trim()[(line.Trim().IndexOf(':') + 1)..].Trim(); return null; }
+    private static string ProjectMarker(string body) { const string p = "<!-- dip-project:";
+     var i = body.IndexOf(p, StringComparison.OrdinalIgnoreCase);
+    if (i < 0) return string.Empty;
+     var e = body.IndexOf(" -->", i, StringComparison.OrdinalIgnoreCase);
+     return e < 0 ? string.Empty : body[(i + p.Length)..e].Trim();
+     }
+    private static string? Marker(string body) { const string p = "<!-- dip-key:";
+     var i = body.IndexOf(p, StringComparison.OrdinalIgnoreCase);
+    if (i < 0) return null;
+     var e = body.IndexOf(" -->", i, StringComparison.OrdinalIgnoreCase);
+     return e < 0 ? null : body[(i + p.Length)..e].Trim();
+     }
+    private static string? Field(string body, string prefix) { foreach (var line in body.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n'))
+    if (line.TrimStart().StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return line.Trim()[(line.Trim().IndexOf(':') + 1)..].Trim();
+     return null;
+     }
     private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) || value.Equals("Unassigned", StringComparison.OrdinalIgnoreCase) ? null : value.Trim();
     private static bool IsCompleted(string status) => status.Equals("Completed", StringComparison.OrdinalIgnoreCase) || status.Equals("Done", StringComparison.OrdinalIgnoreCase) || status.Equals("Closed", StringComparison.OrdinalIgnoreCase) || status.Equals("Resolved", StringComparison.OrdinalIgnoreCase);
     private static string SafeMarker(string value) => SafeSingleLine(value, 200).Replace("--", "", StringComparison.Ordinal).Replace("<", "", StringComparison.Ordinal).Replace(">", "", StringComparison.Ordinal);

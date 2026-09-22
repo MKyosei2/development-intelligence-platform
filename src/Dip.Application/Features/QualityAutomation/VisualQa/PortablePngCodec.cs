@@ -1,4 +1,4 @@
-// Purpose: Implements application behavior for P or ta bl eP ng Co de c.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;

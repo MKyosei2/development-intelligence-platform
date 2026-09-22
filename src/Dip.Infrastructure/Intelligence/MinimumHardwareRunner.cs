@@ -1,4 +1,4 @@
-// Purpose: Executes the infrastructure workflow represented by M in im um Ha rd wa re Ru nn er.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.Hardware;

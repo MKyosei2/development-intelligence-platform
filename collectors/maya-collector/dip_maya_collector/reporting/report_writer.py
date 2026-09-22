@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 import json
 from pathlib import Path
 from dip_maya_collector.models import CollectorReport

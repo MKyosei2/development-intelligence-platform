@@ -1,9 +1,9 @@
-// Purpose: Defines the application boundary represented by I Ex te rn al Wo rk It em Co nn ec to r.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 namespace Dip.Application.Abstractions.WorkItems;
-public sealed record WorkItemDraft(string Title,string Body,string? Repository);
-public sealed record CreatedWorkItem(string ExternalId,string Url,string Title);
+public sealed record WorkItemDraft(string Title, string Body, string? Repository);
+public sealed record CreatedWorkItem(string ExternalId, string Url, string Title);
 public interface IExternalWorkItemConnector
 {
-    string ProviderName{get;}
-    Task<CreatedWorkItem> CreateAsync(WorkItemDraft draft,CancellationToken ct);
+    string ProviderName { get; }
+    Task<CreatedWorkItem> CreateAsync(WorkItemDraft draft, CancellationToken ct);
 }

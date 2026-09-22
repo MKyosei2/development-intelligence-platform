@@ -1,1 +1,1 @@
-// Purpose: Provides the infrastructure capability represented by M in io Ob je ct St or ag e.
+// Purpose: Provides infrastructure behavior for this application boundary.

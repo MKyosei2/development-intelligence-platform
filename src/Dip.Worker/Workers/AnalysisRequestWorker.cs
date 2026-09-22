@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for A na ly si sR eq ue st Wo rk er.
+// Purpose: Runs background processing for this application responsibility.
 using Dip.Application.Abstractions.Messaging;
 using Dip.Infrastructure.Messaging;
 using Dip.Worker.Options;

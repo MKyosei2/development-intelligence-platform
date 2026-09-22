@@ -1,4 +1,4 @@
-// Purpose: Persists and queries C la im Ev ID en ce Li nk Re po si to ry data.
+// Purpose: Persists and queries data for this application boundary.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

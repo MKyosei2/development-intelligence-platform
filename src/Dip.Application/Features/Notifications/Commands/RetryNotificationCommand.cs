@@ -1,1 +1,1 @@
-// Purpose: Defines the application command for R et ry No ti fi ca ti on Co mm an d.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

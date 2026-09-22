@@ -1,4 +1,4 @@
-// Purpose: Integrates external or runtime capabilities through G oo gl eC al en da rR es tC on ne ct or.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;

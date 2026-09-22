@@ -1,4 +1,4 @@
-// Purpose: Evaluates P ro gr es sE va lu at or using DIP project evidence and policy.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 

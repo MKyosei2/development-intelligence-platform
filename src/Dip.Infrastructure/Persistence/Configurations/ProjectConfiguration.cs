@@ -1,4 +1,4 @@
-// Purpose: Configures EF Core persistence for P ro je ct Co nf ig ur at io n.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +20,7 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(x => x.RepositoryUrl).HasMaxLength(2000).IsRequired();
         builder.Property(x => x.DefaultBranch).HasMaxLength(200).IsRequired();
         builder.Property(x => x.HealthScore)
-            .HasConversion(score => score.Value,value => new HealthScore(value))
+            .HasConversion(score => score.Value, value => new HealthScore(value))
             .HasColumnName("HealthScore").HasPrecision(5, 2).IsRequired();
         builder.HasIndex(x => x.RepositoryUrl);
     }

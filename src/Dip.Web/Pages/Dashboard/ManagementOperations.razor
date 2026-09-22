@@ -1,3 +1,4 @@
+@* Purpose: Renders and coordinates this web surface and its user interactions. *@
 @page "/dashboard/{ProjectId:guid}/management"
 @using Dip.Application.Features.Management
 @inject ApiClient Api
@@ -63,14 +64,31 @@ else if (_cockpit is not null && _management is not null)
                         {
                             @foreach (var approval in _approvals.Items.Where(x => x.Status == "Pending"))
                             {
-                                <div class="border rounded p-2 mb-2"><strong>@approval.Title</strong><div class="small text-muted">@approval.ApprovalType · @approval.TargetType:@approval.TargetKey · pending @string.Join(", ", approval.PendingRoles)</div><div class="input-group input-group-sm mt-2"><select class="form-select" @bind="_approvalActorRole"><option value="">Select bound role</option>@foreach (var role in CurrentActorRoles) { <option value="@role">@role</option> }</select><button class="btn btn-outline-success" disabled="@string.IsNullOrWhiteSpace(_approvalActorRole)" @onclick="() => Respond(approval,true)">Approve</button><button class="btn btn-outline-danger" disabled="@string.IsNullOrWhiteSpace(_approvalActorRole)" @onclick="() => Respond(approval,false)">Reject</button></div></div>
+                                <div class="border rounded p-2 mb-2">
+                                <strong>@approval.Title</strong>
+                                <div class="small text-muted">@approval.ApprovalType · @approval.TargetType:@approval.TargetKey · pending @string.Join(", ", approval.PendingRoles)</div>
+                                <div class="input-group input-group-sm mt-2">
+                                <select class="form-select" @bind="_approvalActorRole">
+                                <option value="">Select bound role</option>@foreach (var role in CurrentActorRoles) { 
+                                <option value="@role">@role</option> }</select>
+                                <button class="btn btn-outline-success" disabled="@string.IsNullOrWhiteSpace(_approvalActorRole)" @onclick="() => Respond(approval,true)">Approve</button>
+                                <button class="btn btn-outline-danger" disabled="@string.IsNullOrWhiteSpace(_approvalActorRole)" @onclick="() => Respond(approval,false)">Reject</button></div></div>
                             }
                         }
                     </div>
                 </div>
                 <div class="card">
                     <div class="card-header"><strong>Create approval gate</strong></div>
-                    <div class="card-body form-grid"><input class="form-control" placeholder="Key" @bind="_approvalKey"/><input class="form-control" placeholder="Title" @bind="_approvalTitle"/><input class="form-control" placeholder="Type (Release/Scope/Resource)" @bind="_approvalType"/><div class="d-flex gap-2"><input class="form-control" placeholder="Target type" @bind="_approvalTargetType"/><input class="form-control" placeholder="Target key" @bind="_approvalTargetKey"/></div><input class="form-control" placeholder="Required roles, comma separated" @bind="_approvalRoles"/><input class="form-control" type="datetime-local" @bind="_approvalDue"/><button class="btn btn-primary" @onclick="CreateApproval">Create approval</button></div>
+                    <div class="card-body form-grid">
+                    <input class="form-control" placeholder="Key" @bind="_approvalKey"/>
+                    <input class="form-control" placeholder="Title" @bind="_approvalTitle"/>
+                    <input class="form-control" placeholder="Type (Release/Scope/Resource)" @bind="_approvalType"/>
+                    <div class="d-flex gap-2">
+                    <input class="form-control" placeholder="Target type" @bind="_approvalTargetType"/>
+                    <input class="form-control" placeholder="Target key" @bind="_approvalTargetKey"/></div>
+                    <input class="form-control" placeholder="Required roles, comma separated" @bind="_approvalRoles"/>
+                    <input class="form-control" type="datetime-local" @bind="_approvalDue"/>
+                    <button class="btn btn-primary" @onclick="CreateApproval">Create approval</button></div>
                 </div>
             </div>
         </div>
@@ -79,14 +97,126 @@ else if (_cockpit is not null && _management is not null)
     {
         <div class="row g-3">
             <div class="col-12 col-xl-7">
-                <div class="card mb-3"><div class="card-header"><strong>Risk register</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Risk</th><th>Exposure</th><th>Owner</th><th>Review</th><th></th></tr></thead><tbody>@foreach (var risk in _management.Risks.Items) { <tr><td><button class="btn btn-link btn-sm p-0" @onclick="() => EditRisk(risk)">@risk.Title</button><div class="small text-muted">@risk.Key · @risk.Status</div></td><td>@risk.ExposureScore.ToString("0.#") @risk.ExposureLevel</td><td>@(risk.OwnerRole ?? "—")</td><td>@(risk.ReviewDueUtc?.ToLocalTime().ToString("d") ?? "—")</td><td><button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("risk",risk.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>Decisions</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>@foreach (var decision in _management.Decisions.Decisions) { <tr><td><button class="btn btn-link btn-sm p-0" @onclick="() => EditDecision(decision)">@decision.Title</button><div class="small text-muted">@decision.Key · @decision.Status</div></td><td>@(decision.DecisionOwnerRole ?? "—")</td><td>@decision.OpenActions open action(s)</td><td><button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("decision",decision.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
-                <div class="card"><div class="card-header"><strong>Actions</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>@foreach (var action in _management.Decisions.Actions) { <tr><td><button class="btn btn-link btn-sm p-0" @onclick="() => EditAction(action)">@action.Title</button><div class="small text-muted">@action.Key · @action.Status</div></td><td>@(action.OwnerRole ?? "—")</td><td>@(action.DueAtUtc?.ToLocalTime().ToString("d") ?? "—")</td><td><button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("action",action.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Risk register</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <thead>
+                <tr>
+                <th>Risk</th>
+                <th>Exposure</th>
+                <th>Owner</th>
+                <th>Review</th>
+                <th></th></tr></thead>
+                <tbody>@foreach (var risk in _management.Risks.Items) { 
+                <tr>
+                <td>
+                <button class="btn btn-link btn-sm p-0" @onclick="() => EditRisk(risk)">@risk.Title</button>
+                <div class="small text-muted">@risk.Key · @risk.Status</div></td>
+                <td>@risk.ExposureScore.ToString("0.#") @risk.ExposureLevel</td>
+                <td>@(risk.OwnerRole ?? "—")</td>
+                <td>@(risk.ReviewDueUtc?.ToLocalTime().ToString("d") ?? "—")</td>
+                <td>
+                <button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("risk",risk.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Decisions</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <tbody>@foreach (var decision in _management.Decisions.Decisions) { 
+                <tr>
+                <td>
+                <button class="btn btn-link btn-sm p-0" @onclick="() => EditDecision(decision)">@decision.Title</button>
+                <div class="small text-muted">@decision.Key · @decision.Status</div></td>
+                <td>@(decision.DecisionOwnerRole ?? "—")</td>
+                <td>@decision.OpenActions open action(s)</td>
+                <td>
+                <button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("decision",decision.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Actions</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <tbody>@foreach (var action in _management.Decisions.Actions) { 
+                <tr>
+                <td>
+                <button class="btn btn-link btn-sm p-0" @onclick="() => EditAction(action)">@action.Title</button>
+                <div class="small text-muted">@action.Key · @action.Status</div></td>
+                <td>@(action.OwnerRole ?? "—")</td>
+                <td>@(action.DueAtUtc?.ToLocalTime().ToString("d") ?? "—")</td>
+                <td>
+                <button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("action",action.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
             </div>
             <div class="col-12 col-xl-5">
-                <div class="card mb-3"><div class="card-header"><strong>Create / update risk</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Key" @bind="_riskKey"/><input class="form-control" placeholder="Title" @bind="_riskTitle"/><textarea class="form-control" placeholder="Description" @bind="_riskDescription"></textarea><div class="d-flex gap-2"><select class="form-select" @bind="_riskStatus"><option>Open</option><option>Monitoring</option><option>Mitigated</option><option>Closed</option></select><input class="form-control" placeholder="Category" @bind="_riskCategory"/></div><div class="d-flex gap-2"><input class="form-control" type="number" min="0" max="100" placeholder="Probability %" @bind="_riskProbability"/><input class="form-control" type="number" min="0" max="100" placeholder="Impact %" @bind="_riskImpact"/></div><input class="form-control" placeholder="Owner role" @bind="_riskOwner"/><input class="form-control" type="datetime-local" @bind="_riskReview"/><input class="form-control" placeholder="Trigger" @bind="_riskTrigger"/><textarea class="form-control" placeholder="Mitigation" @bind="_riskMitigation"></textarea><input class="form-control" placeholder="Affected items: task:KEY, milestone:KEY" @bind="_riskAffected"/><button class="btn btn-primary" @onclick="SaveRisk">Save risk</button></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>Create / update decision</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Key" @bind="_decisionKey"/><input class="form-control" placeholder="Title" @bind="_decisionTitle"/><input class="form-control" placeholder="Decision / proposed choice" @bind="_decisionValue"/><textarea class="form-control" placeholder="Rationale" @bind="_decisionRationale"></textarea><select class="form-select" @bind="_decisionStatus"><option>Proposed</option><option>Pending</option><option>Completed</option><option>Rejected</option></select><input class="form-control" placeholder="Owner role" @bind="_decisionOwner"/><div class="d-flex gap-2"><input class="form-control" type="datetime-local" @bind="_decisionDue"/><input class="form-control" type="datetime-local" @bind="_decisionDecided"/></div><input class="form-control" placeholder="Related items: risk:KEY, release:KEY" @bind="_decisionRelated"/><button class="btn btn-primary" @onclick="SaveDecision">Save decision</button></div></div>
-                <div class="card"><div class="card-header"><strong>Create / update action</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Key" @bind="_actionKey"/><input class="form-control" placeholder="Title" @bind="_actionTitle"/><div class="d-flex gap-2"><select class="form-select" @bind="_actionPriority"><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select><select class="form-select" @bind="_actionStatus"><option>Open</option><option>InProgress</option><option>Completed</option><option>Blocked</option></select></div><input class="form-control" placeholder="Owner role" @bind="_actionOwner"/><div class="d-flex gap-2"><input class="form-control" type="datetime-local" @bind="_actionDue"/><input class="form-control" type="number" min="0" max="100" placeholder="Completion %" @bind="_actionCompletion"/></div><input class="form-control" placeholder="Decision key (optional)" @bind="_actionDecisionKey"/><div class="d-flex gap-2"><input class="form-control" placeholder="Target type" @bind="_actionTargetType"/><input class="form-control" placeholder="Target key" @bind="_actionTargetKey"/></div><button class="btn btn-primary" @onclick="SaveAction">Save action</button></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Create / update risk</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Key" @bind="_riskKey"/>
+                <input class="form-control" placeholder="Title" @bind="_riskTitle"/>
+                <textarea class="form-control" placeholder="Description" @bind="_riskDescription"></textarea>
+                <div class="d-flex gap-2">
+                <select class="form-select" @bind="_riskStatus">
+                <option>Open</option>
+                <option>Monitoring</option>
+                <option>Mitigated</option>
+                <option>Closed</option></select>
+                <input class="form-control" placeholder="Category" @bind="_riskCategory"/></div>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="number" min="0" max="100" placeholder="Probability %" @bind="_riskProbability"/>
+                <input class="form-control" type="number" min="0" max="100" placeholder="Impact %" @bind="_riskImpact"/></div>
+                <input class="form-control" placeholder="Owner role" @bind="_riskOwner"/>
+                <input class="form-control" type="datetime-local" @bind="_riskReview"/>
+                <input class="form-control" placeholder="Trigger" @bind="_riskTrigger"/>
+                <textarea class="form-control" placeholder="Mitigation" @bind="_riskMitigation"></textarea>
+                <input class="form-control" placeholder="Affected items: task:KEY, milestone:KEY" @bind="_riskAffected"/>
+                <button class="btn btn-primary" @onclick="SaveRisk">Save risk</button></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Create / update decision</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Key" @bind="_decisionKey"/>
+                <input class="form-control" placeholder="Title" @bind="_decisionTitle"/>
+                <input class="form-control" placeholder="Decision / proposed choice" @bind="_decisionValue"/>
+                <textarea class="form-control" placeholder="Rationale" @bind="_decisionRationale"></textarea>
+                <select class="form-select" @bind="_decisionStatus">
+                <option>Proposed</option>
+                <option>Pending</option>
+                <option>Completed</option>
+                <option>Rejected</option></select>
+                <input class="form-control" placeholder="Owner role" @bind="_decisionOwner"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="datetime-local" @bind="_decisionDue"/>
+                <input class="form-control" type="datetime-local" @bind="_decisionDecided"/></div>
+                <input class="form-control" placeholder="Related items: risk:KEY, release:KEY" @bind="_decisionRelated"/>
+                <button class="btn btn-primary" @onclick="SaveDecision">Save decision</button></div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Create / update action</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Key" @bind="_actionKey"/>
+                <input class="form-control" placeholder="Title" @bind="_actionTitle"/>
+                <div class="d-flex gap-2">
+                <select class="form-select" @bind="_actionPriority">
+                <option>Critical</option>
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option></select>
+                <select class="form-select" @bind="_actionStatus">
+                <option>Open</option>
+                <option>InProgress</option>
+                <option>Completed</option>
+                <option>Blocked</option></select></div>
+                <input class="form-control" placeholder="Owner role" @bind="_actionOwner"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="datetime-local" @bind="_actionDue"/>
+                <input class="form-control" type="number" min="0" max="100" placeholder="Completion %" @bind="_actionCompletion"/></div>
+                <input class="form-control" placeholder="Decision key (optional)" @bind="_actionDecisionKey"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" placeholder="Target type" @bind="_actionTargetType"/>
+                <input class="form-control" placeholder="Target key" @bind="_actionTargetKey"/></div>
+                <button class="btn btn-primary" @onclick="SaveAction">Save action</button></div></div>
             </div>
         </div>
     }
@@ -94,14 +224,118 @@ else if (_cockpit is not null && _management is not null)
     {
         <div class="row g-3">
             <div class="col-12 col-xl-7">
-                <div class="card mb-3"><div class="card-header"><strong>Scope changes</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>@foreach (var change in _management.ScopeChanges.Changes) { <tr><td><button class="btn btn-link btn-sm p-0" @onclick="() => EditChange(change)">@change.Title</button><div class="small text-muted">@change.Key · @change.Status · @change.ManagementImpact</div></td><td>@change.Priority</td><td><button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("change",change.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>Resource allocations</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>@foreach (var allocation in _management.Resources.Allocations) { <tr><td><button class="btn btn-link btn-sm p-0" @onclick="() => EditAllocation(allocation)">@allocation.Key</button><div class="small text-muted">@(allocation.FromWorkstreamKey ?? "pool") → @allocation.ToWorkstreamKey</div></td><td>@allocation.CapacityHoursPerWeek h/week</td><td>@allocation.Status</td><td><button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("allocation",allocation.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
-                <div class="card"><div class="card-header"><strong>Cross-project shared resource pools</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Team</th><th>Pool</th><th>Pool limit</th><th></th></tr></thead><tbody>@foreach (var team in _management.Capacity.Teams) { <tr><td>@team.Name<div class="small text-muted">@team.Key</div></td><td>@(team.SharedResourceKey ?? "—")</td><td>@(team.SharedPoolCapacityHoursPerWeek?.ToString("0.#") ?? "—") h/week</td><td><button class="btn btn-outline-secondary btn-sm" @onclick="() => EditSharedPool(team)">Edit</button></td></tr> }</tbody></table></div><div class="card-footer small text-muted">Only teams explicitly assigned to the same Shared Resource Key are combined in Portfolio planning.</div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Scope changes</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <tbody>@foreach (var change in _management.ScopeChanges.Changes) { 
+                <tr>
+                <td>
+                <button class="btn btn-link btn-sm p-0" @onclick="() => EditChange(change)">@change.Title</button>
+                <div class="small text-muted">@change.Key · @change.Status · @change.ManagementImpact</div></td>
+                <td>@change.Priority</td>
+                <td>
+                <button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("change",change.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Resource allocations</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <tbody>@foreach (var allocation in _management.Resources.Allocations) { 
+                <tr>
+                <td>
+                <button class="btn btn-link btn-sm p-0" @onclick="() => EditAllocation(allocation)">@allocation.Key</button>
+                <div class="small text-muted">@(allocation.FromWorkstreamKey ?? "pool") → @allocation.ToWorkstreamKey</div></td>
+                <td>@allocation.CapacityHoursPerWeek h/week</td>
+                <td>@allocation.Status</td>
+                <td>
+                <button class="btn btn-outline-danger btn-sm" @onclick='() => Archive("allocation",allocation.Key)'>Archive</button></td></tr> }</tbody></table></div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Cross-project shared resource pools</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <thead>
+                <tr>
+                <th>Team</th>
+                <th>Pool</th>
+                <th>Pool limit</th>
+                <th></th></tr></thead>
+                <tbody>@foreach (var team in _management.Capacity.Teams) { 
+                <tr>
+                <td>@team.Name
+                <div class="small text-muted">@team.Key</div></td>
+                <td>@(team.SharedResourceKey ?? "—")</td>
+                <td>@(team.SharedPoolCapacityHoursPerWeek?.ToString("0.#") ?? "—") h/week</td>
+                <td>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="() => EditSharedPool(team)">Edit</button></td></tr> }</tbody></table></div>
+                <div class="card-footer small text-muted">Only teams explicitly assigned to the same Shared Resource Key are combined in Portfolio planning.</div></div>
             </div>
             <div class="col-12 col-xl-5">
-                <div class="card mb-3"><div class="card-header"><strong>Create / update scope change</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Key" @bind="_changeKey"/><input class="form-control" placeholder="Title" @bind="_changeTitle"/><textarea class="form-control" placeholder="Description" @bind="_changeDescription"></textarea><div class="d-flex gap-2"><select class="form-select" @bind="_changePriority"><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select><select class="form-select" @bind="_changeStatus"><option>Proposed</option><option>UnderReview</option><option>Approved</option><option>Rejected</option><option>Deferred</option><option>Completed</option></select></div><input class="form-control" placeholder="Requested by role" @bind="_changeRequestedBy"/><input class="form-control" type="datetime-local" @bind="_changeRequestedAt"/><div class="d-flex gap-2"><input class="form-control" type="number" placeholder="Engineering h" @bind="_changeEng"/><input class="form-control" type="number" placeholder="Art h" @bind="_changeArt"/><input class="form-control" type="number" placeholder="QA h" @bind="_changeQa"/></div><div class="d-flex gap-2"><input class="form-control" type="number" placeholder="Schedule days" @bind="_changeDays"/><input class="form-control" type="number" placeholder="Risk %" @bind="_changeRisk"/></div><input class="form-control" placeholder="Requirement keys" @bind="_changeRequirementKeys"/><input class="form-control" placeholder="Workstream keys" @bind="_changeWorkstreamKeys"/><input class="form-control" placeholder="Decision key" @bind="_changeDecisionKey"/><button class="btn btn-primary" @onclick="SaveChange">Save scope change</button></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>Create / update resource allocation</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Key" @bind="_allocationKey"/><div class="d-flex gap-2"><input class="form-control" placeholder="From workstream" @bind="_allocationFrom"/><input class="form-control" placeholder="To workstream" @bind="_allocationTo"/></div><input class="form-control" type="number" step="0.5" placeholder="Hours/week" @bind="_allocationHours"/><div class="d-flex gap-2"><input class="form-control" type="datetime-local" @bind="_allocationStart"/><input class="form-control" type="datetime-local" @bind="_allocationEnd"/></div><select class="form-select" @bind="_allocationStatus"><option>Proposed</option><option>Approved</option><option>Active</option><option>Completed</option></select><textarea class="form-control" placeholder="Rationale" @bind="_allocationRationale"></textarea><input class="form-control" placeholder="Decision key" @bind="_allocationDecisionKey"/><button class="btn btn-primary" @onclick="SaveAllocation">Save allocation</button></div></div>
-                <div class="card"><div class="card-header"><strong>Shared resource membership</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Team key" @bind="_poolTeamKey"/><input class="form-control" placeholder="Shared Resource Key" @bind="_sharedResourceKey"/><input class="form-control" type="number" step="0.5" min="0.5" placeholder="Shared pool capacity h/week" @bind="_sharedPoolCapacity"/><div class="d-flex gap-2"><button class="btn btn-primary flex-fill" @onclick="SaveSharedPool">Save membership</button><button class="btn btn-outline-secondary flex-fill" @onclick="ClearSharedPool">Remove membership</button></div></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Create / update scope change</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Key" @bind="_changeKey"/>
+                <input class="form-control" placeholder="Title" @bind="_changeTitle"/>
+                <textarea class="form-control" placeholder="Description" @bind="_changeDescription"></textarea>
+                <div class="d-flex gap-2">
+                <select class="form-select" @bind="_changePriority">
+                <option>Critical</option>
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option></select>
+                <select class="form-select" @bind="_changeStatus">
+                <option>Proposed</option>
+                <option>UnderReview</option>
+                <option>Approved</option>
+                <option>Rejected</option>
+                <option>Deferred</option>
+                <option>Completed</option></select></div>
+                <input class="form-control" placeholder="Requested by role" @bind="_changeRequestedBy"/>
+                <input class="form-control" type="datetime-local" @bind="_changeRequestedAt"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="number" placeholder="Engineering h" @bind="_changeEng"/>
+                <input class="form-control" type="number" placeholder="Art h" @bind="_changeArt"/>
+                <input class="form-control" type="number" placeholder="QA h" @bind="_changeQa"/></div>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="number" placeholder="Schedule days" @bind="_changeDays"/>
+                <input class="form-control" type="number" placeholder="Risk %" @bind="_changeRisk"/></div>
+                <input class="form-control" placeholder="Requirement keys" @bind="_changeRequirementKeys"/>
+                <input class="form-control" placeholder="Workstream keys" @bind="_changeWorkstreamKeys"/>
+                <input class="form-control" placeholder="Decision key" @bind="_changeDecisionKey"/>
+                <button class="btn btn-primary" @onclick="SaveChange">Save scope change</button></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Create / update resource allocation</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Key" @bind="_allocationKey"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" placeholder="From workstream" @bind="_allocationFrom"/>
+                <input class="form-control" placeholder="To workstream" @bind="_allocationTo"/></div>
+                <input class="form-control" type="number" step="0.5" placeholder="Hours/week" @bind="_allocationHours"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="datetime-local" @bind="_allocationStart"/>
+                <input class="form-control" type="datetime-local" @bind="_allocationEnd"/></div>
+                <select class="form-select" @bind="_allocationStatus">
+                <option>Proposed</option>
+                <option>Approved</option>
+                <option>Active</option>
+                <option>Completed</option></select>
+                <textarea class="form-control" placeholder="Rationale" @bind="_allocationRationale"></textarea>
+                <input class="form-control" placeholder="Decision key" @bind="_allocationDecisionKey"/>
+                <button class="btn btn-primary" @onclick="SaveAllocation">Save allocation</button></div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Shared resource membership</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Team key" @bind="_poolTeamKey"/>
+                <input class="form-control" placeholder="Shared Resource Key" @bind="_sharedResourceKey"/>
+                <input class="form-control" type="number" step="0.5" min="0.5" placeholder="Shared pool capacity h/week" @bind="_sharedPoolCapacity"/>
+                <div class="d-flex gap-2">
+                <button class="btn btn-primary flex-fill" @onclick="SaveSharedPool">Save membership</button>
+                <button class="btn btn-outline-secondary flex-fill" @onclick="ClearSharedPool">Remove membership</button></div></div></div>
             </div>
         </div>
     }
@@ -109,15 +343,106 @@ else if (_cockpit is not null && _management is not null)
     {
         <div class="row g-3">
             <div class="col-12 col-xl-7">
-                <div class="card mb-3"><div class="card-header"><strong>RACI responsibilities</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Target</th><th>R</th><th>A</th><th>C / I</th></tr></thead><tbody>@if (_raci is not null) { @foreach (var item in _raci.Items) { <tr><td>@item.TargetType:@item.TargetKey</td><td>@(item.ResponsibleRole ?? "—")</td><td>@(item.AccountableRole ?? "—")</td><td><small>C: @string.Join(", ", item.ConsultedRoles)<br/>I: @string.Join(", ", item.InformedRoles)</small></td></tr> } }</tbody></table></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>Formal approval role directory</strong></div><div class="card-body p-0">@if (_roles is not null) { <div class="px-3 py-2 small text-muted">Current signed identity: <code>@_roles.CurrentActor</code></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Role</th><th>User</th><th>Status</th></tr></thead><tbody>@foreach (var binding in _roles.Bindings) { <tr><td>@binding.Role</td><td>@(binding.DisplayName ?? binding.ActorIdentity)<div class="small text-muted">@binding.ActorIdentity</div></td><td>@binding.Status</td></tr> }</tbody></table></div> }</div></div>
-                <div class="card"><div class="card-header"><strong>Capacity calendars</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>@if (_calendars is not null) { @foreach (var calendar in _calendars.Calendars) { <tr><td>@calendar.Name<div class="small text-muted">@(calendar.TeamKey ?? "project-wide") · @calendar.TimeZone</div></td><td>@calendar.RecurringMeetingHoursPerWeek h meetings</td><td>@calendar.SupportDutyHoursPerWeek h support</td><td>@calendar.Exceptions.Count exception(s)</td></tr> } }</tbody></table></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>RACI responsibilities</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <thead>
+                <tr>
+                <th>Target</th>
+                <th>R</th>
+                <th>A</th>
+                <th>C / I</th></tr></thead>
+                <tbody>@if (_raci is not null) { @foreach (var item in _raci.Items) { 
+                <tr>
+                <td>@item.TargetType:@item.TargetKey</td>
+                <td>@(item.ResponsibleRole ?? "—")</td>
+                <td>@(item.AccountableRole ?? "—")</td>
+                <td>
+                <small>C: @string.Join(", ", item.ConsultedRoles)
+                <br/>I: @string.Join(", ", item.InformedRoles)</small></td></tr> } }</tbody></table></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Formal approval role directory</strong></div>
+                <div class="card-body p-0">@if (_roles is not null) { 
+                <div class="px-3 py-2 small text-muted">Current signed identity: 
+                <code>@_roles.CurrentActor</code></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <thead>
+                <tr>
+                <th>Role</th>
+                <th>User</th>
+                <th>Status</th></tr></thead>
+                <tbody>@foreach (var binding in _roles.Bindings) { 
+                <tr>
+                <td>@binding.Role</td>
+                <td>@(binding.DisplayName ?? binding.ActorIdentity)
+                <div class="small text-muted">@binding.ActorIdentity</div></td>
+                <td>@binding.Status</td></tr> }</tbody></table></div> }</div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Capacity calendars</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <tbody>@if (_calendars is not null) { @foreach (var calendar in _calendars.Calendars) { 
+                <tr>
+                <td>@calendar.Name
+                <div class="small text-muted">@(calendar.TeamKey ?? "project-wide") · @calendar.TimeZone</div></td>
+                <td>@calendar.RecurringMeetingHoursPerWeek h meetings</td>
+                <td>@calendar.SupportDutyHoursPerWeek h support</td>
+                <td>@calendar.Exceptions.Count exception(s)</td></tr> } }</tbody></table></div></div>
             </div>
             <div class="col-12 col-xl-5">
-                <div class="card mb-3"><div class="card-header"><strong>Assign RACI</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Assignment key" @bind="_raciKey"/><div class="d-flex gap-2"><input class="form-control" placeholder="Target type" @bind="_raciType"/><input class="form-control" placeholder="Target key" @bind="_raciTarget"/></div><input class="form-control" placeholder="Responsible role" @bind="_raciR"/><input class="form-control" placeholder="Accountable role" @bind="_raciA"/><input class="form-control" placeholder="Consulted roles" @bind="_raciC"/><input class="form-control" placeholder="Informed roles" @bind="_raciI"/><button class="btn btn-primary" @onclick="SaveRaci">Save RACI</button></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>Bind authenticated user → approval role</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Binding key" @bind="_roleBindingKey"/><input class="form-control" placeholder="Audit identity (login#subject)" @bind="_roleBindingActor"/><input class="form-control" placeholder="Management role" @bind="_roleBindingRole"/><input class="form-control" placeholder="Display name" @bind="_roleBindingName"/><button class="btn btn-primary" @onclick="SaveRoleBinding">Save role binding (Project Owner)</button></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>Work calendar / PTO / holiday</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Calendar key" @bind="_calendarKey"/><input class="form-control" placeholder="Name" @bind="_calendarName"/><input class="form-control" placeholder="Team key" @bind="_calendarTeam"/><div class="d-flex gap-2"><input class="form-control" type="number" step="0.5" placeholder="Hours/day" @bind="_calendarHoursDay"/><input class="form-control" type="number" step="0.5" placeholder="Meeting h/week" @bind="_calendarMeetings"/><input class="form-control" type="number" step="0.5" placeholder="Support h/week" @bind="_calendarSupport"/></div><textarea class="form-control" rows="4" placeholder="Exceptions: YYYY-MM-DD|YYYY-MM-DD|hours|PTO/Holiday|label" @bind="_calendarExceptions"></textarea><button class="btn btn-primary" @onclick="SaveCalendar">Save calendar</button></div></div>
-                <div class="card"><div class="card-header"><strong>Google Calendar → capacity</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Google Calendar ID" @bind="_gcalId"/><input class="form-control" type="password" autocomplete="off" placeholder="OAuth access token (not stored)" @bind="_gcalToken"/><div class="d-flex gap-2"><input class="form-control" type="datetime-local" @bind="_gcalFrom"/><input class="form-control" type="datetime-local" @bind="_gcalTo"/></div><div class="d-flex gap-2"><button class="btn btn-outline-secondary flex-fill" @onclick="() => RunGoogleCalendar(true)">Dry run</button><button class="btn btn-primary flex-fill" @onclick="() => RunGoogleCalendar(false)">Sync calendar</button></div>@if (_lastCalendarSync is not null) { <div class="alert alert-light border small mb-0">Events @_lastCalendarSync.Events · PTO @_lastCalendarSync.Pto · holidays @_lastCalendarSync.Holidays · meetings @_lastCalendarSync.Meetings · support @_lastCalendarSync.Support · @_lastCalendarSync.CapacityHoursRemoved.ToString("0.#") h deducted</div> }</div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Assign RACI</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Assignment key" @bind="_raciKey"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" placeholder="Target type" @bind="_raciType"/>
+                <input class="form-control" placeholder="Target key" @bind="_raciTarget"/></div>
+                <input class="form-control" placeholder="Responsible role" @bind="_raciR"/>
+                <input class="form-control" placeholder="Accountable role" @bind="_raciA"/>
+                <input class="form-control" placeholder="Consulted roles" @bind="_raciC"/>
+                <input class="form-control" placeholder="Informed roles" @bind="_raciI"/>
+                <button class="btn btn-primary" @onclick="SaveRaci">Save RACI</button></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Bind authenticated user → approval role</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Binding key" @bind="_roleBindingKey"/>
+                <input class="form-control" placeholder="Audit identity (login#subject)" @bind="_roleBindingActor"/>
+                <input class="form-control" placeholder="Management role" @bind="_roleBindingRole"/>
+                <input class="form-control" placeholder="Display name" @bind="_roleBindingName"/>
+                <button class="btn btn-primary" @onclick="SaveRoleBinding">Save role binding (Project Owner)</button></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Work calendar / PTO / holiday</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Calendar key" @bind="_calendarKey"/>
+                <input class="form-control" placeholder="Name" @bind="_calendarName"/>
+                <input class="form-control" placeholder="Team key" @bind="_calendarTeam"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="number" step="0.5" placeholder="Hours/day" @bind="_calendarHoursDay"/>
+                <input class="form-control" type="number" step="0.5" placeholder="Meeting h/week" @bind="_calendarMeetings"/>
+                <input class="form-control" type="number" step="0.5" placeholder="Support h/week" @bind="_calendarSupport"/></div>
+                <textarea class="form-control" rows="4" placeholder="Exceptions: YYYY-MM-DD|YYYY-MM-DD|hours|PTO/Holiday|label" @bind="_calendarExceptions"></textarea>
+                <button class="btn btn-primary" @onclick="SaveCalendar">Save calendar</button></div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Google Calendar → capacity</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Google Calendar ID" @bind="_gcalId"/>
+                <input class="form-control" type="password" autocomplete="off" placeholder="OAuth access token (not stored)" @bind="_gcalToken"/>
+                <div class="d-flex gap-2">
+                <input class="form-control" type="datetime-local" @bind="_gcalFrom"/>
+                <input class="form-control" type="datetime-local" @bind="_gcalTo"/></div>
+                <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary flex-fill" @onclick="() => RunGoogleCalendar(true)">Dry run</button>
+                <button class="btn btn-primary flex-fill" @onclick="() => RunGoogleCalendar(false)">Sync calendar</button></div>@if (_lastCalendarSync is not null) { 
+                <div class="alert alert-light border small mb-0">Events @_lastCalendarSync.Events · PTO @_lastCalendarSync.Pto · holidays @_lastCalendarSync.Holidays · meetings @_lastCalendarSync.Meetings · support @_lastCalendarSync.Support · @_lastCalendarSync.CapacityHoursRemoved.ToString("0.#") h deducted</div> }</div></div>
             </div>
         </div>
     }
@@ -141,27 +466,133 @@ else if (_cockpit is not null && _management is not null)
                     <div class="d-flex justify-content-between mb-2"><strong>Schema analysis</strong><span>Dominant domain: <code>@_spreadsheetAnalysis.DomainId</code></span></div>
                     @foreach (var sheet in _spreadsheetAnalysis.Sheets)
                     {
-                        <div class="border rounded p-2 mb-2"><div class="d-flex justify-content-between"><strong>@sheet.SheetName</strong><span><code>@sheet.DomainId</code> · <code>@sheet.ObjectKind</code> · @sheet.DataRows row(s)</span></div><div class="table-responsive mt-2"><table class="table table-sm mb-0"><thead><tr><th>Header</th><th>Mapped field</th><th>Confidence</th><th>Reason</th></tr></thead><tbody>@foreach (var column in sheet.Columns) { <tr><td>@column.Header</td><td><code>@(column.Field ?? "custom")</code></td><td>@column.Confidence.ToString("P0")</td><td class="small">@column.Reason</td></tr> }</tbody></table></div>@if (sheet.Warnings.Count > 0) { <ul class="small text-warning mb-0 mt-2">@foreach (var warning in sheet.Warnings) { <li>@warning</li> }</ul> }</div>
+                        <div class="border rounded p-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                        <strong>@sheet.SheetName</strong>
+                        <span>
+                        <code>@sheet.DomainId</code> · 
+                        <code>@sheet.ObjectKind</code> · @sheet.DataRows row(s)</span></div>
+                        <div class="table-responsive mt-2">
+                        <table class="table table-sm mb-0">
+                        <thead>
+                        <tr>
+                        <th>Header</th>
+                        <th>Mapped field</th>
+                        <th>Confidence</th>
+                        <th>Reason</th></tr></thead>
+                        <tbody>@foreach (var column in sheet.Columns) { 
+                        <tr>
+                        <td>@column.Header</td>
+                        <td>
+                        <code>@(column.Field ?? "custom")</code></td>
+                        <td>@column.Confidence.ToString("P0")</td>
+                        <td class="small">@column.Reason</td></tr> }</tbody></table></div>@if (sheet.Warnings.Count > 0) { 
+                        <ul class="small text-warning mb-0 mt-2">@foreach (var warning in sheet.Warnings) { 
+                        <li>@warning</li> }</ul> }</div>
                     }
                 </div>
             }
             @if (_spreadsheetPreview is not null || _spreadsheetImport is not null)
             {
                 var result = _spreadsheetImport ?? _spreadsheetPreview!;
-                <div class="card-body border-top" data-testid="spreadsheet-import-result"><div class="d-flex justify-content-between"><strong>@(result.DryRun ? "Dry-run result" : "Import result")</strong><StatusBadge Value="@(result.DryRun ? "Preview" : "Imported")" /></div><div class="settings-list mt-2"><div><span>Domain</span><code>@result.DomainId</code></div><div><span>Imported</span><strong>@result.Imported</strong></div><div><span>Skipped</span><strong>@result.Skipped</strong></div><div><span>Dependency links</span><strong>@result.DependencyLinks</strong></div></div>@if (result.Warnings.Count > 0) { <ul class="small text-warning mb-0 mt-2">@foreach (var warning in result.Warnings.Take(10)) { <li>@warning</li> }</ul> }</div>
+                <div class="card-body border-top" data-testid="spreadsheet-import-result">
+                <div class="d-flex justify-content-between">
+                <strong>@(result.DryRun ? "Dry-run result" : "Import result")</strong>
+                <StatusBadge Value="@(result.DryRun ? "Preview" : "Imported")" /></div>
+                <div class="settings-list mt-2">
+                <div>
+                <span>Domain</span>
+                <code>@result.DomainId</code></div>
+                <div>
+                <span>Imported</span>
+                <strong>@result.Imported</strong></div>
+                <div>
+                <span>Skipped</span>
+                <strong>@result.Skipped</strong></div>
+                <div>
+                <span>Dependency links</span>
+                <strong>@result.DependencyLinks</strong></div></div>@if (result.Warnings.Count > 0) { 
+                <ul class="small text-warning mb-0 mt-2">@foreach (var warning in result.Warnings.Take(10)) { 
+                <li>@warning</li> }</ul> }</div>
             }
         </section>
 
         <div class="row g-3">
             <div class="col-12 col-xl-7">
-                <div class="card mb-3"><div class="card-header"><strong>Source of truth rules</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>@if (_sync is not null) { @foreach (var rule in _sync.AuthorityRules) { <tr><td>@rule.DataType</td><td><strong>@rule.Authority</strong></td><td>@rule.ConflictPolicy</td><td>@rule.Status</td></tr> } }</tbody></table></div></div>
-                <div class="card"><div class="card-header"><strong>Open sync conflicts</strong></div><div class="card-body p-0">@if (_sync is not null) { @foreach (var conflict in _sync.Conflicts.Where(x => x.Status == "Open")) { <div class="attention-item warning"><span>↔</span><div><strong>@conflict.Provider · @conflict.ItemKey</strong><small>@conflict.DataType · detected @conflict.DetectedAtUtc.ToLocalTime().ToString("g")</small><details class="small mt-1"><summary>Compare values</summary><pre class="small">DIP: @conflict.DipValue
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Source of truth rules</strong></div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                <tbody>@if (_sync is not null) { @foreach (var rule in _sync.AuthorityRules) { 
+                <tr>
+                <td>@rule.DataType</td>
+                <td>
+                <strong>@rule.Authority</strong></td>
+                <td>@rule.ConflictPolicy</td>
+                <td>@rule.Status</td></tr> } }</tbody></table></div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Open sync conflicts</strong></div>
+                <div class="card-body p-0">@if (_sync is not null) { @foreach (var conflict in _sync.Conflicts.Where(x => x.Status == "Open")) { 
+                <div class="attention-item warning">
+                <span>↔</span>
+                <div>
+                <strong>@conflict.Provider · @conflict.ItemKey</strong>
+                <small>@conflict.DataType · detected @conflict.DetectedAtUtc.ToLocalTime().ToString("g")</small>
+                <details class="small mt-1">
+                <summary>Compare values</summary>
+                <pre class="small">DIP: @conflict.DipValue
 External: @conflict.ExternalValue</pre></details></div><div class="d-flex flex-column gap-1"><button class="btn btn-outline-primary btn-sm" @onclick='() => ResolveConflict(conflict.Key,"DIP")'>Keep DIP</button><button class="btn btn-outline-secondary btn-sm" @onclick='() => ResolveConflict(conflict.Key,"External")'>Keep external</button></div></div> } }</div></div>
             </div>
             <div class="col-12 col-xl-5">
-                <div class="card mb-3"><div class="card-header"><strong>Authority rule</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Rule key" @bind="_authorityKey"/><input class="form-control" placeholder="Data type" @bind="_authorityDataType"/><select class="form-select" @bind="_authority"><option>Manual</option><option>DIP</option><option>GitHub</option><option>Jira</option><option>Linear</option><option>GoogleSheets</option><option>External</option></select><select class="form-select" @bind="_conflictPolicy"><option>Manual</option><option>PreferAuthority</option></select><button class="btn btn-primary" @onclick="SaveAuthority">Save authority rule</button></div></div>
-                <div class="card mb-3"><div class="card-header"><strong>GitHub / Jira / Linear synchronization</strong></div><div class="card-body form-grid"><select class="form-select" @bind="_syncProvider"><option>GitHub</option><option>Jira</option><option>Linear</option></select><select class="form-select" @bind="_syncDirection"><option value="Bidirectional">Bidirectional</option><option value="Pull">Pull</option><option value="Push">Push</option></select><div class="d-flex gap-2"><button class="btn btn-outline-secondary flex-fill" @onclick="() => RunSync(true)">Dry run</button><button class="btn btn-primary flex-fill" @onclick="() => RunSync(false)">Run sync</button></div>@if (_lastSync is not null) { <div class="alert alert-light border small mb-0">Pulled @_lastSync.Pulled · pushed @_lastSync.Pushed · conflicts @_lastSync.Conflicts · changes @_lastSync.Changes.Count</div> }</div></div>
-                <div class="card"><div class="card-header"><strong>Google Sheets conflict-safe sync</strong></div><div class="card-body form-grid"><input class="form-control" placeholder="Spreadsheet ID" @bind="_sheetId"/><input class="form-control" type="password" autocomplete="off" placeholder="OAuth access token (not stored)" @bind="_sheetToken"/><div class="small text-muted">Editable sheets use last-sync fingerprints. Concurrent DIP/Sheets edits create a conflict rather than silent overwrite.</div><div class="d-flex gap-2"><button class="btn btn-outline-secondary flex-fill" @onclick="() => RunSheets(true)">Dry run</button><button class="btn btn-primary flex-fill" @onclick="() => RunSheets(false)">Sync Sheets</button></div>@if (_lastSheets is not null) { <div class="alert alert-light border small mb-0">Pulled @_lastSheets.PulledSheets · pushed @_lastSheets.PushedSheets · conflicts @_lastSheets.Conflicts @if (_lastSheets.Warnings.Count > 0) { <ul class="mb-0 mt-1">@foreach (var warning in _lastSheets.Warnings.Take(5)) { <li>@warning</li> }</ul> }</div> }</div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>Authority rule</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Rule key" @bind="_authorityKey"/>
+                <input class="form-control" placeholder="Data type" @bind="_authorityDataType"/>
+                <select class="form-select" @bind="_authority">
+                <option>Manual</option>
+                <option>DIP</option>
+                <option>GitHub</option>
+                <option>Jira</option>
+                <option>Linear</option>
+                <option>GoogleSheets</option>
+                <option>External</option></select>
+                <select class="form-select" @bind="_conflictPolicy">
+                <option>Manual</option>
+                <option>PreferAuthority</option></select>
+                <button class="btn btn-primary" @onclick="SaveAuthority">Save authority rule</button></div></div>
+                <div class="card mb-3">
+                <div class="card-header">
+                <strong>GitHub / Jira / Linear synchronization</strong></div>
+                <div class="card-body form-grid">
+                <select class="form-select" @bind="_syncProvider">
+                <option>GitHub</option>
+                <option>Jira</option>
+                <option>Linear</option></select>
+                <select class="form-select" @bind="_syncDirection">
+                <option value="Bidirectional">Bidirectional</option>
+                <option value="Pull">Pull</option>
+                <option value="Push">Push</option></select>
+                <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary flex-fill" @onclick="() => RunSync(true)">Dry run</button>
+                <button class="btn btn-primary flex-fill" @onclick="() => RunSync(false)">Run sync</button></div>@if (_lastSync is not null) { 
+                <div class="alert alert-light border small mb-0">Pulled @_lastSync.Pulled · pushed @_lastSync.Pushed · conflicts @_lastSync.Conflicts · changes @_lastSync.Changes.Count</div> }</div></div>
+                <div class="card">
+                <div class="card-header">
+                <strong>Google Sheets conflict-safe sync</strong></div>
+                <div class="card-body form-grid">
+                <input class="form-control" placeholder="Spreadsheet ID" @bind="_sheetId"/>
+                <input class="form-control" type="password" autocomplete="off" placeholder="OAuth access token (not stored)" @bind="_sheetToken"/>
+                <div class="small text-muted">Editable sheets use last-sync fingerprints. Concurrent DIP/Sheets edits create a conflict rather than silent overwrite.</div>
+                <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary flex-fill" @onclick="() => RunSheets(true)">Dry run</button>
+                <button class="btn btn-primary flex-fill" @onclick="() => RunSheets(false)">Sync Sheets</button></div>@if (_lastSheets is not null) { 
+                <div class="alert alert-light border small mb-0">Pulled @_lastSheets.PulledSheets · pushed @_lastSheets.PushedSheets · conflicts @_lastSheets.Conflicts @if (_lastSheets.Warnings.Count > 0) { 
+                <ul class="mb-0 mt-1">@foreach (var warning in _lastSheets.Warnings.Take(5)) { 
+                <li>@warning</li> }</ul> }</div> }</div></div>
             </div>
         </div>
     }

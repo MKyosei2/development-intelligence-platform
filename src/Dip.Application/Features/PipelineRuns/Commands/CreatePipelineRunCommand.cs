@@ -1,1 +1,1 @@
-// Purpose: Defines the application command for C re at eP ip el in eR un Co mm an d.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by w eb ho ok l oa d.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 import http from "k6/http";
 import { check, sleep } from "k6";
 

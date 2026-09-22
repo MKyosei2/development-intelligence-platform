@@ -1,1 +1,1 @@
-// Purpose: Provides the infrastructure capability represented by L og gi ng Ex te ns io ns.
+// Purpose: Provides infrastructure behavior for this application boundary.

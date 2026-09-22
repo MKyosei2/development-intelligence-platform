@@ -1,1 +1,1 @@
-// Purpose: Defines shared DIP behavior for S ha re dJ so nO pt io ns.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

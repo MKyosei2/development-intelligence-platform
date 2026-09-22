@@ -1,4 +1,4 @@
-// Purpose: Defines the shared contract represented by N ot if ic at io nR eq ue st ed.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record NotificationRequested(

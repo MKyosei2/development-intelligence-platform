@@ -1,1 +1,1 @@
-// Purpose: Encapsulates the domain rule represented by T ea mL oa dR ul e.
+// Purpose: Defines domain behavior and state for this feature area.

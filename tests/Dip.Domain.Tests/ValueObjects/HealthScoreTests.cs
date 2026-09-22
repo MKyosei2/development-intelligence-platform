@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by H ea lt hS co re Te st s.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

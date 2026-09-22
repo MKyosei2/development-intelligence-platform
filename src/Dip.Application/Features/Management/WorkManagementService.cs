@@ -46,106 +46,106 @@ public sealed class WorkManagementService
     public Task<DevelopmentGraphNodeDto> UpsertChangeRequestAsync(UpsertChangeRequestCommand c, CancellationToken ct) => _scope.UpsertChangeRequestAsync(c, ct);
 
     internal static bool IsInCurrentScope(DevelopmentGraphNode node)
-        {
-            if (node.Type != DevelopmentGraphNodeType.Requirement)
-                return false;
-    
-            var scope = MetaString(node, "ScopeState", "Included");
-    
-            return !scope.Equals("Removed", StringComparison.OrdinalIgnoreCase)
-                   && !scope.Equals("Deferred", StringComparison.OrdinalIgnoreCase)
-                   && !node.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase);
-        }
-    
+    {
+        if (node.Type != DevelopmentGraphNodeType.Requirement)
+            return false;
+
+        var scope = MetaString(node, "ScopeState", "Included");
+
+        return !scope.Equals("Removed", StringComparison.OrdinalIgnoreCase)
+               && !scope.Equals("Deferred", StringComparison.OrdinalIgnoreCase)
+               && !node.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase);
+    }
+
     internal static string MetaString(
             DevelopmentGraphNode node,
             string name,
             string fallback = "")
-        {
-            using var document = ParseMetadata(node);
-            return document.RootElement.TryGetProperty(name, out var value)
-                   && value.ValueKind == JsonValueKind.String
-                ? value.GetString() ?? fallback
-                : fallback;
-        }
-    
+    {
+        using var document = ParseMetadata(node);
+        return document.RootElement.TryGetProperty(name, out var value)
+               && value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? fallback
+            : fallback;
+    }
+
     internal static decimal MetaDecimal(
             DevelopmentGraphNode node,
             string name,
             decimal fallback = 0m)
-        {
-            using var document = ParseMetadata(node);
-            return document.RootElement.TryGetProperty(name, out var value)
-                   && value.TryGetDecimal(out var parsed)
-                ? parsed
-                : fallback;
-        }
-    
+    {
+        using var document = ParseMetadata(node);
+        return document.RootElement.TryGetProperty(name, out var value)
+               && value.TryGetDecimal(out var parsed)
+            ? parsed
+            : fallback;
+    }
+
     internal static IReadOnlyList<string> MetaStringArray(
             DevelopmentGraphNode node,
             string name)
+    {
+        using var document = ParseMetadata(node);
+
+        if (!document.RootElement.TryGetProperty(name, out var value)
+            || value.ValueKind != JsonValueKind.Array)
         {
-            using var document = ParseMetadata(node);
-    
-            if (!document.RootElement.TryGetProperty(name, out var value)
-                || value.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-    
-            return value
-                .EnumerateArray()
-                .Where(x => x.ValueKind == JsonValueKind.String)
-                .Select(x => x.GetString() ?? string.Empty)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToArray();
+            return [];
         }
-    
+
+        return value
+            .EnumerateArray()
+            .Where(x => x.ValueKind == JsonValueKind.String)
+            .Select(x => x.GetString() ?? string.Empty)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
+    }
+
     internal static DateTimeOffset MetaDate(
             DevelopmentGraphNode node,
             string name,
             DateTimeOffset fallback)
-        {
-            using var document = ParseMetadata(node);
-            return document.RootElement.TryGetProperty(name, out var value)
-                   && value.TryGetDateTimeOffset(out var parsed)
-                ? parsed
-                : fallback;
-        }
-    
+    {
+        using var document = ParseMetadata(node);
+        return document.RootElement.TryGetProperty(name, out var value)
+               && value.TryGetDateTimeOffset(out var parsed)
+            ? parsed
+            : fallback;
+    }
+
     internal static string Strip(string key) =>
             key.Contains(':') ? key[(key.IndexOf(':') + 1)..] : key;
-    
+
     internal static bool IsDone(string status) =>
             status.Equals("Done", StringComparison.OrdinalIgnoreCase)
             || status.Equals("Completed", StringComparison.OrdinalIgnoreCase)
             || status.Equals("Closed", StringComparison.OrdinalIgnoreCase)
             || status.Equals("Resolved", StringComparison.OrdinalIgnoreCase);
-    
+
     internal static bool IsBlocked(string status) =>
             status.Equals("Blocked", StringComparison.OrdinalIgnoreCase)
             || status.Equals("AtRisk", StringComparison.OrdinalIgnoreCase)
             || status.Equals("Critical", StringComparison.OrdinalIgnoreCase);
-    
+
     private static JsonDocument ParseMetadata(DevelopmentGraphNode node)
+    {
+        try
         {
-            try
+            var document = JsonDocument.Parse(node.MetadataJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
-                var document = JsonDocument.Parse(node.MetadataJson);
-                if (document.RootElement.ValueKind != JsonValueKind.Object)
-                {
-                    document.Dispose();
-                    throw new InvalidDataException(
-                        $"Development Graph node '{node.Key}' metadata must be a JSON object.");
-                }
-    
-                return document;
-            }
-            catch (JsonException ex)
-            {
+                document.Dispose();
                 throw new InvalidDataException(
-                    $"Development Graph node '{node.Key}' contains invalid metadata JSON.",
-                    ex);
+                    $"Development Graph node '{node.Key}' metadata must be a JSON object.");
             }
+
+            return document;
         }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException(
+                $"Development Graph node '{node.Key}' contains invalid metadata JSON.",
+                ex);
+        }
+    }
 }

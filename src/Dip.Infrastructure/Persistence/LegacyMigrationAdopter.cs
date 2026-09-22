@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by L eg ac yM ig ra ti on Ad op te r.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

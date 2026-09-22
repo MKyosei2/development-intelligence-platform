@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by I nt el li ge nc eE xe cu ti on Sa fe ty Te st s.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Infrastructure.Intelligence;
 
 namespace Dip.Infrastructure.Tests.Intelligence;

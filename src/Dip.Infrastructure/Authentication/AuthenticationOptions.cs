@@ -1,1 +1,1 @@
-// Purpose: Defines configuration options for A ut he nt ic at io nO pt io ns.
+// Purpose: Provides infrastructure behavior for this application boundary.

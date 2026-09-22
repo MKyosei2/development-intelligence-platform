@@ -1,4 +1,4 @@
-// Purpose: Executes the infrastructure workflow represented by M ut at io nR un ne r.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Text.Json;
 using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.QualityAutomation;
@@ -120,7 +120,9 @@ public sealed class MutationRunner : IMutationRunner
             {
                 await File.WriteAllTextAsync(source, original, CancellationToken.None);
             }
-            catch { }
+            catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
 
         var score = mutants.Count == 0

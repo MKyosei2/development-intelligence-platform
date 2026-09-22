@@ -1,7 +1,30 @@
+@* Purpose: Renders and coordinates this web surface and its user interactions. *@
 @page "/admin/enterprise-governance"
 @using System.Net.Http.Json
 @using Dip.Domain.Entities
 @inject HttpClient Http
 <PageTitle>Enterprise Governance | DIP</PageTitle>
 <section class="page-heading"><div><div class="eyebrow">Enterprise administration</div><h1>Governance & integrity</h1><p>Tenant boundaries, identity resolution, evidence integrity and retention controls.</p></div><div class="heading-actions"><a class="btn btn-outline-secondary" href="/admin/fleet">Agent fleet</a></div></section>
-<div class="row g-3"><div class="col-md-6"><div class="card h-100"><div class="card-body"><h5>Tamper-evident evidence</h5><p>Phase 5 stores payload hash, previous hash, chain hash and optional device signature for each integrity receipt.</p><p class="text-muted">Verification never changes the source evidence; it only reports Verified / Unsigned / InvalidSignature / BrokenChain.</p></div></div></div><div class="col-md-6"><div class="card h-100"><div class="card-body"><h5>Privacy boundary</h5><p>Existing Phase 1 policy remains authoritative for screenshot/video/raw artifact collection. Endpoint agents are limited to configured project roots and allowed production tools.</p><p class="text-muted">No keylogging, password capture or hidden personal-folder monitoring is enabled.</p></div></div></div><div class="col-md-6"><div class="card h-100"><div class="card-body"><h5>Cross-source identity</h5><p>GitHub, Windows, Maya and other identities are mapped to an IdentityProfile. Low-confidence links require administrator approval rather than silent auto-merge.</p></div></div></div><div class="col-md-6"><div class="card h-100"><div class="card-body"><h5>Retention</h5><p>Metadata, artifact and video retention values continue to come from effective policy. Execution is audited through retention execution records.</p></div></div></div></div>
+<div class="row g-3">
+<div class="col-md-6">
+<div class="card h-100">
+<div class="card-body">
+<h5>Tamper-evident evidence</h5>
+<p>Phase 5 stores payload hash, previous hash, chain hash and optional device signature for each integrity receipt.</p>
+<p class="text-muted">Verification never changes the source evidence; it only reports Verified / Unsigned / InvalidSignature / BrokenChain.</p></div></div></div>
+<div class="col-md-6">
+<div class="card h-100">
+<div class="card-body">
+<h5>Privacy boundary</h5>
+<p>Existing Phase 1 policy remains authoritative for screenshot/video/raw artifact collection. Endpoint agents are limited to configured project roots and allowed production tools.</p>
+<p class="text-muted">No keylogging, password capture or hidden personal-folder monitoring is enabled.</p></div></div></div>
+<div class="col-md-6">
+<div class="card h-100">
+<div class="card-body">
+<h5>Cross-source identity</h5>
+<p>GitHub, Windows, Maya and other identities are mapped to an IdentityProfile. Low-confidence links require administrator approval rather than silent auto-merge.</p></div></div></div>
+<div class="col-md-6">
+<div class="card h-100">
+<div class="card-body">
+<h5>Retention</h5>
+<p>Metadata, artifact and video retention values continue to come from effective policy. Execution is audited through retention execution records.</p></div></div></div></div>

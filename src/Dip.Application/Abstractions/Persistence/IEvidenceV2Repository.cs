@@ -6,7 +6,7 @@ namespace Dip.Application.Abstractions.Persistence;
 
 public interface IEvidenceV2Repository
 {
-    Task<EvidenceRecord?> FindBySourceEventAsync(Guid projectId,EvidenceSourceType sourceType,string sourceInstanceId,string sourceEventId,CancellationToken ct);
-    Task<EvidenceRecord?> GetAsync(Guid projectId,Guid evidenceId,CancellationToken ct);
+    Task<EvidenceRecord?> FindBySourceEventAsync(Guid projectId, EvidenceSourceType sourceType, string sourceInstanceId, string sourceEventId, CancellationToken ct);
+    Task<EvidenceRecord?> GetAsync(Guid projectId, Guid evidenceId, CancellationToken ct);
     Task AddAsync(EvidenceRecord evidence, CancellationToken ct);
 }

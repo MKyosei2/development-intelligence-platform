@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.QualityAutomation.VisualQa;
 
-public sealed record RunVisualComparisonCommand(string CaptureKey,Guid CurrentArtifactRecordId);
+public sealed record RunVisualComparisonCommand(string CaptureKey, Guid CurrentArtifactRecordId);

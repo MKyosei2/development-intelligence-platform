@@ -3,4 +3,4 @@ using System.Text.Json;
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.ProductionTools;
 
-public sealed record ProductionToolEventResult(string EventId,Guid EvidenceId,bool Created,EvidenceEventType EvidenceEventType);
+public sealed record ProductionToolEventResult(string EventId, Guid EvidenceId, bool Created, EvidenceEventType EvidenceEventType);

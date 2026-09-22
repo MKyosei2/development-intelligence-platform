@@ -1,4 +1,4 @@
-// Purpose: Defines the DIP responsibility represented by P ro je ct Ev en ts Hu b.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Authorization;

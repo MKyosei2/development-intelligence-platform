@@ -2,4 +2,4 @@
 using Dip.Domain.Entities;
 namespace Dip.Application.Abstractions.Persistence;
 
-public interface IUnitOfWork{Task<int> SaveChangesAsync(CancellationToken ct);}
+public interface IUnitOfWork { Task<int> SaveChangesAsync(CancellationToken ct); }

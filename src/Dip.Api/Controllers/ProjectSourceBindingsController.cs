@@ -1,7 +1,7 @@
-// Purpose: Exposes HTTP endpoints for P ro je ct So ur ce Bi nd in gs Co nt ro ll er.
+// Purpose: Exposes HTTP endpoints for this API responsibility.
 using Dip.Api.Authorization;
-using Dip.Application.Features.Integrations;
 using Dip.Application.Features.Authorization;
+using Dip.Application.Features.Integrations;
 using Dip.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

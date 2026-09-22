@@ -1,4 +1,4 @@
-// Purpose: Defines the allowed Q aG ov er na nc eS ec ur it yE nu ms states used by the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Enums;
 
 public enum ProjectMembershipRole { Viewer, Member, Maintainer, Owner }

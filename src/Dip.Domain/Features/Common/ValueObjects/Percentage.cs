@@ -1,1 +1,1 @@
-// Purpose: Defines and validates the P er ce nt ag e value object.
+// Purpose: Defines domain behavior and state for this feature area.

@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for N ot if ic at io ns Co nt ro ll er.
+// Purpose: Exposes HTTP endpoints for this API responsibility.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Management;
 using Microsoft.AspNetCore.Authorization;
@@ -13,10 +13,10 @@ namespace Dip.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/notifications")]
-public sealed class NotificationsController(ManagementAnalyticsService management):ControllerBase
+public sealed class NotificationsController(ManagementAnalyticsService management) : ControllerBase
 {
-    [Authorize(Policy=Policies.ProjectRead)]
+    [Authorize(Policy = Policies.ProjectRead)]
     [HttpGet("projects/{projectId:guid}/management")]
-    public Task<EscalationOverviewDto> GetManagementNotifications(Guid projectId,[FromQuery]int horizonWeeks=8,CancellationToken ct=default)
-        =>management.GetAlertsAsync(projectId,horizonWeeks,ct);
+    public Task<EscalationOverviewDto> GetManagementNotifications(Guid projectId, [FromQuery] int horizonWeeks = 8, CancellationToken ct = default)
+        => management.GetAlertsAsync(projectId, horizonWeeks, ct);
 }

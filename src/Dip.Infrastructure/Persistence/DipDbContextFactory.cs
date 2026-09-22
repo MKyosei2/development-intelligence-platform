@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by D ip Db Co nt ex tF ac to ry.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 

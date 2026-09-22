@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from fastapi import APIRouter, Depends
 
 from app.api.dependencies import get_anomaly_detector

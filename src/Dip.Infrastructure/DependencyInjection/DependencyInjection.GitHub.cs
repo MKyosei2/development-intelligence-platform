@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by G it Hu bD ep en de nc yI nj ec ti on.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Application.Abstractions.GitHub;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Infrastructure.GitHub;

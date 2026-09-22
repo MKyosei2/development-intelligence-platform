@@ -332,6 +332,7 @@ public sealed class ProjectPlanUnderstandingEngine
             }
             catch
             {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }
 

@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by V is ua lC om pa ra to rT es ts.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Features.QualityAutomation.VisualQa;
 using FluentAssertions;
 
@@ -30,8 +30,8 @@ public sealed class VisualComparatorTests
     [Fact]
     public async Task Changed_pixel_is_detected_and_mask_can_exclude_it()
     {
-        var baseline = PortablePngCodec.EncodeRgba(2, 1, new byte[] { 0,0,0,255, 0,0,0,255 });
-        var current = PortablePngCodec.EncodeRgba(2, 1, new byte[] { 255,255,255,255, 0,0,0,255 });
+        var baseline = PortablePngCodec.EncodeRgba(2, 1, new byte[] { 0, 0, 0, 255, 0, 0, 0, 255 });
+        var current = PortablePngCodec.EncodeRgba(2, 1, new byte[] { 255, 255, 255, 255, 0, 0, 0, 255 });
         var comparator = new PortablePngVisualComparator();
         await using var a = new MemoryStream(baseline);
         await using var b = new MemoryStream(current);

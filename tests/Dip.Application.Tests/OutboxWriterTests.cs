@@ -1,6 +1,6 @@
-// Purpose: Verifies behavior and invariants covered by O ut bo xW ri te rT es ts.
-using Dip.Application.Services;
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Abstractions.Persistence;
+using Dip.Application.Services;
 using Dip.Domain.Entities;
 using Xunit;
 

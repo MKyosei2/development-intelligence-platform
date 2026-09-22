@@ -1,4 +1,4 @@
-// Purpose: Configures EF Core persistence for Q ua li ty Ga te Re su lt Co nf ig ur at io n.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from app.schemas.common import EvidenceItem
 from app.schemas.risk import RiskContribution, RiskRequest, RiskResponse
 

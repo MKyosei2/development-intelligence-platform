@@ -1,4 +1,4 @@
-// Purpose: Represents Q ua li ty Au to ma ti on Pr of il e in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Entities;
 
 public sealed class QualityAutomationProfile

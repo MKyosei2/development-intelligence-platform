@@ -1,3 +1,4 @@
+@* Purpose: Renders and coordinates this web surface and its user interactions. *@
 @page "/dashboard/{ProjectId:guid}/qa/{RunId:guid}"
 @page "/dashboard/{ProjectId:guid}/qa/runs/{RunId:guid}"
 @using Dip.Application.Features.QualityAutomation
@@ -11,7 +12,17 @@ else{
 <div class="row g-4">
 <div class="col-12 col-xl-7"><section class="card shadow-sm"><div class="card-header"><h2 class="h5 mb-0">Findings</h2></div><div class="list-group list-group-flush">
 @if(_run.Findings.Count==0){<div class="list-group-item text-muted">No findings.</div>}
-    else{@foreach(var f in _run.Findings){<div class="list-group-item"><div class="d-flex justify-content-between"><strong>@f.Title</strong><span class="badge @(f.Severity=="Critical"?"text-bg-danger":f.Severity=="Warning"?"text-bg-warning":"text-bg-secondary")">@f.Severity</span></div><div class="small mt-1">@f.Message</div>@if(!string.IsNullOrWhiteSpace(f.FilePath)){<div class="small text-muted mt-1">@f.FilePath@if(f.Line is not null){<text>:@f.Line</text>}</div>}<div class="small mt-2">Reproduction: <strong>@f.ReproductionStatus</strong> @f.ReproducedAttempts/@f.TotalAttempts</div><div class="small text-muted">Fingerprint: <code>@f.Fingerprint</code></div></div>}}
+    else{@foreach(var f in _run.Findings){<div class="list-group-item">
+    <div class="d-flex justify-content-between">
+    <strong>@f.Title</strong>
+    <span class="badge @(f.Severity=="Critical"?"text-bg-danger":f.Severity=="Warning"?"text-bg-warning":"text-bg-secondary")">@f.Severity</span></div>
+    <div class="small mt-1">@f.Message</div>@if(!string.IsNullOrWhiteSpace(f.FilePath)){
+    <div class="small text-muted mt-1">@f.FilePath@if(f.Line is not null){
+    <text>:@f.Line</text>}</div>}
+    <div class="small mt-2">Reproduction: 
+    <strong>@f.ReproductionStatus</strong> @f.ReproducedAttempts/@f.TotalAttempts</div>
+    <div class="small text-muted">Fingerprint: 
+    <code>@f.Fingerprint</code></div></div>}}
 </div></section></div>
 <div class="col-12 col-xl-5"><section class="card shadow-sm"><div class="card-header"><h2 class="h5 mb-0">Evidence artifacts</h2></div><div class="list-group list-group-flush">
 @if(_artifacts.Count==0){<div class="list-group-item text-muted">No artifacts were stored.</div>}

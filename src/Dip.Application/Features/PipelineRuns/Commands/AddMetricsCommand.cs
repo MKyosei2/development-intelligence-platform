@@ -1,1 +1,1 @@
-// Purpose: Defines the application command for A dd Me tr ic sC om ma nd.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

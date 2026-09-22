@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by D bI ni ti al iz er.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

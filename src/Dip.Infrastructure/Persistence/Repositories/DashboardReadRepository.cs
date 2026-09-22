@@ -1,4 +1,4 @@
-// Purpose: Persists and queries D as hb oa rd Re ad Re po si to ry data.
+// Purpose: Persists and queries data for this application boundary.
 using System.Text.Json;
 using Dip.Application.Features.Dashboard;
 using Dip.Domain.Entities;

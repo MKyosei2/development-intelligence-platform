@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.DevelopmentGraph;
 
-public sealed record DevelopmentGraphDto(Guid ProjectId,IReadOnlyList<DevelopmentGraphNodeDto> Nodes,IReadOnlyList<DevelopmentGraphEdgeDto> Edges);
+public sealed record DevelopmentGraphDto(Guid ProjectId, IReadOnlyList<DevelopmentGraphNodeDto> Nodes, IReadOnlyList<DevelopmentGraphEdgeDto> Edges);

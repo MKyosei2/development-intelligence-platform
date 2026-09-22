@@ -1,4 +1,4 @@
-// Purpose: Defines the application boundary represented by I Gi tH ub Re po si to ry Ca ta lo g.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using Dip.Application.Features.GitHubIntegration;
 
 namespace Dip.Application.Abstractions.GitHub;

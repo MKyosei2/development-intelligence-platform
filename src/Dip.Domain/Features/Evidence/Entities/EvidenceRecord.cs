@@ -1,4 +1,4 @@
-// Purpose: Represents E vi de nc eR ec or d in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 using System.Text.Json;
 using Dip.Domain.Enums;
 
@@ -169,7 +169,9 @@ public sealed class EvidenceRecord
                     : property.Value.GetRawText();
             }
         }
-        catch { }
+        catch {
+            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+        }
         return null;
     }
 

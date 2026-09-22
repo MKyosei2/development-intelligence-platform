@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by I nt el li ge nc eE xe cu ti on Sa fe ty.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Diagnostics;
 
 namespace Dip.Infrastructure.Intelligence;
@@ -55,7 +55,7 @@ public sealed class IntelligenceExecutionSafety
 
         var hasPathSeparator = command.Contains(Path.DirectorySeparatorChar)
             || command.Contains(Path.AltDirectorySeparatorChar)
-            || command.StartsWith(".", StringComparison.Ordinal);
+            || command.StartsWith('.');
 
         if (hasPathSeparator)
         {
@@ -134,7 +134,9 @@ public sealed class IntelligenceExecutionSafety
 
         if (addResult.ExitCode != 0)
         {
-            try { Directory.Delete(temporaryRoot, true); } catch { }
+            try { Directory.Delete(temporaryRoot, true); } catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
             throw new InvalidOperationException(
                 "Could not create the isolated Git worktree: " + addResult.StandardError.Trim());
         }
@@ -179,13 +181,21 @@ public sealed class IntelligenceExecutionSafety
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             timedOut = true;
-            try { process.Kill(true); } catch { }
-            try { await process.WaitForExitAsync(CancellationToken.None); } catch { }
+            try { process.Kill(true); } catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+            try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            try { process.Kill(true); } catch { }
-            try { await process.WaitForExitAsync(CancellationToken.None); } catch { }
+            try { process.Kill(true); } catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+            try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
             throw;
         }
 
@@ -241,7 +251,9 @@ public sealed class IntelligenceExecutionSafety
                 if (Directory.Exists(Path))
                     Directory.Delete(Path, true);
             }
-            catch { }
+            catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
 
             try
             {
@@ -251,7 +263,9 @@ public sealed class IntelligenceExecutionSafety
                     TimeSpan.FromSeconds(30),
                     CancellationToken.None);
             }
-            catch { }
+            catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
     }
 }

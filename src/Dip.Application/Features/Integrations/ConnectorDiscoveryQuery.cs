@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.Integrations;
 
-public sealed record ConnectorDiscoveryQuery(string? Search=null,string? Visibility=null,int Limit=500);
+public sealed record ConnectorDiscoveryQuery(string? Search = null, string? Visibility = null, int Limit = 500);

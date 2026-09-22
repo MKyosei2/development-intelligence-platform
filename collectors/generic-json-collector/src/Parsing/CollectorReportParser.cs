@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GenericJsonCollector.Models;

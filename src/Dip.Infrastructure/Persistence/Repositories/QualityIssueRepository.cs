@@ -1,4 +1,4 @@
-// Purpose: Persists and queries Q ua li ty Is su eR ep os it or y data.
+// Purpose: Persists and queries data for this application boundary.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

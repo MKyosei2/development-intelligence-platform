@@ -1,1 +1,1 @@
-// Purpose: Defines the application query for G et Pi pe li ne Ru nQ ue ry.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

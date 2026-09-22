@@ -1,1 +1,1 @@
-// Purpose: Defines the DIP responsibility represented by C or re la ti on ID Mi dd le wa re.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

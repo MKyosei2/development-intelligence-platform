@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System;
 using System.IO;
 using UnityEditor;

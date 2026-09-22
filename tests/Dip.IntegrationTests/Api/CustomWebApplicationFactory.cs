@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by C us to mW eb Ap pl ic at io nF ac to ry.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;

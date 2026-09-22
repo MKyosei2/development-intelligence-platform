@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Purpose: Provides repository tooling used by development and verification workflows.
 import argparse, json, math, os, struct, subprocess, tempfile, wave, zlib, binascii
 from pathlib import Path
 

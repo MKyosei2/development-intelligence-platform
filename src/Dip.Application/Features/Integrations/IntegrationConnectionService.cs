@@ -368,8 +368,7 @@ public sealed class IntegrationConnectionService
             uri.Scheme is not ("https" or "http"))
             throw new ArgumentException("BaseUrl must be an absolute HTTP(S) URL.", nameof(value));
 
-        return normalized.EndsWith("/", StringComparison.Ordinal)
-            ? normalized
+        return normalized.EndsWith('/') ? normalized
             : normalized + "/";
     }
 

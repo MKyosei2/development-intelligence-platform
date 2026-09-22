@@ -1,1 +1,1 @@
-// Purpose: Integrates external or runtime capabilities through G it Hu bC li en t.
+// Purpose: Provides infrastructure behavior for this application boundary.

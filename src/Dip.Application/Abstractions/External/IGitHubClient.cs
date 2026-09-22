@@ -1,1 +1,1 @@
-// Purpose: Defines the application boundary represented by I Gi tH ub Cl ie nt.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

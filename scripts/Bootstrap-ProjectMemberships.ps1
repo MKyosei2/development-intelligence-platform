@@ -1,4 +1,4 @@
-# Purpose: Automates the DIP workflow represented by B oo ts tr ap P ro je ct Me mb er sh ip s.
+# Purpose: Automates a repeatable development or verification workflow for this repository.
 [CmdletBinding(DefaultParameterSetName='Selected')]
 param(
     [Parameter(Mandatory=$true)][string]$BaseUrl,

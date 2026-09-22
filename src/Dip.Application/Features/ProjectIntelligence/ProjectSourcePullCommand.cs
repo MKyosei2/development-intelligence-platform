@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.ProjectIntelligence;
 
-public sealed record ProjectSourcePullCommand(Guid ProjectId,string Provider,bool DryRun=false);
+public sealed record ProjectSourcePullCommand(Guid ProjectId, string Provider, bool DryRun = false);

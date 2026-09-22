@@ -1,6 +1,55 @@
-// Purpose: Configures EF Core persistence for P2 Co nf ig ur at io ns.
-using Dip.Domain.Entities;using Microsoft.EntityFrameworkCore;using Microsoft.EntityFrameworkCore.Metadata.Builders;
+// Purpose: Provides infrastructure behavior for this application boundary.
+using Dip.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Dip.Infrastructure.Persistence.Configurations;
-public sealed class CommunityHardwareSampleConfiguration:IEntityTypeConfiguration<CommunityHardwareSample>{public void Configure(EntityTypeBuilder<CommunityHardwareSample>b){b.ToTable("community_hardware_samples");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.HardwareKey).HasColumnName("hardware_key").HasMaxLength(160);b.Property(x=>x.Platform).HasColumnName("platform").HasMaxLength(80);b.Property(x=>x.CpuArch).HasColumnName("cpu_arch").HasMaxLength(80);b.Property(x=>x.GpuVendor).HasColumnName("gpu_vendor").HasMaxLength(80);b.Property(x=>x.OsFamily).HasColumnName("os_family").HasMaxLength(80);b.Property(x=>x.DriverFamily).HasColumnName("driver_family").HasMaxLength(160);b.Property(x=>x.CpuSingleScore).HasColumnName("cpu_single_score");b.Property(x=>x.CpuMultiScore).HasColumnName("cpu_multi_score");b.Property(x=>x.GpuScore).HasColumnName("gpu_score");b.Property(x=>x.MemoryScore).HasColumnName("memory_score");b.Property(x=>x.StorageScore).HasColumnName("storage_score");b.Property(x=>x.ThermalScore).HasColumnName("thermal_score");b.Property(x=>x.MemoryMb).HasColumnName("memory_mb");b.Property(x=>x.SourceFingerprint).HasColumnName("source_fingerprint").HasMaxLength(64);b.Property(x=>x.MeasuredAtUtc).HasColumnName("measured_at_utc");b.HasIndex(x=>new{x.HardwareKey,x.MeasuredAtUtc});}}
-public sealed class IntelligenceRunConfiguration:IEntityTypeConfiguration<IntelligenceRun>{public void Configure(EntityTypeBuilder<IntelligenceRun>b){b.ToTable("intelligence_runs");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.Type).HasColumnName("type").HasConversion<string>();b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);b.Property(x=>x.ArtifactRoot).HasColumnName("artifact_root").HasMaxLength(1000);b.Property(x=>x.InputJson).HasColumnName("input_json").HasMaxLength(32000);b.Property(x=>x.ResultJson).HasColumnName("result_json").HasMaxLength(32000);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>();b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.Property(x=>x.StartedAtUtc).HasColumnName("started_at_utc");b.Property(x=>x.FinishedAtUtc).HasColumnName("finished_at_utc");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.ProjectId,x.CreatedAtUtc});}}
-public sealed class ProjectForecastConfiguration:IEntityTypeConfiguration<ProjectForecast>{public void Configure(EntityTypeBuilder<ProjectForecast>b){b.ToTable("project_forecasts");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.ForecastType).HasColumnName("forecast_type").HasMaxLength(80);b.Property(x=>x.RiskPercent).HasColumnName("risk_percent");b.Property(x=>x.EarliestUtc).HasColumnName("earliest_utc");b.Property(x=>x.LatestUtc).HasColumnName("latest_utc");b.Property(x=>x.Confidence).HasColumnName("confidence").HasConversion<string>();b.Property(x=>x.RationaleJson).HasColumnName("rationale_json").HasMaxLength(32000);b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.ProjectId,x.CreatedAtUtc});}}
+public sealed class CommunityHardwareSampleConfiguration : IEntityTypeConfiguration<CommunityHardwareSample> { public void Configure(EntityTypeBuilder<CommunityHardwareSample> b) { b.ToTable("community_hardware_samples");
+ b.HasKey(x => x.Id);
+ b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.HardwareKey).HasColumnName("hardware_key").HasMaxLength(160);
+ b.Property(x => x.Platform).HasColumnName("platform").HasMaxLength(80);
+ b.Property(x => x.CpuArch).HasColumnName("cpu_arch").HasMaxLength(80);
+ b.Property(x => x.GpuVendor).HasColumnName("gpu_vendor").HasMaxLength(80);
+ b.Property(x => x.OsFamily).HasColumnName("os_family").HasMaxLength(80);
+ b.Property(x => x.DriverFamily).HasColumnName("driver_family").HasMaxLength(160);
+ b.Property(x => x.CpuSingleScore).HasColumnName("cpu_single_score");
+ b.Property(x => x.CpuMultiScore).HasColumnName("cpu_multi_score");
+ b.Property(x => x.GpuScore).HasColumnName("gpu_score");
+ b.Property(x => x.MemoryScore).HasColumnName("memory_score");
+ b.Property(x => x.StorageScore).HasColumnName("storage_score");
+ b.Property(x => x.ThermalScore).HasColumnName("thermal_score");
+ b.Property(x => x.MemoryMb).HasColumnName("memory_mb");
+ b.Property(x => x.SourceFingerprint).HasColumnName("source_fingerprint").HasMaxLength(64);
+ b.Property(x => x.MeasuredAtUtc).HasColumnName("measured_at_utc");
+ b.HasIndex(x => new { x.HardwareKey, x.MeasuredAtUtc });
+ } }
+public sealed class IntelligenceRunConfiguration : IEntityTypeConfiguration<IntelligenceRun> { public void Configure(EntityTypeBuilder<IntelligenceRun> b) { b.ToTable("intelligence_runs");
+ b.HasKey(x => x.Id);
+ b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.Property(x => x.Type).HasColumnName("type").HasConversion<string>();
+ b.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);
+ b.Property(x => x.ArtifactRoot).HasColumnName("artifact_root").HasMaxLength(1000);
+ b.Property(x => x.InputJson).HasColumnName("input_json").HasMaxLength(32000);
+ b.Property(x => x.ResultJson).HasColumnName("result_json").HasMaxLength(32000);
+ b.Property(x => x.Status).HasColumnName("status").HasConversion<string>();
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.Property(x => x.StartedAtUtc).HasColumnName("started_at_utc");
+ b.Property(x => x.FinishedAtUtc).HasColumnName("finished_at_utc");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ b.HasIndex(x => new { x.ProjectId, x.CreatedAtUtc });
+ } }
+public sealed class ProjectForecastConfiguration : IEntityTypeConfiguration<ProjectForecast> { public void Configure(EntityTypeBuilder<ProjectForecast> b) { b.ToTable("project_forecasts");
+ b.HasKey(x => x.Id);
+ b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.Property(x => x.ForecastType).HasColumnName("forecast_type").HasMaxLength(80);
+ b.Property(x => x.RiskPercent).HasColumnName("risk_percent");
+ b.Property(x => x.EarliestUtc).HasColumnName("earliest_utc");
+ b.Property(x => x.LatestUtc).HasColumnName("latest_utc");
+ b.Property(x => x.Confidence).HasColumnName("confidence").HasConversion<string>();
+ b.Property(x => x.RationaleJson).HasColumnName("rationale_json").HasMaxLength(32000);
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ b.HasIndex(x => new { x.ProjectId, x.CreatedAtUtc });
+ } }

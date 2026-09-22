@@ -1,11 +1,11 @@
-// Purpose: Integrates external or runtime capabilities through P os tg re sQ ue ue Cl ie nt.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
 using Dip.Infrastructure.Persistence;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Dip.Infrastructure.Messaging;
 
@@ -198,12 +198,17 @@ public sealed class PostgresQueueClient(IServiceScopeFactory scopeFactory) : IQu
                 if (!p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
                 return p.Value.ValueKind switch
                 {
-                    JsonValueKind.String => p.Value.GetString(), JsonValueKind.Number => p.Value.GetRawText(),
-                    JsonValueKind.True => "true", JsonValueKind.False => "false", _ => null
+                    JsonValueKind.String => p.Value.GetString(),
+                    JsonValueKind.Number => p.Value.GetRawText(),
+                    JsonValueKind.True => "true",
+                    JsonValueKind.False => "false",
+                    _ => null
                 };
             }
         }
-        catch (JsonException) { }
+        catch (JsonException) {
+            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+        }
         return null;
     }
 }

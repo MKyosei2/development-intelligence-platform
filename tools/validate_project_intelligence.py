@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Purpose: Provides repository tooling used by development and verification workflows.
 """Static integration contract for the Project Intelligence Layer.
 
 This intentionally does not claim to replace dotnet build/test or live connector E2E.

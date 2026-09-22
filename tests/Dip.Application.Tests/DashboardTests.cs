@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by D as hb oa rd Te st s.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Features.Dashboard;
 using FluentAssertions;
 

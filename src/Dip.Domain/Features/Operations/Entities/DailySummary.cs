@@ -1,1 +1,1 @@
-// Purpose: Represents D ai ly Su mm ar y in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.

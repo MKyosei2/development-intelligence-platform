@@ -1,4 +1,4 @@
-// Purpose: Represents A ud it Lo g in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Entities;
 
 /// <summary>

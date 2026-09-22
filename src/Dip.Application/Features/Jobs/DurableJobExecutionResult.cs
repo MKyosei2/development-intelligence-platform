@@ -7,4 +7,4 @@ using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.Jobs;
 
-public sealed record DurableJobExecutionResult(string? ResultJson,string? ArtifactReference=null);
+public sealed record DurableJobExecutionResult(string? ResultJson, string? ArtifactReference = null);

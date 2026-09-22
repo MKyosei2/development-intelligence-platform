@@ -1,3 +1,4 @@
+@* Purpose: Renders and coordinates this web surface and its user interactions. *@
 @page "/dashboard/{ProjectId:guid}/qa"
 @implements IDisposable
 @inject ApiClient Api
@@ -303,7 +304,17 @@ else
         }
         @if (_running)
         {
-            <div class="qa-progress card mb-4"><div class="card-body"><div class="qa-progress-head"><div><div class="spinner small-spinner"></div><div><strong>QA is running</strong><small>Detecting repository technology, running available adapters and normalizing findings.</small></div></div><span>Auto language detection</span></div><div class="progress mt-3"><div class="progress-bar indeterminate"></div></div></div></div>
+            <div class="qa-progress card mb-4">
+            <div class="card-body">
+            <div class="qa-progress-head">
+            <div>
+            <div class="spinner small-spinner"></div>
+            <div>
+            <strong>QA is running</strong>
+            <small>Detecting repository technology, running available adapters and normalizing findings.</small></div></div>
+            <span>Auto language detection</span></div>
+            <div class="progress mt-3">
+            <div class="progress-bar indeterminate"></div></div></div></div>
         }
 
         <div class="metric-grid mb-4">
@@ -345,7 +356,17 @@ else
                     <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Run</th><th>Language</th><th>Status</th><th>Findings</th><th>Reproduced</th><th>Created</th></tr></thead><tbody>
                     @foreach (var run in _dashboard.RecentQaRuns)
                     {
-                        <tr><td><a href="@($"/dashboard/{ProjectId}/qa/runs/{run.Id}")"><code>@ShortGuid(run.Id)</code></a></td><td>@run.Language</td><td><StatusBadge Value="@run.Status" /></td><td>@run.FindingCount <span class="text-danger">(@run.CriticalFindingCount critical)</span></td><td>@run.ReproducedFindingCount</td><td>@FormatDate(run.CreatedAtUtc)</td></tr>
+                        <tr>
+                        <td>
+                        <a href="@($"/dashboard/{ProjectId}/qa/runs/{run.Id}")">
+                        <code>@ShortGuid(run.Id)</code></a></td>
+                        <td>@run.Language</td>
+                        <td>
+                        <StatusBadge Value="@run.Status" /></td>
+                        <td>@run.FindingCount 
+                        <span class="text-danger">(@run.CriticalFindingCount critical)</span></td>
+                        <td>@run.ReproducedFindingCount</td>
+                        <td>@FormatDate(run.CreatedAtUtc)</td></tr>
                     }
                     </tbody></table></div>
                 }

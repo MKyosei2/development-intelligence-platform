@@ -1,1 +1,1 @@
-// Purpose: Represents T as kI te m in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.

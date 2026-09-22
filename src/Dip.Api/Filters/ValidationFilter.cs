@@ -1,1 +1,1 @@
-// Purpose: Defines the DIP responsibility represented by V al ID at io nF il te r.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

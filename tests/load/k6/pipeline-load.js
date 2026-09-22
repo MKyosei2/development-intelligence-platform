@@ -1,1 +1,1 @@
-// Purpose: Verifies behavior and invariants covered by p ip el in e l oa d.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.

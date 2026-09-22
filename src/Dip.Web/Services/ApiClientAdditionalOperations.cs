@@ -55,8 +55,15 @@ public static class ApiClientAdditionalOperations
             $"api/v1/defect-intelligence/projects/{projectId}/autonomous-debug",
             new
             {
-                subjectKey, question, evidenceJson, workspaceRelativePath,
-                repositoryContext, baseCommit, language, domainId, budget
+                subjectKey,
+                question,
+                evidenceJson,
+                workspaceRelativePath,
+                repositoryContext,
+                baseCommit,
+                language,
+                domainId,
+                budget
             },
             cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -117,9 +124,17 @@ public static class ApiClientAdditionalOperations
             $"api/v1/qa/projects/{projectId}/branches/run",
             new
             {
-                branch, workspaceRelativePath, language, commitSha, runtimeExecutable,
-                runtimeArguments, timeoutSeconds, automaticallyReproduce, recordScreen,
-                recordSystemAudio, refreshRemote
+                branch,
+                workspaceRelativePath,
+                language,
+                commitSha,
+                runtimeExecutable,
+                runtimeArguments,
+                timeoutSeconds,
+                automaticallyReproduce,
+                recordScreen,
+                recordSystemAudio,
+                refreshRemote
             },
             cancellationToken);
         response.EnsureSuccessStatusCode();

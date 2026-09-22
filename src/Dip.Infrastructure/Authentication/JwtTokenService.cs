@@ -1,1 +1,1 @@
-// Purpose: Implements infrastructure support for J wt To ke nS er vi ce.
+// Purpose: Coordinates application behavior for this feature area.

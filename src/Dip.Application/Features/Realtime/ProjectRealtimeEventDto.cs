@@ -1,4 +1,4 @@
-// Purpose: Defines data exchanged for P ro je ct Re al ti me Ev en tD to.
+// Purpose: Defines data exchanged across this application boundary.
 namespace Dip.Application.Features.Realtime;
 
 public sealed record ProjectRealtimeEventDto(

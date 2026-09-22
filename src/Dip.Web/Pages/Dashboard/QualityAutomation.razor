@@ -1,3 +1,4 @@
+@* Purpose: Renders and coordinates this web surface and its user interactions. *@
 @page "/dashboard/{ProjectId:guid}/quality-automation"
 @using System.Net.Http.Json
 @using System.Text.Json
@@ -86,7 +87,14 @@ else
     <section class="card mb-4">
         <div class="card-header"><strong>Recent visual comparisons</strong><span>@_comparisons.Count</span></div>
         <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Time</th><th>Verdict</th><th>Changed</th><th>SSIM</th><th>Diff</th></tr></thead><tbody>
-        @foreach (var c in _comparisons.Take(100)) { <tr><td>@c.ComparedAtUtc.ToLocalTime().ToString("g")</td><td><strong>@c.Verdict</strong></td><td>@c.ChangedPixelPercent%</td><td>@c.Ssim</td><td>@if(c.DiffArtifactRecordId is { } id){<a href="@($"/api/v1/artifacts/{id}")" target="_blank">Open diff</a>}</td></tr> }
+        @foreach (var c in _comparisons.Take(100)) { <tr>
+        <td>@c.ComparedAtUtc.ToLocalTime().ToString("g")</td>
+        <td>
+        <strong>@c.Verdict</strong></td>
+        <td>@c.ChangedPixelPercent%</td>
+        <td>@c.Ssim</td>
+        <td>@if(c.DiffArtifactRecordId is { } id){
+        <a href="@($"/api/v1/artifacts/{id}")" target="_blank">Open diff</a>}</td></tr> }
         </tbody></table></div></div>
     </section>
 
@@ -118,7 +126,12 @@ else
         try
         {
             var p = await Http.GetFromJsonAsync<QualityAutomationProfileDto>($"api/v1/projects/{ProjectId}/quality-automation/profile");
-            if (p is not null) { _enabled = p.Enabled; _warningPixels = p.ChangedPixelWarningPercent; _failurePixels = p.ChangedPixelFailurePercent; _minimumSsim = p.MinimumSsim; _assetRules = p.AssetRulesJson; }
+            if (p is not null) { _enabled = p.Enabled;
+             _warningPixels = p.ChangedPixelWarningPercent;
+             _failurePixels = p.ChangedPixelFailurePercent;
+             _minimumSsim = p.MinimumSsim;
+             _assetRules = p.AssetRulesJson;
+             }
             _goldens = await Http.GetFromJsonAsync<IReadOnlyList<GoldenMasterProfileDto>>($"api/v1/projects/{ProjectId}/quality-automation/goldens") ?? Array.Empty<GoldenMasterProfileDto>();
             _comparisons = await Http.GetFromJsonAsync<IReadOnlyList<VisualComparisonDto>>($"api/v1/projects/{ProjectId}/quality-automation/visual-comparisons?take=200") ?? Array.Empty<VisualComparisonDto>();
             _findings = await Http.GetFromJsonAsync<IReadOnlyList<AssetQaFindingDto>>($"api/v1/projects/{ProjectId}/quality-automation/asset-findings?state=Open&take=500") ?? Array.Empty<AssetQaFindingDto>();
@@ -128,18 +141,24 @@ else
     }
     private async Task SaveProfileAsync() => await Busy(async () =>
     {
-        using var r = await Http.PutAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/profile", new UpdateQualityAutomationProfileCommand(_enabled, _warningPixels, _failurePixels, _minimumSsim, _assetRules)); await Ensure(r); await LoadAsync();
+        using var r = await Http.PutAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/profile", new UpdateQualityAutomationProfileCommand(_enabled, _warningPixels, _failurePixels, _minimumSsim, _assetRules));
+         await Ensure(r);
+         await LoadAsync();
     });
     private async Task RegisterGoldenAsync() => await Busy(async () =>
     {
         if (!Guid.TryParse(_goldenArtifactId, out var id)) throw new InvalidOperationException("Artifact record ID must be a GUID.");
         var masks = JsonSerializer.Deserialize<VisualMaskRegion[]>(_maskJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? Array.Empty<VisualMaskRegion>();
-        using var r = await Http.PostAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/goldens", new RegisterGoldenMasterCommand(_goldenCaptureKey, id, _goldenScene, _goldenCamera, masks, _approvedBy)); await Ensure(r); _compareCaptureKey = _goldenCaptureKey; await LoadAsync();
+        using var r = await Http.PostAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/goldens", new RegisterGoldenMasterCommand(_goldenCaptureKey, id, _goldenScene, _goldenCamera, masks, _approvedBy));
+         await Ensure(r);
+         _compareCaptureKey = _goldenCaptureKey;
+         await LoadAsync();
     });
     private async Task CompareAsync() => await Busy(async () =>
     {
         if (!Guid.TryParse(_compareArtifactId, out var id)) throw new InvalidOperationException("Current artifact ID must be a GUID.");
-        using var r = await Http.PostAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/visual-comparisons", new RunVisualComparisonCommand(_compareCaptureKey, id)); await Ensure(r); _lastComparison = await r.Content.ReadFromJsonAsync<VisualComparisonDto>(); await LoadAsync();
+        using var r = await Http.PostAsJsonAsync($"api/v1/projects/{ProjectId}/quality-automation/visual-comparisons", new
+        RunVisualComparisonCommand(_compareCaptureKey, id)); await Ensure(r); _lastComparison = await r.Content.ReadFromJsonAsync<VisualComparisonDto>(); await LoadAsync();
     });
     private async Task Busy(Func<Task> action) { _busy = true; _error = null; try { await action(); } catch (Exception ex) { _error = ex.Message; } finally { _busy = false; } }
     private static async Task Ensure(HttpResponseMessage r) { if (r.IsSuccessStatusCode) return; throw new InvalidOperationException($"API {(int)r.StatusCode}: {await r.Content.ReadAsStringAsync()}"); }

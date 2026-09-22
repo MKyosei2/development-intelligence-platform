@@ -1,4 +1,4 @@
-// Purpose: Defines the application boundary represented by I In te gr at io nC on ne ct or.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Features.Integrations;

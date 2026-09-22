@@ -1,1 +1,1 @@
-// Purpose: Provides the infrastructure capability represented by C ir cu it Br ea ke rP ol ic ie s.
+// Purpose: Provides infrastructure behavior for this application boundary.

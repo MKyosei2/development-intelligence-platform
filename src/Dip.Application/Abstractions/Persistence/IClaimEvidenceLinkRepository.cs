@@ -4,5 +4,5 @@ namespace Dip.Application.Abstractions.Persistence;
 
 public interface IClaimEvidenceLinkRepository
 {
-    Task ReplaceForClaimAsync(Guid claimId,IReadOnlyCollection<ClaimEvidenceLink> links,CancellationToken ct);
+    Task ReplaceForClaimAsync(Guid claimId, IReadOnlyCollection<ClaimEvidenceLink> links, CancellationToken ct);
 }

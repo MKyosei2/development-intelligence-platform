@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using GenericJsonCollector.Clients;
 using GenericJsonCollector.Parsing;
 using GenericJsonCollector.Validation;

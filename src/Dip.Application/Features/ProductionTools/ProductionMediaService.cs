@@ -1,8 +1,8 @@
 // Purpose: Registers production media observations and preserves their project and evidence relationships.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Artifacts;
-using Dip.Application.Features.Policies;
 using Dip.Application.Features.Evidence;
+using Dip.Application.Features.Policies;
 using Dip.Application.Features.QualityAutomation.VisualQa;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
@@ -222,7 +222,9 @@ public sealed class ProductionMediaService
         }
         finally
         {
-            try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+            try { if (File.Exists(temp)) File.Delete(temp); } catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
     }
 

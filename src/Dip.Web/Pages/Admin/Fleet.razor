@@ -1,3 +1,4 @@
+@* Purpose: Renders and coordinates this web surface and its user interactions. *@
 @page "/admin/fleet"
 @using System.Net.Http.Json
 @using Dip.Domain.Entities
@@ -7,7 +8,29 @@
 @if(_error is not null){<div class="alert alert-danger">@_error</div>}
 <div class="card mb-4"><div class="card-header"><strong>Organizations</strong></div><div class="card-body">@if(_organizations.Count==0){<p class="text-muted">No organization tenant has been created.</p>}
     else{<select class="form-select" @onchange="OrganizationChanged"><option value="">Select organization</option>@foreach(var o in _organizations){<option value="@o.Id">@o.Name (@o.Slug)</option>}</select>}</div></div>
-@if(_selectedOrganization!=Guid.Empty){<div class="card"><div class="card-header"><strong>Registered agents</strong><span>@_agents.Count agent(s)</span></div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Agent</th><th>Project</th><th>Version</th><th>Policy</th><th>Status</th><th>Last seen</th></tr></thead><tbody>@foreach(var a in _agents){<tr><td>@a.AgentId</td><td><code>@a.ProjectId</code></td><td>@a.Version</td><td>@a.PolicyVersion</td><td>@a.Status</td><td>@a.LastSeenAtUtc.ToLocalTime()</td></tr>}</tbody></table></div></div>}
+@if(_selectedOrganization!=Guid.Empty){<div class="card">
+<div class="card-header">
+<strong>Registered agents</strong>
+<span>@_agents.Count agent(s)</span></div>
+<div class="card-body p-0">
+<table class="table mb-0">
+<thead>
+<tr>
+<th>Agent</th>
+<th>Project</th>
+<th>Version</th>
+<th>Policy</th>
+<th>Status</th>
+<th>Last seen</th></tr></thead>
+<tbody>@foreach(var a in _agents){
+<tr>
+<td>@a.AgentId</td>
+<td>
+<code>@a.ProjectId</code></td>
+<td>@a.Version</td>
+<td>@a.PolicyVersion</td>
+<td>@a.Status</td>
+<td>@a.LastSeenAtUtc.ToLocalTime()</td></tr>}</tbody></table></div></div>}
 @code{
     private List<OrganizationTenant> _organizations=[];private List<AgentRegistration> _agents=[];private Guid _selectedOrganization;private string? _error;
     protected override Task OnInitializedAsync()=>LoadAsync();

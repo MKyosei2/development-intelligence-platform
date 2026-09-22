@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by T es tI mp ac tA na ly ze rT es ts.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Infrastructure.P2Intelligence;
 using Dip.Infrastructure.QualityAutomation;
@@ -12,23 +12,23 @@ public sealed class TestImpactAnalyzerTests
     [Fact]
     public async Task AnalyzeAsync_PrioritizesTestProjectReferencingChangedProject()
     {
-        var temp=Path.Combine(Path.GetTempPath(),"dip-test-impact-"+Guid.NewGuid().ToString("N"));
+        var temp = Path.Combine(Path.GetTempPath(), "dip-test-impact-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temp);
         try
         {
-            var src=Path.Combine(temp,"src","Game");
-            var tests=Path.Combine(temp,"tests","Game.Tests");
-            Directory.CreateDirectory(src);Directory.CreateDirectory(tests);
-            await File.WriteAllTextAsync(Path.Combine(src,"Game.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\" />");
-            await File.WriteAllTextAsync(Path.Combine(src,"PlayerController.cs"),"public sealed class PlayerController { }");
-            await File.WriteAllTextAsync(Path.Combine(tests,"Game.Tests.csproj"),
+            var src = Path.Combine(temp, "src", "Game");
+            var tests = Path.Combine(temp, "tests", "Game.Tests");
+            Directory.CreateDirectory(src); Directory.CreateDirectory(tests);
+            await File.WriteAllTextAsync(Path.Combine(src, "Game.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+            await File.WriteAllTextAsync(Path.Combine(src, "PlayerController.cs"), "public sealed class PlayerController { }");
+            await File.WriteAllTextAsync(Path.Combine(tests, "Game.Tests.csproj"),
                 "<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><ProjectReference Include=\"..\\..\\src\\Game\\Game.csproj\" /></ItemGroup></Project>");
-            await File.WriteAllTextAsync(Path.Combine(tests,"PlayerControllerTests.cs"),"public sealed class PlayerControllerTests { }");
+            await File.WriteAllTextAsync(Path.Combine(tests, "PlayerControllerTests.cs"), "public sealed class PlayerControllerTests { }");
 
-            var resolver=new QaWorkspaceResolver(Options.Create(new QaExecutionOptions{WorkspaceRoot=temp,ArtifactRoot=Path.Combine(temp,"artifacts")}));
-            var sut=new TestImpactAnalyzer(resolver);
-            var result=await sut.AnalyzeAsync(new TestImpactCommand(
-                Guid.NewGuid(),"player",".",["src/Game/PlayerController.cs"]),CancellationToken.None);
+            var resolver = new QaWorkspaceResolver(Options.Create(new QaExecutionOptions { WorkspaceRoot = temp, ArtifactRoot = Path.Combine(temp, "artifacts") }));
+            var sut = new TestImpactAnalyzer(resolver);
+            var result = await sut.AnalyzeAsync(new TestImpactCommand(
+                Guid.NewGuid(), "player", ".", ["src/Game/PlayerController.cs"]), CancellationToken.None);
 
             result.Status.Should().Be("Selected");
             result.SelectedTests.Should().BeGreaterThan(0);
@@ -37,7 +37,9 @@ public sealed class TestImpactAnalyzerTests
         }
         finally
         {
-            try{Directory.Delete(temp,true);}catch{}
+            try { Directory.Delete(temp, true); } catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
     }
 }

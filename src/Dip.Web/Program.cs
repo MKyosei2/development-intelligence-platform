@@ -202,7 +202,7 @@ app.MapRazorComponents<Dip.Web.App>()
 app.Run();
 
 static string EnsureTrailingSlash(string value) =>
-    value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+    value.EndsWith('/') ? value : value + "/";
 
 static string? EncodeRelativePath(string value)
 {

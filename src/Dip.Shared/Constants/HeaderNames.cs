@@ -1,1 +1,1 @@
-// Purpose: Defines shared constants for H ea de rN am es.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for S ys te mS ta tu sC on tr ol le r.
+// Purpose: Exposes HTTP endpoints for this API responsibility.
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
@@ -407,5 +407,5 @@ public sealed class SystemStatusController(
         => new(key, name, SystemComponentStates.Healthy, detail, checkedAt, 0d);
 
     private static string EnsureTrailingSlash(string value)
-        => value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+        => value.EndsWith('/') ? value : value + "/";
 }

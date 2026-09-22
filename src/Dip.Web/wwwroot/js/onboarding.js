@@ -1,4 +1,4 @@
-// Purpose: Implements DIP web behavior for o nb oa rd in g.
+// Purpose: Implements web-facing behavior for this application surface.
 export function getBoolean(key) {
     try {
         return window.localStorage.getItem(key) === 'true';

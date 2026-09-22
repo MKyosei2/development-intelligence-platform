@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by I nt eg ra ti on Co nn ec ti on Te st s.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

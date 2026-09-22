@@ -1,1 +1,1 @@
-// Purpose: Provides the infrastructure capability represented by R et ry Po li CI es.
+// Purpose: Provides infrastructure behavior for this application boundary.

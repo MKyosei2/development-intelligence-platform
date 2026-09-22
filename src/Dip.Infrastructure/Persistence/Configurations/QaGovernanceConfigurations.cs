@@ -1,21 +1,264 @@
-// Purpose: Configures EF Core persistence for Q aG ov er na nc eC on fi gu ra ti on s.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class QaFindingStateConfiguration:IEntityTypeConfiguration<QaFindingState>{public void Configure(EntityTypeBuilder<QaFindingState>b){b.ToTable("qa_finding_states");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.Fingerprint).HasColumnName("fingerprint").HasMaxLength(64).IsRequired();b.Property(x=>x.LastFindingId).HasColumnName("last_finding_id");b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200).IsRequired();b.Property(x=>x.LastCommitSha).HasColumnName("last_commit_sha").HasMaxLength(64);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.Occurrences).HasColumnName("occurrences");b.Property(x=>x.Team).HasColumnName("team").HasMaxLength(200);b.Property(x=>x.Workstream).HasColumnName("workstream").HasMaxLength(200);b.Property(x=>x.OwnershipSource).HasColumnName("ownership_source").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.DispositionReason).HasColumnName("disposition_reason").HasMaxLength(2000);b.Property(x=>x.UpdatedBy).HasColumnName("updated_by").HasMaxLength(200);b.Property(x=>x.FirstSeenAtUtc).HasColumnName("first_seen_at_utc");b.Property(x=>x.LastSeenAtUtc).HasColumnName("last_seen_at_utc");b.Property(x=>x.UpdatedAtUtc).HasColumnName("updated_at_utc");b.Property(x=>x.Version).HasColumnName("version").IsConcurrencyToken();b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.ProjectId,x.Fingerprint}).IsUnique();b.HasIndex(x=>new{x.ProjectId,x.Status,x.LastSeenAtUtc});}}
-public sealed class QaWaiverConfiguration:IEntityTypeConfiguration<QaWaiver>{public void Configure(EntityTypeBuilder<QaWaiver>b){b.ToTable("qa_waivers");b.HasKey(x=>x.Id);MapProject(b);b.Property(x=>x.Name).HasColumnName("name").HasMaxLength(200);b.Property(x=>x.Reason).HasColumnName("reason").HasMaxLength(2000);b.Property(x=>x.RequestedBy).HasColumnName("requested_by").HasMaxLength(200);b.Property(x=>x.ApprovedBy).HasColumnName("approved_by").HasMaxLength(200);b.Property(x=>x.DecisionReason).HasColumnName("decision_reason").HasMaxLength(2000);b.Property(x=>x.Fingerprint).HasColumnName("fingerprint").HasMaxLength(64);b.Property(x=>x.RuleId).HasColumnName("rule_id").HasMaxLength(300);b.Property(x=>x.PathPattern).HasColumnName("path_pattern").HasMaxLength(1000);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.Property(x=>x.UpdatedAtUtc).HasColumnName("updated_at_utc");b.Property(x=>x.ExpiresAtUtc).HasColumnName("expires_at_utc");b.Property(x=>x.ApprovedAtUtc).HasColumnName("approved_at_utc");b.Property(x=>x.RevokedAtUtc).HasColumnName("revoked_at_utc");b.Property(x=>x.Version).HasColumnName("version").IsConcurrencyToken();b.HasIndex(x=>new{x.ProjectId,x.Status,x.ExpiresAtUtc});}private static void MapProject(EntityTypeBuilder<QaWaiver>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaTestReliabilityConfiguration:IEntityTypeConfiguration<QaTestReliability>{public void Configure(EntityTypeBuilder<QaTestReliability>b){b.ToTable("qa_test_reliability");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.TestKey).HasColumnName("test_key").HasMaxLength(500);b.Property(x=>x.PassCount).HasColumnName("pass_count");b.Property(x=>x.FailCount).HasColumnName("fail_count");b.Property(x=>x.ConsecutivePasses).HasColumnName("consecutive_passes");b.Property(x=>x.ConsecutiveFailures).HasColumnName("consecutive_failures");b.Property(x=>x.Classification).HasColumnName("classification").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.LastCommitSha).HasColumnName("last_commit_sha").HasMaxLength(64);b.Property(x=>x.FirstObservedAtUtc).HasColumnName("first_observed_at_utc");b.Property(x=>x.LastObservedAtUtc).HasColumnName("last_observed_at_utc");b.Ignore(x=>x.FailureRatePercent);b.HasIndex(x=>new{x.ProjectId,x.TestKey}).IsUnique();}private static void P(EntityTypeBuilder<QaTestReliability>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaRegressionBaselineConfiguration:IEntityTypeConfiguration<QaRegressionBaseline>{public void Configure(EntityTypeBuilder<QaRegressionBaseline>b){b.ToTable("qa_regression_baselines");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);b.Property(x=>x.MetricKey).HasColumnName("metric_key").HasMaxLength(200);b.Property(x=>x.BaselineCommit).HasColumnName("baseline_commit").HasMaxLength(64);b.Property(x=>x.LastKnownGoodCommit).HasColumnName("last_known_good_commit").HasMaxLength(64);b.Property(x=>x.FirstBadCommit).HasColumnName("first_bad_commit").HasMaxLength(64);b.Property(x=>x.BaselineValue).HasColumnName("baseline_value").HasPrecision(18,4);b.Property(x=>x.CurrentValue).HasColumnName("current_value").HasPrecision(18,4);b.Property(x=>x.RegressionPercent).HasColumnName("regression_percent").HasPrecision(12,4);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.UpdatedAtUtc).HasColumnName("updated_at_utc");b.HasIndex(x=>new{x.ProjectId,x.SubjectKey,x.MetricKey}).IsUnique();}private static void P(EntityTypeBuilder<QaRegressionBaseline>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaOwnershipRuleConfiguration:IEntityTypeConfiguration<QaOwnershipRule>{public void Configure(EntityTypeBuilder<QaOwnershipRule>b){b.ToTable("qa_ownership_rules");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.Name).HasColumnName("name").HasMaxLength(200);b.Property(x=>x.PathPattern).HasColumnName("path_pattern").HasMaxLength(1000);b.Property(x=>x.Team).HasColumnName("team").HasMaxLength(200);b.Property(x=>x.Workstream).HasColumnName("workstream").HasMaxLength(200);b.Property(x=>x.Priority).HasColumnName("priority");b.Property(x=>x.Enabled).HasColumnName("enabled");b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.Property(x=>x.UpdatedAtUtc).HasColumnName("updated_at_utc");b.HasIndex(x=>new{x.ProjectId,x.Enabled,x.Priority});}private static void P(EntityTypeBuilder<QaOwnershipRule>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaPolicyConfiguration:IEntityTypeConfiguration<QaPolicy>{public void Configure(EntityTypeBuilder<QaPolicy>b){b.ToTable("qa_policies");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.Name).HasColumnName("name").HasMaxLength(200);b.Property(x=>x.Version).HasColumnName("version").HasMaxLength(80);b.Property(x=>x.RulesJson).HasColumnName("rules_json").HasMaxLength(32000);b.Property(x=>x.Enabled).HasColumnName("enabled");b.Property(x=>x.LifecycleStatus).HasColumnName("lifecycle_status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.Revision).HasColumnName("revision");b.Property(x=>x.SupersedesPolicyId).HasColumnName("supersedes_policy_id");b.Property(x=>x.ApprovedBy).HasColumnName("approved_by").HasMaxLength(200);b.Property(x=>x.ActivatedBy).HasColumnName("activated_by").HasMaxLength(200);b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.Property(x=>x.UpdatedAtUtc).HasColumnName("updated_at_utc");b.Property(x=>x.ApprovedAtUtc).HasColumnName("approved_at_utc");b.Property(x=>x.ActivatedAtUtc).HasColumnName("activated_at_utc");b.Property(x=>x.ConcurrencyVersion).HasColumnName("concurrency_version").IsConcurrencyToken();b.HasIndex(x=>new{x.ProjectId,x.LifecycleStatus,x.Revision});b.HasIndex(x=>new{x.ProjectId,x.Version}).IsUnique();}private static void P(EntityTypeBuilder<QaPolicy>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaPolicyEvaluationConfiguration:IEntityTypeConfiguration<QaPolicyEvaluation>{public void Configure(EntityTypeBuilder<QaPolicyEvaluation>b){b.ToTable("qa_policy_evaluations");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");b.Property(x=>x.PolicyId).HasColumnName("policy_id");b.Property(x=>x.PolicyVersion).HasColumnName("policy_version").HasMaxLength(80);b.Property(x=>x.Verdict).HasColumnName("verdict").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.BlockersJson).HasColumnName("blockers_json").HasMaxLength(16000);b.Property(x=>x.WarningsJson).HasColumnName("warnings_json").HasMaxLength(16000);b.Property(x=>x.Summary).HasColumnName("summary").HasMaxLength(4000);b.Property(x=>x.EvaluatedAtUtc).HasColumnName("evaluated_at_utc");b.HasOne<QaRun>().WithMany().HasForeignKey(x=>x.QaRunId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.ProjectId,x.EvaluatedAtUtc});}private static void P(EntityTypeBuilder<QaPolicyEvaluation>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaEvidenceProvenanceConfiguration:IEntityTypeConfiguration<QaEvidenceProvenance>{public void Configure(EntityTypeBuilder<QaEvidenceProvenance>b){b.ToTable("qa_evidence_provenance");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");b.Property(x=>x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64);b.Property(x=>x.EnvironmentFingerprint).HasColumnName("environment_fingerprint").HasMaxLength(128);b.Property(x=>x.ToolchainJson).HasColumnName("toolchain_json").HasMaxLength(16000);b.Property(x=>x.NormalizerVersion).HasColumnName("normalizer_version").HasMaxLength(80);b.Property(x=>x.PolicyVersion).HasColumnName("policy_version").HasMaxLength(80);b.Property(x=>x.InputHash).HasColumnName("input_hash").HasMaxLength(64);b.Property(x=>x.EvidenceHash).HasColumnName("evidence_hash").HasMaxLength(64);b.Property(x=>x.CapturedAtUtc).HasColumnName("captured_at_utc");b.HasOne<QaRun>().WithMany().HasForeignKey(x=>x.QaRunId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.ProjectId,x.CapturedAtUtc});}private static void P(EntityTypeBuilder<QaEvidenceProvenance>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaSystemHealthSnapshotConfiguration:IEntityTypeConfiguration<QaSystemHealthSnapshot>{public void Configure(EntityTypeBuilder<QaSystemHealthSnapshot>b){b.ToTable("qa_system_health_snapshots");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");b.Property(x=>x.Component).HasColumnName("component").HasMaxLength(120);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.Detail).HasColumnName("detail").HasMaxLength(4000);b.Property(x=>x.ObservedAtUtc).HasColumnName("observed_at_utc");b.HasIndex(x=>new{x.ProjectId,x.ObservedAtUtc});}private static void P(EntityTypeBuilder<QaSystemHealthSnapshot>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaQualityTrendSnapshotConfiguration:IEntityTypeConfiguration<QaQualityTrendSnapshot>{public void Configure(EntityTypeBuilder<QaQualityTrendSnapshot>b){b.ToTable("qa_quality_trend_snapshots");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");b.Property(x=>x.OpenFindingCount).HasColumnName("open_finding_count");b.Property(x=>x.CriticalCount).HasColumnName("critical_count");b.Property(x=>x.WarningCount).HasColumnName("warning_count");b.Property(x=>x.FlakyCount).HasColumnName("flaky_count");b.Property(x=>x.ActiveWaiverCount).HasColumnName("active_waiver_count");b.Property(x=>x.TechnicalDebtScore).HasColumnName("technical_debt_score").HasPrecision(12,2);b.Property(x=>x.CapturedAtUtc).HasColumnName("captured_at_utc");b.HasIndex(x=>new{x.ProjectId,x.CapturedAtUtc});}private static void P(EntityTypeBuilder<QaQualityTrendSnapshot>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaTestImpactRuleConfiguration:IEntityTypeConfiguration<QaTestImpactRule>{public void Configure(EntityTypeBuilder<QaTestImpactRule>b){b.ToTable("qa_test_impact_rules");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.PathPattern).HasColumnName("path_pattern").HasMaxLength(1000);b.Property(x=>x.TestKey).HasColumnName("test_key").HasMaxLength(500);b.Property(x=>x.CommandJson).HasColumnName("command_json").HasMaxLength(8000);b.Property(x=>x.Priority).HasColumnName("priority");b.Property(x=>x.Enabled).HasColumnName("enabled");b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.HasIndex(x=>new{x.ProjectId,x.Enabled,x.Priority});}private static void P(EntityTypeBuilder<QaTestImpactRule>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaArtifactRetentionRuleConfiguration:IEntityTypeConfiguration<QaArtifactRetentionRule>{public void Configure(EntityTypeBuilder<QaArtifactRetentionRule>b){b.ToTable("qa_artifact_retention_rules");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.KindPattern).HasColumnName("kind_pattern").HasMaxLength(200);b.Property(x=>x.RetentionClass).HasColumnName("retention_class").HasMaxLength(40);b.Property(x=>x.RetentionDays).HasColumnName("retention_days");b.Property(x=>x.PreserveOnCritical).HasColumnName("preserve_on_critical");b.Property(x=>x.Enabled).HasColumnName("enabled");b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.HasIndex(x=>new{x.ProjectId,x.Enabled});}private static void P(EntityTypeBuilder<QaArtifactRetentionRule>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaRunCostRecordConfiguration:IEntityTypeConfiguration<QaRunCostRecord>{public void Configure(EntityTypeBuilder<QaRunCostRecord>b){b.ToTable("qa_run_costs");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");b.Property(x=>x.WallDurationMs).HasColumnName("wall_duration_ms");b.Property(x=>x.ToolDurationMs).HasColumnName("tool_duration_ms");b.Property(x=>x.ArtifactBytes).HasColumnName("artifact_bytes");b.Property(x=>x.EstimatedCpuSeconds).HasColumnName("estimated_cpu_seconds").HasPrecision(18,3);b.Property(x=>x.BudgetVerdict).HasColumnName("budget_verdict").HasMaxLength(40);b.Property(x=>x.CapturedAtUtc).HasColumnName("captured_at_utc");b.HasIndex(x=>new{x.ProjectId,x.CapturedAtUtc});}private static void P(EntityTypeBuilder<QaRunCostRecord>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
-public sealed class QaBugMinimizationRecordConfiguration:IEntityTypeConfiguration<QaBugMinimizationRecord>{public void Configure(EntityTypeBuilder<QaBugMinimizationRecord>b){b.ToTable("qa_bug_minimizations");b.HasKey(x=>x.Id);P(b);b.Property(x=>x.FindingId).HasColumnName("finding_id");b.Property(x=>x.OriginalInput).HasColumnName("original_input").HasMaxLength(16000);b.Property(x=>x.MinimizedInput).HasColumnName("minimized_input").HasMaxLength(16000);b.Property(x=>x.OriginalUnits).HasColumnName("original_units");b.Property(x=>x.MinimizedUnits).HasColumnName("minimized_units");b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.Detail).HasColumnName("detail").HasMaxLength(4000);b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.HasIndex(x=>new{x.ProjectId,x.CreatedAtUtc});}private static void P(EntityTypeBuilder<QaBugMinimizationRecord>b){b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);}}
+public sealed class QaFindingStateConfiguration : IEntityTypeConfiguration<QaFindingState> { public void Configure(EntityTypeBuilder<QaFindingState> b) { b.ToTable("qa_finding_states");
+ b.HasKey(x => x.Id);
+ b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.Property(x => x.Fingerprint).HasColumnName("fingerprint").HasMaxLength(64).IsRequired();
+ b.Property(x => x.LastFindingId).HasColumnName("last_finding_id");
+ b.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200).IsRequired();
+ b.Property(x => x.LastCommitSha).HasColumnName("last_commit_sha").HasMaxLength(64);
+ b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.Occurrences).HasColumnName("occurrences");
+ b.Property(x => x.Team).HasColumnName("team").HasMaxLength(200);
+ b.Property(x => x.Workstream).HasColumnName("workstream").HasMaxLength(200);
+ b.Property(x => x.OwnershipSource).HasColumnName("ownership_source").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.DispositionReason).HasColumnName("disposition_reason").HasMaxLength(2000);
+ b.Property(x => x.UpdatedBy).HasColumnName("updated_by").HasMaxLength(200);
+ b.Property(x => x.FirstSeenAtUtc).HasColumnName("first_seen_at_utc");
+ b.Property(x => x.LastSeenAtUtc).HasColumnName("last_seen_at_utc");
+ b.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+ b.Property(x => x.Version).HasColumnName("version").IsConcurrencyToken();
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ b.HasIndex(x => new { x.ProjectId, x.Fingerprint }).IsUnique();
+ b.HasIndex(x => new { x.ProjectId, x.Status, x.LastSeenAtUtc });
+ } }
+public sealed class QaWaiverConfiguration : IEntityTypeConfiguration<QaWaiver> { public void Configure(EntityTypeBuilder<QaWaiver> b) { b.ToTable("qa_waivers");
+ b.HasKey(x => x.Id);
+ MapProject(b);
+ b.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+ b.Property(x => x.Reason).HasColumnName("reason").HasMaxLength(2000);
+ b.Property(x => x.RequestedBy).HasColumnName("requested_by").HasMaxLength(200);
+ b.Property(x => x.ApprovedBy).HasColumnName("approved_by").HasMaxLength(200);
+ b.Property(x => x.DecisionReason).HasColumnName("decision_reason").HasMaxLength(2000);
+ b.Property(x => x.Fingerprint).HasColumnName("fingerprint").HasMaxLength(64);
+ b.Property(x => x.RuleId).HasColumnName("rule_id").HasMaxLength(300);
+ b.Property(x => x.PathPattern).HasColumnName("path_pattern").HasMaxLength(1000);
+ b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+ b.Property(x => x.ExpiresAtUtc).HasColumnName("expires_at_utc");
+ b.Property(x => x.ApprovedAtUtc).HasColumnName("approved_at_utc");
+ b.Property(x => x.RevokedAtUtc).HasColumnName("revoked_at_utc");
+ b.Property(x => x.Version).HasColumnName("version").IsConcurrencyToken();
+ b.HasIndex(x => new { x.ProjectId, x.Status, x.ExpiresAtUtc });
+ }
+private static void MapProject(EntityTypeBuilder<QaWaiver> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaTestReliabilityConfiguration : IEntityTypeConfiguration<QaTestReliability> { public void Configure(EntityTypeBuilder<QaTestReliability> b) { b.ToTable("qa_test_reliability");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.TestKey).HasColumnName("test_key").HasMaxLength(500);
+ b.Property(x => x.PassCount).HasColumnName("pass_count");
+ b.Property(x => x.FailCount).HasColumnName("fail_count");
+ b.Property(x => x.ConsecutivePasses).HasColumnName("consecutive_passes");
+ b.Property(x => x.ConsecutiveFailures).HasColumnName("consecutive_failures");
+ b.Property(x => x.Classification).HasColumnName("classification").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.LastCommitSha).HasColumnName("last_commit_sha").HasMaxLength(64);
+ b.Property(x => x.FirstObservedAtUtc).HasColumnName("first_observed_at_utc");
+ b.Property(x => x.LastObservedAtUtc).HasColumnName("last_observed_at_utc");
+ b.Ignore(x => x.FailureRatePercent);
+ b.HasIndex(x => new { x.ProjectId, x.TestKey }).IsUnique();
+ }
+private static void P(EntityTypeBuilder<QaTestReliability> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaRegressionBaselineConfiguration : IEntityTypeConfiguration<QaRegressionBaseline> { public void Configure(EntityTypeBuilder<QaRegressionBaseline> b) { b.ToTable("qa_regression_baselines");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);
+ b.Property(x => x.MetricKey).HasColumnName("metric_key").HasMaxLength(200);
+ b.Property(x => x.BaselineCommit).HasColumnName("baseline_commit").HasMaxLength(64);
+ b.Property(x => x.LastKnownGoodCommit).HasColumnName("last_known_good_commit").HasMaxLength(64);
+ b.Property(x => x.FirstBadCommit).HasColumnName("first_bad_commit").HasMaxLength(64);
+ b.Property(x => x.BaselineValue).HasColumnName("baseline_value").HasPrecision(18, 4);
+ b.Property(x => x.CurrentValue).HasColumnName("current_value").HasPrecision(18, 4);
+ b.Property(x => x.RegressionPercent).HasColumnName("regression_percent").HasPrecision(12, 4);
+ b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.SubjectKey, x.MetricKey }).IsUnique();
+ }
+private static void P(EntityTypeBuilder<QaRegressionBaseline> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaOwnershipRuleConfiguration : IEntityTypeConfiguration<QaOwnershipRule> { public void Configure(EntityTypeBuilder<QaOwnershipRule> b) { b.ToTable("qa_ownership_rules");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+ b.Property(x => x.PathPattern).HasColumnName("path_pattern").HasMaxLength(1000);
+ b.Property(x => x.Team).HasColumnName("team").HasMaxLength(200);
+ b.Property(x => x.Workstream).HasColumnName("workstream").HasMaxLength(200);
+ b.Property(x => x.Priority).HasColumnName("priority");
+ b.Property(x => x.Enabled).HasColumnName("enabled");
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.Enabled, x.Priority });
+ }
+private static void P(EntityTypeBuilder<QaOwnershipRule> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaPolicyConfiguration : IEntityTypeConfiguration<QaPolicy> { public void Configure(EntityTypeBuilder<QaPolicy> b) { b.ToTable("qa_policies");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+ b.Property(x => x.Version).HasColumnName("version").HasMaxLength(80);
+ b.Property(x => x.RulesJson).HasColumnName("rules_json").HasMaxLength(32000);
+ b.Property(x => x.Enabled).HasColumnName("enabled");
+ b.Property(x => x.LifecycleStatus).HasColumnName("lifecycle_status").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.Revision).HasColumnName("revision");
+ b.Property(x => x.SupersedesPolicyId).HasColumnName("supersedes_policy_id");
+ b.Property(x => x.ApprovedBy).HasColumnName("approved_by").HasMaxLength(200);
+ b.Property(x => x.ActivatedBy).HasColumnName("activated_by").HasMaxLength(200);
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+ b.Property(x => x.ApprovedAtUtc).HasColumnName("approved_at_utc");
+ b.Property(x => x.ActivatedAtUtc).HasColumnName("activated_at_utc");
+ b.Property(x => x.ConcurrencyVersion).HasColumnName("concurrency_version").IsConcurrencyToken();
+ b.HasIndex(x => new { x.ProjectId, x.LifecycleStatus, x.Revision });
+ b.HasIndex(x => new { x.ProjectId, x.Version }).IsUnique();
+ }
+private static void P(EntityTypeBuilder<QaPolicy> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaPolicyEvaluationConfiguration : IEntityTypeConfiguration<QaPolicyEvaluation> { public void Configure(EntityTypeBuilder<QaPolicyEvaluation> b) { b.ToTable("qa_policy_evaluations");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.QaRunId).HasColumnName("qa_run_id");
+ b.Property(x => x.PolicyId).HasColumnName("policy_id");
+ b.Property(x => x.PolicyVersion).HasColumnName("policy_version").HasMaxLength(80);
+ b.Property(x => x.Verdict).HasColumnName("verdict").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.BlockersJson).HasColumnName("blockers_json").HasMaxLength(16000);
+ b.Property(x => x.WarningsJson).HasColumnName("warnings_json").HasMaxLength(16000);
+ b.Property(x => x.Summary).HasColumnName("summary").HasMaxLength(4000);
+ b.Property(x => x.EvaluatedAtUtc).HasColumnName("evaluated_at_utc");
+ b.HasOne<QaRun>().WithMany().HasForeignKey(x => x.QaRunId).OnDelete(DeleteBehavior.Cascade);
+ b.HasIndex(x => new { x.ProjectId, x.EvaluatedAtUtc });
+ }
+private static void P(EntityTypeBuilder<QaPolicyEvaluation> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaEvidenceProvenanceConfiguration : IEntityTypeConfiguration<QaEvidenceProvenance> { public void Configure(EntityTypeBuilder<QaEvidenceProvenance> b) { b.ToTable("qa_evidence_provenance");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.QaRunId).HasColumnName("qa_run_id");
+ b.Property(x => x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64);
+ b.Property(x => x.EnvironmentFingerprint).HasColumnName("environment_fingerprint").HasMaxLength(128);
+ b.Property(x => x.ToolchainJson).HasColumnName("toolchain_json").HasMaxLength(16000);
+ b.Property(x => x.NormalizerVersion).HasColumnName("normalizer_version").HasMaxLength(80);
+ b.Property(x => x.PolicyVersion).HasColumnName("policy_version").HasMaxLength(80);
+ b.Property(x => x.InputHash).HasColumnName("input_hash").HasMaxLength(64);
+ b.Property(x => x.EvidenceHash).HasColumnName("evidence_hash").HasMaxLength(64);
+ b.Property(x => x.CapturedAtUtc).HasColumnName("captured_at_utc");
+ b.HasOne<QaRun>().WithMany().HasForeignKey(x => x.QaRunId).OnDelete(DeleteBehavior.Cascade);
+ b.HasIndex(x => new { x.ProjectId, x.CapturedAtUtc });
+ }
+private static void P(EntityTypeBuilder<QaEvidenceProvenance> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaSystemHealthSnapshotConfiguration : IEntityTypeConfiguration<QaSystemHealthSnapshot> { public void Configure(EntityTypeBuilder<QaSystemHealthSnapshot> b) { b.ToTable("qa_system_health_snapshots");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.QaRunId).HasColumnName("qa_run_id");
+ b.Property(x => x.Component).HasColumnName("component").HasMaxLength(120);
+ b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.Detail).HasColumnName("detail").HasMaxLength(4000);
+ b.Property(x => x.ObservedAtUtc).HasColumnName("observed_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.ObservedAtUtc });
+ }
+private static void P(EntityTypeBuilder<QaSystemHealthSnapshot> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaQualityTrendSnapshotConfiguration : IEntityTypeConfiguration<QaQualityTrendSnapshot> { public void Configure(EntityTypeBuilder<QaQualityTrendSnapshot> b) { b.ToTable("qa_quality_trend_snapshots");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.QaRunId).HasColumnName("qa_run_id");
+ b.Property(x => x.OpenFindingCount).HasColumnName("open_finding_count");
+ b.Property(x => x.CriticalCount).HasColumnName("critical_count");
+ b.Property(x => x.WarningCount).HasColumnName("warning_count");
+ b.Property(x => x.FlakyCount).HasColumnName("flaky_count");
+ b.Property(x => x.ActiveWaiverCount).HasColumnName("active_waiver_count");
+ b.Property(x => x.TechnicalDebtScore).HasColumnName("technical_debt_score").HasPrecision(12, 2);
+ b.Property(x => x.CapturedAtUtc).HasColumnName("captured_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.CapturedAtUtc });
+ }
+private static void P(EntityTypeBuilder<QaQualityTrendSnapshot> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaTestImpactRuleConfiguration : IEntityTypeConfiguration<QaTestImpactRule> { public void Configure(EntityTypeBuilder<QaTestImpactRule> b) { b.ToTable("qa_test_impact_rules");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.PathPattern).HasColumnName("path_pattern").HasMaxLength(1000);
+ b.Property(x => x.TestKey).HasColumnName("test_key").HasMaxLength(500);
+ b.Property(x => x.CommandJson).HasColumnName("command_json").HasMaxLength(8000);
+ b.Property(x => x.Priority).HasColumnName("priority");
+ b.Property(x => x.Enabled).HasColumnName("enabled");
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.Enabled, x.Priority });
+ }
+private static void P(EntityTypeBuilder<QaTestImpactRule> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaArtifactRetentionRuleConfiguration : IEntityTypeConfiguration<QaArtifactRetentionRule> { public void Configure(EntityTypeBuilder<QaArtifactRetentionRule> b) { b.ToTable("qa_artifact_retention_rules");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.KindPattern).HasColumnName("kind_pattern").HasMaxLength(200);
+ b.Property(x => x.RetentionClass).HasColumnName("retention_class").HasMaxLength(40);
+ b.Property(x => x.RetentionDays).HasColumnName("retention_days");
+ b.Property(x => x.PreserveOnCritical).HasColumnName("preserve_on_critical");
+ b.Property(x => x.Enabled).HasColumnName("enabled");
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.Enabled });
+ }
+private static void P(EntityTypeBuilder<QaArtifactRetentionRule> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaRunCostRecordConfiguration : IEntityTypeConfiguration<QaRunCostRecord> { public void Configure(EntityTypeBuilder<QaRunCostRecord> b) { b.ToTable("qa_run_costs");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.QaRunId).HasColumnName("qa_run_id");
+ b.Property(x => x.WallDurationMs).HasColumnName("wall_duration_ms");
+ b.Property(x => x.ToolDurationMs).HasColumnName("tool_duration_ms");
+ b.Property(x => x.ArtifactBytes).HasColumnName("artifact_bytes");
+ b.Property(x => x.EstimatedCpuSeconds).HasColumnName("estimated_cpu_seconds").HasPrecision(18, 3);
+ b.Property(x => x.BudgetVerdict).HasColumnName("budget_verdict").HasMaxLength(40);
+ b.Property(x => x.CapturedAtUtc).HasColumnName("captured_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.CapturedAtUtc });
+ }
+private static void P(EntityTypeBuilder<QaRunCostRecord> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }
+public sealed class QaBugMinimizationRecordConfiguration : IEntityTypeConfiguration<QaBugMinimizationRecord> { public void Configure(EntityTypeBuilder<QaBugMinimizationRecord> b) { b.ToTable("qa_bug_minimizations");
+ b.HasKey(x => x.Id);
+ P(b);
+ b.Property(x => x.FindingId).HasColumnName("finding_id");
+ b.Property(x => x.OriginalInput).HasColumnName("original_input").HasMaxLength(16000);
+ b.Property(x => x.MinimizedInput).HasColumnName("minimized_input").HasMaxLength(16000);
+ b.Property(x => x.OriginalUnits).HasColumnName("original_units");
+ b.Property(x => x.MinimizedUnits).HasColumnName("minimized_units");
+ b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+ b.Property(x => x.Detail).HasColumnName("detail").HasMaxLength(4000);
+ b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+ b.HasIndex(x => new { x.ProjectId, x.CreatedAtUtc });
+ }
+private static void P(EntityTypeBuilder<QaBugMinimizationRecord> b) { b.Property(x => x.Id).HasColumnName("id");
+ b.Property(x => x.ProjectId).HasColumnName("project_id");
+ b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+ } }

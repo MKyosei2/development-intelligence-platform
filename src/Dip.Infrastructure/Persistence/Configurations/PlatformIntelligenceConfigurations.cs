@@ -1,47 +1,216 @@
-// Purpose: Configures EF Core persistence for P la tf or mI nt el li ge nc eC on fi gu ra ti on s.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-public sealed class ArtifactBlobConfiguration:IEntityTypeConfiguration<ArtifactBlob>
+public sealed class ArtifactBlobConfiguration : IEntityTypeConfiguration<ArtifactBlob>
 {
-    public void Configure(EntityTypeBuilder<ArtifactBlob>b){b.ToTable("artifact_blobs");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.Sha256).HasColumnName("sha256").HasMaxLength(64).IsRequired();b.Property(x=>x.SizeBytes).HasColumnName("size_bytes");b.Property(x=>x.ContentType).HasColumnName("content_type").HasMaxLength(200).IsRequired();b.Property(x=>x.StorageProvider).HasColumnName("storage_provider").HasMaxLength(40).IsRequired();b.Property(x=>x.StorageKey).HasColumnName("storage_key").HasMaxLength(1000).IsRequired();b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.HasIndex(x=>new{x.StorageProvider,x.Sha256}).IsUnique();b.HasIndex(x=>new{x.StorageProvider,x.StorageKey}).IsUnique();}
+    public void Configure(EntityTypeBuilder<ArtifactBlob> b) { b.ToTable("artifact_blobs");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.Sha256).HasColumnName("sha256").HasMaxLength(64).IsRequired();
+     b.Property(x => x.SizeBytes).HasColumnName("size_bytes");
+     b.Property(x => x.ContentType).HasColumnName("content_type").HasMaxLength(200).IsRequired();
+     b.Property(x => x.StorageProvider).HasColumnName("storage_provider").HasMaxLength(40).IsRequired();
+     b.Property(x => x.StorageKey).HasColumnName("storage_key").HasMaxLength(1000).IsRequired();
+     b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+     b.HasIndex(x => new { x.StorageProvider, x.Sha256 }).IsUnique();
+     b.HasIndex(x => new { x.StorageProvider, x.StorageKey }).IsUnique();
+     }
 }
-public sealed class ArtifactRecordConfiguration:IEntityTypeConfiguration<ArtifactRecord>
+public sealed class ArtifactRecordConfiguration : IEntityTypeConfiguration<ArtifactRecord>
 {
-    public void Configure(EntityTypeBuilder<ArtifactRecord>b){b.ToTable("artifact_records");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.ArtifactBlobId).HasColumnName("artifact_blob_id");b.Property(x=>x.Kind).HasColumnName("kind").HasMaxLength(120).IsRequired();b.Property(x=>x.FileName).HasColumnName("file_name").HasMaxLength(500).IsRequired();b.Property(x=>x.RetentionClass).HasColumnName("retention_class").HasMaxLength(40).IsRequired();b.Property(x=>x.JobId).HasColumnName("job_id");b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");b.Property(x=>x.IncidentId).HasColumnName("incident_id");b.Property(x=>x.BenchmarkRunId).HasColumnName("benchmark_run_id");b.Property(x=>x.GameReplayRunId).HasColumnName("game_replay_run_id");b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.Property(x=>x.ExpiresAtUtc).HasColumnName("expires_at_utc");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasOne<ArtifactBlob>().WithMany().HasForeignKey(x=>x.ArtifactBlobId).OnDelete(DeleteBehavior.Restrict);b.HasOne<DurableJob>().WithMany().HasForeignKey(x=>x.JobId).OnDelete(DeleteBehavior.SetNull);b.HasOne<QaRun>().WithMany().HasForeignKey(x=>x.QaRunId).OnDelete(DeleteBehavior.SetNull);b.HasOne<Incident>().WithMany().HasForeignKey(x=>x.IncidentId).OnDelete(DeleteBehavior.SetNull);b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x=>x.BenchmarkRunId).OnDelete(DeleteBehavior.SetNull);b.HasOne<GameReplayRun>().WithMany().HasForeignKey(x=>x.GameReplayRunId).OnDelete(DeleteBehavior.SetNull);b.HasIndex(x=>new{x.ProjectId,x.CreatedAtUtc});b.HasIndex(x=>x.JobId);b.HasIndex(x=>x.IncidentId);b.HasIndex(x=>x.BenchmarkRunId);b.HasIndex(x=>x.GameReplayRunId);}
+    public void Configure(EntityTypeBuilder<ArtifactRecord> b) { b.ToTable("artifact_records");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.ProjectId).HasColumnName("project_id");
+     b.Property(x => x.ArtifactBlobId).HasColumnName("artifact_blob_id");
+     b.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(120).IsRequired();
+     b.Property(x => x.FileName).HasColumnName("file_name").HasMaxLength(500).IsRequired();
+     b.Property(x => x.RetentionClass).HasColumnName("retention_class").HasMaxLength(40).IsRequired();
+     b.Property(x => x.JobId).HasColumnName("job_id");
+     b.Property(x => x.QaRunId).HasColumnName("qa_run_id");
+     b.Property(x => x.IncidentId).HasColumnName("incident_id");
+     b.Property(x => x.BenchmarkRunId).HasColumnName("benchmark_run_id");
+     b.Property(x => x.GameReplayRunId).HasColumnName("game_replay_run_id");
+     b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+     b.Property(x => x.ExpiresAtUtc).HasColumnName("expires_at_utc");
+     b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+     b.HasOne<ArtifactBlob>().WithMany().HasForeignKey(x => x.ArtifactBlobId).OnDelete(DeleteBehavior.Restrict);
+     b.HasOne<DurableJob>().WithMany().HasForeignKey(x => x.JobId).OnDelete(DeleteBehavior.SetNull);
+     b.HasOne<QaRun>().WithMany().HasForeignKey(x => x.QaRunId).OnDelete(DeleteBehavior.SetNull);
+     b.HasOne<Incident>().WithMany().HasForeignKey(x => x.IncidentId).OnDelete(DeleteBehavior.SetNull);
+     b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x => x.BenchmarkRunId).OnDelete(DeleteBehavior.SetNull);
+     b.HasOne<GameReplayRun>().WithMany().HasForeignKey(x => x.GameReplayRunId).OnDelete(DeleteBehavior.SetNull);
+     b.HasIndex(x => new { x.ProjectId, x.CreatedAtUtc });
+     b.HasIndex(x => x.JobId);
+     b.HasIndex(x => x.IncidentId);
+     b.HasIndex(x => x.BenchmarkRunId);
+     b.HasIndex(x => x.GameReplayRunId);
+     }
 }
-public sealed class DurableJobConfiguration:IEntityTypeConfiguration<DurableJob>
+public sealed class DurableJobConfiguration : IEntityTypeConfiguration<DurableJob>
 {
-    public void Configure(EntityTypeBuilder<DurableJob>b){b.ToTable("durable_jobs");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(80);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);b.Property(x=>x.PayloadJson).HasColumnName("payload_json").HasColumnType("text");b.Property(x=>x.ResultJson).HasColumnName("result_json").HasColumnType("text");b.Property(x=>x.Attempt).HasColumnName("attempt");b.Property(x=>x.MaxAttempts).HasColumnName("max_attempts");b.Property(x=>x.ProgressPercent).HasColumnName("progress_percent").HasPrecision(5,2);b.Property(x=>x.CurrentStage).HasColumnName("current_stage").HasMaxLength(200);b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.Property(x=>x.QueuedAtUtc).HasColumnName("queued_at_utc");b.Property(x=>x.StartedAtUtc).HasColumnName("started_at_utc");b.Property(x=>x.FinishedAtUtc).HasColumnName("finished_at_utc");b.Property(x=>x.HeartbeatAtUtc).HasColumnName("heartbeat_at_utc");b.Property(x=>x.LeaseOwner).HasColumnName("lease_owner").HasMaxLength(200);b.Property(x=>x.LeaseExpiresAtUtc).HasColumnName("lease_expires_at_utc");b.Property(x=>x.CancellationRequestedAtUtc).HasColumnName("cancellation_requested_at_utc");b.Property(x=>x.FailureCode).HasColumnName("failure_code").HasMaxLength(120);b.Property(x=>x.FailureMessage).HasColumnName("failure_message").HasMaxLength(8000);b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.Status,x.QueuedAtUtc});b.HasIndex(x=>x.LeaseExpiresAtUtc);b.HasIndex(x=>new{x.ProjectId,x.CreatedAtUtc});}
+    public void Configure(EntityTypeBuilder<DurableJob> b) { b.ToTable("durable_jobs");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.ProjectId).HasColumnName("project_id");
+     b.Property(x => x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(80);
+     b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+     b.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);
+     b.Property(x => x.PayloadJson).HasColumnName("payload_json").HasColumnType("text");
+     b.Property(x => x.ResultJson).HasColumnName("result_json").HasColumnType("text");
+     b.Property(x => x.Attempt).HasColumnName("attempt");
+     b.Property(x => x.MaxAttempts).HasColumnName("max_attempts");
+     b.Property(x => x.ProgressPercent).HasColumnName("progress_percent").HasPrecision(5, 2);
+     b.Property(x => x.CurrentStage).HasColumnName("current_stage").HasMaxLength(200);
+     b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+     b.Property(x => x.QueuedAtUtc).HasColumnName("queued_at_utc");
+     b.Property(x => x.StartedAtUtc).HasColumnName("started_at_utc");
+     b.Property(x => x.FinishedAtUtc).HasColumnName("finished_at_utc");
+     b.Property(x => x.HeartbeatAtUtc).HasColumnName("heartbeat_at_utc");
+     b.Property(x => x.LeaseOwner).HasColumnName("lease_owner").HasMaxLength(200);
+     b.Property(x => x.LeaseExpiresAtUtc).HasColumnName("lease_expires_at_utc");
+     b.Property(x => x.CancellationRequestedAtUtc).HasColumnName("cancellation_requested_at_utc");
+     b.Property(x => x.FailureCode).HasColumnName("failure_code").HasMaxLength(120);
+     b.Property(x => x.FailureMessage).HasColumnName("failure_message").HasMaxLength(8000);
+     b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+     b.HasIndex(x => new { x.Status, x.QueuedAtUtc });
+     b.HasIndex(x => x.LeaseExpiresAtUtc);
+     b.HasIndex(x => new { x.ProjectId, x.CreatedAtUtc });
+     }
 }
-public sealed class IncidentConfiguration:IEntityTypeConfiguration<Incident>
+public sealed class IncidentConfiguration : IEntityTypeConfiguration<Incident>
 {
-    public void Configure(EntityTypeBuilder<Incident>b){b.ToTable("incidents");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.Fingerprint).HasColumnName("fingerprint").HasMaxLength(128);b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);b.Property(x=>x.Title).HasColumnName("title").HasMaxLength(240);b.Property(x=>x.Severity).HasColumnName("severity").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.FirstSeenAtUtc).HasColumnName("first_seen_at_utc");b.Property(x=>x.LastSeenAtUtc).HasColumnName("last_seen_at_utc");b.Property(x=>x.OccurrenceCount).HasColumnName("occurrence_count");b.Property(x=>x.ReproducedCount).HasColumnName("reproduced_count");b.Property(x=>x.SuspectedRegressionCommit).HasColumnName("suspected_regression_commit").HasMaxLength(64);b.Property(x=>x.FixedCommit).HasColumnName("fixed_commit").HasMaxLength(64);b.Property(x=>x.RootCauseSummary).HasColumnName("root_cause_summary").HasMaxLength(4000);b.Property(x=>x.ResolvedAtUtc).HasColumnName("resolved_at_utc");b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.ProjectId,x.Fingerprint}).IsUnique();b.HasIndex(x=>new{x.ProjectId,x.LastSeenAtUtc});b.HasIndex(x=>new{x.ProjectId,x.SubjectKey,x.Status});}
+    public void Configure(EntityTypeBuilder<Incident> b) { b.ToTable("incidents");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.ProjectId).HasColumnName("project_id");
+     b.Property(x => x.Fingerprint).HasColumnName("fingerprint").HasMaxLength(128);
+     b.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);
+     b.Property(x => x.Title).HasColumnName("title").HasMaxLength(240);
+     b.Property(x => x.Severity).HasColumnName("severity").HasConversion<string>().HasMaxLength(40);
+     b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+     b.Property(x => x.FirstSeenAtUtc).HasColumnName("first_seen_at_utc");
+     b.Property(x => x.LastSeenAtUtc).HasColumnName("last_seen_at_utc");
+     b.Property(x => x.OccurrenceCount).HasColumnName("occurrence_count");
+     b.Property(x => x.ReproducedCount).HasColumnName("reproduced_count");
+     b.Property(x => x.SuspectedRegressionCommit).HasColumnName("suspected_regression_commit").HasMaxLength(64);
+     b.Property(x => x.FixedCommit).HasColumnName("fixed_commit").HasMaxLength(64);
+     b.Property(x => x.RootCauseSummary).HasColumnName("root_cause_summary").HasMaxLength(4000);
+     b.Property(x => x.ResolvedAtUtc).HasColumnName("resolved_at_utc");
+     b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+     b.HasIndex(x => new { x.ProjectId, x.Fingerprint }).IsUnique();
+     b.HasIndex(x => new { x.ProjectId, x.LastSeenAtUtc });
+     b.HasIndex(x => new { x.ProjectId, x.SubjectKey, x.Status });
+     }
 }
-public sealed class IncidentOccurrenceConfiguration:IEntityTypeConfiguration<IncidentOccurrence>
+public sealed class IncidentOccurrenceConfiguration : IEntityTypeConfiguration<IncidentOccurrence>
 {
-    public void Configure(EntityTypeBuilder<IncidentOccurrence>b){b.ToTable("incident_occurrences");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.IncidentId).HasColumnName("incident_id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);b.Property(x=>x.QaFindingId).HasColumnName("qa_finding_id");b.Property(x=>x.QaRunId).HasColumnName("qa_run_id");b.Property(x=>x.JobId).HasColumnName("job_id");b.Property(x=>x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64);b.Property(x=>x.DetailJson).HasColumnName("detail_json").HasMaxLength(16000);b.Property(x=>x.ObservedAtUtc).HasColumnName("observed_at_utc");b.HasOne<Incident>().WithMany().HasForeignKey(x=>x.IncidentId).OnDelete(DeleteBehavior.Cascade);b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasOne<QaFinding>().WithMany().HasForeignKey(x=>x.QaFindingId).OnDelete(DeleteBehavior.SetNull);b.HasOne<QaRun>().WithMany().HasForeignKey(x=>x.QaRunId).OnDelete(DeleteBehavior.SetNull);b.HasOne<DurableJob>().WithMany().HasForeignKey(x=>x.JobId).OnDelete(DeleteBehavior.SetNull);b.HasIndex(x=>new{x.IncidentId,x.ObservedAtUtc});b.HasIndex(x=>x.QaFindingId);}
+    public void Configure(EntityTypeBuilder<IncidentOccurrence> b) { b.ToTable("incident_occurrences");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.IncidentId).HasColumnName("incident_id");
+     b.Property(x => x.ProjectId).HasColumnName("project_id");
+     b.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);
+     b.Property(x => x.QaFindingId).HasColumnName("qa_finding_id");
+     b.Property(x => x.QaRunId).HasColumnName("qa_run_id");
+     b.Property(x => x.JobId).HasColumnName("job_id");
+     b.Property(x => x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64);
+     b.Property(x => x.DetailJson).HasColumnName("detail_json").HasMaxLength(16000);
+     b.Property(x => x.ObservedAtUtc).HasColumnName("observed_at_utc");
+     b.HasOne<Incident>().WithMany().HasForeignKey(x => x.IncidentId).OnDelete(DeleteBehavior.Cascade);
+     b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+     b.HasOne<QaFinding>().WithMany().HasForeignKey(x => x.QaFindingId).OnDelete(DeleteBehavior.SetNull);
+     b.HasOne<QaRun>().WithMany().HasForeignKey(x => x.QaRunId).OnDelete(DeleteBehavior.SetNull);
+     b.HasOne<DurableJob>().WithMany().HasForeignKey(x => x.JobId).OnDelete(DeleteBehavior.SetNull);
+     b.HasIndex(x => new { x.IncidentId, x.ObservedAtUtc });
+     b.HasIndex(x => x.QaFindingId);
+     }
 }
-public sealed class IncidentEventConfiguration:IEntityTypeConfiguration<IncidentEvent>
+public sealed class IncidentEventConfiguration : IEntityTypeConfiguration<IncidentEvent>
 {
-    public void Configure(EntityTypeBuilder<IncidentEvent>b){b.ToTable("incident_events");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.IncidentId).HasColumnName("incident_id");b.Property(x=>x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(80);b.Property(x=>x.Summary).HasColumnName("summary").HasMaxLength(2000);b.Property(x=>x.PayloadJson).HasColumnName("payload_json").HasMaxLength(32000);b.Property(x=>x.OccurredAtUtc).HasColumnName("occurred_at_utc");b.HasOne<Incident>().WithMany().HasForeignKey(x=>x.IncidentId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.IncidentId,x.OccurredAtUtc});}
+    public void Configure(EntityTypeBuilder<IncidentEvent> b) { b.ToTable("incident_events");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.IncidentId).HasColumnName("incident_id");
+     b.Property(x => x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(80);
+     b.Property(x => x.Summary).HasColumnName("summary").HasMaxLength(2000);
+     b.Property(x => x.PayloadJson).HasColumnName("payload_json").HasMaxLength(32000);
+     b.Property(x => x.OccurredAtUtc).HasColumnName("occurred_at_utc");
+     b.HasOne<Incident>().WithMany().HasForeignKey(x => x.IncidentId).OnDelete(DeleteBehavior.Cascade);
+     b.HasIndex(x => new { x.IncidentId, x.OccurredAtUtc });
+     }
 }
-public sealed class BenchmarkDefinitionConfiguration:IEntityTypeConfiguration<BenchmarkDefinition>
+public sealed class BenchmarkDefinitionConfiguration : IEntityTypeConfiguration<BenchmarkDefinition>
 {
-    public void Configure(EntityTypeBuilder<BenchmarkDefinition>b){b.ToTable("benchmark_definitions");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.Key).HasColumnName("key").HasMaxLength(160);b.Property(x=>x.Name).HasColumnName("name").HasMaxLength(200);b.Property(x=>x.Kind).HasColumnName("kind").HasMaxLength(80);b.Property(x=>x.ConfigurationJson).HasColumnName("configuration_json").HasMaxLength(32000);b.Property(x=>x.Enabled).HasColumnName("enabled");b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.HasIndex(x=>x.Key).IsUnique();}
+    public void Configure(EntityTypeBuilder<BenchmarkDefinition> b) { b.ToTable("benchmark_definitions");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.Key).HasColumnName("key").HasMaxLength(160);
+     b.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+     b.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(80);
+     b.Property(x => x.ConfigurationJson).HasColumnName("configuration_json").HasMaxLength(32000);
+     b.Property(x => x.Enabled).HasColumnName("enabled");
+     b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+     b.HasIndex(x => x.Key).IsUnique();
+     }
 }
-public sealed class BenchmarkRunConfiguration:IEntityTypeConfiguration<BenchmarkRun>
+public sealed class BenchmarkRunConfiguration : IEntityTypeConfiguration<BenchmarkRun>
 {
-    public void Configure(EntityTypeBuilder<BenchmarkRun>b){b.ToTable("benchmark_runs");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.ProjectId).HasColumnName("project_id");b.Property(x=>x.BenchmarkDefinitionId).HasColumnName("benchmark_definition_id");b.Property(x=>x.JobId).HasColumnName("job_id");b.Property(x=>x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);b.Property(x=>x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64);b.Property(x=>x.EnvironmentFingerprint).HasColumnName("environment_fingerprint").HasMaxLength(128);b.Property(x=>x.ConfigurationHash).HasColumnName("configuration_hash").HasMaxLength(64);b.Property(x=>x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.CreatedAtUtc).HasColumnName("created_at_utc");b.Property(x=>x.StartedAtUtc).HasColumnName("started_at_utc");b.Property(x=>x.FinishedAtUtc).HasColumnName("finished_at_utc");b.Property(x=>x.Summary).HasColumnName("summary").HasMaxLength(4000);b.HasOne<Project>().WithMany().HasForeignKey(x=>x.ProjectId).OnDelete(DeleteBehavior.Cascade);b.HasOne<BenchmarkDefinition>().WithMany().HasForeignKey(x=>x.BenchmarkDefinitionId).OnDelete(DeleteBehavior.Restrict);b.HasOne<DurableJob>().WithMany().HasForeignKey(x=>x.JobId).OnDelete(DeleteBehavior.Restrict);b.HasIndex(x=>new{x.ProjectId,x.BenchmarkDefinitionId,x.EnvironmentFingerprint,x.ConfigurationHash,x.CreatedAtUtc});b.HasIndex(x=>x.JobId).IsUnique();}
+    public void Configure(EntityTypeBuilder<BenchmarkRun> b) { b.ToTable("benchmark_runs");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.ProjectId).HasColumnName("project_id");
+     b.Property(x => x.BenchmarkDefinitionId).HasColumnName("benchmark_definition_id");
+     b.Property(x => x.JobId).HasColumnName("job_id");
+     b.Property(x => x.SubjectKey).HasColumnName("subject_key").HasMaxLength(200);
+     b.Property(x => x.CommitSha).HasColumnName("commit_sha").HasMaxLength(64);
+     b.Property(x => x.EnvironmentFingerprint).HasColumnName("environment_fingerprint").HasMaxLength(128);
+     b.Property(x => x.ConfigurationHash).HasColumnName("configuration_hash").HasMaxLength(64);
+     b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(40);
+     b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+     b.Property(x => x.StartedAtUtc).HasColumnName("started_at_utc");
+     b.Property(x => x.FinishedAtUtc).HasColumnName("finished_at_utc");
+     b.Property(x => x.Summary).HasColumnName("summary").HasMaxLength(4000);
+     b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+     b.HasOne<BenchmarkDefinition>().WithMany().HasForeignKey(x => x.BenchmarkDefinitionId).OnDelete(DeleteBehavior.Restrict);
+     b.HasOne<DurableJob>().WithMany().HasForeignKey(x => x.JobId).OnDelete(DeleteBehavior.Restrict);
+     b.HasIndex(x => new { x.ProjectId, x.BenchmarkDefinitionId, x.EnvironmentFingerprint, x.ConfigurationHash, x.CreatedAtUtc });
+     b.HasIndex(x => x.JobId).IsUnique();
+     }
 }
-public sealed class BenchmarkMetricConfiguration:IEntityTypeConfiguration<BenchmarkMetric>
+public sealed class BenchmarkMetricConfiguration : IEntityTypeConfiguration<BenchmarkMetric>
 {
-    public void Configure(EntityTypeBuilder<BenchmarkMetric>b){b.ToTable("benchmark_metrics");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.BenchmarkRunId).HasColumnName("benchmark_run_id");b.Property(x=>x.Name).HasColumnName("name").HasMaxLength(160);b.Property(x=>x.Value).HasColumnName("value").HasPrecision(20,6);b.Property(x=>x.Unit).HasColumnName("unit").HasMaxLength(40);b.Property(x=>x.Aggregation).HasColumnName("aggregation").HasMaxLength(40);b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x=>x.BenchmarkRunId).OnDelete(DeleteBehavior.Cascade);b.HasIndex(x=>new{x.BenchmarkRunId,x.Name,x.Aggregation});}
+    public void Configure(EntityTypeBuilder<BenchmarkMetric> b) { b.ToTable("benchmark_metrics");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.BenchmarkRunId).HasColumnName("benchmark_run_id");
+     b.Property(x => x.Name).HasColumnName("name").HasMaxLength(160);
+     b.Property(x => x.Value).HasColumnName("value").HasPrecision(20, 6);
+     b.Property(x => x.Unit).HasColumnName("unit").HasMaxLength(40);
+     b.Property(x => x.Aggregation).HasColumnName("aggregation").HasMaxLength(40);
+     b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x => x.BenchmarkRunId).OnDelete(DeleteBehavior.Cascade);
+     b.HasIndex(x => new { x.BenchmarkRunId, x.Name, x.Aggregation });
+     }
 }
-public sealed class BenchmarkComparisonConfiguration:IEntityTypeConfiguration<BenchmarkComparison>
+public sealed class BenchmarkComparisonConfiguration : IEntityTypeConfiguration<BenchmarkComparison>
 {
-    public void Configure(EntityTypeBuilder<BenchmarkComparison>b){b.ToTable("benchmark_comparisons");b.HasKey(x=>x.Id);b.Property(x=>x.Id).HasColumnName("id");b.Property(x=>x.CurrentRunId).HasColumnName("current_run_id");b.Property(x=>x.BaselineRunId).HasColumnName("baseline_run_id");b.Property(x=>x.MetricName).HasColumnName("metric_name").HasMaxLength(160);b.Property(x=>x.BaselineValue).HasColumnName("baseline_value").HasPrecision(20,6);b.Property(x=>x.CurrentValue).HasColumnName("current_value").HasPrecision(20,6);b.Property(x=>x.DifferencePercent).HasColumnName("difference_percent").HasPrecision(12,3);b.Property(x=>x.Verdict).HasColumnName("verdict").HasConversion<string>().HasMaxLength(40);b.Property(x=>x.Explanation).HasColumnName("explanation").HasMaxLength(2000);b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x=>x.CurrentRunId).OnDelete(DeleteBehavior.Cascade);b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x=>x.BaselineRunId).OnDelete(DeleteBehavior.Restrict);b.HasIndex(x=>new{x.CurrentRunId,x.MetricName});}
+    public void Configure(EntityTypeBuilder<BenchmarkComparison> b) { b.ToTable("benchmark_comparisons");
+     b.HasKey(x => x.Id);
+     b.Property(x => x.Id).HasColumnName("id");
+     b.Property(x => x.CurrentRunId).HasColumnName("current_run_id");
+     b.Property(x => x.BaselineRunId).HasColumnName("baseline_run_id");
+     b.Property(x => x.MetricName).HasColumnName("metric_name").HasMaxLength(160);
+     b.Property(x => x.BaselineValue).HasColumnName("baseline_value").HasPrecision(20, 6);
+     b.Property(x => x.CurrentValue).HasColumnName("current_value").HasPrecision(20, 6);
+     b.Property(x => x.DifferencePercent).HasColumnName("difference_percent").HasPrecision(12, 3);
+     b.Property(x => x.Verdict).HasColumnName("verdict").HasConversion<string>().HasMaxLength(40);
+     b.Property(x => x.Explanation).HasColumnName("explanation").HasMaxLength(2000);
+     b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x => x.CurrentRunId).OnDelete(DeleteBehavior.Cascade);
+     b.HasOne<BenchmarkRun>().WithMany().HasForeignKey(x => x.BaselineRunId).OnDelete(DeleteBehavior.Restrict);
+     b.HasIndex(x => new { x.CurrentRunId, x.MetricName });
+     }
 }

@@ -1,1 +1,1 @@
-// Purpose: Implements application behavior for P ro je ct He al th Ca lc ul at or.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

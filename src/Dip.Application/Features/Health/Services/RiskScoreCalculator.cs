@@ -1,1 +1,1 @@
-// Purpose: Implements application behavior for R is kS co re Ca lc ul at or.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

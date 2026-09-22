@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.Policies;
 
-public sealed record EvidencePolicySettings(bool? CollectMetadata=null,bool? CalculateContentHash=null,bool? AllowRawArtifactUpload=null);
+public sealed record EvidencePolicySettings(bool? CollectMetadata = null, bool? CalculateContentHash = null, bool? AllowRawArtifactUpload = null);

@@ -1,4 +1,4 @@
-// Purpose: Integrates external or runtime capabilities through G it Hu bC on ne ct or.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -389,8 +389,7 @@ public sealed class GitHubConnector : IIntegrationConnector
             PooledConnectionLifetime = TimeSpan.FromMinutes(5)
         })
         {
-            BaseAddress = new Uri(baseUrl.EndsWith("/", StringComparison.Ordinal)
-                ? baseUrl
+            BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl
                 : baseUrl + "/"),
             Timeout = TimeSpan.FromSeconds(60)
         }.Tap(client =>

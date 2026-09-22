@@ -1,1 +1,1 @@
-// Purpose: Defines the application command for R ec al cu la te Pr oj ec tH ea lt hC om ma nd.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

@@ -4,6 +4,6 @@ namespace Dip.Application.Abstractions.Persistence;
 
 public interface IHardwareCalibrationRepository
 {
-    Task AddAsync(HardwareCalibration calibration,CancellationToken ct);
-    Task<HardwareCalibration?> GetLatestAsync(Guid projectId,CancellationToken ct);
+    Task AddAsync(HardwareCalibration calibration, CancellationToken ct);
+    Task<HardwareCalibration?> GetLatestAsync(Guid projectId, CancellationToken ct);
 }

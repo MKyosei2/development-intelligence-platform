@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by D ip Db Co nt ex t.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

@@ -46,17 +46,17 @@ public sealed class ManagementOperationsService
     public Task<DevelopmentGraphNodeDto> UpsertResponsibilityAsync(UpsertResponsibilityCommand command, CancellationToken ct) => _responsibilityHandler.UpsertAsync(command, ct);
 
     public async Task<RaciOverviewDto> GetRaciAsync(Guid projectId, CancellationToken ct)
-        {
-    
-            NeedProject(projectId);
-            var nodes=await _repo.ListNodesAsync(projectId, DevelopmentGraphNodeType.ResponsibilityAssignment, ct);
-    
-            var items=nodes.Where(x=>!x.Status.Equals("Archived",
-                StringComparison.OrdinalIgnoreCase)).Select(ParseRaci).OrderBy(x=>x.TargetType).ThenBy(x=>x.TargetKey).ToArray();
-    
-            return new(projectId, items.Length, items.Count(x=>string.IsNullOrWhiteSpace(x.AccountableRole)), items, _clock.UtcNow);
-    
-        }
+    {
+
+        NeedProject(projectId);
+        var nodes = await _repo.ListNodesAsync(projectId, DevelopmentGraphNodeType.ResponsibilityAssignment, ct);
+
+        var items = nodes.Where(x => !x.Status.Equals("Archived",
+            StringComparison.OrdinalIgnoreCase)).Select(ParseRaci).OrderBy(x => x.TargetType).ThenBy(x => x.TargetKey).ToArray();
+
+        return new(projectId, items.Length, items.Count(x => string.IsNullOrWhiteSpace(x.AccountableRole)), items, _clock.UtcNow);
+
+    }
 
     public Task<DevelopmentGraphNodeDto> UpsertManagementRoleBindingAsync(UpsertManagementRoleBindingCommand c, CancellationToken ct) => _roleBindings.UpsertManagementRoleBindingAsync(c, ct);
     public Task<ManagementRoleDirectoryDto> GetManagementRoleDirectoryAsync(Guid projectId, string currentActor, CancellationToken ct) => _roleBindings.GetManagementRoleDirectoryAsync(projectId, currentActor, ct);
@@ -64,15 +64,15 @@ public sealed class ManagementOperationsService
     public Task<DevelopmentGraphNodeDto> UpsertWorkCalendarAsync(UpsertWorkCalendarCommand command, CancellationToken ct) => _planningHandler.UpsertWorkCalendarAsync(command, ct);
 
     public async Task<WorkCalendarOverviewDto> GetCalendarsAsync(Guid projectId, CancellationToken ct)
-        {
-    
-            NeedProject(projectId);
-            var nodes=await _repo.ListNodesAsync(projectId, DevelopmentGraphNodeType.WorkCalendar, ct);
-            var items=nodes.Where(x=>!x.Status.Equals("Archived",
-                StringComparison.OrdinalIgnoreCase)).Select(ParseCalendar).OrderBy(x=>x.TeamKey??string.Empty).ThenBy(x=>x.Name).ToArray();
-            return new(projectId, items, _clock.UtcNow);
-    
-        }
+    {
+
+        NeedProject(projectId);
+        var nodes = await _repo.ListNodesAsync(projectId, DevelopmentGraphNodeType.WorkCalendar, ct);
+        var items = nodes.Where(x => !x.Status.Equals("Archived",
+            StringComparison.OrdinalIgnoreCase)).Select(ParseCalendar).OrderBy(x => x.TeamKey ?? string.Empty).ThenBy(x => x.Name).ToArray();
+        return new(projectId, items, _clock.UtcNow);
+
+    }
 
     public Task<DevelopmentGraphNodeDto> CreateApprovalAsync(CreateApprovalRequestCommand command, CancellationToken ct) => _approvals.CreateApprovalAsync(command, ct);
     public Task<ApprovalRequestDto> RespondApprovalAsync(ApprovalResponseCommand c, CancellationToken ct) => _approvals.RespondApprovalAsync(c, ct);
@@ -91,69 +91,83 @@ public sealed class ManagementOperationsService
     internal Task MarkConflictAppliedAsync(Guid projectId, string conflictKey, CancellationToken ct) => _sync.MarkConflictAppliedAsync(projectId, conflictKey, ct);
     internal Task<SourceAuthorityRuleDto?> AuthorityForAsync(Guid projectId, string dataType, CancellationToken ct) => _sync.AuthorityForAsync(projectId, dataType, ct);
 
-    private ResponsibilityDto ParseRaci(DevelopmentGraphNode n)=>new(WorkManagementService.MetaString(n, "Key", WorkManagementService.Strip(n.Key)),
+    private ResponsibilityDto ParseRaci(DevelopmentGraphNode n) => new(WorkManagementService.MetaString(n, "Key", WorkManagementService.Strip(n.Key)),
             WorkManagementService.MetaString(n, "TargetType"), WorkManagementService.MetaString(n, "TargetKey"), Null(WorkManagementService.MetaString(n,
             "ResponsibleRole")), Null(WorkManagementService.MetaString(n, "AccountableRole")), WorkManagementService.MetaStringArray(n, "ConsultedRoles"),
             WorkManagementService.MetaStringArray(n, "InformedRoles"), n.Status);
-    
+
     private WorkCalendarDto ParseCalendar(DevelopmentGraphNode n)
-        {
-    
-            using var d=JsonDocument.Parse(n.MetadataJson);
-            var r=d.RootElement;
-            var days=new List<DayOfWeek>();
-            if(r.TryGetProperty("WorkingDays", out var wd)&&wd.ValueKind==JsonValueKind.Array)foreach(var x in wd.EnumerateArray()){
-                if(x.ValueKind==JsonValueKind.Number&&x.TryGetInt32(out var i)&&Enum.IsDefined(typeof(DayOfWeek), i))days.Add((DayOfWeek)i);
-                else if(x.ValueKind==JsonValueKind.String&&Enum.TryParse<DayOfWeek>(x.GetString(), true, out var day))days.Add(day);
+    {
+
+        using var d = JsonDocument.Parse(n.MetadataJson);
+        var r = d.RootElement;
+        var days = new List<DayOfWeek>();
+        if (r.TryGetProperty("WorkingDays", out var wd) && wd.ValueKind == JsonValueKind.Array) foreach (var x in wd.EnumerateArray())
+            {
+                if (x.ValueKind == JsonValueKind.Number && x.TryGetInt32(out var i) && Enum.IsDefined(typeof(DayOfWeek), i)) days.Add((DayOfWeek)i);
+                else if (x.ValueKind == JsonValueKind.String && Enum.TryParse<DayOfWeek>(x.GetString(), true, out var day)) days.Add(day);
             }
-            var exceptions=new List<CapacityExceptionInput>();
-            if(r.TryGetProperty("Exceptions", out var ex)&&ex.ValueKind==JsonValueKind.Array)foreach(var x in ex.EnumerateArray()){
-                if(!x.TryGetProperty("StartsAtUtc", out var s)||!s.TryGetDateTimeOffset(out var start)||!x.TryGetProperty("EndsAtUtc",
-                    out var e)||!e.TryGetDateTimeOffset(out var end))continue;
-                var hours=x.TryGetProperty("Hours", out var h)&&h.TryGetDecimal(out var hv)?hv:0m;
-                var cat=x.TryGetProperty("Category", out var c)&&c.ValueKind==JsonValueKind.String?c.GetString()??"Other":"Other";
-                var label=x.TryGetProperty("Label", out var l)&&l.ValueKind==JsonValueKind.String?l.GetString():null;
+        var exceptions = new List<CapacityExceptionInput>();
+        if (r.TryGetProperty("Exceptions", out var ex) && ex.ValueKind == JsonValueKind.Array) foreach (var x in ex.EnumerateArray())
+            {
+                if (!x.TryGetProperty("StartsAtUtc", out var s) || !s.TryGetDateTimeOffset(out var start) || !x.TryGetProperty("EndsAtUtc",
+                    out var e) || !e.TryGetDateTimeOffset(out var end)) continue;
+                var hours = x.TryGetProperty("Hours", out var h) && h.TryGetDecimal(out var hv) ? hv : 0m;
+                var cat = x.TryGetProperty("Category", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() ?? "Other" : "Other";
+                var label = x.TryGetProperty("Label", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : null;
                 exceptions.Add(new(start, end, hours, cat, label));
             }
-            return new(WorkManagementService.MetaString(n, "Key", WorkManagementService.Strip(n.Key)), n.Name, Null(WorkManagementService.MetaString(n,
-                "TeamKey")), WorkManagementService.MetaDecimal(n, "HoursPerDay", 8m), days.Count>0?days:[DayOfWeek.Monday, DayOfWeek.Tuesday,
+        return new(WorkManagementService.MetaString(n, "Key", WorkManagementService.Strip(n.Key)), n.Name, Null(WorkManagementService.MetaString(n,
+            "TeamKey")), WorkManagementService.MetaDecimal(n, "HoursPerDay", 8m), days.Count > 0 ? days : [DayOfWeek.Monday, DayOfWeek.Tuesday,
                 DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday], WorkManagementService.MetaDecimal(n, "RecurringMeetingHoursPerWeek"),
-                WorkManagementService.MetaDecimal(n, "SupportDutyHoursPerWeek"), exceptions, WorkManagementService.MetaString(n, "TimeZone", "UTC"), n.Status);
-    
-        }
-    
+            WorkManagementService.MetaDecimal(n, "SupportDutyHoursPerWeek"), exceptions, WorkManagementService.MetaString(n, "TimeZone", "UTC"), n.Status);
+
+    }
+
     internal static (DevelopmentGraphNodeType Type, string Key) ResolveManagementType(string type, string key)
+    {
+
+        NeedKey(key);
+        return (type ?? string.Empty).Trim().ToLowerInvariant() switch
         {
-    
-            NeedKey(key);
-            return (type??string.Empty).Trim().ToLowerInvariant() switch{
-    
-                "task"=>(DevelopmentGraphNodeType.Task, $"task:{key}"), "workstream"=>(DevelopmentGraphNodeType.Workstream, $"workstream:{key}"),
-                    "team"=>(DevelopmentGraphNodeType.Team, $"team:{key}"), "milestone"=>(DevelopmentGraphNodeType.Milestone, $"milestone:{key}"),
-                    "requirement"=>(DevelopmentGraphNodeType.Requirement, $"requirement:{key}"), "feature"=>(DevelopmentGraphNodeType.Feature,
-                    $"feature:{key}"), "blocker"=>(DevelopmentGraphNodeType.Blocker, $"blocker:{key}"), "risk"=>(DevelopmentGraphNodeType.Risk, $"risk:{key}"),
-                    "decision"=>(DevelopmentGraphNodeType.ManagementDecision, $"decision:{key}"), "action"=>(DevelopmentGraphNodeType.ActionItem,
-                    $"action:{key}"), "change" or "changerequest"=>(DevelopmentGraphNodeType.ChangeRequest, $"change:{key}"),
-                    "allocation" or "resourceallocation"=>(DevelopmentGraphNodeType.ResourceAllocation, $"allocation:{key}"),
-                    "release"=>(DevelopmentGraphNodeType.Release, key.StartsWith("release:", StringComparison.OrdinalIgnoreCase)?key:$"release:{key}"),
-                    "raci"=>(DevelopmentGraphNodeType.ResponsibilityAssignment, $"raci:{key}"), "calendar"=>(DevelopmentGraphNodeType.WorkCalendar,
-                    $"calendar:{key}"), "approval"=>(DevelopmentGraphNodeType.ApprovalRequest, $"approval:{key}"),
-                    _=>throw new ArgumentException($"Unsupported management target type '{type}'.", nameof(type))
-            };
-    
-        }
-    
-    public static int RequiredEscalation(ManagementAlertDto alert, DateTimeOffset now, DateTimeOffset firstSeen){
-            var age=now-(firstSeen<alert.TriggeredAtUtc?firstSeen:alert.TriggeredAtUtc);
-            if(alert.Severity.Equals("Critical", StringComparison.OrdinalIgnoreCase))return age>=TimeSpan.FromHours(2)?3:age>=TimeSpan.FromMinutes(30)?2:1;
-            if(alert.Severity.Equals("High", StringComparison.OrdinalIgnoreCase))return age>=TimeSpan.FromDays(1)?3:age>=TimeSpan.FromHours(2)?2:1;
-            return age>=TimeSpan.FromDays(2)?2:1;
-        }
-    
-    private static void NeedKey(string key){
-            if(string.IsNullOrWhiteSpace(key)||key.Trim().Length>240)throw new ArgumentException("Key is required and must be at most 240 characters.",
-                nameof(key));
-        }
-    
-    private static string? Null(string? value)=>string.IsNullOrWhiteSpace(value)?null:value;
+
+            "task" => (DevelopmentGraphNodeType.Task, $"task:{key}"),
+            "workstream" => (DevelopmentGraphNodeType.Workstream, $"workstream:{key}"),
+            "team" => (DevelopmentGraphNodeType.Team, $"team:{key}"),
+            "milestone" => (DevelopmentGraphNodeType.Milestone, $"milestone:{key}"),
+            "requirement" => (DevelopmentGraphNodeType.Requirement, $"requirement:{key}"),
+            "feature" => (DevelopmentGraphNodeType.Feature,
+            $"feature:{key}"),
+            "blocker" => (DevelopmentGraphNodeType.Blocker, $"blocker:{key}"),
+            "risk" => (DevelopmentGraphNodeType.Risk, $"risk:{key}"),
+            "decision" => (DevelopmentGraphNodeType.ManagementDecision, $"decision:{key}"),
+            "action" => (DevelopmentGraphNodeType.ActionItem,
+            $"action:{key}"),
+            "change" or "changerequest" => (DevelopmentGraphNodeType.ChangeRequest, $"change:{key}"),
+            "allocation" or "resourceallocation" => (DevelopmentGraphNodeType.ResourceAllocation, $"allocation:{key}"),
+            "release" => (DevelopmentGraphNodeType.Release, key.StartsWith("release:", StringComparison.OrdinalIgnoreCase) ? key : $"release:{key}"),
+            "raci" => (DevelopmentGraphNodeType.ResponsibilityAssignment, $"raci:{key}"),
+            "calendar" => (DevelopmentGraphNodeType.WorkCalendar,
+            $"calendar:{key}"),
+            "approval" => (DevelopmentGraphNodeType.ApprovalRequest, $"approval:{key}"),
+            _ => throw new ArgumentException($"Unsupported management target type '{type}'.", nameof(type))
+        };
+
+    }
+
+    public static int RequiredEscalation(ManagementAlertDto alert, DateTimeOffset now, DateTimeOffset firstSeen)
+    {
+        var age = now - (firstSeen < alert.TriggeredAtUtc ? firstSeen : alert.TriggeredAtUtc);
+        if (alert.Severity.Equals("Critical", StringComparison.OrdinalIgnoreCase)) return age >= TimeSpan.FromHours(2) ? 3 : age >= TimeSpan.FromMinutes(30) ? 2 : 1;
+        if (alert.Severity.Equals("High", StringComparison.OrdinalIgnoreCase)) return age >= TimeSpan.FromDays(1) ? 3 : age >= TimeSpan.FromHours(2) ? 2 : 1;
+        return age >= TimeSpan.FromDays(2) ? 2 : 1;
+    }
+
+    private static void NeedKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key.Trim().Length > 240) throw new ArgumentException("Key is required and must be at most 240 characters.",
+            nameof(key));
+    }
+
+    private static string? Null(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 }

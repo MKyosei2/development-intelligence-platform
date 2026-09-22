@@ -14,63 +14,63 @@ internal static class ProcessSandboxInspector
                 Environment.GetEnvironmentVariable("DIP_QA_FILESYSTEM_ISOLATED"),
                 "1",
                 StringComparison.Ordinal);
-    
+
     internal static bool NetworkIsolationVerified()
-        {
-            if (!string.Equals(
-                    Environment.GetEnvironmentVariable("DIP_QA_NETWORK_ISOLATED"),
-                    "1",
-                    StringComparison.Ordinal))
-                return false;
-    
-            // On Linux the assertion is accepted only when the current namespace has no
-            // non-loopback route. A plain environment variable inside a normally networked
-            // worker is therefore insufficient to claim isolation.
-            if (OperatingSystem.IsLinux())
-                return LinuxHasOnlyLoopbackRoutes();
-    
-            // Windows isolation is supplied by the external sandbox/runner. The Windows
-            // Job Object below controls CPU/memory/process-tree lifetime but is not itself
-            // a network boundary, so the deployment must provide this explicit attestation.
-            return true;
-        }
-    
+    {
+        if (!string.Equals(
+                Environment.GetEnvironmentVariable("DIP_QA_NETWORK_ISOLATED"),
+                "1",
+                StringComparison.Ordinal))
+            return false;
+
+        // On Linux the assertion is accepted only when the current namespace has no
+        // non-loopback route. A plain environment variable inside a normally networked
+        // worker is therefore insufficient to claim isolation.
+        if (OperatingSystem.IsLinux())
+            return LinuxHasOnlyLoopbackRoutes();
+
+        // Windows isolation is supplied by the external sandbox/runner. The Windows
+        // Job Object below controls CPU/memory/process-tree lifetime but is not itself
+        // a network boundary, so the deployment must provide this explicit attestation.
+        return true;
+    }
+
     internal static bool LinuxHasOnlyLoopbackRoutes()
+    {
+        try
         {
-            try
+            var observedRouteState = false;
+            if (File.Exists("/proc/net/route"))
             {
-                var observedRouteState = false;
-                if (File.Exists("/proc/net/route"))
+                observedRouteState = true;
+                foreach (var line in File.ReadLines("/proc/net/route").Skip(1))
                 {
-                    observedRouteState = true;
-                    foreach (var line in File.ReadLines("/proc/net/route").Skip(1))
-                    {
-                        var columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                        if (columns.Length > 0 && !columns[0].Equals("lo", StringComparison.Ordinal))
-                            return false;
-                    }
+                    var columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                    if (columns.Length > 0 && !columns[0].Equals("lo", StringComparison.Ordinal))
+                        return false;
                 }
-    
-                if (File.Exists("/proc/net/ipv6_route"))
-                {
-                    observedRouteState = true;
-                    foreach (var line in File.ReadLines("/proc/net/ipv6_route"))
-                    {
-                        var columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                        if (columns.Length > 0
-                            && !columns[^1].Equals("lo", StringComparison.Ordinal))
-                            return false;
-                    }
-                }
-                return observedRouteState;
             }
-            catch
+
+            if (File.Exists("/proc/net/ipv6_route"))
             {
-                // An unverifiable namespace is not an isolated namespace.
-                return false;
+                observedRouteState = true;
+                foreach (var line in File.ReadLines("/proc/net/ipv6_route"))
+                {
+                    var columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                    if (columns.Length > 0
+                        && !columns[^1].Equals("lo", StringComparison.Ordinal))
+                        return false;
+                }
             }
+            return observedRouteState;
         }
-    
+        catch
+        {
+            // An unverifiable namespace is not an isolated namespace.
+            return false;
+        }
+    }
+
     internal static string ClassifySandboxDenial(string message)
             => message.Contains("network isolation", StringComparison.OrdinalIgnoreCase)
                 ? "network-isolation"

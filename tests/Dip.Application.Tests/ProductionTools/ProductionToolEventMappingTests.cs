@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by P ro du ct io nT oo lE ve nt Ma pp in gT es ts.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-// Purpose: Defines configuration options for R el ea se Pr ov en an ce Op ti on s.
+// Purpose: Provides infrastructure behavior for this application boundary.
 namespace Dip.Infrastructure.Provenance;
 
 public sealed class ReleaseProvenanceOptions

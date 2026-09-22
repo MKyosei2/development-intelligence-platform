@@ -1,4 +1,4 @@
-// Purpose: Persists and queries P ro je ct Tr ut hR ep os it or y data.
+// Purpose: Persists and queries data for this application boundary.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

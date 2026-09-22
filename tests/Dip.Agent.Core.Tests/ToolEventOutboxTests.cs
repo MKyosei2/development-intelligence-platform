@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by T oo lE ve nt Ou tb ox Te st s.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using System.Text.Json;
 using Dip.Agent.Core;
 using FluentAssertions;
@@ -43,6 +43,8 @@ public sealed class ToolEventOutboxTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, true); } catch { }
+        try { Directory.Delete(_root, true); } catch {
+            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+        }
     }
 }

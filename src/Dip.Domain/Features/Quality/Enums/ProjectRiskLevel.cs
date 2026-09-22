@@ -1,4 +1,4 @@
-// Purpose: Defines the allowed P ro je ct Ri sk Le ve l states used by the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Enums;
 
 public enum ProjectRiskLevel

@@ -1,2 +1,2 @@
-// Purpose: Verifies behavior and invariants covered by G lo ba lU si ng s.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 global using Xunit;

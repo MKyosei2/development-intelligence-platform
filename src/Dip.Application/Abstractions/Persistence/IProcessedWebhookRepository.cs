@@ -1,9 +1,9 @@
-// Purpose: Persists and queries I Pr oc es se dW eb ho ok Re po si to ry data.
+// Purpose: Defines a persistence boundary used by the application layer.
 using Dip.Domain.Entities;
 namespace Dip.Application.Abstractions.Persistence;
 public interface IProcessedWebhookRepository
 {
-    Task<bool> ExistsAsync(string deliveryId,CancellationToken cancellationToken);
-    Task<ProcessedWebhook?> GetAsync(string deliveryId,CancellationToken cancellationToken);
-    Task AddAsync(ProcessedWebhook webhook,CancellationToken cancellationToken);
+    Task<bool> ExistsAsync(string deliveryId, CancellationToken cancellationToken);
+    Task<ProcessedWebhook?> GetAsync(string deliveryId, CancellationToken cancellationToken);
+    Task AddAsync(ProcessedWebhook webhook, CancellationToken cancellationToken);
 }

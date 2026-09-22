@@ -1,4 +1,4 @@
-// Purpose: Executes the infrastructure workflow represented by R el ia bi li ty Ru nn er.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
@@ -116,8 +116,12 @@ public sealed partial class ReliabilityRunner : IReliabilityRunner
                             timedOut = true;
                         }
 
-                        try { process.Kill(true); } catch { }
-                        try { await process.WaitForExitAsync(CancellationToken.None); } catch { }
+                        try { process.Kill(true); } catch {
+                            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                        }
+                        try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+                            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                        }
                         break;
                     }
 
@@ -126,8 +130,12 @@ public sealed partial class ReliabilityRunner : IReliabilityRunner
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                try { process.Kill(true); } catch { }
-                try { await process.WaitForExitAsync(CancellationToken.None); } catch { }
+                try { process.Kill(true); } catch {
+                    // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                }
+                try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+                    // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                }
                 throw;
             }
 

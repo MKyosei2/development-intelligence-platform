@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for A rt if ac ts Co nt ro ll er.
+// Purpose: Exposes HTTP endpoints for this API responsibility.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;
@@ -9,14 +9,16 @@ using Microsoft.AspNetCore.Mvc;
 namespace Dip.Api.Controllers;
 [ApiController]
 [Route("api/v1/artifacts")]
-public sealed class ArtifactsController(ArtifactService artifacts):ControllerBase
+public sealed class ArtifactsController(ArtifactService artifacts) : ControllerBase
 {
-    [Authorize(Policy=Policies.ProjectRead)][RequireProjectResource(ProjectMembershipRole.Viewer,ProjectResourceKind.Artifact,"artifactId")][HttpGet("{artifactId:guid}")]
-    public async Task<IActionResult> Download(Guid artifactId,CancellationToken ct)
+    [Authorize(Policy = Policies.ProjectRead)]
+    [RequireProjectResource(ProjectMembershipRole.Viewer, ProjectResourceKind.Artifact, "artifactId")]
+    [HttpGet("{artifactId:guid}")]
+    public async Task<IActionResult> Download(Guid artifactId, CancellationToken ct)
     {
-        var opened=await artifacts.OpenAsync(artifactId,ct);
-            if(opened is null)return NotFound();
-            var(record,blob,content)=opened.Value;
-            return File(content,blob.ContentType,record.FileName,enableRangeProcessing:true);
+        var opened = await artifacts.OpenAsync(artifactId, ct);
+        if (opened is null) return NotFound();
+        var (record, blob, content) = opened.Value;
+        return File(content, blob.ContentType, record.FileName, enableRangeProcessing: true);
     }
 }

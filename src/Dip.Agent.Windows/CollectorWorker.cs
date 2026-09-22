@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for C ol le ct or Wo rk er.
+// Purpose: Runs background processing for this application responsibility.
 using Dip.Agent.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -102,6 +102,8 @@ public sealed class CollectorWorker : BackgroundService
         {
             if (_wake.CurrentCount == 0) _wake.Release();
         }
-        catch (ObjectDisposedException) { }
+        catch (ObjectDisposedException) {
+            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+        }
     }
 }

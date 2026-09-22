@@ -1,1 +1,1 @@
-// Purpose: Persists and queries R ep os it or y data.
+// Purpose: Persists and queries data for this application boundary.

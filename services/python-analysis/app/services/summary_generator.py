@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from app.schemas.summary import SummaryInput, SummaryResponse
 from app.services.evidence_builder import EvidenceBuilder
 

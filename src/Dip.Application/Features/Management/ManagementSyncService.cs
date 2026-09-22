@@ -219,7 +219,7 @@ public sealed class ManagementSyncService
         foreach (var n in nodes.Where(x => x.Status != "Archived"
             && WorkManagementService.MetaString(x, "Kind") == "Link"
             && WorkManagementService.MetaString(x, "Provider").Equals(provider, StringComparison.OrdinalIgnoreCase)
-            && (string.IsNullOrWhiteSpace(WorkManagementService.MetaString(x, "DataType")) || WorkManagementService.MetaString(x, "DataType").Equals(dataType,StringComparison.OrdinalIgnoreCase))))
+            && (string.IsNullOrWhiteSpace(WorkManagementService.MetaString(x, "DataType")) || WorkManagementService.MetaString(x, "DataType").Equals(dataType, StringComparison.OrdinalIgnoreCase))))
         {
             var key = WorkManagementService.MetaString(n, "ItemKey");
             var id = WorkManagementService.MetaString(n, "ExternalId");
@@ -239,22 +239,22 @@ public sealed class ManagementSyncService
         => authority.Equals(provider, StringComparison.OrdinalIgnoreCase) || authority.Equals("External", StringComparison.OrdinalIgnoreCase);
 
     private static string Canonical(ManagementActionDto a)
-        => JsonSerializer.Serialize(new { a.Title, Status = NormalizeStatus(a.Status), Owner = a.OwnerRole ?? "", Due = a.DueAtUtc?.UtcDateTime.Date.ToString("yyyy-MM-dd") ?? "", Progress = Math.Round(a.CompletionPercent,2) });
+        => JsonSerializer.Serialize(new { a.Title, Status = NormalizeStatus(a.Status), Owner = a.OwnerRole ?? "", Due = a.DueAtUtc?.UtcDateTime.Date.ToString("yyyy-MM-dd") ?? "", Progress = Math.Round(a.CompletionPercent, 2) });
 
     private static string Canonical(ManagementExternalItem a)
         => JsonSerializer.Serialize(new { a.Title, Status = NormalizeStatus(a.Status), Owner = a.OwnerRole ?? "", Due = a.DueAtUtc?.UtcDateTime.Date.ToString("yyyy-MM-dd") ?? "", Progress = Progress(a) });
 
-    private static bool EquivalentByManagedFields(ManagementActionDto local,ManagementExternalItem external)
-        => Canonical(local)==Canonical(external);
+    private static bool EquivalentByManagedFields(ManagementActionDto local, ManagementExternalItem external)
+        => Canonical(local) == Canonical(external);
 
-    private static decimal Progress(ManagementExternalItem item,decimal fallback=0m)
+    private static decimal Progress(ManagementExternalItem item, decimal fallback = 0m)
     {
-        if(item.Fields is null)return fallback;
-        foreach(var pair in item.Fields)
-            if(pair.Key.Equals("Progress",StringComparison.OrdinalIgnoreCase)||pair.Key.Equals("CompletionPercent",StringComparison.OrdinalIgnoreCase)||pair.Key.Equals("進捗",StringComparison.OrdinalIgnoreCase))
+        if (item.Fields is null) return fallback;
+        foreach (var pair in item.Fields)
+            if (pair.Key.Equals("Progress", StringComparison.OrdinalIgnoreCase) || pair.Key.Equals("CompletionPercent", StringComparison.OrdinalIgnoreCase) || pair.Key.Equals("進捗", StringComparison.OrdinalIgnoreCase))
             {
-                var raw=pair.Value.Trim().TrimEnd('%');
-                if(decimal.TryParse(raw,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var value))return Math.Clamp(value,0m,100m);
+                var raw = pair.Value.Trim().TrimEnd('%');
+                if (decimal.TryParse(raw, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var value)) return Math.Clamp(value, 0m, 100m);
             }
         return fallback;
     }
@@ -270,8 +270,8 @@ public sealed class ManagementSyncService
 
     private static string NormalizeDataType(string? value)
     {
-        var normalized=string.IsNullOrWhiteSpace(value)?"Action":value.Trim();
-        if(normalized.Length>120)throw new ArgumentException("Sync DataType must be at most 120 characters.",nameof(value));
+        var normalized = string.IsNullOrWhiteSpace(value) ? "Action" : value.Trim();
+        if (normalized.Length > 120) throw new ArgumentException("Sync DataType must be at most 120 characters.", nameof(value));
         return normalized;
     }
 

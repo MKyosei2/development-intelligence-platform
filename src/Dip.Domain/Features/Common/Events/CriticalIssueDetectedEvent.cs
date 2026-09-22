@@ -1,1 +1,1 @@
-// Purpose: Defines C ri ti ca lI ss ue De te ct ed Ev en t in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.

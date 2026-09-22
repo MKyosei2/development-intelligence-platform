@@ -1,4 +1,4 @@
-// Purpose: Defines the shared contract represented by Q ue ue Me ss ag e.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record QueueMessage<T>(

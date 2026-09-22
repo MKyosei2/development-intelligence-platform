@@ -1,1 +1,1 @@
-// Purpose: Represents P ul lR eq ue st in the DIP domain.
+// Purpose: Defines data exchanged across this application boundary.

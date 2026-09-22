@@ -1,7 +1,15 @@
-// Purpose: Runs background processing for H ea lt hR ec al cu la ti on Wo rk er.
+// Purpose: Runs background processing for this application responsibility.
 namespace Dip.Worker.Workers;
-    public sealed class HealthRecalculationWorker:BackgroundService{private readonly ILogger<HealthRecalculationWorker> _log;
-    public HealthRecalculationWorker(ILogger<HealthRecalculationWorker> l)=>_log=l;
-    protected override async Task ExecuteAsync(CancellationToken ct){while(!ct.IsCancellationRequested){_log.LogInformation("Health worker heartbeat at {UtcNow}",DateTimeOffset.UtcNow);
-    await Task.Delay(TimeSpan.FromMinutes(5),ct);
-    }}}
+public sealed class HealthRecalculationWorker : BackgroundService
+{
+    private readonly ILogger<HealthRecalculationWorker> _log;
+    public HealthRecalculationWorker(ILogger<HealthRecalculationWorker> l) => _log = l;
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            _log.LogInformation("Health worker heartbeat at {UtcNow}", DateTimeOffset.UtcNow);
+            await Task.Delay(TimeSpan.FromMinutes(5), ct);
+        }
+    }
+}

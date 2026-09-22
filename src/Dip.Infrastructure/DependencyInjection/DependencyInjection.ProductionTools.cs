@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by P ro du ct io nT oo ls De pe nd en cy In je ct io n.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Application.Features.ProductionTools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

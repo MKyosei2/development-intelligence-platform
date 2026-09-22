@@ -1,4 +1,4 @@
-// Purpose: Configures EF Core persistence for E vi de nc eR ec or dC on fi gu ra ti on.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

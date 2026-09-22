@@ -1,4 +1,4 @@
-# Purpose: Automates the DIP workflow represented by B ui ld N at iv eT oo ls.
+# Purpose: Automates a repeatable development or verification workflow for this repository.
 param([string]$Configuration="Release")
 $ErrorActionPreference="Stop"
 $root=(Resolve-Path (Join-Path $PSScriptRoot "..")).Path

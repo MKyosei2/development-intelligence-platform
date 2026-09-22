@@ -1,4 +1,4 @@
-# Purpose: Automates the DIP workflow represented by N ew S el fH os te dF al lb ac kE vi de nc e.
+# Purpose: Automates a repeatable development or verification workflow for this repository.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

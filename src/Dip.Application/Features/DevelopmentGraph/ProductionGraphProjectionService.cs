@@ -112,7 +112,7 @@ public sealed class ProductionGraphProjectionService
         if (!string.IsNullOrWhiteSpace(relativePath))
         {
             var asset = await _graph.UpsertUniversalNodeAsync(new(
-                projectId, "production", "Asset", $"asset:any:{relativePath.Trim().Replace('\\','/').ToLowerInvariant()}",
+                projectId, "production", "Asset", $"asset:any:{relativePath.Trim().Replace('\\', '/').ToLowerInvariant()}",
                 relativePath, "Observed", "DIP", null, relativePath, "phase4.v1", DevelopmentGraphNodeType.Asset, "{}"), ct);
             await _graph.LinkUniversalAsync(new(projectId, finding.Node.Id, asset.Node.Id, "finding-for", 95m, critical, DevelopmentGraphEdgeType.Affects), ct);
         }

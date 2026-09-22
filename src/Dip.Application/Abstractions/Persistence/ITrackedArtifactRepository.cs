@@ -1,4 +1,4 @@
-// Purpose: Persists and queries I Tr ac ke dA rt if ac tR ep os it or y data.
+// Purpose: Defines a persistence boundary used by the application layer.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Abstractions.Persistence;

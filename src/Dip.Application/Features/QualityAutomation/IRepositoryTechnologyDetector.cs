@@ -3,4 +3,4 @@ using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 namespace Dip.Application.Features.QualityAutomation;
 
-public interface IRepositoryTechnologyDetector{Task<QaTechnologyProfile> DetectAsync(string workspace,CancellationToken cancellationToken);}
+public interface IRepositoryTechnologyDetector { Task<QaTechnologyProfile> DetectAsync(string workspace, CancellationToken cancellationToken); }

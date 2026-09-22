@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for C ap ab il it ie sC on tr ol le r.
+// Purpose: Exposes HTTP endpoints for this API responsibility.
 using Dip.Application.Features.Capabilities;
 using Microsoft.AspNetCore.Mvc;
 

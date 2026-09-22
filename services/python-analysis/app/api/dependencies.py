@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from app.core.config import get_settings
 from app.services.anomaly_detector import AnomalyDetector
 from app.services.release_predictor import ReleasePredictor

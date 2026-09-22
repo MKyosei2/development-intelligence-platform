@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from app.schemas.risk import RiskFactorInput, RiskRequest
 from app.services.risk_analyzer import RiskAnalyzer
 

@@ -1,1 +1,1 @@
-// Purpose: Defines data exchanged for P ip el in eR un Dt o.
+// Purpose: Defines data exchanged across this application boundary.

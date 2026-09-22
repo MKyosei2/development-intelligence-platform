@@ -1,4 +1,4 @@
-// Purpose: Implements application behavior for P ro du ct io nQ aI nt el li ge nc e.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Text.Json;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
@@ -22,9 +22,9 @@ public sealed record ProductionMediaRegressionSpec(
     string Type,
     string BaselinePath,
     string CurrentPath,
-    decimal WarningThresholdPercent=2m,
-    decimal FailureThresholdPercent=10m,
-    int VideoSampleFps=2);
+    decimal WarningThresholdPercent = 2m,
+    decimal FailureThresholdPercent = 10m,
+    int VideoSampleFps = 2);
 
 public sealed record QaFindingIntelligence(
     string DefectClass,
@@ -141,33 +141,33 @@ public static class ProductionQaIntelligence
 
     public static IReadOnlyList<ProductionMediaRegressionSpec> ReadMediaRegressionSpecs(string workspace)
     {
-        var path=Path.Combine(workspace,".dip","production.json");
-        if(!File.Exists(path))return Array.Empty<ProductionMediaRegressionSpec>();
+        var path = Path.Combine(workspace, ".dip", "production.json");
+        if (!File.Exists(path)) return Array.Empty<ProductionMediaRegressionSpec>();
         try
         {
-            using var doc=JsonDocument.Parse(File.ReadAllText(path));
-            if(!doc.RootElement.TryGetProperty("mediaRegression",out var rows)||rows.ValueKind!=JsonValueKind.Array)
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("mediaRegression", out var rows) || rows.ValueKind != JsonValueKind.Array)
                 return Array.Empty<ProductionMediaRegressionSpec>();
-            var result=new List<ProductionMediaRegressionSpec>();
-            foreach(var row in rows.EnumerateArray().Take(50))
+            var result = new List<ProductionMediaRegressionSpec>();
+            foreach (var row in rows.EnumerateArray().Take(50))
             {
-                if(row.ValueKind!=JsonValueKind.Object)continue;
-                var type=String(row,"type");var baseline=String(row,"baselinePath");var current=String(row,"currentPath");
-                if(string.IsNullOrWhiteSpace(type)||string.IsNullOrWhiteSpace(baseline)||string.IsNullOrWhiteSpace(current))continue;
-                var warning=Decimal(row,"warningThresholdPercent",2m);var failure=Decimal(row,"failureThresholdPercent",10m);
-                var fps=Int(row,"videoSampleFps",2);
-                result.Add(new(type!,baseline!,current!,Math.Clamp(warning,0m,100m),Math.Clamp(failure,0m,100m),Math.Clamp(fps,1,10)));
+                if (row.ValueKind != JsonValueKind.Object) continue;
+                var type = String(row, "type"); var baseline = String(row, "baselinePath"); var current = String(row, "currentPath");
+                if (string.IsNullOrWhiteSpace(type) || string.IsNullOrWhiteSpace(baseline) || string.IsNullOrWhiteSpace(current)) continue;
+                var warning = Decimal(row, "warningThresholdPercent", 2m); var failure = Decimal(row, "failureThresholdPercent", 10m);
+                var fps = Int(row, "videoSampleFps", 2);
+                result.Add(new(type!, baseline!, current!, Math.Clamp(warning, 0m, 100m), Math.Clamp(failure, 0m, 100m), Math.Clamp(fps, 1, 10)));
             }
             return result;
         }
-        catch(JsonException)
+        catch (JsonException)
         {
             return Array.Empty<ProductionMediaRegressionSpec>();
         }
 
-        static string? String(JsonElement row,string name)=>row.TryGetProperty(name,out var v)&&v.ValueKind==JsonValueKind.String?v.GetString()?.Trim():null;
-        static decimal Decimal(JsonElement row,string name,decimal fallback)=>row.TryGetProperty(name,out var v)&&v.TryGetDecimal(out var value)?value:fallback;
-        static int Int(JsonElement row,string name,int fallback)=>row.TryGetProperty(name,out var v)&&v.TryGetInt32(out var value)?value:fallback;
+        static string? String(JsonElement row, string name) => row.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()?.Trim() : null;
+        static decimal Decimal(JsonElement row, string name, decimal fallback) => row.TryGetProperty(name, out var v) && v.TryGetDecimal(out var value) ? value : fallback;
+        static int Int(JsonElement row, string name, int fallback) => row.TryGetProperty(name, out var v) && v.TryGetInt32(out var value) ? value : fallback;
     }
 
     public static QaFindingIntelligence Classify(QaFinding finding)

@@ -6,9 +6,9 @@ namespace Dip.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(DipDbContext))]
 [Migration("202608120004_AddProjectControlGraph")]
-public sealed class AddProjectControlGraph:Migration
+public sealed class AddProjectControlGraph : Migration
 {
-    public const string MigrationId="202608120004_AddProjectControlGraph";
+    public const string MigrationId = "202608120004_AddProjectControlGraph";
 
     protected override void Up(MigrationBuilder migrationBuilder)
     {

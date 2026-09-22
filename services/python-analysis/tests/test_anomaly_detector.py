@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from datetime import UTC, datetime, timedelta
 from app.schemas.anomaly import AnomalyRequest, TimeSeriesPoint
 from app.services.anomaly_detector import AnomalyDetector

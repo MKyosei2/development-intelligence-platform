@@ -1,1 +1,1 @@
-// Purpose: Represents N ot if ic at io n in the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.

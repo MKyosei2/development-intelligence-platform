@@ -1,1 +1,1 @@
-// Purpose: Defines shared constants for M et ri cN am es.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

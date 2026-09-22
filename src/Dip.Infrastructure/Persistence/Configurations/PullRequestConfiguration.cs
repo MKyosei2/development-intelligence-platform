@@ -1,1 +1,1 @@
-// Purpose: Configures EF Core persistence for P ul lR eq ue st Co nf ig ur at io n.
+// Purpose: Provides infrastructure behavior for this application boundary.

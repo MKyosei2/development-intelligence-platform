@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Purpose: Provides repository tooling used by development and verification workflows.
 """Measured cross-platform toolchain benchmark for DIP Universal QA.
 
 This bootstrap benchmark measures detection/reproduction mechanics without

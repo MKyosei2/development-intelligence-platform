@@ -1,1 +1,1 @@
-// Purpose: Defines the shared contract represented by P ag ed Re sp on se.
+// Purpose: Defines data exchanged across this application boundary.

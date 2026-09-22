@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by D et er mi ni st ic Lo ca lD eb ug Ag en t.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 

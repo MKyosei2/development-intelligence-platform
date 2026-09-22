@@ -7,4 +7,4 @@ using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.Jobs;
 
-public sealed record EnqueuedJobDto(Guid JobId,string Status,string StatusUrl);
+public sealed record EnqueuedJobDto(Guid JobId, string Status, string StatusUrl);

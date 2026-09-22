@@ -1,4 +1,4 @@
-// Purpose: Implements DIP web behavior for M an ag em en tO pe ra ti on s.
+// Purpose: Implements web-facing behavior for this application surface.
 using Dip.Application.Features.Management;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -121,13 +121,17 @@ public partial class ManagementOperations
     private Task SaveRaci() => Mutate(() => Api.UpsertRaciAsync(ProjectId, new(ProjectId, _raciKey, new(_raciType, _raciTarget), Null(_raciR), Null(_raciA), Split(_raciC), Split(_raciI))), "RACI saved.");
     private Task SaveRoleBinding() => Mutate(() => Api.UpsertManagementRoleAsync(ProjectId, new(ProjectId, _roleBindingKey, _roleBindingActor, _roleBindingRole, Null(_roleBindingName))), "Management role binding saved.");
     private Task SaveCalendar() => Mutate(() => Api.UpsertWorkCalendarAsync(ProjectId, new(ProjectId, _calendarKey, _calendarName, Null(_calendarTeam), _calendarHoursDay, null, _calendarMeetings, _calendarSupport, ParseExceptions(_calendarExceptions), "Asia/Tokyo")), "Work calendar saved and capacity recalculated.");
-    private Task RunGoogleCalendar(bool dry) => Mutate(async () => { _lastCalendarSync = await Api.SyncManagementGoogleCalendarAsync(ProjectId, new(ProjectId, _calendarKey, _gcalId, _gcalToken, Utc(_gcalFrom), Utc(_gcalTo), Null(_calendarTeam), "Asia/Tokyo", dry)); if (!dry) _gcalToken = ""; }, dry ? "Google Calendar dry run completed." : "Google Calendar synchronized into capacity.");
+    private Task RunGoogleCalendar(bool dry) => Mutate(async () => { _lastCalendarSync = await Api.SyncManagementGoogleCalendarAsync(ProjectId, new(ProjectId, _calendarKey, _gcalId, _gcalToken, Utc(_gcalFrom), Utc(_gcalTo), Null(_calendarTeam), "Asia/Tokyo", dry));
+    if (!dry) _gcalToken = "";
+     }, dry ? "Google Calendar dry run completed." : "Google Calendar synchronized into capacity.");
     private Task CreateApproval() => Mutate(() => Api.CreateApprovalAsync(ProjectId, new(ProjectId, _approvalKey, _approvalType, _approvalTitle, new(_approvalTargetType, _approvalTargetKey), Split(_approvalRoles), "web", null, Utc(_approvalDue))), "Approval gate created.");
     private Task Respond(ApprovalRequestDto approval, bool approve) => Mutate(() => Api.RespondApprovalAsync(ProjectId, approval.Key, new(ProjectId, approval.Key, "web", _approvalActorRole, approve ? "Approve" : "Reject", null)), approve ? "Approval recorded." : "Rejection recorded.");
     private Task Alert(string key, string disposition) => Mutate(() => Api.SetAlertDispositionAsync(ProjectId, key, new(ProjectId, key, "web", disposition, disposition == "snooze" ? DateTimeOffset.UtcNow.AddHours(2) : null, null)), "Alert state updated.");
     private Task SaveAuthority() => Mutate(() => Api.UpsertSourceAuthorityAsync(ProjectId, new(ProjectId, _authorityKey, _authorityDataType, _authority, _conflictPolicy)), "Source authority saved.");
     private Task RunSync(bool dry) => Mutate(async () => _lastSync = await Api.RunManagementSyncAsync(ProjectId, new(ProjectId, _syncProvider, Enum.Parse<ManagementSyncDirection>(_syncDirection), dry)), dry ? "Sync dry run completed." : "Synchronization completed.");
-    private Task RunSheets(bool dry) => Mutate(async () => { _lastSheets = await Api.SyncManagementGoogleSheetsAsync(new(ProjectId, _sheetId, _sheetToken, true, true, dry)); if (!dry) _sheetToken = ""; }, dry ? "Google Sheets dry run completed." : "Google Sheets synchronized with conflict protection.");
+    private Task RunSheets(bool dry) => Mutate(async () => { _lastSheets = await Api.SyncManagementGoogleSheetsAsync(new(ProjectId, _sheetId, _sheetToken, true, true, dry));
+    if (!dry) _sheetToken = "";
+     }, dry ? "Google Sheets dry run completed." : "Google Sheets synchronized with conflict protection.");
     private Task ResolveConflict(string key, string resolution) => Mutate(() => Api.ResolveManagementSyncConflictAsync(ProjectId, key, new(ProjectId, key, resolution, "web")), "Sync conflict resolved.");
     private Task Archive(string type, string key) => Mutate(() => Api.ArchiveManagementItemAsync(ProjectId, new(ProjectId, type, key, "web", "Archived from management GUI")), "Item archived with history retained.");
 
@@ -229,12 +233,70 @@ public partial class ManagementOperations
     private string SpreadsheetFileName()
         => string.IsNullOrWhiteSpace(_spreadsheetFileName) ? "management.xlsx" : _spreadsheetFileName;
 
-    private void EditRisk(RiskRegisterItemDto risk) { _riskKey = risk.Key; _riskTitle = risk.Title; _riskDescription = risk.Description; _riskStatus = risk.Status; _riskCategory = risk.Category; _riskProbability = risk.ProbabilityPercent; _riskImpact = risk.ImpactPercent; _riskOwner = risk.OwnerRole ?? ""; _riskTrigger = risk.Trigger ?? ""; _riskMitigation = risk.Mitigation ?? ""; _riskAffected = string.Join(", ", risk.AffectedItems); if (risk.ReviewDueUtc is not null) _riskReview = risk.ReviewDueUtc.Value.LocalDateTime; }
-    private void EditDecision(ManagementDecisionDto decision) { _decisionKey = decision.Key; _decisionTitle = decision.Title; _decisionValue = decision.Decision; _decisionRationale = decision.Rationale; _decisionStatus = decision.Status; _decisionOwner = decision.DecisionOwnerRole ?? ""; _decisionRelated = string.Join(", ", decision.RelatedItems); _decisionDecided = decision.DecidedAtUtc?.LocalDateTime; if (decision.DecisionDueUtc is not null) _decisionDue = decision.DecisionDueUtc.Value.LocalDateTime; }
-    private void EditAction(ManagementActionDto action) { _actionKey = action.Key; _actionTitle = action.Title; _actionPriority = action.Priority; _actionStatus = action.Status; _actionOwner = action.OwnerRole ?? ""; _actionCompletion = action.CompletionPercent; _actionDecisionKey = action.DecisionKey ?? ""; _actionTargetType = action.TargetType ?? ""; _actionTargetKey = action.TargetKey ?? ""; if (action.DueAtUtc is not null) _actionDue = action.DueAtUtc.Value.LocalDateTime; }
-    private void EditChange(ChangeRequestDto change) { _changeKey = change.Key; _changeTitle = change.Title; _changeDescription = change.Description; _changePriority = change.Priority; _changeStatus = change.Status; _changeRequestedBy = change.RequestedByRole ?? ""; _changeRequestedAt = change.RequestedAtUtc.LocalDateTime; _changeEng = change.EngineeringHoursDelta; _changeArt = change.ArtHoursDelta; _changeQa = change.QaHoursDelta; _changeDays = change.ScheduleDaysDelta; _changeRisk = change.RiskDeltaPercent; _changeRequirementKeys = string.Join(", ", change.RequirementKeys); _changeWorkstreamKeys = string.Join(", ", change.WorkstreamKeys); _changeDecisionKey = change.DecisionKey ?? ""; }
-    private void EditAllocation(ResourceAllocationDto allocation) { _allocationKey = allocation.Key; _allocationFrom = allocation.FromWorkstreamKey ?? ""; _allocationTo = allocation.ToWorkstreamKey; _allocationHours = allocation.CapacityHoursPerWeek; _allocationStart = allocation.StartUtc.LocalDateTime; _allocationEnd = allocation.EndUtc.LocalDateTime; _allocationStatus = allocation.Status; _allocationRationale = allocation.Rationale ?? ""; _allocationDecisionKey = allocation.DecisionKey ?? ""; }
-    private void EditSharedPool(TeamCapacityDto team) { _poolTeamKey = team.Key; _sharedResourceKey = team.SharedResourceKey ?? ""; _sharedPoolCapacity = team.SharedPoolCapacityHoursPerWeek ?? 40m; }
+    private void EditRisk(RiskRegisterItemDto risk) { _riskKey = risk.Key;
+     _riskTitle = risk.Title;
+     _riskDescription = risk.Description;
+     _riskStatus = risk.Status;
+     _riskCategory = risk.Category;
+     _riskProbability = risk.ProbabilityPercent;
+     _riskImpact = risk.ImpactPercent;
+     _riskOwner = risk.OwnerRole ?? "";
+     _riskTrigger = risk.Trigger ?? "";
+     _riskMitigation = risk.Mitigation ?? "";
+     _riskAffected = string.Join(", ", risk.AffectedItems);
+    if (risk.ReviewDueUtc is not null) _riskReview = risk.ReviewDueUtc.Value.LocalDateTime;
+     }
+    private void EditDecision(ManagementDecisionDto decision) { _decisionKey = decision.Key;
+     _decisionTitle = decision.Title;
+     _decisionValue = decision.Decision;
+     _decisionRationale = decision.Rationale;
+     _decisionStatus = decision.Status;
+     _decisionOwner = decision.DecisionOwnerRole ?? "";
+     _decisionRelated = string.Join(", ", decision.RelatedItems);
+     _decisionDecided = decision.DecidedAtUtc?.LocalDateTime;
+    if (decision.DecisionDueUtc is not null) _decisionDue = decision.DecisionDueUtc.Value.LocalDateTime;
+     }
+    private void EditAction(ManagementActionDto action) { _actionKey = action.Key;
+     _actionTitle = action.Title;
+     _actionPriority = action.Priority;
+     _actionStatus = action.Status;
+     _actionOwner = action.OwnerRole ?? "";
+     _actionCompletion = action.CompletionPercent;
+     _actionDecisionKey = action.DecisionKey ?? "";
+     _actionTargetType = action.TargetType ?? "";
+     _actionTargetKey = action.TargetKey ?? "";
+    if (action.DueAtUtc is not null) _actionDue = action.DueAtUtc.Value.LocalDateTime;
+     }
+    private void EditChange(ChangeRequestDto change) { _changeKey = change.Key;
+     _changeTitle = change.Title;
+     _changeDescription = change.Description;
+     _changePriority = change.Priority;
+     _changeStatus = change.Status;
+     _changeRequestedBy = change.RequestedByRole ?? "";
+     _changeRequestedAt = change.RequestedAtUtc.LocalDateTime;
+     _changeEng = change.EngineeringHoursDelta;
+     _changeArt = change.ArtHoursDelta;
+     _changeQa = change.QaHoursDelta;
+     _changeDays = change.ScheduleDaysDelta;
+     _changeRisk = change.RiskDeltaPercent;
+     _changeRequirementKeys = string.Join(", ", change.RequirementKeys);
+     _changeWorkstreamKeys = string.Join(", ", change.WorkstreamKeys);
+     _changeDecisionKey = change.DecisionKey ?? "";
+     }
+    private void EditAllocation(ResourceAllocationDto allocation) { _allocationKey = allocation.Key;
+     _allocationFrom = allocation.FromWorkstreamKey ?? "";
+     _allocationTo = allocation.ToWorkstreamKey;
+     _allocationHours = allocation.CapacityHoursPerWeek;
+     _allocationStart = allocation.StartUtc.LocalDateTime;
+     _allocationEnd = allocation.EndUtc.LocalDateTime;
+     _allocationStatus = allocation.Status;
+     _allocationRationale = allocation.Rationale ?? "";
+     _allocationDecisionKey = allocation.DecisionKey ?? "";
+     }
+    private void EditSharedPool(TeamCapacityDto team) { _poolTeamKey = team.Key;
+     _sharedResourceKey = team.SharedResourceKey ?? "";
+     _sharedPoolCapacity = team.SharedPoolCapacityHoursPerWeek ?? 40m;
+     }
     private ManagementReference? ActionTarget() => string.IsNullOrWhiteSpace(_actionTargetType) || string.IsNullOrWhiteSpace(_actionTargetKey) ? null : new(_actionTargetType.Trim(), _actionTargetKey.Trim());
 
     private static IReadOnlyList<ManagementReference> ParseReferences(string value)

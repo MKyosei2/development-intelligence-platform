@@ -1,1 +1,1 @@
-// Purpose: Defines data exchanged for N ot if ic at io nD to.
+// Purpose: Defines data exchanged across this application boundary.

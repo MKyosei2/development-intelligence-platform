@@ -1,1 +1,1 @@
-// Purpose: Defines the application query for G et Pu ll Re qu es tR is kQ ue ry.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

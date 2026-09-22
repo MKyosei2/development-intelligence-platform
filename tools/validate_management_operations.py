@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Purpose: Provides repository tooling used by development and verification workflows.
 """Static source-contract validation for DIP Management Operations S+/S implementation.
 
 This is intentionally not a replacement for `dotnet build` or live connector tests.

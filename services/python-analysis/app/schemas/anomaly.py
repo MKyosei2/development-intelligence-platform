@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from datetime import datetime
 
 from pydantic import BaseModel, Field

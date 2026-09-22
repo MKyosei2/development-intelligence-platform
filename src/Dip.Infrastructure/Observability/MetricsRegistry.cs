@@ -1,1 +1,1 @@
-// Purpose: Provides the infrastructure capability represented by M et ri cs Re gi st ry.
+// Purpose: Provides infrastructure behavior for this application boundary.

@@ -4,6 +4,6 @@ namespace Dip.Application.Abstractions.Persistence;
 
 public interface IAdaptiveQaPlanRepository
 {
-    Task AddAsync(AdaptiveQaPlanSnapshot plan,CancellationToken ct);
-    Task<AdaptiveQaPlanSnapshot?> GetLatestAsync(Guid projectId,CancellationToken ct);
+    Task AddAsync(AdaptiveQaPlanSnapshot plan, CancellationToken ct);
+    Task<AdaptiveQaPlanSnapshot?> GetLatestAsync(Guid projectId, CancellationToken ct);
 }

@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by L oc al In te gr at io nC re de nt ia lS to re.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

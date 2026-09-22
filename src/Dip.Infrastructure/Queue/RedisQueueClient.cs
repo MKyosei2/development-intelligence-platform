@@ -1,1 +1,1 @@
-// Purpose: Integrates external or runtime capabilities through R ed is Qu eu eC li en t.
+// Purpose: Provides infrastructure behavior for this application boundary.

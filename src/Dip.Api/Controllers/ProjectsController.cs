@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for P ro je ct sC on tr ol le r.
+// Purpose: Exposes HTTP endpoints for this API responsibility.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Projects;

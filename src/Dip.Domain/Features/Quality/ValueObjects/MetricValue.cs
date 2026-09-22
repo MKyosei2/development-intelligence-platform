@@ -1,1 +1,1 @@
-// Purpose: Defines and validates the M et ri cV al ue value object.
+// Purpose: Defines domain behavior and state for this feature area.

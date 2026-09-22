@@ -1,1 +1,1 @@
-// Purpose: Defines the DIP responsibility represented by R eq ue st Lo gg in gM ID dl ew ar e.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

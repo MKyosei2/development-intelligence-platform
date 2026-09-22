@@ -4,7 +4,7 @@ namespace Dip.Application.Abstractions.Persistence;
 
 public interface IChangeRiskRepository
 {
-    Task AddAsync(ChangeRiskAssessment assessment,CancellationToken ct);
-    Task<ChangeRiskAssessment?> GetLatestAsync(Guid projectId,string? commitSha,CancellationToken ct);
-    Task<IReadOnlyList<ChangeRiskAssessment>> ListAsync(Guid projectId,int take,CancellationToken ct);
+    Task AddAsync(ChangeRiskAssessment assessment, CancellationToken ct);
+    Task<ChangeRiskAssessment?> GetLatestAsync(Guid projectId, string? commitSha, CancellationToken ct);
+    Task<IReadOnlyList<ChangeRiskAssessment>> ListAsync(Guid projectId, int take, CancellationToken ct);
 }

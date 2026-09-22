@@ -1,4 +1,4 @@
-// Purpose: Configures EF Core persistence for P ip el in eR un Co nf ig ur at io n.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;

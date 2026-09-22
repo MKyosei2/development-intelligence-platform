@@ -1,1 +1,1 @@
-// Purpose: Defines the shared contract represented by H ea lt hR es po ns e.
+// Purpose: Defines data exchanged across this application boundary.

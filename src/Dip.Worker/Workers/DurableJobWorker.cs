@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for D ur ab le Jo bW or ke r.
+// Purpose: Runs background processing for this application responsibility.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
@@ -228,6 +228,7 @@ public sealed class DurableJobWorker(
             }
             catch (OperationCanceledException)
             {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
             catch (Exception ex)
             {

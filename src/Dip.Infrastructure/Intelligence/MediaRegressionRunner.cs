@@ -1,4 +1,4 @@
-// Purpose: Executes the infrastructure workflow represented by M ed ia Re gr es si on Ru nn er.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -62,9 +62,13 @@ public sealed class MediaRegressionRunner : IMediaRegressionRunner
         var passedFallback = pct <= Math.Max(0, request.ThresholdPercent);
         var payload = JsonSerializer.Serialize(new
         {
-            kind = NormalizeKind(kind), differencePercent = pct, thresholdPercent = request.ThresholdPercent, passed = passedFallback,
+            kind = NormalizeKind(kind),
+            differencePercent = pct,
+            thresholdPercent = request.ThresholdPercent,
+            passed = passedFallback,
             comparison = new { method = "binary-fallback", precision = "low", reason = "Python media helper unavailable or failed" },
-            baselineHash = Convert.ToHexString(SHA256.HashData(a)), currentHash = Convert.ToHexString(SHA256.HashData(b))
+            baselineHash = Convert.ToHexString(SHA256.HashData(a)),
+            currentHash = Convert.ToHexString(SHA256.HashData(b))
         });
         await File.WriteAllTextAsync(output, payload, ct);
         return new MediaRegressionResult(passedFallback, pct, NormalizeKind(kind), output, payload);
@@ -84,8 +88,13 @@ public sealed class MediaRegressionRunner : IMediaRegressionRunner
     {
         foreach (var name in OperatingSystem.IsWindows() ? new[] { "python", "py" } : new[] { "python3", "python" })
         {
-            try { using var p = Process.Start(new ProcessStartInfo(name, "--version") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true }); if (p is not null) { p.WaitForExit(1500); if (p.ExitCode == 0) return name; } }
-            catch { }
+            try { using var p = Process.Start(new ProcessStartInfo(name, "--version") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true });
+            if (p is not null) { p.WaitForExit(1500);
+            if (p.ExitCode == 0) return name;
+             } }
+            catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
         return null;
     }

@@ -1,1 +1,1 @@
-// Purpose: Defines and validates the R is kS co re value object.
+// Purpose: Defines domain behavior and state for this feature area.

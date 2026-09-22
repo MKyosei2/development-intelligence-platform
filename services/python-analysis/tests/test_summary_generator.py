@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from app.schemas.summary import SummaryInput
 from app.services.summary_generator import SummaryGenerator
 

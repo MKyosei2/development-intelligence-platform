@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 import hmac
 
 from fastapi import Header, HTTPException, status

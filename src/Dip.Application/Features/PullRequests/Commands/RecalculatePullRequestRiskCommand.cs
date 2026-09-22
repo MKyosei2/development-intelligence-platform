@@ -1,1 +1,1 @@
-// Purpose: Defines the application command for R ec al cu la te Pu ll Re qu es tR is kC om ma nd.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

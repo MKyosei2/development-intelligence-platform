@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 #include <windows.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>

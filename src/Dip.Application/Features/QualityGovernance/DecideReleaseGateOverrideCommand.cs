@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.QualityGovernance;
 
-public sealed record DecideReleaseGateOverrideCommand(string Reason,long? ExpectedVersion=null);
+public sealed record DecideReleaseGateOverrideCommand(string Reason, long? ExpectedVersion = null);

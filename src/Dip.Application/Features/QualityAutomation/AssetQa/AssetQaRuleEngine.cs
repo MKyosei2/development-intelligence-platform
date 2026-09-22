@@ -1,4 +1,4 @@
-// Purpose: Implements application behavior for A ss et QA Ru le En gi ne.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
@@ -105,7 +105,7 @@ public sealed class AssetQaRuleEngine
         => root.ValueKind == JsonValueKind.Object && root.TryGetProperty(name, out var value) && value.TryGetInt32(out var number) ? number : fallback;
 
     private static bool Bool(JsonElement root, string name)
-        {
+    {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty(name, out var value)) return false;
         return (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False) && value.GetBoolean();
     }

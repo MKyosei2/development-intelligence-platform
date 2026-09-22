@@ -1,4 +1,4 @@
-// Purpose: Defines configuration options for G it Hu bO pt io ns.
+// Purpose: Provides infrastructure behavior for this application boundary.
 namespace Dip.Infrastructure.GitHub;
 
 public sealed class GitHubOptions

@@ -71,7 +71,7 @@ internal static class ProcessResourceLimiter
     [StructLayout(LayoutKind.Sequential)]
     private struct IO_COUNTERS
     {
-        public ulong ReadOperationCount,WriteOperationCount,OtherOperationCount,ReadTransferCount,WriteTransferCount,OtherTransferCount;
+        public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount;
     }
 
     [StructLayout(LayoutKind.Sequential)]

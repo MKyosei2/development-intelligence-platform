@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from dataclasses import asdict, dataclass, field
 from typing import Any
 

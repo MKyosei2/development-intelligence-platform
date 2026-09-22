@@ -1,1 +1,1 @@
-// Purpose: Defines the DIP responsibility represented by S wa gg er Ex te ns io ns.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

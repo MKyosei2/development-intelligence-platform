@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by P ul lR eq ue st Pi pe li ne Sc en ar io.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using System.Net;
 using System.Text.Json;
 using Dip.EndToEndTests.Support;

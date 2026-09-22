@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 from __future__ import annotations
 
 import argparse

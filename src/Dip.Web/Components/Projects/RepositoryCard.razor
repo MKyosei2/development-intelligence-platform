@@ -1,3 +1,4 @@
+@* Purpose: Renders and coordinates this web surface and its user interactions. *@
 @using Dip.Application.Features.GitHubIntegration
 
 <article class="repo-card @(Selected ? "selected" : string.Empty) @(Repository.DipProjectId is not null ? "registered" : string.Empty)" data-repository="@Repository.FullName">

@@ -1,4 +1,4 @@
-// Purpose: Implements web application behavior for R ea lt im eU pd at eS er vi ce.
+// Purpose: Coordinates application behavior for this feature area.
 using Dip.Application.Features.Realtime;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -93,7 +93,9 @@ public sealed class RealtimeUpdateService(
         if (_subscribedProjectId is { } previous)
         {
             try { await _connection.InvokeAsync("UnsubscribeProject", previous, cancellationToken); }
-            catch { }
+            catch {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
         }
 
         _subscribedProjectId = projectId;
@@ -112,5 +114,5 @@ public sealed class RealtimeUpdateService(
     }
 
     private static string EnsureTrailingSlash(string value) =>
-        value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+        value.EndsWith('/') ? value : value + "/";
 }

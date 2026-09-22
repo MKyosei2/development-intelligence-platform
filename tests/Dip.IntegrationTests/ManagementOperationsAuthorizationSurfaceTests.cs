@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by M an ag em en tO pe ra ti on sA ut ho ri za ti on Su rf ac eT es ts.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using System.Reflection;
 using Dip.Api.Authorization;
 using Dip.Api.Controllers;

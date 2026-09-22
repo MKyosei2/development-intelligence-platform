@@ -1,3 +1,4 @@
+# Purpose: Defines a focused responsibility within the development intelligence platform.
 """DIP Maya production-evidence bridge.
 
 The plugin never stores API credentials. It writes compact JSON events to the

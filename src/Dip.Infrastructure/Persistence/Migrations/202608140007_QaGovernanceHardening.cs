@@ -5,10 +5,10 @@ namespace Dip.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(DipDbContext))]
 [Migration("202608140007_QaGovernanceHardening")]
-public sealed class QaGovernanceHardening:Migration
+public sealed class QaGovernanceHardening : Migration
 {
-    public const string MigrationId="202608140007_QaGovernanceHardening";
-    protected override void Up(MigrationBuilder migrationBuilder)=>migrationBuilder.Sql(
+    public const string MigrationId = "202608140007_QaGovernanceHardening";
+    protected override void Up(MigrationBuilder migrationBuilder) => migrationBuilder.Sql(
     """
     -- Project-scoped authorization.
     CREATE TABLE IF NOT EXISTS project_memberships(
@@ -111,7 +111,7 @@ public sealed class QaGovernanceHardening:Migration
     CREATE INDEX IF NOT EXISTS ix_qa_backup_verifications_recent ON qa_backup_verifications(project_id,verified_at_utc DESC);
     """);
 
-    protected override void Down(MigrationBuilder migrationBuilder)=>migrationBuilder.Sql(
+    protected override void Down(MigrationBuilder migrationBuilder) => migrationBuilder.Sql(
     """
     DROP TABLE IF EXISTS qa_backup_verifications CASCADE;
     DROP TABLE IF EXISTS qa_release_gate_overrides CASCADE;

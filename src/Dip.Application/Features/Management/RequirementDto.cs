@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.Management;
 
-public sealed record RequirementDto(string Key,string Title,string Priority,string Status,string ScopeState,decimal CompletionPercent,string? AcceptanceSummary,string? ExternalReference);
+public sealed record RequirementDto(string Key, string Title, string Priority, string Status, string ScopeState, decimal CompletionPercent, string? AcceptanceSummary, string? ExternalReference);

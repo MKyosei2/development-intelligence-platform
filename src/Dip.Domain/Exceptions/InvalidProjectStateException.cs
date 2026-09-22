@@ -1,1 +1,1 @@
-// Purpose: Represents the domain error condition described by I nv al ID Pr oj ec tS ta te Ex ce pt io n.
+// Purpose: Defines domain behavior and state for this feature area.

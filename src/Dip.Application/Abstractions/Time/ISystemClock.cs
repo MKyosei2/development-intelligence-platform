@@ -1,2 +1,2 @@
-// Purpose: Defines the application boundary represented by I Sy st em Cl oc k.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 namespace Dip.Application.Abstractions.Time; public interface ISystemClock { DateTimeOffset UtcNow { get; } }

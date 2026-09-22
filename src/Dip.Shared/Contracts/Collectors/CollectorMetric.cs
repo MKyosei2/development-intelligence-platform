@@ -1,1 +1,1 @@
-// Purpose: Defines the shared contract represented by C ol le ct or Me tr ic.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

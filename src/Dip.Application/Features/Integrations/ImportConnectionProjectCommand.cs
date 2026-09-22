@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.Integrations;
 
-public sealed record ImportConnectionProjectCommand(string ExternalResourceId,string ExternalResourceName,string ProjectName,DateTimeOffset? ReleaseDateUtc=null,bool SyncEvidence=true);
+public sealed record ImportConnectionProjectCommand(string ExternalResourceId, string ExternalResourceName, string ProjectName, DateTimeOffset? ReleaseDateUtc = null, bool SyncEvidence = true);

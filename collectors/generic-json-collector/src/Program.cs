@@ -1,3 +1,4 @@
+// Purpose: Composes and starts this application host and its configured dependencies.
 using GenericJsonCollector.Clients;
 using GenericJsonCollector.Commands;
 using GenericJsonCollector.Parsing;

@@ -1,4 +1,4 @@
-# Purpose: Automates the DIP workflow represented by S et D IP P ro du ct io nB ri dg eE nv ir on me nt.
+# Purpose: Automates a repeatable development or verification workflow for this repository.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,

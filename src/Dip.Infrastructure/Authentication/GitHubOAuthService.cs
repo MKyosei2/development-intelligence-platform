@@ -1,1 +1,1 @@
-// Purpose: Implements infrastructure support for G it Hu bO Au th Se rv ic e.
+// Purpose: Coordinates application behavior for this feature area.

@@ -1,1 +1,1 @@
-// Purpose: Defines configuration options for S to ra ge Op ti on s.
+// Purpose: Provides infrastructure behavior for this application boundary.

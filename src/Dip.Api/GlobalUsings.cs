@@ -1,2 +1,2 @@
-// Purpose: Defines the DIP responsibility represented by G lo ba lU si ng s.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 global using Dip.Domain.ValueObjects;

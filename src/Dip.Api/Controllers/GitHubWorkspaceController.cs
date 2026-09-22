@@ -21,95 +21,95 @@ namespace Dip.Api.Controllers;
 public sealed class GitHubWorkspaceController(IGitHubRepositoryCatalog github, ProjectService projects, ProjectRealtimePublisher realtime, DevelopmentGraphService developmentGraph) : ControllerBase
 {
     [Authorize(Policy = Policies.ProjectWrite)]
-        [RequireProjectRole(ProjectMembershipRole.Member, "projectId")]
-        [HttpPost("projects/{projectId:guid}/sync")]
-        public async Task<ActionResult<GitHubWorkspaceSyncDto>> Sync(
+    [RequireProjectRole(ProjectMembershipRole.Member, "projectId")]
+    [HttpPost("projects/{projectId:guid}/sync")]
+    public async Task<ActionResult<GitHubWorkspaceSyncDto>> Sync(
             Guid projectId,
             CancellationToken cancellationToken)
+    {
+        var project = await projects.GetAsync(projectId, cancellationToken);
+        if (project is null)
+            return NotFound();
+        if (!TryParseRepository(project.RepositoryUrl, out var owner, out var repository))
         {
-            var project = await projects.GetAsync(projectId, cancellationToken);
-            if (project is null)
-                return NotFound();
-            if (!TryParseRepository(project.RepositoryUrl, out var owner, out var repository))
+            return BadRequest(new
             {
-                return BadRequest(new
-                {
-                    error = "not_github_repository",
-                    message = "Only github.com projects can be synchronized by the GitHub repository connection."
-                });
-            }
-    
+                error = "not_github_repository",
+                message = "Only github.com projects can be synchronized by the GitHub repository connection."
+            });
+        }
+
+        try
+        {
+            var result = await github.SyncWorkspaceAsync(
+                projectId,
+                owner,
+                repository,
+                project.DefaultBranch,
+                cancellationToken);
             try
             {
-                var result = await github.SyncWorkspaceAsync(
-                    projectId,
-                    owner,
-                    repository,
-                    project.DefaultBranch,
-                    cancellationToken);
-                try
-                {
-                    var details = await github.GetRepositoryAsync(owner, repository, cancellationToken);
-                    var pullRequests = await github.ListPullRequestsAsync(owner, repository, "all", cancellationToken);
-                    await new GitHubPullRequestBackfillService(developmentGraph).BackfillAsync(projectId, details.Repository, pullRequests, cancellationToken);
-                }
-                catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
-                {
-                    await realtime.PublishAsync(
-                        projectId,
-                        "repository.pull_request_backfill_failed",
-                        "Repository synchronized, but pull-request history backfill failed: " + SafeMessage(exception.Message),
-                        CancellationToken.None);
-                }
-                await realtime.PublishAsync(
-                    projectId,
-                    "repository.synced",
-                    $"Repository synchronized at {result.CommitSha[..Math.Min(8, result.CommitSha.Length)]}.",
-                    cancellationToken);
-                return Ok(result);
+                var details = await github.GetRepositoryAsync(owner, repository, cancellationToken);
+                var pullRequests = await github.ListPullRequestsAsync(owner, repository, "all", cancellationToken);
+                await new GitHubPullRequestBackfillService(developmentGraph).BackfillAsync(projectId, details.Repository, pullRequests, cancellationToken);
             }
-            catch
+            catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
             {
                 await realtime.PublishAsync(
                     projectId,
-                    "repository.sync_failed",
-                    "Repository synchronization failed.",
+                    "repository.pull_request_backfill_failed",
+                    "Repository synchronized, but pull-request history backfill failed: " + SafeMessage(exception.Message),
                     CancellationToken.None);
-                throw;
             }
+            await realtime.PublishAsync(
+                projectId,
+                "repository.synced",
+                $"Repository synchronized at {result.CommitSha[..Math.Min(8, result.CommitSha.Length)]}.",
+                cancellationToken);
+            return Ok(result);
         }
+        catch
+        {
+            await realtime.PublishAsync(
+                projectId,
+                "repository.sync_failed",
+                "Repository synchronization failed.",
+                CancellationToken.None);
+            throw;
+        }
+    }
 
     private static bool TryParseRepository(
             string value,
             out string owner,
             out string repository)
+    {
+        owner = string.Empty;
+        repository = string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var text = value.Trim().TrimEnd('/');
+        if (Uri.TryCreate(text, UriKind.Absolute, out var uri))
         {
-            owner = string.Empty;
-            repository = string.Empty;
-            if (string.IsNullOrWhiteSpace(value))
+            if (!uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
                 return false;
-    
-            var text = value.Trim().TrimEnd('/');
-            if (Uri.TryCreate(text, UriKind.Absolute, out var uri))
-            {
-                if (!uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
-                    return false;
-                text = uri.AbsolutePath.Trim('/');
-            }
-    
-            var parts = text.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2)
-                return false;
-            owner = parts[0];
-            repository = parts[1].EndsWith(".git", StringComparison.OrdinalIgnoreCase)
-                ? parts[1][..^4]
-                : parts[1];
-            return owner.Length > 0 && repository.Length > 0;
+            text = uri.AbsolutePath.Trim('/');
         }
 
+        var parts = text.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+            return false;
+        owner = parts[0];
+        repository = parts[1].EndsWith(".git", StringComparison.OrdinalIgnoreCase)
+            ? parts[1][..^4]
+            : parts[1];
+        return owner.Length > 0 && repository.Length > 0;
+    }
+
     private static string SafeMessage(string value)
-        {
-            var normalized = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-            return normalized.Length <= 300 ? normalized : normalized[..300];
-        }
+    {
+        var normalized = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return normalized.Length <= 300 ? normalized : normalized[..300];
+    }
 }

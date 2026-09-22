@@ -1,4 +1,4 @@
-// Purpose: Implements endpoint-agent behavior for P ro je ct Fi le Sc an ne r.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Security.Cryptography;
 using System.Text;
 

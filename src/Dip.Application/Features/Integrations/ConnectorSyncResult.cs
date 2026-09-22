@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.Integrations;
 
-public sealed record ConnectorSyncResult(int Observed,IReadOnlyList<ConnectorSyncObservation> Observations,IReadOnlyList<string> Warnings);
+public sealed record ConnectorSyncResult(int Observed, IReadOnlyList<ConnectorSyncObservation> Observations, IReadOnlyList<string> Warnings);

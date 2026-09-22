@@ -1,4 +1,4 @@
-// Purpose: Implements endpoint-agent behavior for S ql it eA ge nt St at eS to re.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 

@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by C om me rc ia lQ aP ol ic yT es ts.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Features.QualityAutomation;
 using FluentAssertions;
 
@@ -9,8 +9,8 @@ public sealed class CommercialQaPolicyTests
     [Fact]
     public void ReproducedP0_BlocksPromotionWithHighConfidence()
     {
-        var score=CommercialQaPolicy.QualityScore(1,0,0,0);
-        var gate=CommercialQaPolicy.ReleaseGate(1,0,0,"Succeeded",1m,24m,true,score);
+        var score = CommercialQaPolicy.QualityScore(1, 0, 0, 0);
+        var gate = CommercialQaPolicy.ReleaseGate(1, 0, 0, "Succeeded", 1m, 24m, true, score);
         gate.Status.Should().Be("Blocked");
         gate.Label.Should().Contain("DO NOT PROMOTE");
         gate.DecisionConfidencePercent.Should().BeGreaterThanOrEqualTo(95m);
@@ -19,8 +19,8 @@ public sealed class CommercialQaPolicyTests
     [Fact]
     public void FreshSuccessfulRunWithoutP0_IsReadyForHumanApproval()
     {
-        var score=CommercialQaPolicy.QualityScore(0,2,0,0);
-        var gate=CommercialQaPolicy.ReleaseGate(0,2,0,"Succeeded",2m,24m,false,score);
+        var score = CommercialQaPolicy.QualityScore(0, 2, 0, 0);
+        var gate = CommercialQaPolicy.ReleaseGate(0, 2, 0, "Succeeded", 2m, 24m, false, score);
         gate.Status.Should().Be("Ready");
         gate.Label.Should().Contain("HUMAN APPROVAL");
     }
@@ -28,7 +28,7 @@ public sealed class CommercialQaPolicyTests
     [Fact]
     public void StaleEvidence_NeverBecomesReady()
     {
-        var gate=CommercialQaPolicy.ReleaseGate(0,0,0,"Succeeded",30m,24m,false,100m);
+        var gate = CommercialQaPolicy.ReleaseGate(0, 0, 0, "Succeeded", 30m, 24m, false, 100m);
         gate.Status.Should().Be("Hold");
         gate.Reason.Should().Contain("stale");
     }
@@ -36,7 +36,7 @@ public sealed class CommercialQaPolicyTests
     [Fact]
     public void OperationalQualityScore_IsBounded()
     {
-        CommercialQaPolicy.QualityScore(100,100,100,100).Should().Be(0m);
-        CommercialQaPolicy.QualityScore(0,0,0,0).Should().Be(100m);
+        CommercialQaPolicy.QualityScore(100, 100, 100, 100).Should().Be(0m);
+        CommercialQaPolicy.QualityScore(0, 0, 0, 0).Should().Be(100m);
     }
 }

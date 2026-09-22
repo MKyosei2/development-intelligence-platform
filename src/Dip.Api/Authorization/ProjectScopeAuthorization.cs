@@ -1,4 +1,4 @@
-// Purpose: Defines the DIP responsibility represented by P ro je ct Sc op eA ut ho ri za ti on.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Security.Claims;

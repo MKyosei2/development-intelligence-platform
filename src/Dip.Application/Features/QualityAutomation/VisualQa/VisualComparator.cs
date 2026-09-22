@@ -1,4 +1,4 @@
-// Purpose: Implements application behavior for V is ua lC om pa ra to r.
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 namespace Dip.Application.Features.QualityAutomation.VisualQa;
 
 public interface IVisualComparator
@@ -44,36 +44,36 @@ public sealed class PortablePngVisualComparator : IVisualComparator
         double sumA = 0, sumB = 0, sumAA = 0, sumBB = 0, sumAB = 0;
 
         for (var y = 0; y < height; y++)
-        for (var x = 0; x < width; x++)
-        {
-            ct.ThrowIfCancellationRequested();
-            var index = (y * width + x) * 4;
-            if (Masked(x, y, masks))
+            for (var x = 0; x < width; x++)
             {
-                diff[index] = 40; diff[index + 1] = 40; diff[index + 2] = 40; diff[index + 3] = 120;
-                continue;
-            }
+                ct.ThrowIfCancellationRequested();
+                var index = (y * width + x) * 4;
+                if (Masked(x, y, masks))
+                {
+                    diff[index] = 40; diff[index + 1] = 40; diff[index + 2] = 40; diff[index + 3] = 120;
+                    continue;
+                }
 
-            evaluated++;
-            var dr = Math.Abs(a.Rgba[index] - b.Rgba[index]);
-            var dg = Math.Abs(a.Rgba[index + 1] - b.Rgba[index + 1]);
-            var db = Math.Abs(a.Rgba[index + 2] - b.Rgba[index + 2]);
-            var isChanged = Math.Max(dr, Math.Max(dg, db)) > ChannelTolerance;
-            if (isChanged)
-            {
-                changed++;
-                diff[index] = 255; diff[index + 1] = 32; diff[index + 2] = 32; diff[index + 3] = 255;
-            }
-            else
-            {
-                var luminance = (byte)Math.Clamp((int)Math.Round(0.2126 * b.Rgba[index] + 0.7152 * b.Rgba[index + 1] + 0.0722 * b.Rgba[index + 2]), 0, 255);
-                diff[index] = luminance; diff[index + 1] = luminance; diff[index + 2] = luminance; diff[index + 3] = 100;
-            }
+                evaluated++;
+                var dr = Math.Abs(a.Rgba[index] - b.Rgba[index]);
+                var dg = Math.Abs(a.Rgba[index + 1] - b.Rgba[index + 1]);
+                var db = Math.Abs(a.Rgba[index + 2] - b.Rgba[index + 2]);
+                var isChanged = Math.Max(dr, Math.Max(dg, db)) > ChannelTolerance;
+                if (isChanged)
+                {
+                    changed++;
+                    diff[index] = 255; diff[index + 1] = 32; diff[index + 2] = 32; diff[index + 3] = 255;
+                }
+                else
+                {
+                    var luminance = (byte)Math.Clamp((int)Math.Round(0.2126 * b.Rgba[index] + 0.7152 * b.Rgba[index + 1] + 0.0722 * b.Rgba[index + 2]), 0, 255);
+                    diff[index] = luminance; diff[index + 1] = luminance; diff[index + 2] = luminance; diff[index + 3] = 100;
+                }
 
-            var la = 0.2126 * a.Rgba[index] + 0.7152 * a.Rgba[index + 1] + 0.0722 * a.Rgba[index + 2];
-            var lb = 0.2126 * b.Rgba[index] + 0.7152 * b.Rgba[index + 1] + 0.0722 * b.Rgba[index + 2];
-            sumA += la; sumB += lb; sumAA += la * la; sumBB += lb * lb; sumAB += la * lb;
-        }
+                var la = 0.2126 * a.Rgba[index] + 0.7152 * a.Rgba[index + 1] + 0.0722 * a.Rgba[index + 2];
+                var lb = 0.2126 * b.Rgba[index] + 0.7152 * b.Rgba[index + 1] + 0.0722 * b.Rgba[index + 2];
+                sumA += la; sumB += lb; sumAA += la * la; sumBB += lb * lb; sumAB += la * lb;
+            }
 
         if (evaluated == 0) return new(false, width, height, 0, 0, 0m, 1m, null, "All pixels are masked.");
         var n = evaluated;

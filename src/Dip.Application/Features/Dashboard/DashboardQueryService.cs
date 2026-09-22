@@ -70,10 +70,10 @@ public sealed record DashboardHardwareSimulation(
 
 
 public sealed record DashboardP2Signal(
-    Guid Id,string Kind,string Status,decimal? Score,string Confidence,string Summary,DateTimeOffset CreatedAtUtc);
+    Guid Id, string Kind, string Status, decimal? Score, string Confidence, string Summary, DateTimeOffset CreatedAtUtc);
 
 public sealed record DashboardDecisionTrace(
-    Guid Id,string DecisionType,string SubjectKey,string PreviousValue,string NewValue,string Reason,DateTimeOffset CreatedAtUtc);
+    Guid Id, string DecisionType, string SubjectKey, string PreviousValue, string NewValue, string Reason, DateTimeOffset CreatedAtUtc);
 
 public sealed record ProjectDashboardDetails(
     Guid ProjectId,

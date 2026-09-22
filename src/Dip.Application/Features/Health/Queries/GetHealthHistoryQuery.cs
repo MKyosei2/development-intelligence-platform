@@ -1,1 +1,1 @@
-// Purpose: Defines the application query for G et He al th Hi st or yQ ue ry.
+// Purpose: Defines a focused responsibility within the development intelligence platform.

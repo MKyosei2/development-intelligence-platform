@@ -2,4 +2,4 @@
 using Dip.Domain.Enums;
 namespace Dip.Application.Features.DevelopmentGraph;
 
-public sealed record UniversalGraphNodeDto(DevelopmentGraphNodeDto Node,string DomainId,string Kind,string SchemaVersion,string? SourceObjectId);
+public sealed record UniversalGraphNodeDto(DevelopmentGraphNodeDto Node, string DomainId, string Kind, string SchemaVersion, string? SourceObjectId);

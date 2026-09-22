@@ -1,4 +1,4 @@
-// Purpose: Executes the infrastructure workflow represented by R eg re ss io nR un ne r.
+// Purpose: Provides infrastructure behavior for this application boundary.
 using System.Text.Json;
 using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.QualityAutomation;

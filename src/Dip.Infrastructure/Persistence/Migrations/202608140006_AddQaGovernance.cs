@@ -5,10 +5,10 @@ namespace Dip.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(DipDbContext))]
 [Migration("202608140006_AddQaGovernance")]
-public sealed class AddQaGovernance:Migration
+public sealed class AddQaGovernance : Migration
 {
-    public const string MigrationId="202608140006_AddQaGovernance";
-    protected override void Up(MigrationBuilder migrationBuilder)=>migrationBuilder.Sql(
+    public const string MigrationId = "202608140006_AddQaGovernance";
+    protected override void Up(MigrationBuilder migrationBuilder) => migrationBuilder.Sql(
     """
     ALTER TABLE qa_findings ADD COLUMN IF NOT EXISTS diagnostic_schema_version varchar(80) NOT NULL DEFAULT 'dip.finding.v2';
     ALTER TABLE qa_findings ADD COLUMN IF NOT EXISTS source_format varchar(80) NULL;
@@ -93,7 +93,7 @@ public sealed class AddQaGovernance:Migration
       minimized_input varchar(16000) NOT NULL,original_units integer NOT NULL,minimized_units integer NOT NULL,status varchar(40) NOT NULL,detail varchar(4000) NOT NULL,created_at_utc timestamptz NOT NULL);
     CREATE INDEX IF NOT EXISTS ix_qa_bug_minimizations_recent ON qa_bug_minimizations(project_id,created_at_utc DESC);
     """);
-    protected override void Down(MigrationBuilder migrationBuilder)=>migrationBuilder.Sql(
+    protected override void Down(MigrationBuilder migrationBuilder) => migrationBuilder.Sql(
     """
     DROP TABLE IF EXISTS qa_bug_minimizations CASCADE;DROP TABLE IF EXISTS qa_run_costs CASCADE;DROP TABLE IF EXISTS qa_artifact_retention_rules CASCADE;
     DROP TABLE IF EXISTS qa_test_impact_rules CASCADE;DROP TABLE IF EXISTS qa_quality_trend_snapshots CASCADE;DROP TABLE IF EXISTS qa_system_health_snapshots CASCADE;

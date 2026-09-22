@@ -1,4 +1,4 @@
-// Purpose: Defines the allowed R ep ro du ct io nS ta tu s states used by the DIP domain.
+// Purpose: Defines domain behavior and state for this feature area.
 namespace Dip.Domain.Enums;
 
 public enum ReproductionStatus

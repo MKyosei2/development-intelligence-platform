@@ -1,4 +1,4 @@
-// Purpose: Verifies behavior and invariants covered by P ro gr es sE va lu at or Te st s.
+// Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

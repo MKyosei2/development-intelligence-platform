@@ -1,3 +1,4 @@
+// Purpose: Defines a focused responsibility within the development intelligence platform.
 #include "dip/ReportWriter.hpp"
 #include <fstream>
 

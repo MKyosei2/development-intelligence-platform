@@ -1,4 +1,4 @@
-// Purpose: Implements web application behavior for O nb oa rd in gS ta te Se rv ic e.
+// Purpose: Coordinates application behavior for this feature area.
 using Microsoft.JSInterop;
 
 namespace Dip.Web.Services;
@@ -121,6 +121,7 @@ public sealed class OnboardingStateService(IJSRuntime js) : IAsyncDisposable
         }
         catch (JSException)
         {
+            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
     }
 
@@ -136,6 +137,7 @@ public sealed class OnboardingStateService(IJSRuntime js) : IAsyncDisposable
         }
         catch (JSDisconnectedException)
         {
+            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
     }
 }
