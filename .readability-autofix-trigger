@@ -2,3 +2,4 @@ run=source-readability-autofix-v1
 source=a11681ea740c716e62f1f0259425d727b8ecf177
 retry=purpose-idempotence-2a56ee8bee3004f9c11f5ee6c477c06466ede00f
 retry=compressed-csharp-164e3b56c618552f6e74dce7f8e9a800479a96e7
+retry=regex-escape-6c3696096343c7e64315b30da8cf583fcf60a6ce
