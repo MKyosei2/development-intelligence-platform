@@ -21,6 +21,12 @@ $success=$false
 $currentPhase='INITIALIZATION'
 $phaseLog=Join-Path $out 'phase-timeline.log'
 
+# Windows PowerShell resolves npm/npx to npm.ps1/npx.ps1 before the .cmd shims,
+# which can be blocked by ExecutionPolicy. Use the .cmd shims explicitly on Windows.
+$npmCommand=if($env:OS -eq 'Windows_NT'){'npm.cmd'}else{'npm'}
+$npxCommand=if($env:OS -eq 'Windows_NT'){'npx.cmd'}else{'npx'}
+$dockerCommand=if($env:OS -eq 'Windows_NT'){'docker.exe'}else{'docker'}
+
 function Start-Phase([string]$name){
     $script:currentPhase=$name
     $line="[PHASE START] $([DateTimeOffset]::UtcNow.ToString('o')) | $name"
@@ -175,17 +181,17 @@ try{
 
     $playwrightPassed=$false
     if($RunPlaywright){
-        if(Get-Command npm -ErrorAction SilentlyContinue){
+        if(Get-Command $npmCommand -ErrorAction SilentlyContinue){
             $uiE2e=Join-Path $root 'tests/Dip.UiE2E'
             Push-Location $uiE2e
             try{
                 Start-Phase 'NPM_DEPENDENCIES'
-                if(Test-Path package-lock.json){ npm ci --no-audit --no-fund }else{ npm install --no-audit --no-fund }
+                if(Test-Path package-lock.json){ & $npmCommand ci --no-audit --no-fund }else{ & $npmCommand install --no-audit --no-fund }
                 if($LASTEXITCODE -ne 0){throw "npm install failed with exit code $LASTEXITCODE"}
                 Pass-Phase 'NPM_DEPENDENCIES'
 
                 Start-Phase 'PLAYWRIGHT_BROWSER_INSTALL'
-                npx playwright install chromium
+                & $npxCommand playwright install chromium
                 if($LASTEXITCODE -ne 0){throw "Playwright browser install failed with exit code $LASTEXITCODE"}
                 Pass-Phase 'PLAYWRIGHT_BROWSER_INSTALL'
 
@@ -204,20 +210,20 @@ try{
                     '--retries=0'
                 )
                 if($Headed){$playwrightArgs+='--headed'}
-                & npx @playwrightArgs
+                & $npxCommand @playwrightArgs
                 if($LASTEXITCODE -ne 0){throw "Playwright E2E failed with exit code $LASTEXITCODE"}
                 $playwrightPassed=$true
                 Pass-Phase 'PLAYWRIGHT_TESTS'
             }
             finally{Pop-Location}
         }
-        elseif(Get-Command docker -ErrorAction SilentlyContinue){
+        elseif(Get-Command $dockerCommand -ErrorAction SilentlyContinue){
             Start-Phase 'PLAYWRIGHT_DOCKER_TESTS'
-            docker info *> $null
+            & $dockerCommand info *> $null
             if($LASTEXITCODE -ne 0){throw 'npm is missing and Docker Desktop is not running.'}
 
             $mount="type=bind,source=$root,target=/work"
-            docker run --rm `
+            & $dockerCommand run --rm `
                 --add-host host.docker.internal:host-gateway `
                 --mount $mount `
                 -w /work/tests/Dip.UiE2E `
