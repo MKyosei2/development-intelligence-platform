@@ -43,6 +43,11 @@ public static class DependencyInjection
     {
         services.AddScoped<CollectorReportService>();
         services.AddScoped<QaOrchestrationService>();
+        services.AddScoped<QaExecutionPlanner>();
+        services.AddScoped<QaAdapterExecutionCoordinator>();
+        services.AddScoped<QaResultMaterializer>();
+        services.AddScoped<QaFindingProcessor>();
+        services.AddScoped<QaPostRunProcessor>();
         services.AddScoped<CommercialQualityOperationsService>();
         services.AddScoped<BranchQualityOperationsService>();
         services.AddSingleton<IBranchQaWorkspaceManager, GitBranchQaWorkspaceManager>();
@@ -52,6 +57,14 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 "The configured fix proposal agent does not support autonomous debugging."));
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceCoreEngine>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaFindingLifecycleProcessor>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaReliabilityProcessor>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaBaselineProcessor>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaPolicyEvaluator>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaProvenanceBuilder>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaHealthEvaluator>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaCostEvaluator>();
+        services.AddScoped<Dip.Application.Features.QualityGovernance.QaBenchmarkComparisonService>();
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceRunProcessor>();
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceAdministrationService>();
         services.AddScoped<Dip.Application.Features.QualityGovernance.QaGovernanceQueryService>();
