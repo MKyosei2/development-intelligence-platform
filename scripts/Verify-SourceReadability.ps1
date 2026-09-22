@@ -86,7 +86,7 @@ foreach($rootName in @('src','tests','scripts','tools','services','collectors','
         $relative=Get-RelativePath $file.FullName
         $normalizedText=$text -replace "`r`n","`n" -replace "`r","`n"
         $lines=@($normalizedText -split "`n")
-        $purposeMatches=Get-PurposeMatches $text $extension
+        $purposeMatches=@(Get-PurposeMatches $text $extension)
         $purpose=''
         if($purposeMatches.Count -eq 0){Add-Issue ERROR MISSING_PURPOSE $relative 'Handwritten first-party source has no Purpose comment.'}
         else {
