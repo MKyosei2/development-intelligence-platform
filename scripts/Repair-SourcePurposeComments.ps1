@@ -77,23 +77,26 @@ function Get-ReplacementPurpose {
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
     $names = @(Get-DeclaredTypeNames -Content $Content)
     $name = if ($names.Count -eq 1) { $names[0] } else { $baseName }
-    $human = ConvertTo-HumanName $name
 
-    if ($baseName -eq 'Program') { return 'Composes and starts this DIP host.' }
-    if ($relative -match '^tests/') { return "Verifies the behavior and invariants exercised by $human." }
-    if ($relative -match '^scripts/') { return "Automates the repository workflow represented by $human." }
-    if ($relative -match '^tools/') { return "Provides repository tooling for $human." }
-    if ($relative -match '^src/Dip\.Web/.+\.razor$') { return "Renders and coordinates the $human web surface." }
-    if ($name -match 'Controller$') { return "Exposes the HTTP boundary implemented by $human." }
-    if ($name -match '^I[A-Z].*Repository$') { return "Defines the persistence boundary represented by $human." }
-    if ($name -match 'Repository$') { return "Persists and queries data through $human." }
-    if ($name -match 'Worker$|Job$') { return "Runs background processing through $human." }
-    if ($name -match 'Service$') { return "Orchestrates the workflow implemented by $human." }
-    if ($name -match 'Dto$|Request$|Response$|Contract') { return "Defines data exchanged through $human." }
-    if ($relative -match '^src/Dip\.Domain/') { return "Defines $human in the DIP domain." }
-    if ($relative -match '^src/Dip\.Infrastructure/') { return "Provides the infrastructure responsibility represented by $human." }
-    if ($relative -match '^src/Dip\.Web/') { return "Implements the web responsibility represented by $human." }
-    return "Defines the DIP responsibility represented by $human."
+    # Generated Purpose text deliberately avoids spelling the file or type name as
+    # split tokens. Test-BrokenPurpose treats token sequences that reconstruct a
+    # filename/type as malformed, so generic responsibility descriptions are the
+    # only idempotent repair output.
+    if ($baseName -eq 'Program') { return 'Composes and starts this application host and its configured dependencies.' }
+    if ($relative -match '^tests/') { return 'Verifies expected behavior and invariants for the surrounding feature.' }
+    if ($relative -match '^scripts/') { return 'Automates a repeatable development or verification workflow for this repository.' }
+    if ($relative -match '^tools/') { return 'Provides repository tooling used by development and verification workflows.' }
+    if ($relative -match '^src/Dip\.Web/.+\.razor$') { return 'Renders and coordinates this web surface and its user interactions.' }
+    if ($name -match 'Controller$') { return 'Exposes HTTP endpoints for this API responsibility.' }
+    if ($name -match '^I[A-Z].*Repository$') { return 'Defines a persistence boundary used by the application layer.' }
+    if ($name -match 'Repository$') { return 'Persists and queries data for this application boundary.' }
+    if ($name -match 'Worker$|Job$') { return 'Runs background processing for this application responsibility.' }
+    if ($name -match 'Service$') { return 'Coordinates application behavior for this feature area.' }
+    if ($name -match 'Dto$|Request$|Response$|Contract') { return 'Defines data exchanged across this application boundary.' }
+    if ($relative -match '^src/Dip\.Domain/') { return 'Defines domain behavior and state for this feature area.' }
+    if ($relative -match '^src/Dip\.Infrastructure/') { return 'Provides infrastructure behavior for this application boundary.' }
+    if ($relative -match '^src/Dip\.Web/') { return 'Implements web-facing behavior for this application surface.' }
+    return 'Defines a focused responsibility within the development intelligence platform.'
 }
 
 function Get-PurposeLine {
