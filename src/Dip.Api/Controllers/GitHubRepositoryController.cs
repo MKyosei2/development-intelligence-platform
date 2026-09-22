@@ -18,7 +18,7 @@ namespace Dip.Api.Controllers;
 [ApiController]
 [Route("api/v1/integrations/github")]
 [Produces("application/json")]
-public sealed class GitHubRepositoryController(IGitHubRepositoryCatalog github, ProjectService projects, ProjectAccessService access, QaOrchestrationService qa, ProjectRealtimePublisher realtime, IConfiguration configuration, GitHubPullRequestBackfillService backfill) : ControllerBase
+public sealed class GitHubRepositoryController(IGitHubRepositoryCatalog github, ProjectService projects, ProjectAccessService access, QaOrchestrationService qa, ProjectRealtimePublisher realtime, IConfiguration configuration, DevelopmentGraphService developmentGraph) : ControllerBase
 {
     [Authorize(Policy = Policies.ProjectRead)]
         [HttpGet("repositories")]
@@ -138,7 +138,7 @@ public sealed class GitHubRepositoryController(IGitHubRepositoryCatalog github, 
             try
             {
                 var pullRequests = await github.ListPullRequestsAsync(owner, repository, "all", cancellationToken);
-                await backfill.BackfillAsync(created.Id, details.Repository, pullRequests, cancellationToken);
+                await new GitHubPullRequestBackfillService(developmentGraph).BackfillAsync(created.Id, details.Repository, pullRequests, cancellationToken);
             }
             catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
             {
