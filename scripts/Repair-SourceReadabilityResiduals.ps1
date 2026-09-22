@@ -104,18 +104,18 @@ function Split-CSharpStatements([string]$Line,[string]$Indent) {
 
 function Expand-CSharpLine([string]$Line) {
     if(-not(Test-CompressedCodeLine $Line)){return $Line}
-    $indent=[regex]::Match($Line,'^\\s*').Value
+    $indent=[regex]::Match($Line,'^\s*').Value
     $candidate=Split-CSharpStatements -Line $Line -Indent $indent
 
     # Newlines are whitespace in C#, so these rewrites preserve behavior while
     # separating adjacent blocks and control statements for reviewer readability.
     $candidate=[regex]::Replace(
         $candidate,
-        '}\\s*(?=(?:else\\s+)?(?:if|for|foreach|while|switch|try|catch|finally|public|private|internal|protected)\\b)',
+        '}\s*(?=(?:else\s+)?(?:if|for|foreach|while|switch|try|catch|finally|public|private|internal|protected)\b)',
         "}`n$indent")
     $candidate=[regex]::Replace(
         $candidate,
-        '(?<=[;)])\\s+(?=(?:if|for|foreach|while|switch)\\s*\\()',
+        '(?<=[;)])\s+(?=(?:if|for|foreach|while|switch)\s*\()',
         "`n$indent")
 
     return $candidate
