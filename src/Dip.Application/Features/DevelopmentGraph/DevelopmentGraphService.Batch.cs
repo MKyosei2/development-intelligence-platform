@@ -42,8 +42,8 @@ public sealed partial class DevelopmentGraphService
             UpsertDevelopmentGraphNodeCommand command,
             CancellationToken ct)
         {
-            var node = await _owner.UpsertNodeCoreAsync(command, _nodes, ct);
-            return DevelopmentGraphService.Map(node);
+            var node = await _owner._mutations.UpsertNodeCoreAsync(command, _nodes, ct);
+            return DevelopmentGraphMapper.Map(node);
         }
 
         internal async Task<DevelopmentGraphEdgeDto> LinkAsync(
@@ -51,14 +51,14 @@ public sealed partial class DevelopmentGraphService
             CancellationToken ct)
         {
             var source = FindCachedNode(command.SourceNodeId)
-                ?? await _owner._repo.GetNodeAsync(command.SourceNodeId, ct)
+                ?? await _owner._queries.GetNodeByIdAsync(command.SourceNodeId, ct)
                 ?? throw new KeyNotFoundException($"Graph node {command.SourceNodeId} was not found.");
             var target = FindCachedNode(command.TargetNodeId)
-                ?? await _owner._repo.GetNodeAsync(command.TargetNodeId, ct)
+                ?? await _owner._queries.GetNodeByIdAsync(command.TargetNodeId, ct)
                 ?? throw new KeyNotFoundException($"Graph node {command.TargetNodeId} was not found.");
 
-            var edge = await _owner.LinkCoreAsync(command, source, target, _edges, ct);
-            return DevelopmentGraphService.Map(edge);
+            var edge = await _owner._mutations.LinkCoreAsync(command, source, target, _edges, ct);
+            return DevelopmentGraphMapper.Map(edge);
         }
 
         private DevelopmentGraphNode? FindCachedNode(Guid id) =>
