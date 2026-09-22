@@ -1,4 +1,4 @@
-// Purpose: Provides the infrastructure capability represented by P ro ce ss Ex ec ut or.
+// Purpose: Owns process lifecycle while delegating validation, sandbox, environment, output, and resource-limit policy.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -109,14 +109,14 @@ public sealed class ProcessExecutor
         if (!Directory.Exists(workspace))
             throw new DirectoryNotFoundException(workspace);
 
-        var networkIsolated = NetworkIsolationVerified();
-        var filesystemIsolated = FilesystemIsolationVerified();
+        var networkIsolated = ProcessSandboxInspector.NetworkIsolationVerified();
+        var filesystemIsolated = ProcessSandboxInspector.FilesystemIsolationVerified();
         try
         {
             if (sandbox)
             {
-                ValidateExecutable(executable, workspace);
-                ValidatePathArguments(args, workspace);
+                ProcessCommandValidator.ValidateExecutable(executable, workspace);
+                ProcessCommandValidator.ValidatePathArguments(args, workspace);
             }
             if (sandbox && _options.RequireExternalNetworkIsolation && !networkIsolated)
             {
@@ -131,7 +131,7 @@ public sealed class ProcessExecutor
         }
         catch (InvalidOperationException ex) when (sandbox)
         {
-            _metrics?.GovernanceSandboxDenied(ClassifySandboxDenial(ex.Message));
+            _metrics?.GovernanceSandboxDenied(ProcessSandboxInspector.ClassifySandboxDenial(ex.Message));
             throw;
         }
 
@@ -150,7 +150,7 @@ public sealed class ProcessExecutor
             psi.ArgumentList.Add(arg);
 
         if (sandbox && _options.SanitizeEnvironment)
-            SanitizeEnvironment(psi.Environment, environment);
+            ProcessEnvironmentSanitizer.Sanitize(psi.Environment, environment);
         else if (environment is not null)
             foreach (var pair in environment)
                 psi.Environment[pair.Key] = pair.Value;
@@ -169,19 +169,19 @@ public sealed class ProcessExecutor
                 throw new InvalidOperationException($"Failed to start {executable}.");
             if (sandbox && OperatingSystem.IsWindows())
             {
-                job = CreateJobObject(IntPtr.Zero, null);
+                job = ProcessResourceLimiter.CreateJobObject(IntPtr.Zero, null);
                 if (job != IntPtr.Zero)
                 {
-                    cpuApplied = ApplyCpuLimit(job, _options.SandboxCpuPercent);
-                    memoryApplied = ApplyMemoryAndKillOnClose(job, _options.SandboxMemoryLimitMb);
-                    AssignProcessToJobObject(job, process.Handle);
+                    cpuApplied = ProcessResourceLimiter.ApplyCpuLimit(job, _options.SandboxCpuPercent);
+                    memoryApplied = ProcessResourceLimiter.ApplyMemoryAndKillOnClose(job, _options.SandboxMemoryLimitMb);
+                    ProcessResourceLimiter.AssignProcessToJobObject(job, process.Handle);
                 }
             }
         }
         catch (Exception ex)
         {
             if (job != IntPtr.Zero)
-                CloseHandle(job);
+                ProcessResourceLimiter.CloseHandle(job);
             await File.WriteAllTextAsync(stderrPath, ex.ToString(), cancellationToken);
             return new(
                 executable, args, null, false, sw.ElapsedMilliseconds, "", ex.ToString(), stdoutPath, stderrPath,
@@ -191,11 +191,11 @@ public sealed class ProcessExecutor
                 0);
         }
 
-        var stdoutTask = ReadCappedAsync(
+        var stdoutTask = ProcessOutputCollector.ReadCappedAsync(
             process.StandardOutput,
             Math.Max(8192, _options.MaximumOutputCharacters),
             cancellationToken);
-        var stderrTask = ReadCappedAsync(
+        var stderrTask = ProcessOutputCollector.ReadCappedAsync(
             process.StandardError,
             Math.Max(8192, _options.MaximumOutputCharacters),
             cancellationToken);
@@ -254,7 +254,7 @@ public sealed class ProcessExecutor
         long cpuTimeMs = 0;
         try { cpuTimeMs = Math.Max(0L, (long)process.TotalProcessorTime.TotalMilliseconds); } catch {}
         if (job != IntPtr.Zero)
-            CloseHandle(job);
+            ProcessResourceLimiter.CloseHandle(job);
 
         var detail = resourceExceeded
             ? $"Memory budget exceeded ({peakMb} MiB > {_options.SandboxMemoryLimitMb} MiB)."
@@ -276,413 +276,5 @@ public sealed class ProcessExecutor
             outResult.Text, errResult.Text, stdoutPath, stderrPath, report, cpuTimeMs);
     }
 
-    private static void ValidateExecutable(string executable, string workspace)
-    {
-        var canonicalWorkspace = CanonicalDirectory(workspace);
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-        if (Path.IsPathRooted(executable))
-        {
-            var full = Path.GetFullPath(executable);
-            var canonical = CanonicalFile(full);
-            if (IsInside(canonicalWorkspace, canonical, comparison))
-                return;
-            var name = Path.GetFileNameWithoutExtension(full);
-            if (ExternalQaTools.Contains(name))
-            {
-                var resolved = FindExecutable(Path.GetFileName(full)) ?? FindExecutable(name);
-                if (!string.IsNullOrWhiteSpace(resolved)
-                    && string.Equals(CanonicalFile(resolved), canonical, comparison))
-                    return;
-            }
-            throw new InvalidOperationException(
-                $"QA executable outside workspace is not the canonical trusted PATH tool: {full}");
-        }
-
-        if (executable.Contains(Path.DirectorySeparatorChar)
-            || executable.Contains(Path.AltDirectorySeparatorChar))
-        {
-            var full = Path.GetFullPath(Path.Combine(workspace, executable));
-            var canonical = CanonicalCandidate(full);
-            if (!IsInside(canonicalWorkspace, canonical, comparison))
-                throw new InvalidOperationException(
-                    "QA executable escapes the workspace, including through a symbolic link.");
-            return;
-        }
-
-        if (!ExternalQaTools.Contains(Path.GetFileNameWithoutExtension(executable)))
-        {
-            throw new InvalidOperationException(
-                $"QA external tool '{executable}' is not allowlisted. Put custom runners inside the workspace or extend the trusted runner image.");
-        }
-    }
-
-    private static void ValidatePathArguments(IEnumerable<string> arguments, string workspace)
-    {
-        var canonicalWorkspace = CanonicalDirectory(workspace);
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-        foreach (var argument in arguments)
-        {
-            var candidate = ArgumentPathCandidate(argument, workspace);
-            if (candidate is null)
-                continue;
-
-            var full = Path.IsPathFullyQualified(candidate)
-                ? Path.GetFullPath(candidate)
-                : Path.GetFullPath(Path.Combine(workspace, candidate));
-            var canonical = CanonicalCandidate(full);
-            if (!IsInside(canonicalWorkspace, canonical, comparison))
-                throw new InvalidOperationException($"QA argument path escapes the workspace: {candidate}");
-        }
-    }
-
-    private static string? ArgumentPathCandidate(string argument, string workspace)
-    {
-        if (string.IsNullOrWhiteSpace(argument))
-            return null;
-
-        var trimmed = argument.Trim('"');
-        if (Path.IsPathFullyQualified(trimmed))
-            return trimmed;
-
-        var equals = trimmed.IndexOf('=');
-        if (equals > 0 && equals < trimmed.Length - 1)
-        {
-            var value = trimmed[(equals + 1)..].Trim('"');
-            if (Path.IsPathFullyQualified(value) || LooksLikeRelativePath(value, workspace))
-                return value;
-        }
-
-        if (!trimmed.StartsWith("-", StringComparison.Ordinal)
-            && LooksLikeRelativePath(trimmed, workspace))
-            return trimmed;
-
-        return null;
-    }
-
-    private static bool LooksLikeRelativePath(string value, string workspace)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return false;
-        if (value.StartsWith(".", StringComparison.Ordinal)
-            || value.Contains(Path.DirectorySeparatorChar)
-            || value.Contains(Path.AltDirectorySeparatorChar))
-            return true;
-        try
-        {
-            var candidate = Path.Combine(workspace, value);
-            return File.Exists(candidate) || Directory.Exists(candidate);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Canonicalizes existing files/directories and, for a not-yet-existing target,
-    /// resolves the nearest existing ancestor first. This prevents a writable path
-    /// under a symlinked parent from escaping the workspace after validation.
-    /// </summary>
-    private static string CanonicalCandidate(string path)
-    {
-        var full = Path.GetFullPath(path);
-        if (File.Exists(full))
-            return CanonicalFile(full);
-        if (Directory.Exists(full))
-            return CanonicalDirectory(full);
-
-        var tail = new Stack<string>();
-        var current = full;
-        while (!string.IsNullOrWhiteSpace(current)
-               && !File.Exists(current)
-               && !Directory.Exists(current))
-        {
-            var name = Path.GetFileName(current);
-            if (!string.IsNullOrEmpty(name))
-                tail.Push(name);
-            var parent = Path.GetDirectoryName(current);
-            if (string.IsNullOrWhiteSpace(parent) || string.Equals(parent, current, StringComparison.Ordinal))
-                break;
-            current = parent;
-        }
-
-        var canonical = Directory.Exists(current)
-            ? CanonicalDirectory(current)
-            : File.Exists(current)
-                ? CanonicalFile(current)
-                : Path.GetFullPath(current);
-        while (tail.Count > 0)
-            canonical = Path.Combine(canonical, tail.Pop());
-        return Path.GetFullPath(canonical);
-    }
-
-    private static string CanonicalFile(string path)
-    {
-        var full = Path.GetFullPath(path);
-        try { return new FileInfo(full).ResolveLinkTarget(true)?.FullName ?? full; }
-        catch { return full; }
-    }
-
-    private static string CanonicalDirectory(string path)
-    {
-        var full = Path.GetFullPath(path);
-        try { return new DirectoryInfo(full).ResolveLinkTarget(true)?.FullName ?? full; }
-        catch { return full; }
-    }
-
-    private static bool IsInside(string root, string path, StringComparison comparison)
-        => path.Equals(root, comparison)
-           || path.StartsWith(
-               root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-               + Path.DirectorySeparatorChar,
-               comparison);
-
-    private static void SanitizeEnvironment(
-        IDictionary<string,string?> target,
-        IReadOnlyDictionary<string,string>? supplied)
-    {
-        var source = target.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-        target.Clear();
-        foreach (var key in new[]
-                 {
-                     "PATH","SystemRoot","WINDIR","HOME","USERPROFILE","TEMP","TMP","TMPDIR",
-                     "DOTNET_ROOT","DOTNET_ROOT_X64","JAVA_HOME","GOPATH","GOROOT","NUGET_PACKAGES"
-                 })
-        {
-            if (source.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
-                target[key] = value;
-        }
-
-        if (supplied is not null)
-        {
-            foreach (var pair in supplied)
-            {
-                if (!IsSecretName(pair.Key) && !IsUnsafeEnvironmentName(pair.Key))
-                    target[pair.Key] = pair.Value;
-            }
-        }
-        target["DIP_QA_SANDBOX"] = "1";
-    }
-
-    private static bool IsSecretName(string key)
-        => key.Contains("TOKEN", StringComparison.OrdinalIgnoreCase)
-           || key.Contains("SECRET", StringComparison.OrdinalIgnoreCase)
-           || key.Contains("PASSWORD", StringComparison.OrdinalIgnoreCase)
-           || key.Contains("API_KEY", StringComparison.OrdinalIgnoreCase)
-           || key.Contains("CONNECTIONSTRING", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsUnsafeEnvironmentName(string key)
-        => UnsafeEnvironmentNames.Contains(key)
-           || key.StartsWith("DYLD_", StringComparison.OrdinalIgnoreCase)
-           || key.StartsWith("GIT_CONFIG_", StringComparison.OrdinalIgnoreCase);
-
-    private static bool FilesystemIsolationVerified()
-        => string.Equals(
-            Environment.GetEnvironmentVariable("DIP_QA_FILESYSTEM_ISOLATED"),
-            "1",
-            StringComparison.Ordinal);
-
-    private static bool NetworkIsolationVerified()
-    {
-        if (!string.Equals(
-                Environment.GetEnvironmentVariable("DIP_QA_NETWORK_ISOLATED"),
-                "1",
-                StringComparison.Ordinal))
-            return false;
-
-        // On Linux the assertion is accepted only when the current namespace has no
-        // non-loopback route. A plain environment variable inside a normally networked
-        // worker is therefore insufficient to claim isolation.
-        if (OperatingSystem.IsLinux())
-            return LinuxHasOnlyLoopbackRoutes();
-
-        // Windows isolation is supplied by the external sandbox/runner. The Windows
-        // Job Object below controls CPU/memory/process-tree lifetime but is not itself
-        // a network boundary, so the deployment must provide this explicit attestation.
-        return true;
-    }
-
-    private static bool LinuxHasOnlyLoopbackRoutes()
-    {
-        try
-        {
-            var observedRouteState = false;
-            if (File.Exists("/proc/net/route"))
-            {
-                observedRouteState = true;
-                foreach (var line in File.ReadLines("/proc/net/route").Skip(1))
-                {
-                    var columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                    if (columns.Length > 0 && !columns[0].Equals("lo", StringComparison.Ordinal))
-                        return false;
-                }
-            }
-
-            if (File.Exists("/proc/net/ipv6_route"))
-            {
-                observedRouteState = true;
-                foreach (var line in File.ReadLines("/proc/net/ipv6_route"))
-                {
-                    var columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                    if (columns.Length > 0
-                        && !columns[^1].Equals("lo", StringComparison.Ordinal))
-                        return false;
-                }
-            }
-            return observedRouteState;
-        }
-        catch
-        {
-            // An unverifiable namespace is not an isolated namespace.
-            return false;
-        }
-    }
-
-    private static string ClassifySandboxDenial(string message)
-        => message.Contains("network isolation", StringComparison.OrdinalIgnoreCase)
-            ? "network-isolation"
-            : message.Contains("workspace", StringComparison.OrdinalIgnoreCase)
-                ? "workspace-boundary"
-                : message.Contains("allowlist", StringComparison.OrdinalIgnoreCase)
-                  || message.Contains("trusted PATH", StringComparison.OrdinalIgnoreCase)
-                    ? "executable-policy"
-                    : "sandbox-policy";
-
-    private static async Task<(string Text,bool Truncated)> ReadCappedAsync(
-        StreamReader reader,
-        int max,
-        CancellationToken ct)
-    {
-        var sb = new StringBuilder(Math.Min(max, 65536));
-        var buffer = new char[8192];
-        var truncated = false;
-        while (true)
-        {
-            var n = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), ct);
-            if (n <= 0)
-                break;
-            var remaining = max - sb.Length;
-            if (remaining > 0)
-                sb.Append(buffer, 0, Math.Min(remaining, n));
-            if (n > remaining)
-                truncated = true;
-        }
-        if (truncated)
-            sb.Append("\n[DIP: output truncated by QA sandbox]\n");
-        return (sb.ToString(), truncated);
-    }
-
-    public static string? FindExecutable(string name)
-    {
-        if (Path.IsPathRooted(name) && File.Exists(name))
-            return name;
-        var candidates = new List<string> { name };
-        if (OperatingSystem.IsWindows() && Path.GetExtension(name).Length == 0)
-            candidates.AddRange([name + ".exe", name + ".cmd", name + ".bat"]);
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "")
-                 .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            foreach (var candidate in candidates)
-            {
-                var path = Path.Combine(directory.Trim('"'), candidate);
-                if (File.Exists(path))
-                    return path;
-            }
-        }
-        return null;
-    }
-
-    private static bool ApplyCpuLimit(IntPtr job, int percent)
-    {
-        var info = new JOBOBJECT_CPU_RATE_CONTROL_INFORMATION
-        {
-            ControlFlags = 0x1 | 0x4,
-            CpuRate = (uint)(Math.Clamp(percent, 1, 100) * 100)
-        };
-        return SetJobInfo(job, 15, info);
-    }
-
-    private static bool ApplyMemoryAndKillOnClose(IntPtr job, int memoryMb)
-    {
-        var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
-        info.BasicLimitInformation.LimitFlags = 0x2000;
-        if (memoryMb > 0)
-        {
-            info.BasicLimitInformation.LimitFlags |= 0x100;
-            info.ProcessMemoryLimit = (UIntPtr)((ulong)memoryMb * 1024UL * 1024UL);
-        }
-        var applied = SetJobInfo(job, 9, info);
-        return applied && memoryMb > 0;
-    }
-
-    private static bool SetJobInfo<T>(IntPtr job, int cls, T value) where T : struct
-    {
-        var size = Marshal.SizeOf<T>();
-        var ptr = Marshal.AllocHGlobal(size);
-        try
-        {
-            Marshal.StructureToPtr(value, ptr, false);
-            return SetInformationJobObject(job, cls, ptr, (uint)size);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(ptr);
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct JOBOBJECT_CPU_RATE_CONTROL_INFORMATION
-    {
-        public uint ControlFlags;
-        public uint CpuRate;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
-    {
-        public long PerProcessUserTimeLimit;
-        public long PerJobUserTimeLimit;
-        public uint LimitFlags;
-        public UIntPtr MinimumWorkingSetSize;
-        public UIntPtr MaximumWorkingSetSize;
-        public uint ActiveProcessLimit;
-        public long Affinity;
-        public uint PriorityClass;
-        public uint SchedulingClass;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct IO_COUNTERS
-    {
-        public ulong ReadOperationCount,WriteOperationCount,OtherOperationCount,ReadTransferCount,WriteTransferCount,OtherTransferCount;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
-    {
-        public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
-        public IO_COUNTERS IoInfo;
-        public UIntPtr ProcessMemoryLimit;
-        public UIntPtr JobMemoryLimit;
-        public UIntPtr PeakProcessMemoryUsed;
-        public UIntPtr PeakJobMemoryUsed;
-    }
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool SetInformationJobObject(IntPtr hJob, int infoClass, IntPtr lpJobObjectInfo, uint cbJobObjectInfoLength);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool CloseHandle(IntPtr h);
+    public static string? FindExecutable(string name) => ProcessCommandValidator.FindExecutable(name);
 }
