@@ -48,7 +48,18 @@ public sealed class PythonQaEngine(ProcessExecutor executor,UniversalDiagnosticN
         }
         async Task RunMemoryProbe(string target,IReadOnlyList<string> runtimeArgs)
         {
-            const string probe="import runpy,sys,tracemalloc; target=sys.argv[1]; sys.argv=[target,*sys.argv[2:]]; tracemalloc.start(5); before=tracemalloc.take_snapshot(); state=runpy.run_path(target,run_name='__main__'); after=tracemalloc.take_snapshot(); net=sum(max(0,s.size_diff) for s in after.compare_to(before,'lineno')); current,peak=tracemalloc.get_traced_memory(); print(f'DIP_TRACEMALLOC_NET_BYTES={net}'); print(f'DIP_TRACEMALLOC_PEAK_BYTES={peak}')";
+            const string probe =
+                "import runpy,sys,tracemalloc; "
+                + "target=sys.argv[1]; "
+                + "sys.argv=[target,*sys.argv[2:]]; "
+                + "tracemalloc.start(5); "
+                + "before=tracemalloc.take_snapshot(); "
+                + "state=runpy.run_path(target,run_name='__main__'); "
+                + "after=tracemalloc.take_snapshot(); "
+                + "net=sum(max(0,s.size_diff) for s in after.compare_to(before,'lineno')); "
+                + "current,peak=tracemalloc.get_traced_memory(); "
+                + "print(f'DIP_TRACEMALLOC_NET_BYTES={net}'); "
+                + "print(f'DIP_TRACEMALLOC_PEAK_BYTES={peak}')";
             var args = new List<string>
             {
                 "-X",
