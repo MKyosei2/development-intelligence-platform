@@ -152,7 +152,7 @@ public sealed class QaFindingLifecycleProcessorTests
             recommendations.Should().NotBeEmpty();
             freshness.Status.Should().Be(QaFreshnessStatus.Fresh.ToString());
             correlation.Fingerprint.Should().Be(finding.Fingerprint);
-            cost.RunCount.Should().Be(2);
+            cost.Runs.Should().Be(2);
             QaGovernanceCoreEngine.GetDiagnosticSchema().SchemaVersion
                 .Should().Be("dip.finding.v2");
 
