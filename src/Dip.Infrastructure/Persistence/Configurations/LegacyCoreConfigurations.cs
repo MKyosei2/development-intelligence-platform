@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Freezes the legacy pre-migration core schema so formal migrations remain compatible with databases created by EnsureCreated.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +14,8 @@ public sealed class ProjectCoreConfiguration : IEntityTypeConfiguration<Project>
 {
     public void Configure(EntityTypeBuilder<Project> b)
     {
-        b.ToTable("Projects"); b.HasKey(x => x.Id);
+        b.ToTable("Projects");
+        b.HasKey(x => x.Id);
         b.Property(x => x.Name).HasMaxLength(120).IsRequired();
         b.Property(x => x.RepositoryUrl).HasMaxLength(2000).IsRequired();
         b.Property(x => x.DefaultBranch).HasMaxLength(200).IsRequired();
@@ -27,7 +28,8 @@ public sealed class PipelineRunCoreConfiguration : IEntityTypeConfiguration<Pipe
 {
     public void Configure(EntityTypeBuilder<PipelineRun> b)
     {
-        b.ToTable("PipelineRuns"); b.HasKey(x => x.Id);
+        b.ToTable("PipelineRuns");
+        b.HasKey(x => x.Id);
         b.Property(x => x.CommitSha).HasConversion(v => v.Value, v => new CommitSha(v)).HasMaxLength(64).IsRequired();
         b.Property(x => x.ExternalRunId).HasMaxLength(200).IsRequired();
         b.Property(x => x.Branch).HasMaxLength(200).IsRequired();
@@ -44,7 +46,8 @@ public sealed class MetricCoreConfiguration : IEntityTypeConfiguration<Metric>
 {
     public void Configure(EntityTypeBuilder<Metric> b)
     {
-        b.ToTable("Metrics"); b.HasKey(x => x.Id);
+        b.ToTable("Metrics");
+        b.HasKey(x => x.Id);
         b.Property(x => x.Name).HasMaxLength(120).IsRequired();
         b.Property(x => x.Unit).HasMaxLength(30).IsRequired();
         b.Property(x => x.Value).HasPrecision(18, 6);
@@ -65,7 +68,8 @@ public sealed class QualityIssueCoreConfiguration : IEntityTypeConfiguration<Qua
 {
     public void Configure(EntityTypeBuilder<QualityIssue> b)
     {
-        b.ToTable("QualityIssues"); b.HasKey(x => x.Id);
+        b.ToTable("QualityIssues");
+        b.HasKey(x => x.Id);
         b.Property(x => x.Fingerprint).HasMaxLength(64).IsRequired();
         b.Property(x => x.Category).HasMaxLength(80).IsRequired();
         b.Property(x => x.Title).HasMaxLength(200).IsRequired();
@@ -84,7 +88,8 @@ public sealed class QualityGateResultCoreConfiguration : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<QualityGateResult> b)
     {
-        b.ToTable("QualityGateResults"); b.HasKey(x => x.Id);
+        b.ToTable("QualityGateResults");
+        b.HasKey(x => x.Id);
         b.Property(x => x.Status).HasMaxLength(40).IsRequired();
         b.Property(x => x.Score).HasPrecision(5, 2);
         b.Property(x => x.ReasonsJson).HasMaxLength(16000).IsRequired();
@@ -98,7 +103,8 @@ public sealed class OutboxMessageCoreConfiguration : IEntityTypeConfiguration<Ou
 {
     public void Configure(EntityTypeBuilder<OutboxMessage> b)
     {
-        b.ToTable("OutboxMessages"); b.HasKey(x => x.Id);
+        b.ToTable("OutboxMessages");
+        b.HasKey(x => x.Id);
         b.Property(x => x.MessageType).HasMaxLength(500).IsRequired();
         b.Property(x => x.PayloadJson).HasColumnType("text").IsRequired();
         b.Property(x => x.CorrelationId).HasMaxLength(200).IsRequired();
@@ -112,7 +118,8 @@ public sealed class ProcessedWebhookCoreConfiguration : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<ProcessedWebhook> b)
     {
-        b.ToTable("ProcessedWebhooks"); b.HasKey(x => x.DeliveryId);
+        b.ToTable("ProcessedWebhooks");
+        b.HasKey(x => x.DeliveryId);
         b.Property(x => x.DeliveryId).HasMaxLength(200);
         b.Property(x => x.EventName).HasMaxLength(100).IsRequired();
         b.Property(x => x.PayloadHash).HasMaxLength(64).IsRequired();

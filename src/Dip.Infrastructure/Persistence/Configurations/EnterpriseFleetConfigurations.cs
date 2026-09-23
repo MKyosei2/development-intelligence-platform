@@ -1,0 +1,159 @@
+// Purpose: Maps enterprise tenancy, fleet enrollment, identity governance, evidence integrity, and retention state to PostgreSQL.
+using Dip.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Dip.Infrastructure.Persistence.Configurations;
+
+public sealed class AgentEnrollmentTokenConfiguration : IEntityTypeConfiguration<AgentEnrollmentToken>
+{
+    public void Configure(EntityTypeBuilder<AgentEnrollmentToken> b)
+    {
+        b.ToTable("agent_enrollment_tokens");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.TokenHash).HasMaxLength(128);
+        b.HasIndex(x => x.TokenHash).IsUnique();
+    }
+}
+
+public sealed class AgentRegistrationConfiguration : IEntityTypeConfiguration<AgentRegistration>
+{
+    public void Configure(EntityTypeBuilder<AgentRegistration> b)
+    {
+        b.ToTable("agent_registrations");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.AgentId).HasMaxLength(160);
+        b.Property(x => x.MachineId).HasMaxLength(160);
+        b.Property(x => x.PublicKeyPem).HasMaxLength(12000);
+        b.Property(x => x.Version).HasMaxLength(80);
+        b.Property(x => x.Status).HasConversion<string>().HasMaxLength(40);
+        b.Property(x => x.HealthJson).HasMaxLength(32000);
+        b.HasIndex(x => x.AgentId).IsUnique();
+        b.HasIndex(x => new { x.OrganizationId, x.ProjectId });
+    }
+}
+
+public sealed class AgentReleaseConfiguration : IEntityTypeConfiguration<AgentRelease>
+{
+    public void Configure(EntityTypeBuilder<AgentRelease> b)
+    {
+        b.ToTable("agent_releases");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Version).HasMaxLength(80);
+        b.Property(x => x.Channel).HasConversion<string>().HasMaxLength(40);
+        b.Property(x => x.State).HasConversion<string>().HasMaxLength(40);
+        b.Property(x => x.PackageUri).HasMaxLength(1000);
+        b.Property(x => x.Sha256).HasMaxLength(128);
+        b.Property(x => x.Signature).HasMaxLength(8000);
+        b.Property(x => x.MinimumServerVersion).HasMaxLength(80);
+        b.HasIndex(x => new { x.OrganizationId, x.Channel, x.CreatedAtUtc });
+    }
+}
+
+public sealed class DistributedIngestionEventConfiguration : IEntityTypeConfiguration<DistributedIngestionEvent>
+{
+    public void Configure(EntityTypeBuilder<DistributedIngestionEvent> b)
+    {
+        b.ToTable("distributed_ingestion_events");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.IdempotencyKey).HasMaxLength(300);
+        b.Property(x => x.EnvelopeJson).HasMaxLength(128000);
+        b.Property(x => x.State).HasConversion<string>().HasMaxLength(40);
+        b.Property(x => x.LastError).HasMaxLength(8000);
+        b.HasIndex(x => new { x.OrganizationId, x.IdempotencyKey }).IsUnique();
+        b.HasIndex(x => new { x.OrganizationId, x.State, x.SourceSequence });
+    }
+}
+
+public sealed class EvidenceIntegrityReceiptConfiguration : IEntityTypeConfiguration<EvidenceIntegrityReceipt>
+{
+    public void Configure(EntityTypeBuilder<EvidenceIntegrityReceipt> b)
+    {
+        b.ToTable("evidence_integrity_receipts");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.PayloadHash).HasMaxLength(128);
+        b.Property(x => x.PreviousHash).HasMaxLength(128);
+        b.Property(x => x.ChainHash).HasMaxLength(128);
+        b.Property(x => x.SourceSignature).HasMaxLength(16000);
+        b.Property(x => x.SourceKeyId).HasMaxLength(240);
+        b.Property(x => x.Status).HasConversion<string>().HasMaxLength(40);
+        b.HasIndex(x => new { x.OrganizationId, x.ProjectId, x.IngestedAtUtc });
+        b.HasIndex(x => x.EvidenceId);
+    }
+}
+
+public sealed class ExternalIdentityLinkConfiguration : IEntityTypeConfiguration<ExternalIdentityLink>
+{
+    public void Configure(EntityTypeBuilder<ExternalIdentityLink> b)
+    {
+        b.ToTable("external_identity_links");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Provider).HasMaxLength(120);
+        b.Property(x => x.ExternalId).HasMaxLength(300);
+        b.Property(x => x.ApprovedBy).HasMaxLength(240);
+        b.HasIndex(x => new { x.Provider, x.ExternalId });
+        b.HasIndex(x => x.IdentityProfileId);
+    }
+}
+
+public sealed class IdentityProfileConfiguration : IEntityTypeConfiguration<IdentityProfile>
+{
+    public void Configure(EntityTypeBuilder<IdentityProfile> b)
+    {
+        b.ToTable("identity_profiles");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Kind).HasConversion<string>().HasMaxLength(40);
+        b.Property(x => x.DisplayName).HasMaxLength(240);
+        b.HasIndex(x => x.OrganizationId);
+    }
+}
+
+public sealed class OrganizationRoleBindingConfiguration : IEntityTypeConfiguration<OrganizationRoleBinding>
+{
+    public void Configure(EntityTypeBuilder<OrganizationRoleBinding> b)
+    {
+        b.ToTable("organization_role_bindings");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.SubjectId).HasMaxLength(300);
+        b.Property(x => x.Role).HasConversion<string>().HasMaxLength(40);
+        b.Property(x => x.GrantedBy).HasMaxLength(240);
+        b.HasIndex(x => new { x.OrganizationId, x.SubjectId, x.ProjectId });
+    }
+}
+
+public sealed class OrganizationTenantConfiguration : IEntityTypeConfiguration<OrganizationTenant>
+{
+    public void Configure(EntityTypeBuilder<OrganizationTenant> b)
+    {
+        b.ToTable("organizations");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Name).HasMaxLength(200);
+        b.Property(x => x.Slug).HasMaxLength(100);
+        b.HasIndex(x => x.Slug).IsUnique();
+    }
+}
+
+public sealed class ProjectTenantBindingConfiguration : IEntityTypeConfiguration<ProjectTenantBinding>
+{
+    public void Configure(EntityTypeBuilder<ProjectTenantBinding> b)
+    {
+        b.ToTable("project_tenant_bindings");
+        b.HasKey(x => x.Id);
+        b.HasIndex(x => x.ProjectId).IsUnique();
+        b.HasIndex(x => new { x.OrganizationId, x.ProjectId });
+        b.Property(x => x.PortfolioKey).HasMaxLength(120);
+    }
+}
+
+public sealed class RetentionExecutionRecordConfiguration : IEntityTypeConfiguration<RetentionExecutionRecord>
+{
+    public void Configure(EntityTypeBuilder<RetentionExecutionRecord> b)
+    {
+        b.ToTable("retention_execution_records");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.ResourceType).HasMaxLength(120);
+        b.Property(x => x.Action).HasConversion<string>().HasMaxLength(40);
+        b.Property(x => x.PolicySnapshotJson).HasMaxLength(32000);
+        b.HasIndex(x => new { x.OrganizationId, x.ExecutedAtUtc });
+    }
+}

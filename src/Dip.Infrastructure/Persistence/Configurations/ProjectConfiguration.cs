@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Keeps the runtime Project mapping aligned with the immutable legacy migration baseline.
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;

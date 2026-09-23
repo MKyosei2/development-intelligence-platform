@@ -1,10 +1,10 @@
+// Purpose: Configures EF Core persistence for external work item links.
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dip.Infrastructure.Persistence.Configurations;
 
-// Purpose: Configures EF Core persistence for external work item links.
 public sealed class ExternalWorkItemLinkConfiguration : IEntityTypeConfiguration<ExternalWorkItemLink>
 {
     public void Configure(EntityTypeBuilder<ExternalWorkItemLink> b)
