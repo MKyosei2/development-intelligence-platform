@@ -1762,17 +1762,7 @@ namespace Dip.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
-            RenameConstraintIfExists(
-                migrationBuilder,
-                "project_forecasts",
-                "PK_project_forecasts",
-                "project_forecasts_pkey");
 
-            RenameConstraintIfExists(
-                migrationBuilder,
-                "project_forecasts",
-                "FK_project_forecasts_Projects_project_id",
-                "project_forecasts_project_id_fkey");
 
             migrationBuilder.CreateTable(
                 name: "project_source_bindings",
@@ -2171,17 +2161,7 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 "ix_project_forecasts_project_created_at_utc",
                 "IX_project_forecasts_project_id_created_at_utc");
 
-            RenameConstraintIfExists(
-                migrationBuilder,
-                "project_forecasts",
-                "project_forecasts_pkey",
-                "PK_project_forecasts");
 
-            RenameConstraintIfExists(
-                migrationBuilder,
-                "project_forecasts",
-                "project_forecasts_project_id_fkey",
-                "FK_project_forecasts_Projects_project_id");
 
             migrationBuilder.DropTable(
                 name: "project_source_bindings");
@@ -3738,50 +3718,6 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 "DO $$ BEGIN " +
                 string.Join(" ", branches) +
                 " END IF; END $$;");
-        }
-
-        private static void RenameConstraintIfExists(
-            MigrationBuilder migrationBuilder,
-            string tableName,
-            string newName,
-            params string[] candidateNames)
-        {
-            var candidates = candidateNames
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-
-            if (candidates.Length == 0)
-                return;
-
-            var branches = candidates
-                .Select((candidate, index) =>
-                {
-                    var keyword = index == 0 ? "IF" : "ELSIF";
-                    return
-                        $"{keyword} NOT EXISTS (" +
-                        "SELECT 1 FROM pg_constraint c " +
-                        "JOIN pg_class t ON t.oid = c.conrelid " +
-                        "JOIN pg_namespace n ON n.oid = t.relnamespace " +
-                        $"WHERE c.conname = {SqlLiteral(newName)} " +
-                        $"AND t.relname = {SqlLiteral(tableName)} " +
-                        "AND n.nspname = current_schema()" +
-                        ") AND EXISTS (" +
-                        "SELECT 1 FROM pg_constraint c " +
-                        "JOIN pg_class t ON t.oid = c.conrelid " +
-                        "JOIN pg_namespace n ON n.oid = t.relnamespace " +
-                        $"WHERE c.conname = {SqlLiteral(candidate)} " +
-                        $"AND t.relname = {SqlLiteral(tableName)} " +
-                        "AND n.nspname = current_schema()" +
-                        ") THEN " +
-                        $"ALTER TABLE {QuoteIdentifier(tableName)} " +
-                        $"RENAME CONSTRAINT {QuoteIdentifier(candidate)} TO {QuoteIdentifier(newName)};";
-                });
-
-            migrationBuilder.Sql(
-                "DO $ BEGIN " +
-                string.Join(" ", branches) +
-                " END IF; END $;");
         }
 
         private static string QuoteIdentifier(string value)
