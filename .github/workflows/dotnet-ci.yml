@@ -39,6 +39,8 @@ jobs:
         run: dotnet test tests/Dip.Application.Tests/Dip.Application.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=application-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
       - name: Infrastructure tests
         run: dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=infrastructure-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
+      - name: Integration tests
+        run: dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj --configuration Release --no-build --logger "trx;LogFileName=integration-tests.trx" --results-directory TestResults
       - name: Project Truth / Release / QA coverage gates
         run: >
           python tools/check_core_coverage.py
