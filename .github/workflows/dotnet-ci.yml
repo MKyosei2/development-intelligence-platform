@@ -51,6 +51,7 @@ jobs:
         run: ./scripts/Verify-SourceReadability.ps1 -Strict
       - name: Upload test results and coverage summary
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: dotnet-unit-test-results

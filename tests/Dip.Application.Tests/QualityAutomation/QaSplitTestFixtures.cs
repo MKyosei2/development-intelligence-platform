@@ -74,6 +74,18 @@ internal static class QaSplitTestFixtures
             string workspace,
             string artifactRoot,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new QaAdapterResult(command.Language, [], [], "{}"));
+            Task.FromResult(new QaAdapterResult(
+                command.Language,
+                [new QaToolExecution(
+                    "unit-noop",
+                    true,
+                    true,
+                    0,
+                    0,
+                    "",
+                    "",
+                    "Deterministic unit-test adapter completed.")],
+                [],
+                "{}"));
     }
 }
