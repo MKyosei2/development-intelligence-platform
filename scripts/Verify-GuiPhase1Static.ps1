@@ -7,7 +7,10 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $required = @(
     "src/Dip.Web/State/ProjectState.cs",
     "src/Dip.Infrastructure/GitHub/GitHubRepositoryCatalog.cs",
-    "src/Dip.Api/Controllers/GitHubRepositoriesController.cs",
+    "src/Dip.Api/Controllers/GitHubConnectionController.cs",
+    "src/Dip.Api/Controllers/GitHubRepositoryController.cs",
+    "src/Dip.Api/Controllers/GitHubWorkspaceController.cs",
+    "src/Dip.Api/Controllers/GitHubPullRequestController.cs",
     "src/Dip.Api/Hubs/ProjectEventsHub.cs",
     "src/Dip.Web/Pages/Projects/GitHubImport.razor",
     "src/Dip.Web/Pages/Dashboard/ProjectDashboard.razor",

@@ -106,9 +106,9 @@ for signature, role in [
     prefix = controller[max(0, pos-500):pos] if pos >= 0 else ""
     check(f"auth_{signature}", pos >= 0 and f"ProjectMembershipRole.{role}" in prefix, f"{signature} requires {role}")
 
-project_control = text("src/Dip.Api/Controllers/ProjectControlController.cs")
-sheets_pos = project_control.find("SyncGoogleSheets")
-sheets_prefix = project_control[max(0, sheets_pos-500):sheets_pos] if sheets_pos >= 0 else ""
+management_spreadsheet_controller = text("src/Dip.Api/Controllers/ManagementSpreadsheetController.cs")
+sheets_pos = management_spreadsheet_controller.find("SyncGoogleSheets")
+sheets_prefix = management_spreadsheet_controller[max(0, sheets_pos-500):sheets_pos] if sheets_pos >= 0 else ""
 check("auth_GoogleSheetsSync", sheets_pos >= 0 and "RequireProjectRole(ProjectMembershipRole.Maintainer)" in sheets_prefix, "Google Sheets management synchronization requires Maintainer")
 
 app_di = text("src/Dip.Application/DependencyInjection.cs")
@@ -139,18 +139,23 @@ check("last_owner_demotion_blocked", "The last project owner cannot be demoted" 
 pipeline_controller = text("src/Dip.Api/Controllers/PipelineRunsController.cs")
 check("pipeline_specific_qa_evidence", all(token in pipeline_controller for token in ["IQualityIssueRepository", "IEvidenceRepository", "QualityIssues", "Evidence"]), "Pipeline detail returns concrete related QA issues and EvidenceRecord entries")
 
-github_controller = text("src/Dip.Api/Controllers/GitHubRepositoriesController.cs")
+github_connection_controller = text("src/Dip.Api/Controllers/GitHubConnectionController.cs")
+github_repository_controller = text("src/Dip.Api/Controllers/GitHubRepositoryController.cs")
+github_workspace_controller = text("src/Dip.Api/Controllers/GitHubWorkspaceController.cs")
+github_pull_request_controller = text("src/Dip.Api/Controllers/GitHubPullRequestController.cs")
 github_catalog = text("src/Dip.Infrastructure/GitHub/GitHubRepositoryCatalog.cs")
 github_contract = text("src/Dip.Application/Abstractions/GitHub/IGitHubRepositoryCatalog.cs")
 github_options = text("src/Dip.Infrastructure/GitHub/GitHubOptions.cs")
 repositories_contract = text("src/Dip.Application/Abstractions/Persistence/Repositories.cs")
 repository_page = text("src/Dip.Web/Pages/Dashboard/Repository.razor")
 check("github_capability_probe", all(token in github_catalog for token in ["GitHubCapabilityProbeDto", "Contents", "PullRequests", "Actions"]), "GitHub connection test can distinguish repository/content/PR/Actions capabilities")
-check("github_project_specific_probe", "projects/{projectId:guid}/test" in github_controller and "ProbeRepositoryAsync" in github_controller and "TestGitHubConnectionAsync(_project?.Id)" in text("src/Dip.Web/Pages/Settings.razor"), "Settings verifies capabilities against the selected DIP project's repository instead of an arbitrary repository")
-check("github_pr_backfill_explicit_sync", 'ListPullRequestsAsync(owner, repository, "all"' in github_controller and "BackfillPullRequestsAsync" in github_controller and "TryBackfillPullRequestsAsync" not in github_controller, "Import/sync perform bounded historical PR backfill while PR GET endpoints stay read-only")
+check("github_project_specific_probe", "projects/{projectId:guid}/test" in github_connection_controller and "ProbeRepositoryAsync" in github_connection_controller and "TestGitHubConnectionAsync(_project?.Id)" in text("src/Dip.Web/Pages/Settings.razor"), "Settings verifies capabilities against the selected DIP project's repository instead of an arbitrary repository")
+repository_backfill = all(token in github_repository_controller for token in ['ListPullRequestsAsync(owner, repository, "all"', "GitHubPullRequestBackfillService", "BackfillAsync"])
+workspace_backfill = all(token in github_workspace_controller for token in ['ListPullRequestsAsync(owner, repository, "all"', "GitHubPullRequestBackfillService", "BackfillAsync"])
+check("github_pr_backfill_explicit_sync", repository_backfill and workspace_backfill and "TryBackfillPullRequestsAsync" not in (github_repository_controller + github_workspace_controller), "Import/sync perform bounded historical PR backfill while PR GET endpoints stay read-only")
 check("github_pr_backfill_pagination", all(token in github_catalog for token in ["pulls?state={normalizedState}", "per_page=100&page={page}", "/commits?per_page=100&page={page}", "/files?per_page=100&page={page}", "/reviews?per_page=100&page={page}"]) and all(token in github_options for token in ["MaxPullRequestPages", "MaxPullRequestCommitPages", "MaxPullRequestFilePages", "MaxPullRequestReviewPages"]) and "ListPullRequestsAsync" in github_contract, "Historical PR, commit, file and review collection is paginated with explicit safety limits")
 check("github_pr_merged_from_timestamp", 'GetDate(item, "merged_at").HasValue' in github_catalog, "Closed and merged pull requests are distinguished using merged_at")
-check("pr_pipeline_qa_evidence_traceability", all(token in github_controller for token in ["ListByCommitShasAsync", "ListByPipelineRunsAsync", "PipelineRuns", "QualityIssues", "Evidence"]) and all(token in repository_page for token in ["Persisted pipeline runs", "Related QA issues", "Evidence records"]), "PR detail traces revisions through persisted pipelines to concrete QA issues and EvidenceRecord entries")
+check("pr_pipeline_qa_evidence_traceability", all(token in github_pull_request_controller for token in ["ListByCommitShasAsync", "ListByPipelineRunsAsync", "PipelineRuns", "QualityIssues", "Evidence"]) and all(token in repository_page for token in ["Persisted pipeline runs", "Related QA issues", "Evidence records"]), "PR detail traces revisions through persisted pipelines to concrete QA issues and EvidenceRecord entries")
 check("pipeline_commit_query_contract", "ListByCommitShasAsync" in repositories_contract, "Pipeline repository exposes full-SHA lookup for PR traceability")
 evidence_repo = text("src/Dip.Infrastructure/Persistence/Repositories/EvidenceRepository.cs")
 quality_repo = text("src/Dip.Infrastructure/Persistence/Repositories/QualityIssueRepository.cs")

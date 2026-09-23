@@ -29,7 +29,7 @@ public sealed class ManagementOperationsAuthorizationSurfaceTests
     [Fact]
     public void GoogleSheetsManagementSync_RequiresMaintainer()
     {
-        var action = typeof(ProjectControlController).GetMethod(nameof(ProjectControlController.SyncGoogleSheets))!;
+        var action = typeof(ManagementSpreadsheetController).GetMethod(nameof(ManagementSpreadsheetController.SyncGoogleSheets))!;
         var attr = action.GetCustomAttribute<RequireProjectRoleAttribute>();
         Assert.NotNull(attr);
         Assert.Equal(ProjectMembershipRole.Maintainer, attr!.Role);
@@ -59,8 +59,8 @@ public sealed class ManagementOperationsAuthorizationSurfaceTests
     [Fact]
     public void ProjectGitHubCapabilityProbe_IsViewerScoped()
     {
-        var action = typeof(GitHubRepositoriesController).GetMethod(nameof(GitHubRepositoriesController.TestProjectConnection))
-            ?? throw new InvalidOperationException("Missing GitHubRepositoriesController.TestProjectConnection");
+        var action = typeof(GitHubConnectionController).GetMethod(nameof(GitHubConnectionController.TestProjectConnection))
+            ?? throw new InvalidOperationException("Missing GitHubConnectionController.TestProjectConnection");
         var role = action.GetCustomAttribute<RequireProjectRoleAttribute>();
 
         Assert.NotNull(role);
