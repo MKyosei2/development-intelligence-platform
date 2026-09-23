@@ -62,6 +62,7 @@ public sealed class ProductionCapabilityQaPack : ICrossCuttingQaPack
         var evidence = new List<string>();
         var files = EnumerateFiles(workspace).Take(25000).ToArray();
         var production = ProductionQaIntelligence.DetectProfile(profile, workspace);
+        var manifestPath = Path.Combine(workspace, ".dip", "production.json");
 
         ValidateManifest();
         await ValidatePluginDescriptorsAsync();
@@ -71,7 +72,6 @@ public sealed class ProductionCapabilityQaPack : ICrossCuttingQaPack
         ValidateFrameSequences();
 
         var runtimeConfigured = !string.IsNullOrWhiteSpace(command.RuntimeExecutable);
-        var manifestPath = Path.Combine(workspace, ".dip", "production.json");
         var referenceConfigured = ProductionQaIntelligence.ReadMediaRegressionSpecs(workspace).Count > 0
                                   || File.Exists(manifestPath) && ReadManifestFlag(manifestPath, "referenceQaConfigured", findings);
 

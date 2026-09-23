@@ -29,7 +29,7 @@ public sealed class RetentionGovernanceService(
         string? agentId,
         CancellationToken ct)
     {
-        var policy = await policies.ResolveAsync(projectId, agentId, ct);
+        var policy = await policies.ResolveAsync(projectId ?? Guid.Empty, agentId, ct);
         return new(
             organizationId,
             projectId,

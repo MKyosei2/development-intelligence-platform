@@ -81,12 +81,12 @@ public sealed class VisualQaService
         var captureKey = Required(command.CaptureKey, 500, nameof(command.CaptureKey));
         var opened = await _artifacts.OpenAsync(command.ArtifactRecordId, ct)
                      ?? throw new KeyNotFoundException($"Artifact {command.ArtifactRecordId} was not found.");
-        if (opened.Value.Record.ProjectId != projectId)
+        if (opened.Record.ProjectId != projectId)
             throw new InvalidOperationException("Golden-master artifact belongs to another project.");
-        if (!opened.Value.Blob.ContentType.Equals("image/png", StringComparison.OrdinalIgnoreCase))
+        if (!opened.Blob.ContentType.Equals("image/png", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Phase-4 visual comparison currently requires PNG artifacts.");
 
-        await using var stream = opened.Value.Content;
+        await using var stream = opened.Content;
         var image = await PortablePngCodec.DecodeAsync(stream, ct);
         var masks = NormalizeMasks(command.Masks, image.Width, image.Height);
         var existing = await _repository.FindActiveGoldenAsync(projectId, captureKey, ct);
@@ -160,11 +160,11 @@ public sealed class VisualQaService
                        ?? throw new KeyNotFoundException($"Golden artifact {golden.ArtifactRecordId} was not found.");
         var current = await _artifacts.OpenAsync(currentArtifactRecordId, ct)
                       ?? throw new KeyNotFoundException($"Current artifact {currentArtifactRecordId} was not found.");
-        if (baseline.Value.Record.ProjectId != golden.ProjectId || current.Value.Record.ProjectId != golden.ProjectId)
+        if (baseline.Record.ProjectId != golden.ProjectId || current.Record.ProjectId != golden.ProjectId)
             throw new InvalidOperationException("Visual comparison artifacts must belong to the same project as the golden master.");
 
-        await using var baselineStream = baseline.Value.Content;
-        await using var currentStream = current.Value.Content;
+        await using var baselineStream = baseline.Content;
+        await using var currentStream = current.Content;
         var masks = ParseMasks(golden.MaskJson);
         var computation = await _comparator.CompareAsync(baselineStream, currentStream, masks, ct);
 

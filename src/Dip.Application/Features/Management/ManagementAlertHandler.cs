@@ -18,8 +18,9 @@ internal sealed class ManagementAlertHandler
     private readonly IAuditLogRepository _audit;
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
+    private readonly ManagementApprovalHandler _approvals;
 
-    public ManagementAlertHandler(DevelopmentGraphService graph, IDevelopmentGraphRepository repo, ManagementAnalyticsService analytics, ManagementDashboardService dashboard, IAuditLogRepository audit, IUnitOfWork uow, ISystemClock clock)
+    public ManagementAlertHandler(DevelopmentGraphService graph, IDevelopmentGraphRepository repo, ManagementAnalyticsService analytics, ManagementDashboardService dashboard, IAuditLogRepository audit, IUnitOfWork uow, ISystemClock clock, ManagementApprovalHandler approvals)
     {
         _graph = graph;
         _repo = repo;
@@ -28,6 +29,7 @@ internal sealed class ManagementAlertHandler
         _audit = audit;
         _uow = uow;
         _clock = clock;
+        _approvals = approvals;
     }
 
     public async Task<AlertStateDto> SetAlertDispositionAsync(AlertDispositionCommand c, CancellationToken ct)
@@ -226,7 +228,7 @@ internal sealed class ManagementAlertHandler
 
         var dashboard = await _dashboard.GetAsync(projectId, horizonWeeks, ct);
         var alerts = await GetOperationalAlertsAsync(projectId, horizonWeeks, ct);
-        var approvals = await GetApprovalsAsync(projectId, ct);
+        var approvals = await _approvals.GetApprovalsAsync(projectId, ct);
         var decisions = dashboard.Decisions;
         var role = Null(ownerRole);
         var activeAlerts = alerts.Where(x => x.Visible && (role is null || x.RoutedRole.Equals(role, StringComparison.OrdinalIgnoreCase))).ToArray();

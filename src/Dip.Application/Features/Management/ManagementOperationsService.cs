@@ -38,7 +38,7 @@ public sealed class ManagementOperationsService
         _planningHandler = new(graph, repo);
         _roleBindings = new(graph, repo, analytics, dashboard, audit, uow, clock);
         _approvals = new(graph, repo, analytics, dashboard, audit, uow, clock);
-        _alerts = new(graph, repo, analytics, dashboard, audit, uow, clock);
+        _alerts = new(graph, repo, analytics, dashboard, audit, uow, clock, _approvals);
         _sync = new(graph, repo, analytics, dashboard, audit, uow, clock);
         _archive = new(graph, repo, analytics, dashboard, audit, uow, clock);
     }
@@ -161,6 +161,11 @@ public sealed class ManagementOperationsService
         if (alert.Severity.Equals("Critical", StringComparison.OrdinalIgnoreCase)) return age >= TimeSpan.FromHours(2) ? 3 : age >= TimeSpan.FromMinutes(30) ? 2 : 1;
         if (alert.Severity.Equals("High", StringComparison.OrdinalIgnoreCase)) return age >= TimeSpan.FromDays(1) ? 3 : age >= TimeSpan.FromHours(2) ? 2 : 1;
         return age >= TimeSpan.FromDays(2) ? 2 : 1;
+    }
+
+    private static void NeedProject(Guid id)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(id));
     }
 
     private static void NeedKey(string key)

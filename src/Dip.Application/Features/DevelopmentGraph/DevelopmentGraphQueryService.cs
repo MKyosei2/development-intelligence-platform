@@ -108,10 +108,10 @@ internal sealed class DevelopmentGraphQueryService
 
         var edges = (await _repo.ListEdgesAsync(projectId, ct))
             .Where(x => ids.Contains(x.SourceNodeId) && ids.Contains(x.TargetNodeId))
-            .Select(Map)
+            .Select(DevelopmentGraphMapper.Map)
             .ToArray();
 
-        return new(projectId, nodes.Select(Map).ToArray(), edges);
+        return new(projectId, nodes.Select(DevelopmentGraphMapper.Map).ToArray(), edges);
     }
 
     public Task<DevelopmentGraphNode?> FindNodeAsync(
