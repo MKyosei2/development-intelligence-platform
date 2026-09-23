@@ -11,96 +11,125 @@ namespace Dip.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_cross_repository_impacts_repository_nodes_source_repository_id",
-                table: "cross_repository_impacts");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "cross_repository_impacts",
+                "FK_cross_repository_impacts_repository_nodes_source_repository_id",
+                "cross_repository_impacts_source_repository_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_development_graph_edges_development_graph_nodes_source_node_id",
-                table: "development_graph_edges");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "development_graph_edges",
+                "FK_development_graph_edges_development_graph_nodes_source_node_id",
+                "development_graph_edges_source_node_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_development_graph_edges_development_graph_nodes_target_node_id",
-                table: "development_graph_edges");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "development_graph_edges",
+                "FK_development_graph_edges_development_graph_nodes_target_node_id",
+                "development_graph_edges_target_node_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_budget_evaluations_benchmark_runs_benchmark_run_id",
-                table: "performance_budget_evaluations");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_budget_evaluations",
+                "FK_performance_budget_evaluations_benchmark_runs_benchmark_run_id",
+                "performance_budget_evaluations_benchmark_run_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_budget_evaluations_game_replay_runs_replay_run_id",
-                table: "performance_budget_evaluations");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_budget_evaluations",
+                "FK_performance_budget_evaluations_game_replay_runs_replay_run_id",
+                "performance_budget_evaluations_replay_run_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_budget_evaluations_performance_budget_profiles_profile_id",
-                table: "performance_budget_evaluations");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_budget_evaluations",
+                "FK_performance_budget_evaluations_performance_budget_profiles_profile_id",
+                "performance_budget_evaluations_profile_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_simulation_runs_hardware_profiles_hardware_profile_id",
-                table: "performance_simulation_runs");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_simulation_runs",
+                "FK_performance_simulation_runs_hardware_profiles_hardware_profile_id",
+                "performance_simulation_runs_hardware_profile_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_repository_dependencies_repository_nodes_source_repository_id",
-                table: "repository_dependencies");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "repository_dependencies",
+                "FK_repository_dependencies_repository_nodes_source_repository_id",
+                "repository_dependencies_source_repository_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_repository_dependencies_repository_nodes_target_repository_id",
-                table: "repository_dependencies");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "repository_dependencies",
+                "FK_repository_dependencies_repository_nodes_target_repository_id",
+                "repository_dependencies_target_repository_id_fkey");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_repository_dependencies_project_id_source_repository_id_target_repository_id_kind_contract_key",
-                table: "repository_dependencies",
-                newName: "IX_repository_dependencies_project_id_source_repository_id_tar~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_repository_dependencies_project_id_source_repository_id_tar~",
+                "IX_repository_dependencies_project_id_source_repository_id_target_repository_id_kind_contract_key",
+                "ux_repository_dependencies");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptNumber",
-                table: "PipelineRuns",
-                newName: "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptN~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptN~",
+                "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptNumber",
+                "IX_PipelineRuns_Project_External_Collector_Attempt");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_p2_intelligence_records_project_id_subject_key_created_at_utc",
-                table: "p2_intelligence_records",
-                newName: "IX_p2_intelligence_records_project_id_subject_key_created_at_u~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_p2_intelligence_records_project_id_subject_key_created_at_u~",
+                "IX_p2_intelligence_records_project_id_subject_key_created_at_utc",
+                "ix_p2_intelligence_project_subject_time");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilUtc",
-                table: "OutboxMessages",
-                newName: "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilU~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilU~",
+                "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilUtc",
+                "IX_OutboxMessages_Pending");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_hardware_community_samples_profile_key_platform_received_at_utc",
-                table: "hardware_community_samples",
-                newName: "IX_hardware_community_samples_profile_key_platform_received_at~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_hardware_community_samples_profile_key_platform_received_at~",
+                "IX_hardware_community_samples_profile_key_platform_received_at_utc",
+                "ix_hardware_community_profile_time");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_hardware_backtests_project_id_hardware_profile_id_measured_at_utc",
-                table: "hardware_backtests",
-                newName: "IX_hardware_backtests_project_id_hardware_profile_id_measured_~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_hardware_backtests_project_id_hardware_profile_id_measured_~",
+                "IX_hardware_backtests_project_id_hardware_profile_id_measured_at_utc",
+                "ix_hardware_backtests_profile");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_game_replay_runs_project_id_session_id_hardware_fingerprint_finished_at_utc",
-                table: "game_replay_runs",
-                newName: "IX_game_replay_runs_project_id_session_id_hardware_fingerprint~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_game_replay_runs_project_id_session_id_hardware_fingerprint~",
+                "IX_game_replay_runs_project_id_session_id_hardware_fingerprint_finished_at_utc",
+                "ix_game_replay_baseline");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_development_graph_edges_project_id_source_node_id_target_node_id_edge_type",
-                table: "development_graph_edges",
-                newName: "IX_development_graph_edges_project_id_source_node_id_target_no~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_development_graph_edges_project_id_source_node_id_target_no~",
+                "IX_development_graph_edges_project_id_source_node_id_target_node_id_edge_type",
+                "ux_development_graph_edges_identity");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_utc",
-                table: "cross_repository_impacts",
-                newName: "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_~",
+                "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_utc",
+                "ix_cross_repository_impacts");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_change_risk_assessments_project_id_commit_sha_assessed_at_utc",
-                table: "change_risk_assessments",
-                newName: "IX_change_risk_assessments_project_id_commit_sha_assessed_at_u~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_change_risk_assessments_project_id_commit_sha_assessed_at_u~",
+                "IX_change_risk_assessments_project_id_commit_sha_assessed_at_utc",
+                "ix_change_risk_project_commit");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_benchmark_runs_project_id_benchmark_definition_id_environment_fingerprint_configuration_hash_created_at_utc",
-                table: "benchmark_runs",
-                newName: "IX_benchmark_runs_project_id_benchmark_definition_id_environme~");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_benchmark_runs_project_id_benchmark_definition_id_environme~",
+                "IX_benchmark_runs_project_id_benchmark_definition_id_environment_fingerprint_configuration_hash_created_at_utc",
+                "ix_benchmark_runs_baseline");
 
             migrationBuilder.AlterColumn<string>(
                 name: "role",
@@ -2209,41 +2238,59 @@ namespace Dip.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_cross_repository_impacts_repository_nodes_source_repository~",
-                table: "cross_repository_impacts");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "cross_repository_impacts",
+                "FK_cross_repository_impacts_repository_nodes_source_repository~",
+                "cross_repository_impacts_source_repository_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_development_graph_edges_development_graph_nodes_source_node~",
-                table: "development_graph_edges");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "development_graph_edges",
+                "FK_development_graph_edges_development_graph_nodes_source_node~",
+                "development_graph_edges_source_node_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_development_graph_edges_development_graph_nodes_target_node~",
-                table: "development_graph_edges");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "development_graph_edges",
+                "FK_development_graph_edges_development_graph_nodes_target_node~",
+                "development_graph_edges_target_node_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_budget_evaluations_benchmark_runs_benchmark_run~",
-                table: "performance_budget_evaluations");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_budget_evaluations",
+                "FK_performance_budget_evaluations_benchmark_runs_benchmark_run~",
+                "performance_budget_evaluations_benchmark_run_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_budget_evaluations_game_replay_runs_replay_run_~",
-                table: "performance_budget_evaluations");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_budget_evaluations",
+                "FK_performance_budget_evaluations_game_replay_runs_replay_run_~",
+                "performance_budget_evaluations_replay_run_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_budget_evaluations_performance_budget_profiles_~",
-                table: "performance_budget_evaluations");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_budget_evaluations",
+                "FK_performance_budget_evaluations_performance_budget_profiles_~",
+                "performance_budget_evaluations_profile_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_performance_simulation_runs_hardware_profiles_hardware_prof~",
-                table: "performance_simulation_runs");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "performance_simulation_runs",
+                "FK_performance_simulation_runs_hardware_profiles_hardware_prof~",
+                "performance_simulation_runs_hardware_profile_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_repository_dependencies_repository_nodes_source_repository_~",
-                table: "repository_dependencies");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "repository_dependencies",
+                "FK_repository_dependencies_repository_nodes_source_repository_~",
+                "repository_dependencies_source_repository_id_fkey");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_repository_dependencies_repository_nodes_target_repository_~",
-                table: "repository_dependencies");
+            DropConstraintIfExists(
+                migrationBuilder,
+                "repository_dependencies",
+                "FK_repository_dependencies_repository_nodes_target_repository_~",
+                "repository_dependencies_target_repository_id_fkey");
 
             migrationBuilder.DropTable(
                 name: "community_hardware_samples");
@@ -2515,60 +2562,71 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 name: "source_instance_id",
                 table: "evidence_records");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_repository_dependencies_project_id_source_repository_id_tar~",
-                table: "repository_dependencies",
-                newName: "IX_repository_dependencies_project_id_source_repository_id_target_repository_id_kind_contract_key");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_repository_dependencies_project_id_source_repository_id_target_repository_id_kind_contract_key",
+                "IX_repository_dependencies_project_id_source_repository_id_tar~",
+                "ux_repository_dependencies");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptN~",
-                table: "PipelineRuns",
-                newName: "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptNumber");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptNumber",
+                "IX_PipelineRuns_ProjectId_ExternalRunId_CollectorType_AttemptN~",
+                "IX_PipelineRuns_Project_External_Collector_Attempt");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_p2_intelligence_records_project_id_subject_key_created_at_u~",
-                table: "p2_intelligence_records",
-                newName: "IX_p2_intelligence_records_project_id_subject_key_created_at_utc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_p2_intelligence_records_project_id_subject_key_created_at_utc",
+                "IX_p2_intelligence_records_project_id_subject_key_created_at_u~",
+                "ix_p2_intelligence_project_subject_time");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilU~",
-                table: "OutboxMessages",
-                newName: "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilUtc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilUtc",
+                "IX_OutboxMessages_ProcessedAtUtc_NextAttemptAtUtc_LockedUntilU~",
+                "IX_OutboxMessages_Pending");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_hardware_community_samples_profile_key_platform_received_at~",
-                table: "hardware_community_samples",
-                newName: "IX_hardware_community_samples_profile_key_platform_received_at_utc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_hardware_community_samples_profile_key_platform_received_at_utc",
+                "IX_hardware_community_samples_profile_key_platform_received_at~",
+                "ix_hardware_community_profile_time");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_hardware_backtests_project_id_hardware_profile_id_measured_~",
-                table: "hardware_backtests",
-                newName: "IX_hardware_backtests_project_id_hardware_profile_id_measured_at_utc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_hardware_backtests_project_id_hardware_profile_id_measured_at_utc",
+                "IX_hardware_backtests_project_id_hardware_profile_id_measured_~",
+                "ix_hardware_backtests_profile");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_game_replay_runs_project_id_session_id_hardware_fingerprint~",
-                table: "game_replay_runs",
-                newName: "IX_game_replay_runs_project_id_session_id_hardware_fingerprint_finished_at_utc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_game_replay_runs_project_id_session_id_hardware_fingerprint_finished_at_utc",
+                "IX_game_replay_runs_project_id_session_id_hardware_fingerprint~",
+                "ix_game_replay_baseline");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_development_graph_edges_project_id_source_node_id_target_no~",
-                table: "development_graph_edges",
-                newName: "IX_development_graph_edges_project_id_source_node_id_target_node_id_edge_type");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_development_graph_edges_project_id_source_node_id_target_node_id_edge_type",
+                "IX_development_graph_edges_project_id_source_node_id_target_no~",
+                "ux_development_graph_edges_identity");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_~",
-                table: "cross_repository_impacts",
-                newName: "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_utc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_utc",
+                "IX_cross_repository_impacts_project_id_commit_sha_analyzed_at_~",
+                "ix_cross_repository_impacts");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_change_risk_assessments_project_id_commit_sha_assessed_at_u~",
-                table: "change_risk_assessments",
-                newName: "IX_change_risk_assessments_project_id_commit_sha_assessed_at_utc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_change_risk_assessments_project_id_commit_sha_assessed_at_utc",
+                "IX_change_risk_assessments_project_id_commit_sha_assessed_at_u~",
+                "ix_change_risk_project_commit");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_benchmark_runs_project_id_benchmark_definition_id_environme~",
-                table: "benchmark_runs",
-                newName: "IX_benchmark_runs_project_id_benchmark_definition_id_environment_fingerprint_configuration_hash_created_at_utc");
+            RenameIndexIfExists(
+                migrationBuilder,
+                "IX_benchmark_runs_project_id_benchmark_definition_id_environment_fingerprint_configuration_hash_created_at_utc",
+                "IX_benchmark_runs_project_id_benchmark_definition_id_environme~",
+                "ix_benchmark_runs_baseline");
 
             migrationBuilder.AlterColumn<string>(
                 name: "role",
@@ -3820,5 +3878,61 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 principalColumn: "id",
                 onDelete: ReferentialAction.Cascade);
         }
+
+        private static void DropConstraintIfExists(
+            MigrationBuilder migrationBuilder,
+            string tableName,
+            params string[] constraintNames)
+        {
+            foreach (var constraintName in constraintNames.Distinct(StringComparer.Ordinal))
+            {
+                migrationBuilder.Sql(
+                    $"ALTER TABLE {QuoteIdentifier(tableName)} " +
+                    $"DROP CONSTRAINT IF EXISTS {QuoteIdentifier(constraintName)};");
+            }
+        }
+
+        private static void RenameIndexIfExists(
+            MigrationBuilder migrationBuilder,
+            string newName,
+            params string[] candidateNames)
+        {
+            var candidates = candidateNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+
+            if (candidates.Length == 0)
+                return;
+
+            var branches = candidates
+                .Select((candidate, index) =>
+                {
+                    var keyword = index == 0 ? "IF" : "ELSIF";
+                    return
+                        $"{keyword} EXISTS (" +
+                        "SELECT 1 FROM pg_class c " +
+                        "JOIN pg_namespace n ON n.oid = c.relnamespace " +
+                        "WHERE c.relkind = 'i' " +
+                        $"AND c.relname = {SqlLiteral(candidate)} " +
+                        "AND n.nspname = current_schema()" +
+                        ") THEN " +
+                        $"ALTER INDEX {QuoteIdentifier(candidate)} " +
+                        $"RENAME TO {QuoteIdentifier(newName)};";
+                });
+
+            migrationBuilder.Sql(
+                "DO $$ BEGIN " +
+                string.Join(" ", branches) +
+                " END IF; END $$;");
+        }
+
+        private static string QuoteIdentifier(string value)
+            => "\"" + value.Replace("\"", "\"\"") + "\"";
+
+        private static string SqlLiteral(string value)
+            => "'" + value.Replace("'", "''") + "'";
+
+
     }
 }
