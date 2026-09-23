@@ -11,6 +11,9 @@ namespace Dip.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // InitialBaseline already owns the legacy columns that predate this migration.
+            // Fresh databases execute InitialBaseline first; adopted legacy databases are
+            // validated against the same contract before the baseline is recorded.
             DropConstraintIfExists(
                 migrationBuilder,
                 "cross_repository_impacts",
@@ -335,67 +338,14 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 oldMaxLength: 16000,
                 oldNullable: true);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "CreatedAtUtc",
-                table: "QualityIssues",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "FirstSeenPipelineRunId",
-                table: "QualityIssues",
-                type: "uuid",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "LastSeenPipelineRunId",
-                table: "QualityIssues",
-                type: "uuid",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
 
-            migrationBuilder.AddColumn<int>(
-                name: "OccurrenceCount",
-                table: "QualityIssues",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "ResolvedAtUtc",
-                table: "QualityIssues",
-                type: "timestamp with time zone",
-                nullable: true);
 
-            migrationBuilder.AddColumn<int>(
-                name: "Severity",
-                table: "QualityIssues",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
-            migrationBuilder.AddColumn<int>(
-                name: "Status",
-                table: "QualityIssues",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
-            migrationBuilder.AddColumn<int>(
-                name: "CriticalIssueCount",
-                table: "QualityGateResults",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
-            migrationBuilder.AddColumn<int>(
-                name: "WarningIssueCount",
-                table: "QualityGateResults",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
             migrationBuilder.AlterColumn<string>(
                 name: "requested_by",
@@ -937,57 +887,13 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 oldMaxLength: 200,
                 oldNullable: true);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "CreatedAtUtc",
-                table: "Projects",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "ReleaseDateUtc",
-                table: "Projects",
-                type: "timestamp with time zone",
-                nullable: true);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "UpdatedAtUtc",
-                table: "Projects",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
 
-            migrationBuilder.AddColumn<int>(
-                name: "AttemptCount",
-                table: "ProcessedWebhooks",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "ProcessedAtUtc",
-                table: "ProcessedWebhooks",
-                type: "timestamp with time zone",
-                nullable: true);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "FinishedAtUtc",
-                table: "PipelineRuns",
-                type: "timestamp with time zone",
-                nullable: true);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "StartedAtUtc",
-                table: "PipelineRuns",
-                type: "timestamp with time zone",
-                nullable: true);
 
-            migrationBuilder.AddColumn<int>(
-                name: "Status",
-                table: "PipelineRuns",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
             migrationBuilder.AlterColumn<string>(
                 name: "target_profile",
@@ -1073,39 +979,10 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 oldMaxLength: 32000,
                 oldNullable: true);
 
-            migrationBuilder.AddColumn<int>(
-                name: "AttemptCount",
-                table: "OutboxMessages",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "CreatedAtUtc",
-                table: "OutboxMessages",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "BaselinePipelineRunId",
-                table: "Metrics",
-                type: "uuid",
-                nullable: true);
 
-            migrationBuilder.AddColumn<int>(
-                name: "ComparisonStatus",
-                table: "Metrics",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
-            migrationBuilder.AddColumn<int>(
-                name: "Severity",
-                table: "Metrics",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
 
             migrationBuilder.AlterColumn<string>(
                 name: "title",
@@ -2238,6 +2115,7 @@ namespace Dip.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Columns owned by InitialBaseline are preserved when this migration is rolled back.
             DropConstraintIfExists(
                 migrationBuilder,
                 "cross_repository_impacts",
@@ -2430,93 +2308,27 @@ namespace Dip.Infrastructure.Persistence.Migrations
                 name: "IX_artifact_records_qa_run_id",
                 table: "artifact_records");
 
-            migrationBuilder.DropColumn(
-                name: "CreatedAtUtc",
-                table: "QualityIssues");
 
-            migrationBuilder.DropColumn(
-                name: "FirstSeenPipelineRunId",
-                table: "QualityIssues");
 
-            migrationBuilder.DropColumn(
-                name: "LastSeenPipelineRunId",
-                table: "QualityIssues");
 
-            migrationBuilder.DropColumn(
-                name: "OccurrenceCount",
-                table: "QualityIssues");
 
-            migrationBuilder.DropColumn(
-                name: "ResolvedAtUtc",
-                table: "QualityIssues");
 
-            migrationBuilder.DropColumn(
-                name: "Severity",
-                table: "QualityIssues");
 
-            migrationBuilder.DropColumn(
-                name: "Status",
-                table: "QualityIssues");
 
-            migrationBuilder.DropColumn(
-                name: "CriticalIssueCount",
-                table: "QualityGateResults");
 
-            migrationBuilder.DropColumn(
-                name: "WarningIssueCount",
-                table: "QualityGateResults");
 
-            migrationBuilder.DropColumn(
-                name: "CreatedAtUtc",
-                table: "Projects");
 
-            migrationBuilder.DropColumn(
-                name: "ReleaseDateUtc",
-                table: "Projects");
 
-            migrationBuilder.DropColumn(
-                name: "UpdatedAtUtc",
-                table: "Projects");
 
-            migrationBuilder.DropColumn(
-                name: "AttemptCount",
-                table: "ProcessedWebhooks");
 
-            migrationBuilder.DropColumn(
-                name: "ProcessedAtUtc",
-                table: "ProcessedWebhooks");
 
-            migrationBuilder.DropColumn(
-                name: "FinishedAtUtc",
-                table: "PipelineRuns");
 
-            migrationBuilder.DropColumn(
-                name: "StartedAtUtc",
-                table: "PipelineRuns");
 
-            migrationBuilder.DropColumn(
-                name: "Status",
-                table: "PipelineRuns");
 
-            migrationBuilder.DropColumn(
-                name: "AttemptCount",
-                table: "OutboxMessages");
 
-            migrationBuilder.DropColumn(
-                name: "CreatedAtUtc",
-                table: "OutboxMessages");
 
-            migrationBuilder.DropColumn(
-                name: "BaselinePipelineRunId",
-                table: "Metrics");
 
-            migrationBuilder.DropColumn(
-                name: "ComparisonStatus",
-                table: "Metrics");
 
-            migrationBuilder.DropColumn(
-                name: "Severity",
-                table: "Metrics");
 
             migrationBuilder.DropColumn(
                 name: "actor_id",
