@@ -407,7 +407,5 @@ internal abstract class ExperimentExecutionSupport
 
     protected static string Fingerprint(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Normalize(text)))).ToLowerInvariant()[..16];
 
-    protected static string Fingerprint(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Normalize(text)))).ToLowerInvariant()[..16];
-
     protected static string SafeName(string value) => string.Concat(value.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' ? c : '_')).Substring(0, Math.Min(80, value.Length));
 }

@@ -78,7 +78,10 @@ public sealed class GameReplayService
         PerformanceBudgetEvaluationDto? budget = null; if (request.PerformanceBudgetProfileId.HasValue) budget = await _budgets.EvaluateAsync(request.ProjectId, request.PerformanceBudgetProfileId.Value, metrics.Select(x => new PerformanceMetricInput(x.Name, x.Aggregation, x.Value, x.Unit)).ToArray(), run.Id, null, ct);
         var regression = comparisons.Any(x => x.Verdict == "Failed");
          var success = execution.Succeeded && !execution.Crashed && !execution.TimedOut;
-         var summary = $"Replay {session.Key}: {(success ? "completed" : "failed")}; {metrics.Count} aggregated metric(s); {(regression ? "performance regression detected" : "no deterministic regression detected")}.";
+        var summary =
+            $"Replay {session.Key}: {(success ? "completed" : "failed")}; "
+            + $"{metrics.Count} aggregated metric(s); "
+            + $"{(regression ? "performance regression detected" : "no deterministic regression detected")}.";
          var links = new ArtifactLinkContext(job.Id, null, null, null, run.Id);
          var resultArtifact = await _artifacts.StoreJsonAsync(request.ProjectId, "game-replay", "replay-result.json", new { session = session.Key, execution.ExitCode, execution.Crashed, execution.TimedOut, execution.EnvironmentFingerprint, metrics = metrics.Select(MapMetric), comparisons, budget }, links, "replay", ct);
         if (!string.IsNullOrWhiteSpace(execution.StandardOutput)) await _artifacts.StoreJsonAsync(request.ProjectId, "game-replay-log", "stdout.json", new { stdout = execution.StandardOutput }, links, "replay", ct);

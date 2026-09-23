@@ -42,6 +42,8 @@ public sealed class ApiClient
         _httpClient = httpClient;
     }
 
+    internal HttpClient Transport => _httpClient;
+
     public async Task<IReadOnlyList<ProjectDashboardSummary>> GetProjectsAsync(
         CancellationToken cancellationToken = default)
     {
