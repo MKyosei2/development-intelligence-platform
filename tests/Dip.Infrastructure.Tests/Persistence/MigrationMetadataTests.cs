@@ -1,6 +1,9 @@
 // Purpose: Verifies expected behavior and invariants for the surrounding feature.
 using Dip.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 namespace Dip.Infrastructure.Tests.Persistence;
 
@@ -59,4 +62,51 @@ public sealed class MigrationMetadataTests
         Assert.Contains("QaReleaseGateOverride", entities);
         Assert.Contains("QaBackupVerificationRecord", entities);
     }
+    [Fact]
+    public void DifficultyMigration_DoesNotRecreateObjectsOwnedByEarlierMigrations()
+    {
+        var options = new DbContextOptionsBuilder<DipDbContext>()
+            .UseNpgsql("Host=localhost;Port=5432;Database=dip_metadata_test;Username=dip;Password=dip-test-password")
+            .Options;
+        using var db = new DipDbContext(options);
+
+        var assembly = db.GetService<IMigrationsAssembly>();
+        var migrationType = assembly.Migrations["20260914092630_AddDifficulty1Foundation"];
+        var migration = assembly.CreateMigration(migrationType, db.Database.ProviderName!);
+
+        Assert.DoesNotContain(
+            migration.UpOperations.OfType<CreateTableOperation>(),
+            operation => operation.Name == "project_forecasts");
+
+        var baselineOwnedColumns = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "QualityIssues.CreatedAtUtc",
+            "QualityIssues.FirstSeenPipelineRunId",
+            "QualityIssues.LastSeenPipelineRunId",
+            "QualityIssues.OccurrenceCount",
+            "QualityIssues.ResolvedAtUtc",
+            "QualityIssues.Severity",
+            "QualityIssues.Status",
+            "QualityGateResults.CriticalIssueCount",
+            "QualityGateResults.WarningIssueCount",
+            "Projects.CreatedAtUtc",
+            "Projects.ReleaseDateUtc",
+            "Projects.UpdatedAtUtc",
+            "ProcessedWebhooks.AttemptCount",
+            "ProcessedWebhooks.ProcessedAtUtc",
+            "PipelineRuns.FinishedAtUtc",
+            "PipelineRuns.StartedAtUtc",
+            "PipelineRuns.Status",
+            "OutboxMessages.AttemptCount",
+            "OutboxMessages.CreatedAtUtc",
+            "Metrics.BaselinePipelineRunId",
+            "Metrics.ComparisonStatus",
+            "Metrics.Severity"
+        };
+
+        Assert.DoesNotContain(
+            migration.UpOperations.OfType<AddColumnOperation>(),
+            operation => baselineOwnedColumns.Contains($"{operation.Table}.{operation.Name}"));
+    }
+
 }
