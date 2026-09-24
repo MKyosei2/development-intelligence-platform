@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Collector Report Validator responsibilities for collectors.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Shared.Contracts.Collectors;

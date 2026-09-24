@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements test collector responsibilities for unreal collector.
 import importlib.util
 import json
 import tempfile

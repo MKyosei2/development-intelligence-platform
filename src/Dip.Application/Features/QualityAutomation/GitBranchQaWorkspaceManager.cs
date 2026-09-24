@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Git Branch Qa Workspace Manager responsibilities for quality automation.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

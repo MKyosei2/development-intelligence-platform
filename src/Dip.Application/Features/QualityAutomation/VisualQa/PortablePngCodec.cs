@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Portable Png Codec responsibilities for visual qa.
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;

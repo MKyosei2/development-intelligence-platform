@@ -1,1 +1,1 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Recalculate Pull Request Risk Command responsibilities for pull requests.

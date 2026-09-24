@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Dip Collector responsibilities for editor.
 using System;
 using System.IO;
 using UnityEditor;

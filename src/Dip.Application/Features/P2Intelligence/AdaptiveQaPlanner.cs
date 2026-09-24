@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Adaptive Qa Planner responsibilities for p2 intelligence.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
