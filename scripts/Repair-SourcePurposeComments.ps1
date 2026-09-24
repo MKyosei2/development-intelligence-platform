@@ -77,21 +77,18 @@ function Get-PurposeMatch {
 
 function Test-FragmentedName {
     param([string]$Purpose,[string]$Candidate)
-    $candidateNormalized = $Candidate -replace '[^A-Za-z0-9]', ''
-    if ($candidateNormalized.Length -lt 4) { return $false }
     $tokens = @([regex]::Matches($Purpose, '[A-Za-z0-9]+') | ForEach-Object { $_.Value })
-    for ($start = 0; $start -lt $tokens.Count; $start++) {
-        $joined=''; $shortCount=0
-        for ($end=$start; $end -lt $tokens.Count -and $end -lt ($start+32); $end++) {
-            $joined += $tokens[$end]
-            if ($tokens[$end].Length -le 2) { $shortCount++ }
-            if ($joined.Length -gt $candidateNormalized.Length) { break }
-            if (($end-$start+1) -ge 5 -and $shortCount -ge 4 -and $joined.Equals($candidateNormalized,[System.StringComparison]::OrdinalIgnoreCase)) { return $true }
+    $shortRun = 0
+    foreach ($token in $tokens) {
+        if ($token.Length -le 2) {
+            $shortRun++
+            if ($shortRun -ge 5) { return $true }
+        } else {
+            $shortRun = 0
         }
     }
     return $false
 }
-
 function Test-BrokenPurpose {
     param([string]$Purpose,[string]$FilePath,[string]$Content)
     $candidates = New-Object 'System.Collections.Generic.List[string]'
