@@ -1,1 +1,1 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Metric Names responsibilities for constants.

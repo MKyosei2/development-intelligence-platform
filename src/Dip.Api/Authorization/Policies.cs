@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Policies responsibilities for authorization.
 namespace Dip.Api.Authorization;
 
 public static class Policies

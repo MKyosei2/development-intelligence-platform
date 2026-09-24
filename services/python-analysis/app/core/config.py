@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements config responsibilities for core.
 from functools import lru_cache
 
 from pydantic import model_validator

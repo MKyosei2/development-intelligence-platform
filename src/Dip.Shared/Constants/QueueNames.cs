@@ -1,1 +1,1 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Queue Names responsibilities for constants.

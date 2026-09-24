@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Worker responsibilities for options.
 namespace Dip.Worker.Options;
 public sealed class WorkerOptions { public const string SectionName = "Worker";
  public int BatchSize { get;

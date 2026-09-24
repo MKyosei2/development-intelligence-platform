@@ -1,2 +1,2 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Global Usings responsibilities for this repository area.
 global using Dip.Domain.ValueObjects;

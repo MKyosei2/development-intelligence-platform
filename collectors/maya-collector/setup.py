@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements setup responsibilities for maya collector.
 from setuptools import find_packages, setup
 
 setup(

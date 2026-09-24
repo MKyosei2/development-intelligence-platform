@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements main responsibilities for native collector.
 #include "dip/DuplicateDetector.hpp"
 #include "dip/FileScanner.hpp"
 #include "dip/LogAnalyzer.hpp"
