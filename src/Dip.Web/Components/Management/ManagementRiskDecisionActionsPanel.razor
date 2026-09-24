@@ -1,0 +1,522 @@
+@* Purpose: Manages the project risk register, management decisions, and accountable action items. *@
+@using Dip.Application.Features.Management
+@inject ApiClient Api
+
+@if (_loading)
+{
+    <LoadingState Message="Loading risks, decisions, and actions…" />
+}
+else if (_error is not null)
+{
+    <div class="alert alert-warning">@_error</div>
+}
+else if (_management is not null)
+{
+    <div class="row g-3">
+        <div class="col-12 col-xl-7">
+            <div class="card mb-3">
+                <div class="card-header"><strong>Risk register</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Risk</th>
+                                <th>Exposure</th>
+                                <th>Owner</th>
+                                <th>Review</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var risk in _management.Risks.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <button class="btn btn-link btn-sm p-0"
+                                                @onclick="() => EditRisk(risk)">
+                                            @risk.Title
+                                        </button>
+                                        <div class="small text-muted">
+                                            @risk.Key · @risk.Status
+                                        </div>
+                                    </td>
+                                    <td>@risk.ExposureScore.ToString("0.#") @risk.ExposureLevel</td>
+                                    <td>@(risk.OwnerRole ?? "—")</td>
+                                    <td>@(risk.ReviewDueUtc?.ToLocalTime().ToString("d") ?? "—")</td>
+                                    <td>
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick='() => ArchiveAsync("risk", risk.Key)'>
+                                            Archive
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header"><strong>Decisions</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            @foreach (var decision in _management.Decisions.Decisions)
+                            {
+                                <tr>
+                                    <td>
+                                        <button class="btn btn-link btn-sm p-0"
+                                                @onclick="() => EditDecision(decision)">
+                                            @decision.Title
+                                        </button>
+                                        <div class="small text-muted">
+                                            @decision.Key · @decision.Status
+                                        </div>
+                                    </td>
+                                    <td>@(decision.DecisionOwnerRole ?? "—")</td>
+                                    <td>@decision.OpenActions open action(s)</td>
+                                    <td>
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick='() => ArchiveAsync("decision", decision.Key)'>
+                                            Archive
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><strong>Actions</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            @foreach (var action in _management.Decisions.Actions)
+                            {
+                                <tr>
+                                    <td>
+                                        <button class="btn btn-link btn-sm p-0"
+                                                @onclick="() => EditAction(action)">
+                                            @action.Title
+                                        </button>
+                                        <div class="small text-muted">
+                                            @action.Key · @action.Status
+                                        </div>
+                                    </td>
+                                    <td>@(action.OwnerRole ?? "—")</td>
+                                    <td>@(action.DueAtUtc?.ToLocalTime().ToString("d") ?? "—")</td>
+                                    <td>
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick='() => ArchiveAsync("action", action.Key)'>
+                                            Archive
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <div class="card mb-3">
+                <div class="card-header"><strong>Create / update risk</strong></div>
+                <div class="card-body form-grid">
+                    <input class="form-control" placeholder="Key" @bind="_riskKey" />
+                    <input class="form-control" placeholder="Title" @bind="_riskTitle" />
+                    <textarea class="form-control"
+                              placeholder="Description"
+                              @bind="_riskDescription"></textarea>
+
+                    <div class="d-flex gap-2">
+                        <select class="form-select" @bind="_riskStatus">
+                            <option>Open</option>
+                            <option>Monitoring</option>
+                            <option>Mitigated</option>
+                            <option>Closed</option>
+                        </select>
+                        <input class="form-control"
+                               placeholder="Category"
+                               @bind="_riskCategory" />
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               type="number"
+                               min="0"
+                               max="100"
+                               placeholder="Probability %"
+                               @bind="_riskProbability" />
+                        <input class="form-control"
+                               type="number"
+                               min="0"
+                               max="100"
+                               placeholder="Impact %"
+                               @bind="_riskImpact" />
+                    </div>
+
+                    <input class="form-control"
+                           placeholder="Owner role"
+                           @bind="_riskOwner" />
+                    <input class="form-control"
+                           type="datetime-local"
+                           @bind="_riskReview" />
+                    <input class="form-control"
+                           placeholder="Trigger"
+                           @bind="_riskTrigger" />
+                    <textarea class="form-control"
+                              placeholder="Mitigation"
+                              @bind="_riskMitigation"></textarea>
+                    <input class="form-control"
+                           placeholder="Affected items: task:KEY, milestone:KEY"
+                           @bind="_riskAffected" />
+                    <button class="btn btn-primary" @onclick="SaveRiskAsync">
+                        Save risk
+                    </button>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header"><strong>Create / update decision</strong></div>
+                <div class="card-body form-grid">
+                    <input class="form-control" placeholder="Key" @bind="_decisionKey" />
+                    <input class="form-control" placeholder="Title" @bind="_decisionTitle" />
+                    <input class="form-control"
+                           placeholder="Decision / proposed choice"
+                           @bind="_decisionValue" />
+                    <textarea class="form-control"
+                              placeholder="Rationale"
+                              @bind="_decisionRationale"></textarea>
+                    <select class="form-select" @bind="_decisionStatus">
+                        <option>Proposed</option>
+                        <option>Pending</option>
+                        <option>Completed</option>
+                        <option>Rejected</option>
+                    </select>
+                    <input class="form-control"
+                           placeholder="Owner role"
+                           @bind="_decisionOwner" />
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               type="datetime-local"
+                               @bind="_decisionDue" />
+                        <input class="form-control"
+                               type="datetime-local"
+                               @bind="_decisionDecided" />
+                    </div>
+                    <input class="form-control"
+                           placeholder="Related items: risk:KEY, release:KEY"
+                           @bind="_decisionRelated" />
+                    <button class="btn btn-primary" @onclick="SaveDecisionAsync">
+                        Save decision
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><strong>Create / update action</strong></div>
+                <div class="card-body form-grid">
+                    <input class="form-control" placeholder="Key" @bind="_actionKey" />
+                    <input class="form-control" placeholder="Title" @bind="_actionTitle" />
+
+                    <div class="d-flex gap-2">
+                        <select class="form-select" @bind="_actionPriority">
+                            <option>Critical</option>
+                            <option>High</option>
+                            <option>Medium</option>
+                            <option>Low</option>
+                        </select>
+                        <select class="form-select" @bind="_actionStatus">
+                            <option>Open</option>
+                            <option>InProgress</option>
+                            <option>Completed</option>
+                            <option>Blocked</option>
+                        </select>
+                    </div>
+
+                    <input class="form-control"
+                           placeholder="Owner role"
+                           @bind="_actionOwner" />
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               type="datetime-local"
+                               @bind="_actionDue" />
+                        <input class="form-control"
+                               type="number"
+                               min="0"
+                               max="100"
+                               placeholder="Completion %"
+                               @bind="_actionCompletion" />
+                    </div>
+                    <input class="form-control"
+                           placeholder="Decision key (optional)"
+                           @bind="_actionDecisionKey" />
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               placeholder="Target type"
+                               @bind="_actionTargetType" />
+                        <input class="form-control"
+                               placeholder="Target key"
+                               @bind="_actionTargetKey" />
+                    </div>
+                    <button class="btn btn-primary" @onclick="SaveActionAsync">
+                        Save action
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public EventCallback<string> Changed { get; set; }
+
+    private ManagementDashboardDto? _management;
+    private bool _loading = true;
+    private string? _error;
+
+    private string _riskKey = "";
+    private string _riskTitle = "";
+    private string _riskDescription = "";
+    private string _riskOwner = "";
+    private string _riskStatus = "Open";
+    private string _riskCategory = "Delivery";
+    private string _riskTrigger = "";
+    private string _riskMitigation = "";
+    private string _riskAffected = "";
+    private decimal _riskProbability = 50;
+    private decimal _riskImpact = 50;
+    private DateTime _riskReview = DateTime.Today.AddDays(7).AddHours(17);
+
+    private string _decisionKey = "";
+    private string _decisionTitle = "";
+    private string _decisionValue = "";
+    private string _decisionRationale = "";
+    private string _decisionOwner = "";
+    private string _decisionStatus = "Proposed";
+    private string _decisionRelated = "";
+    private DateTime _decisionDue = DateTime.Today.AddDays(1).AddHours(17);
+    private DateTime? _decisionDecided;
+
+    private string _actionKey = "";
+    private string _actionTitle = "";
+    private string _actionPriority = "Medium";
+    private string _actionStatus = "Open";
+    private string _actionOwner = "";
+    private string _actionDecisionKey = "";
+    private string _actionTargetType = "";
+    private string _actionTargetKey = "";
+    private DateTime _actionDue = DateTime.Today.AddDays(1).AddHours(17);
+    private decimal _actionCompletion;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            _management = await Api.GetManagementDashboardAsync(ProjectId);
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveRiskAsync()
+    {
+        await Api.UpsertRiskAsync(
+            new(
+                ProjectId,
+                _riskKey,
+                _riskTitle,
+                _riskDescription,
+                _riskProbability,
+                _riskImpact,
+                _riskStatus,
+                _riskCategory,
+                Null(_riskOwner),
+                Utc(_riskReview),
+                Null(_riskTrigger),
+                Null(_riskMitigation),
+                ParseReferences(_riskAffected),
+                null));
+
+        await NotifyAndReloadAsync("Risk saved.");
+    }
+
+    private async Task SaveDecisionAsync()
+    {
+        await Api.UpsertManagementDecisionAsync(
+            new(
+                ProjectId,
+                _decisionKey,
+                _decisionTitle,
+                _decisionValue,
+                _decisionRationale,
+                _decisionStatus,
+                Null(_decisionOwner),
+                Utc(_decisionDue),
+                UtcNullable(_decisionDecided),
+                ParseReferences(_decisionRelated),
+                null));
+
+        await NotifyAndReloadAsync("Decision saved.");
+    }
+
+    private async Task SaveActionAsync()
+    {
+        await Api.UpsertManagementActionAsync(
+            new(
+                ProjectId,
+                _actionKey,
+                _actionTitle,
+                _actionStatus,
+                _actionPriority,
+                Null(_actionOwner),
+                Utc(_actionDue),
+                Math.Clamp(
+                    _actionStatus == "Completed"
+                        ? 100m
+                        : _actionCompletion,
+                    0m,
+                    100m),
+                Null(_actionDecisionKey),
+                ActionTarget(),
+                null));
+
+        await NotifyAndReloadAsync("Action saved.");
+    }
+
+    private async Task ArchiveAsync(string type, string key)
+    {
+        await Api.ArchiveManagementItemAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                type,
+                key,
+                "web",
+                "Archived from management GUI"));
+
+        await NotifyAndReloadAsync("Item archived with history retained.");
+    }
+
+    private void EditRisk(RiskRegisterItemDto risk)
+    {
+        _riskKey = risk.Key;
+        _riskTitle = risk.Title;
+        _riskDescription = risk.Description;
+        _riskStatus = risk.Status;
+        _riskCategory = risk.Category;
+        _riskProbability = risk.ProbabilityPercent;
+        _riskImpact = risk.ImpactPercent;
+        _riskOwner = risk.OwnerRole ?? "";
+        _riskTrigger = risk.Trigger ?? "";
+        _riskMitigation = risk.Mitigation ?? "";
+        _riskAffected = string.Join(", ", risk.AffectedItems);
+
+        if (risk.ReviewDueUtc is not null)
+            _riskReview = risk.ReviewDueUtc.Value.LocalDateTime;
+    }
+
+    private void EditDecision(ManagementDecisionDto decision)
+    {
+        _decisionKey = decision.Key;
+        _decisionTitle = decision.Title;
+        _decisionValue = decision.Decision;
+        _decisionRationale = decision.Rationale;
+        _decisionStatus = decision.Status;
+        _decisionOwner = decision.DecisionOwnerRole ?? "";
+        _decisionRelated = string.Join(", ", decision.RelatedItems);
+        _decisionDecided = decision.DecidedAtUtc?.LocalDateTime;
+
+        if (decision.DecisionDueUtc is not null)
+            _decisionDue = decision.DecisionDueUtc.Value.LocalDateTime;
+    }
+
+    private void EditAction(ManagementActionDto action)
+    {
+        _actionKey = action.Key;
+        _actionTitle = action.Title;
+        _actionPriority = action.Priority;
+        _actionStatus = action.Status;
+        _actionOwner = action.OwnerRole ?? "";
+        _actionCompletion = action.CompletionPercent;
+        _actionDecisionKey = action.DecisionKey ?? "";
+        _actionTargetType = action.TargetType ?? "";
+        _actionTargetKey = action.TargetKey ?? "";
+
+        if (action.DueAtUtc is not null)
+            _actionDue = action.DueAtUtc.Value.LocalDateTime;
+    }
+
+    private async Task NotifyAndReloadAsync(string message)
+    {
+        await LoadAsync();
+        await Changed.InvokeAsync(message);
+    }
+
+    private ManagementReference? ActionTarget() =>
+        string.IsNullOrWhiteSpace(_actionTargetType)
+        || string.IsNullOrWhiteSpace(_actionTargetKey)
+            ? null
+            : new(
+                _actionTargetType.Trim(),
+                _actionTargetKey.Trim());
+
+    private static IReadOnlyList<ManagementReference> ParseReferences(string value)
+    {
+        var list = new List<ManagementReference>();
+
+        foreach (var part in value.Split(
+                     [',', ';', '\n'],
+                     StringSplitOptions.TrimEntries
+                     | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = part.IndexOf(':');
+            if (separator <= 0 || separator >= part.Length - 1)
+                continue;
+
+            var type = part[..separator].Trim();
+            var key = part[(separator + 1)..].Trim();
+
+            if (type.Length > 0 && key.Length > 0)
+                list.Add(new(type, key));
+        }
+
+        return list
+            .DistinctBy(
+                item => $"{item.Type}:{item.Key}",
+                StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string? Null(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+
+    private static DateTimeOffset Utc(DateTime value) =>
+        new DateTimeOffset(
+                value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(value, DateTimeKind.Local)
+                    : value)
+            .ToUniversalTime();
+
+    private static DateTimeOffset? UtcNullable(DateTime? value) =>
+        value.HasValue
+            ? Utc(value.Value)
+            : null;
+}

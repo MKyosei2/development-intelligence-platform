@@ -1,0 +1,654 @@
+@* Purpose: Manages spreadsheet evidence intake, source-of-truth rules, sync conflicts, and external management synchronization. *@
+@using Dip.Application.Features.Management
+@using Microsoft.AspNetCore.Components.Forms
+@inject ApiClient Api
+
+@if (_loading)
+{
+    <LoadingState Message="Loading synchronization state…" />
+}
+else if (_error is not null)
+{
+    <div class="alert alert-warning">@_error</div>
+}
+else
+{
+    <section class="card mb-3"
+             data-testid="management-spreadsheet-intelligence">
+        <div class="card-header">
+            <div>
+                <div class="eyebrow">Cross-domain evidence intake</div>
+                <strong>Flexible Spreadsheet Intelligence</strong>
+            </div>
+            <span>Analyze → Dry run → Apply</span>
+        </div>
+
+        <div class="card-body">
+            <div class="alert alert-light border small">
+                XLSX data is analyzed before mutation. Japanese/English columns and
+                software, media/VFX, construction, or generic project semantics are
+                inferred, while unknown columns are preserved as custom metadata.
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_spreadsheetError))
+            {
+                <div class="alert alert-danger">@_spreadsheetError</div>
+            }
+
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-lg-5">
+                    <label class="form-label">Workbook (.xlsx)</label>
+                    <InputFile OnChange="OnSpreadsheetSelected"
+                               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                               class="form-control"
+                               data-testid="spreadsheet-file" />
+                </div>
+
+                <div class="col-12 col-lg-3">
+                    <label class="form-label">
+                        Domain override <span class="text-muted">optional</span>
+                    </label>
+                    <input class="form-control"
+                           @bind="_spreadsheetDomainOverride"
+                           placeholder="media.production" />
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary flex-fill"
+                                data-testid="spreadsheet-analyze"
+                                disabled="@(!CanUseSpreadsheet || _spreadsheetBusy)"
+                                @onclick="AnalyzeSpreadsheetAsync">
+                            Analyze schema
+                        </button>
+                        <button class="btn btn-outline-secondary flex-fill"
+                                data-testid="spreadsheet-dry-run"
+                                disabled="@(!CanUseSpreadsheet || _spreadsheetBusy)"
+                                @onclick="PreviewSpreadsheetAsync">
+                            Dry run
+                        </button>
+                        <button class="btn btn-primary flex-fill"
+                                data-testid="spreadsheet-apply"
+                                disabled="@(!CanUseSpreadsheet || _spreadsheetBusy)"
+                                @onclick="ImportSpreadsheetAsync">
+                            Apply import
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_spreadsheetFileName))
+            {
+                <div class="small text-muted mt-2">
+                    Selected: @_spreadsheetFileName
+                    (@FormatBytes(_spreadsheetBytes?.Length ?? 0))
+                </div>
+            }
+        </div>
+
+        @if (_spreadsheetAnalysis is not null)
+        {
+            <div class="card-body border-top"
+                 data-testid="spreadsheet-analysis-result">
+                <div class="d-flex justify-content-between mb-2">
+                    <strong>Schema analysis</strong>
+                    <span>
+                        Dominant domain:
+                        <code>@_spreadsheetAnalysis.DomainId</code>
+                    </span>
+                </div>
+
+                @foreach (var sheet in _spreadsheetAnalysis.Sheets)
+                {
+                    <div class="border rounded p-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>@sheet.SheetName</strong>
+                            <span>
+                                <code>@sheet.DomainId</code> ·
+                                <code>@sheet.ObjectKind</code> ·
+                                @sheet.DataRows row(s)
+                            </span>
+                        </div>
+
+                        <div class="table-responsive mt-2">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Header</th>
+                                        <th>Mapped field</th>
+                                        <th>Confidence</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var column in sheet.Columns)
+                                    {
+                                        <tr>
+                                            <td>@column.Header</td>
+                                            <td><code>@(column.Field ?? "custom")</code></td>
+                                            <td>@column.Confidence.ToString("P0")</td>
+                                            <td class="small">@column.Reason</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if (sheet.Warnings.Count > 0)
+                        {
+                            <ul class="small text-warning mb-0 mt-2">
+                                @foreach (var warning in sheet.Warnings)
+                                {
+                                    <li>@warning</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (_spreadsheetPreview is not null || _spreadsheetImport is not null)
+        {
+            var result = _spreadsheetImport ?? _spreadsheetPreview!;
+
+            <div class="card-body border-top"
+                 data-testid="spreadsheet-import-result">
+                <div class="d-flex justify-content-between">
+                    <strong>@(result.DryRun ? "Dry-run result" : "Import result")</strong>
+                    <StatusBadge Value="@(result.DryRun ? "Preview" : "Imported")" />
+                </div>
+
+                <div class="settings-list mt-2">
+                    <div>
+                        <span>Domain</span>
+                        <code>@result.DomainId</code>
+                    </div>
+                    <div>
+                        <span>Imported</span>
+                        <strong>@result.Imported</strong>
+                    </div>
+                    <div>
+                        <span>Skipped</span>
+                        <strong>@result.Skipped</strong>
+                    </div>
+                    <div>
+                        <span>Dependency links</span>
+                        <strong>@result.DependencyLinks</strong>
+                    </div>
+                </div>
+
+                @if (result.Warnings.Count > 0)
+                {
+                    <ul class="small text-warning mb-0 mt-2">
+                        @foreach (var warning in result.Warnings.Take(10))
+                        {
+                            <li>@warning</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+    </section>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-7">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Source of truth rules</strong>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            @if (_sync is not null)
+                            {
+                                @foreach (var rule in _sync.AuthorityRules)
+                                {
+                                    <tr>
+                                        <td>@rule.DataType</td>
+                                        <td><strong>@rule.Authority</strong></td>
+                                        <td>@rule.ConflictPolicy</td>
+                                        <td>@rule.Status</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <strong>Open sync conflicts</strong>
+                </div>
+                <div class="card-body p-0">
+                    @if (_sync is not null)
+                    {
+                        @foreach (var conflict in _sync.Conflicts.Where(item => item.Status == "Open"))
+                        {
+                            <div class="attention-item warning">
+                                <span>↔</span>
+                                <div>
+                                    <strong>@conflict.Provider · @conflict.ItemKey</strong>
+                                    <small>
+                                        @conflict.DataType · detected
+                                        @conflict.DetectedAtUtc.ToLocalTime().ToString("g")
+                                    </small>
+                                    <details class="small mt-1">
+                                        <summary>Compare values</summary>
+                                        <pre class="small">DIP: @conflict.DipValue
+External: @conflict.ExternalValue</pre>
+                                    </details>
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    <button class="btn btn-outline-primary btn-sm"
+                                            @onclick='() => ResolveConflictAsync(conflict.Key, "DIP")'>
+                                        Keep DIP
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            @onclick='() => ResolveConflictAsync(conflict.Key, "External")'>
+                                        Keep external
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <div class="card mb-3">
+                <div class="card-header"><strong>Authority rule</strong></div>
+                <div class="card-body form-grid">
+                    <input class="form-control"
+                           placeholder="Rule key"
+                           @bind="_authorityKey" />
+                    <input class="form-control"
+                           placeholder="Data type"
+                           @bind="_authorityDataType" />
+                    <select class="form-select" @bind="_authority">
+                        <option>Manual</option>
+                        <option>DIP</option>
+                        <option>GitHub</option>
+                        <option>Jira</option>
+                        <option>Linear</option>
+                        <option>GoogleSheets</option>
+                        <option>External</option>
+                    </select>
+                    <select class="form-select" @bind="_conflictPolicy">
+                        <option>Manual</option>
+                        <option>PreferAuthority</option>
+                    </select>
+                    <button class="btn btn-primary" @onclick="SaveAuthorityAsync">
+                        Save authority rule
+                    </button>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>GitHub / Jira / Linear synchronization</strong>
+                </div>
+                <div class="card-body form-grid">
+                    <select class="form-select" @bind="_syncProvider">
+                        <option>GitHub</option>
+                        <option>Jira</option>
+                        <option>Linear</option>
+                    </select>
+                    <select class="form-select" @bind="_syncDirection">
+                        <option value="Bidirectional">Bidirectional</option>
+                        <option value="Pull">Pull</option>
+                        <option value="Push">Push</option>
+                    </select>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary flex-fill"
+                                @onclick="() => RunSyncAsync(true)">
+                            Dry run
+                        </button>
+                        <button class="btn btn-primary flex-fill"
+                                @onclick="() => RunSyncAsync(false)">
+                            Run sync
+                        </button>
+                    </div>
+
+                    @if (_lastSync is not null)
+                    {
+                        <div class="alert alert-light border small mb-0">
+                            Pulled @_lastSync.Pulled ·
+                            pushed @_lastSync.Pushed ·
+                            conflicts @_lastSync.Conflicts ·
+                            changes @_lastSync.Changes.Count
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <strong>Google Sheets conflict-safe sync</strong>
+                </div>
+                <div class="card-body form-grid">
+                    <input class="form-control"
+                           placeholder="Spreadsheet ID"
+                           @bind="_sheetId" />
+                    <input class="form-control"
+                           type="password"
+                           autocomplete="off"
+                           placeholder="OAuth access token (not stored)"
+                           @bind="_sheetToken" />
+                    <div class="small text-muted">
+                        Editable sheets use last-sync fingerprints. Concurrent DIP/Sheets
+                        edits create a conflict rather than silent overwrite.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary flex-fill"
+                                @onclick="() => RunSheetsAsync(true)">
+                            Dry run
+                        </button>
+                        <button class="btn btn-primary flex-fill"
+                                @onclick="() => RunSheetsAsync(false)">
+                            Sync Sheets
+                        </button>
+                    </div>
+
+                    @if (_lastSheets is not null)
+                    {
+                        <div class="alert alert-light border small mb-0">
+                            Pulled @_lastSheets.PulledSheets ·
+                            pushed @_lastSheets.PushedSheets ·
+                            conflicts @_lastSheets.Conflicts
+
+                            @if (_lastSheets.Warnings.Count > 0)
+                            {
+                                <ul class="mb-0 mt-1">
+                                    @foreach (var warning in _lastSheets.Warnings.Take(5))
+                                    {
+                                        <li>@warning</li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const long MaxSpreadsheetBytes = 25L * 1024L * 1024L;
+
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public EventCallback<string> Changed { get; set; }
+
+    private bool _loading = true;
+    private string? _error;
+    private SyncStateOverviewDto? _sync;
+    private ManagementSyncResult? _lastSync;
+    private GoogleSheetsSyncResult? _lastSheets;
+
+    private string _authorityKey = "actions";
+    private string _authorityDataType = "Action";
+    private string _authority = "Manual";
+    private string _conflictPolicy = "Manual";
+    private string _syncProvider = "GitHub";
+    private string _syncDirection = "Bidirectional";
+    private string _sheetId = "";
+    private string _sheetToken = "";
+
+    private byte[]? _spreadsheetBytes;
+    private string? _spreadsheetFileName;
+    private string _spreadsheetDomainOverride = "";
+    private bool _spreadsheetBusy;
+    private string? _spreadsheetError;
+    private SpreadsheetSchemaAnalysisDto? _spreadsheetAnalysis;
+    private FlexibleSpreadsheetImportResult? _spreadsheetPreview;
+    private FlexibleSpreadsheetImportResult? _spreadsheetImport;
+
+    private bool CanUseSpreadsheet =>
+        _spreadsheetBytes is { Length: > 0 };
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            _sync = await Api.GetManagementSyncStateAsync(ProjectId);
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAuthorityAsync()
+    {
+        await Api.UpsertSourceAuthorityAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                _authorityKey,
+                _authorityDataType,
+                _authority,
+                _conflictPolicy));
+
+        await NotifyAndReloadAsync("Source authority saved.");
+    }
+
+    private async Task RunSyncAsync(bool dryRun)
+    {
+        _lastSync = await Api.RunManagementSyncAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                _syncProvider,
+                Enum.Parse<ManagementSyncDirection>(_syncDirection),
+                dryRun));
+
+        await NotifyAndReloadAsync(
+            dryRun
+                ? "Sync dry run completed."
+                : "Synchronization completed.");
+    }
+
+    private async Task RunSheetsAsync(bool dryRun)
+    {
+        _lastSheets = await Api.SyncManagementGoogleSheetsAsync(
+            new(
+                ProjectId,
+                _sheetId,
+                _sheetToken,
+                true,
+                true,
+                dryRun));
+
+        if (!dryRun)
+            _sheetToken = "";
+
+        await NotifyAndReloadAsync(
+            dryRun
+                ? "Google Sheets dry run completed."
+                : "Google Sheets synchronized with conflict protection.");
+    }
+
+    private async Task ResolveConflictAsync(
+        string key,
+        string resolution)
+    {
+        await Api.ResolveManagementSyncConflictAsync(
+            ProjectId,
+            key,
+            new(
+                ProjectId,
+                key,
+                resolution,
+                "web"));
+
+        await NotifyAndReloadAsync("Sync conflict resolved.");
+    }
+
+    private async Task OnSpreadsheetSelected(InputFileChangeEventArgs args)
+    {
+        _spreadsheetError = null;
+        _spreadsheetAnalysis = null;
+        _spreadsheetPreview = null;
+        _spreadsheetImport = null;
+
+        var file = args.File;
+        _spreadsheetFileName = file.Name;
+
+        if (file.Size <= 0 || file.Size > MaxSpreadsheetBytes)
+        {
+            _spreadsheetBytes = null;
+            _spreadsheetError =
+                $"Workbook must be between 1 byte and "
+                + $"{FormatBytes((int)MaxSpreadsheetBytes)}.";
+            return;
+        }
+
+        try
+        {
+            await using var input = file.OpenReadStream(MaxSpreadsheetBytes);
+            using var memory = new MemoryStream(
+                (int)Math.Min(file.Size, MaxSpreadsheetBytes));
+            await input.CopyToAsync(memory);
+            _spreadsheetBytes = memory.ToArray();
+        }
+        catch (Exception exception)
+        {
+            _spreadsheetBytes = null;
+            _spreadsheetError = exception.Message;
+        }
+    }
+
+    private Task AnalyzeSpreadsheetAsync() =>
+        RunSpreadsheetOperationAsync(
+            async () =>
+            {
+                var bytes = RequireSpreadsheetBytes();
+
+                _spreadsheetAnalysis =
+                    await Api.AnalyzeManagementSpreadsheetAsync(
+                        ProjectId,
+                        SpreadsheetFileName(),
+                        bytes);
+
+                _spreadsheetPreview = null;
+                _spreadsheetImport = null;
+
+                await Changed.InvokeAsync(
+                    "Spreadsheet schema analysis completed without mutating project state.");
+            });
+
+    private Task PreviewSpreadsheetAsync() =>
+        RunSpreadsheetOperationAsync(
+            async () =>
+            {
+                var bytes = RequireSpreadsheetBytes();
+
+                _spreadsheetPreview =
+                    await Api.ImportFlexibleManagementSpreadsheetAsync(
+                        ProjectId,
+                        SpreadsheetFileName(),
+                        bytes,
+                        dryRun: true,
+                        domainId: Null(_spreadsheetDomainOverride));
+
+                _spreadsheetAnalysis = _spreadsheetPreview.Analysis;
+                _spreadsheetImport = null;
+
+                await Changed.InvokeAsync(
+                    "Flexible spreadsheet dry run completed; no project state was changed.");
+            });
+
+    private Task ImportSpreadsheetAsync() =>
+        RunSpreadsheetOperationAsync(
+            async () =>
+            {
+                var bytes = RequireSpreadsheetBytes();
+
+                _spreadsheetImport =
+                    await Api.ImportFlexibleManagementSpreadsheetAsync(
+                        ProjectId,
+                        SpreadsheetFileName(),
+                        bytes,
+                        dryRun: false,
+                        domainId: Null(_spreadsheetDomainOverride));
+
+                _spreadsheetAnalysis = _spreadsheetImport.Analysis;
+                _spreadsheetPreview = null;
+
+                await LoadAsync();
+
+                await Changed.InvokeAsync(
+                    $"Flexible spreadsheet import applied: "
+                    + $"{_spreadsheetImport.Imported} row(s), "
+                    + $"{_spreadsheetImport.DependencyLinks} dependency link(s).");
+            });
+
+    private async Task RunSpreadsheetOperationAsync(Func<Task> operation)
+    {
+        if (!CanUseSpreadsheet)
+        {
+            _spreadsheetError = "Choose an XLSX workbook first.";
+            return;
+        }
+
+        _spreadsheetBusy = true;
+        _spreadsheetError = null;
+
+        try
+        {
+            await operation();
+        }
+        catch (Exception exception)
+        {
+            _spreadsheetError = exception.Message;
+        }
+        finally
+        {
+            _spreadsheetBusy = false;
+        }
+    }
+
+    private byte[] RequireSpreadsheetBytes() =>
+        _spreadsheetBytes
+        ?? throw new InvalidOperationException(
+            "Choose an XLSX workbook first.");
+
+    private async Task NotifyAndReloadAsync(string message)
+    {
+        await LoadAsync();
+        await Changed.InvokeAsync(message);
+    }
+
+    private string SpreadsheetFileName() =>
+        string.IsNullOrWhiteSpace(_spreadsheetFileName)
+            ? "management.xlsx"
+            : _spreadsheetFileName;
+
+    private static string? Null(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+
+    private static string FormatBytes(int bytes)
+    {
+        if (bytes >= 1024 * 1024)
+            return $"{bytes / (1024d * 1024d):0.##} MiB";
+
+        if (bytes >= 1024)
+            return $"{bytes / 1024d:0.##} KiB";
+
+        return $"{bytes} B";
+    }
+}

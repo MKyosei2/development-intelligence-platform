@@ -1,0 +1,292 @@
+@* Purpose: Manages operational alert dispositions and formal approval gates for one project. *@
+@using Dip.Application.Features.Management
+@inject ApiClient Api
+
+@if (_loading)
+{
+    <LoadingState Message="Loading alerts and approvals…" />
+}
+else if (_error is not null)
+{
+    <div class="alert alert-warning">@_error</div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-12 col-xl-7">
+            <div class="card">
+                <div class="card-header">
+                    <strong>Operational alerts</strong>
+                </div>
+                <div class="card-body p-0">
+                    @if (_cockpit?.Alerts.Any(item => item.Visible) != true)
+                    {
+                        <div class="compact-empty">
+                            <span class="status-dot healthy"></span>
+                            <div>
+                                <strong>No active alerts</strong>
+                                <small>No visible operational alert requires action.</small>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var operation in _cockpit!.Alerts.Where(item => item.Visible))
+                        {
+                            <div class="attention-item @(operation.Alert.Severity == "Critical" ? "danger" : "warning")">
+                                <span>!</span>
+                                <div>
+                                    <strong>@operation.Alert.Title</strong>
+                                    <small>
+                                        @operation.Alert.Category · route: @operation.RoutedRole ·
+                                        state: @operation.State.Status
+                                    </small>
+                                    <div class="small mt-1">@operation.Alert.Explanation</div>
+                                    <div class="small">
+                                        <b>Next:</b> @operation.Alert.RecommendedAction
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    <button class="btn btn-outline-primary btn-sm"
+                                            @onclick='() => AlertAsync(operation.Alert.Key, "acknowledge")'>
+                                        Ack
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            @onclick='() => AlertAsync(operation.Alert.Key, "snooze")'>
+                                        Snooze 2h
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm"
+                                            @onclick='() => AlertAsync(operation.Alert.Key, "resolve")'>
+                                        Resolve
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Pending approvals</strong>
+                </div>
+                <div class="card-body">
+                    @if (_approvals?.Items.Any(item => item.Status == "Pending") != true)
+                    {
+                        <p class="small text-muted mb-0">No pending approval.</p>
+                    }
+                    else
+                    {
+                        @foreach (var approval in _approvals!.Items.Where(item => item.Status == "Pending"))
+                        {
+                            <div class="border rounded p-2 mb-2">
+                                <strong>@approval.Title</strong>
+                                <div class="small text-muted">
+                                    @approval.ApprovalType · @approval.TargetType:@approval.TargetKey ·
+                                    pending @string.Join(", ", approval.PendingRoles)
+                                </div>
+                                <div class="input-group input-group-sm mt-2">
+                                    <select class="form-select" @bind="_approvalActorRole">
+                                        <option value="">Select bound role</option>
+                                        @foreach (var role in CurrentActorRoles)
+                                        {
+                                            <option value="@role">@role</option>
+                                        }
+                                    </select>
+                                    <button class="btn btn-outline-success"
+                                            disabled="@string.IsNullOrWhiteSpace(_approvalActorRole)"
+                                            @onclick="() => RespondAsync(approval, true)">
+                                        Approve
+                                    </button>
+                                    <button class="btn btn-outline-danger"
+                                            disabled="@string.IsNullOrWhiteSpace(_approvalActorRole)"
+                                            @onclick="() => RespondAsync(approval, false)">
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <strong>Create approval gate</strong>
+                </div>
+                <div class="card-body form-grid">
+                    <input class="form-control" placeholder="Key" @bind="_approvalKey" />
+                    <input class="form-control" placeholder="Title" @bind="_approvalTitle" />
+                    <input class="form-control"
+                           placeholder="Type (Release/Scope/Resource)"
+                           @bind="_approvalType" />
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               placeholder="Target type"
+                               @bind="_approvalTargetType" />
+                        <input class="form-control"
+                               placeholder="Target key"
+                               @bind="_approvalTargetKey" />
+                    </div>
+                    <input class="form-control"
+                           placeholder="Required roles, comma separated"
+                           @bind="_approvalRoles" />
+                    <input class="form-control"
+                           type="datetime-local"
+                           @bind="_approvalDue" />
+                    <button class="btn btn-primary" @onclick="CreateApprovalAsync">
+                        Create approval
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public EventCallback<string> Changed { get; set; }
+
+    private DailyCockpitDto? _cockpit;
+    private ApprovalOverviewDto? _approvals;
+    private ManagementRoleDirectoryDto? _roles;
+    private bool _loading = true;
+    private string? _error;
+
+    private string _approvalKey = "";
+    private string _approvalTitle = "";
+    private string _approvalType = "Release";
+    private string _approvalTargetType = "release";
+    private string _approvalTargetKey = "";
+    private string _approvalRoles = "Project Manager,Tech Lead";
+    private string _approvalActorRole = "Project Manager";
+    private DateTime _approvalDue = DateTime.Today.AddDays(1).AddHours(17);
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var cockpitTask = Api.GetDailyCockpitAsync(ProjectId, 8, null);
+            var approvalsTask = Api.GetApprovalsAsync(ProjectId);
+            var rolesTask = Api.GetManagementRolesAsync(ProjectId);
+
+            await Task.WhenAll(cockpitTask, approvalsTask, rolesTask);
+
+            _cockpit = await cockpitTask;
+            _approvals = await approvalsTask;
+            _roles = await rolesTask;
+
+            var roles = CurrentActorRoles;
+            if (roles.Count == 0)
+                _approvalActorRole = "";
+            else if (!roles.Contains(
+                         _approvalActorRole,
+                         StringComparer.OrdinalIgnoreCase))
+                _approvalActorRole = roles[0];
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task AlertAsync(string key, string disposition)
+    {
+        await Api.SetAlertDispositionAsync(
+            ProjectId,
+            key,
+            new(
+                ProjectId,
+                key,
+                "web",
+                disposition,
+                disposition == "snooze"
+                    ? DateTimeOffset.UtcNow.AddHours(2)
+                    : null,
+                null));
+
+        await NotifyAndReloadAsync("Alert state updated.");
+    }
+
+    private async Task CreateApprovalAsync()
+    {
+        await Api.CreateApprovalAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                _approvalKey,
+                _approvalType,
+                _approvalTitle,
+                new(_approvalTargetType, _approvalTargetKey),
+                Split(_approvalRoles),
+                "web",
+                null,
+                Utc(_approvalDue)));
+
+        await NotifyAndReloadAsync("Approval gate created.");
+    }
+
+    private async Task RespondAsync(
+        ApprovalRequestDto approval,
+        bool approve)
+    {
+        await Api.RespondApprovalAsync(
+            ProjectId,
+            approval.Key,
+            new(
+                ProjectId,
+                approval.Key,
+                "web",
+                _approvalActorRole,
+                approve ? "Approve" : "Reject",
+                null));
+
+        await NotifyAndReloadAsync(
+            approve ? "Approval recorded." : "Rejection recorded.");
+    }
+
+    private async Task NotifyAndReloadAsync(string message)
+    {
+        await LoadAsync();
+        await Changed.InvokeAsync(message);
+    }
+
+    private IReadOnlyList<string> CurrentActorRoles =>
+        _roles?.Bindings
+            .Where(binding =>
+                binding.Status.Equals(
+                    "Active",
+                    StringComparison.OrdinalIgnoreCase)
+                && binding.ActorIdentity.Equals(
+                    _roles.CurrentActor,
+                    StringComparison.OrdinalIgnoreCase))
+            .Select(binding => binding.Role)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
+            .ToArray()
+        ?? Array.Empty<string>();
+
+    private static string[] Split(string value) =>
+        value.Split(
+            ',',
+            StringSplitOptions.TrimEntries
+            | StringSplitOptions.RemoveEmptyEntries);
+
+    private static DateTimeOffset Utc(DateTime value) =>
+        new DateTimeOffset(
+                value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(value, DateTimeKind.Local)
+                    : value)
+            .ToUniversalTime();
+}

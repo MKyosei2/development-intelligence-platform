@@ -1,0 +1,480 @@
+@* Purpose: Manages RACI assignments, approval-role bindings, work calendars, and Google Calendar capacity synchronization. *@
+@using Dip.Application.Features.Management
+@inject ApiClient Api
+
+@if (_loading)
+{
+    <LoadingState Message="Loading RACI and calendars…" />
+}
+else if (_error is not null)
+{
+    <div class="alert alert-warning">@_error</div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-12 col-xl-7">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>RACI responsibilities</strong>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Target</th>
+                                <th>R</th>
+                                <th>A</th>
+                                <th>C / I</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_raci is not null)
+                            {
+                                @foreach (var item in _raci.Items)
+                                {
+                                    <tr>
+                                        <td>@item.TargetType:@item.TargetKey</td>
+                                        <td>@(item.ResponsibleRole ?? "—")</td>
+                                        <td>@(item.AccountableRole ?? "—")</td>
+                                        <td>
+                                            <small>
+                                                C: @string.Join(", ", item.ConsultedRoles)
+                                                <br />
+                                                I: @string.Join(", ", item.InformedRoles)
+                                            </small>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Formal approval role directory</strong>
+                </div>
+                <div class="card-body p-0">
+                    @if (_roles is not null)
+                    {
+                        <div class="px-3 py-2 small text-muted">
+                            Current signed identity:
+                            <code>@_roles.CurrentActor</code>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Role</th>
+                                        <th>User</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var binding in _roles.Bindings)
+                                    {
+                                        <tr>
+                                            <td>@binding.Role</td>
+                                            <td>
+                                                @(binding.DisplayName ?? binding.ActorIdentity)
+                                                <div class="small text-muted">
+                                                    @binding.ActorIdentity
+                                                </div>
+                                            </td>
+                                            <td>@binding.Status</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <strong>Capacity calendars</strong>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            @if (_calendars is not null)
+                            {
+                                @foreach (var calendar in _calendars.Calendars)
+                                {
+                                    <tr>
+                                        <td>
+                                            @calendar.Name
+                                            <div class="small text-muted">
+                                                @(calendar.TeamKey ?? "project-wide")
+                                                · @calendar.TimeZone
+                                            </div>
+                                        </td>
+                                        <td>@calendar.RecurringMeetingHoursPerWeek h meetings</td>
+                                        <td>@calendar.SupportDutyHoursPerWeek h support</td>
+                                        <td>@calendar.Exceptions.Count exception(s)</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Assign RACI</strong>
+                </div>
+                <div class="card-body form-grid">
+                    <input class="form-control"
+                           placeholder="Assignment key"
+                           @bind="_raciKey" />
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               placeholder="Target type"
+                               @bind="_raciType" />
+                        <input class="form-control"
+                               placeholder="Target key"
+                               @bind="_raciTarget" />
+                    </div>
+                    <input class="form-control"
+                           placeholder="Responsible role"
+                           @bind="_raciR" />
+                    <input class="form-control"
+                           placeholder="Accountable role"
+                           @bind="_raciA" />
+                    <input class="form-control"
+                           placeholder="Consulted roles"
+                           @bind="_raciC" />
+                    <input class="form-control"
+                           placeholder="Informed roles"
+                           @bind="_raciI" />
+                    <button class="btn btn-primary" @onclick="SaveRaciAsync">
+                        Save RACI
+                    </button>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Bind authenticated user → approval role</strong>
+                </div>
+                <div class="card-body form-grid">
+                    <input class="form-control"
+                           placeholder="Binding key"
+                           @bind="_roleBindingKey" />
+                    <input class="form-control"
+                           placeholder="Audit identity (login#subject)"
+                           @bind="_roleBindingActor" />
+                    <input class="form-control"
+                           placeholder="Management role"
+                           @bind="_roleBindingRole" />
+                    <input class="form-control"
+                           placeholder="Display name"
+                           @bind="_roleBindingName" />
+                    <button class="btn btn-primary" @onclick="SaveRoleBindingAsync">
+                        Save role binding (Project Owner)
+                    </button>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Work calendar / PTO / holiday</strong>
+                </div>
+                <div class="card-body form-grid">
+                    <input class="form-control"
+                           placeholder="Calendar key"
+                           @bind="_calendarKey" />
+                    <input class="form-control"
+                           placeholder="Name"
+                           @bind="_calendarName" />
+                    <input class="form-control"
+                           placeholder="Team key"
+                           @bind="_calendarTeam" />
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               type="number"
+                               step="0.5"
+                               placeholder="Hours/day"
+                               @bind="_calendarHoursDay" />
+                        <input class="form-control"
+                               type="number"
+                               step="0.5"
+                               placeholder="Meeting h/week"
+                               @bind="_calendarMeetings" />
+                        <input class="form-control"
+                               type="number"
+                               step="0.5"
+                               placeholder="Support h/week"
+                               @bind="_calendarSupport" />
+                    </div>
+                    <textarea class="form-control"
+                              rows="4"
+                              placeholder="Exceptions: YYYY-MM-DD|YYYY-MM-DD|hours|PTO/Holiday|label"
+                              @bind="_calendarExceptions"></textarea>
+                    <button class="btn btn-primary" @onclick="SaveCalendarAsync">
+                        Save calendar
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <strong>Google Calendar → capacity</strong>
+                </div>
+                <div class="card-body form-grid">
+                    <input class="form-control"
+                           placeholder="Google Calendar ID"
+                           @bind="_gcalId" />
+                    <input class="form-control"
+                           type="password"
+                           autocomplete="off"
+                           placeholder="OAuth access token (not stored)"
+                           @bind="_gcalToken" />
+                    <div class="d-flex gap-2">
+                        <input class="form-control"
+                               type="datetime-local"
+                               @bind="_gcalFrom" />
+                        <input class="form-control"
+                               type="datetime-local"
+                               @bind="_gcalTo" />
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary flex-fill"
+                                @onclick="() => RunGoogleCalendarAsync(true)">
+                            Dry run
+                        </button>
+                        <button class="btn btn-primary flex-fill"
+                                @onclick="() => RunGoogleCalendarAsync(false)">
+                            Sync calendar
+                        </button>
+                    </div>
+
+                    @if (_lastCalendarSync is not null)
+                    {
+                        <div class="alert alert-light border small mb-0">
+                            Events @_lastCalendarSync.Events ·
+                            PTO @_lastCalendarSync.Pto ·
+                            holidays @_lastCalendarSync.Holidays ·
+                            meetings @_lastCalendarSync.Meetings ·
+                            support @_lastCalendarSync.Support ·
+                            @_lastCalendarSync.CapacityHoursRemoved.ToString("0.#") h deducted
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public EventCallback<string> Changed { get; set; }
+
+    private bool _loading = true;
+    private string? _error;
+
+    private RaciOverviewDto? _raci;
+    private ManagementRoleDirectoryDto? _roles;
+    private WorkCalendarOverviewDto? _calendars;
+    private GoogleCalendarSyncResult? _lastCalendarSync;
+
+    private string _raciKey = "";
+    private string _raciType = "action";
+    private string _raciTarget = "";
+    private string _raciR = "";
+    private string _raciA = "";
+    private string _raciC = "";
+    private string _raciI = "";
+
+    private string _roleBindingKey = "";
+    private string _roleBindingActor = "";
+    private string _roleBindingRole = "";
+    private string _roleBindingName = "";
+
+    private string _calendarKey = "default";
+    private string _calendarName = "Project calendar";
+    private string _calendarTeam = "";
+    private string _calendarExceptions = "";
+    private decimal _calendarHoursDay = 8;
+    private decimal _calendarMeetings;
+    private decimal _calendarSupport;
+
+    private string _gcalId = "primary";
+    private string _gcalToken = "";
+    private DateTime _gcalFrom = DateTime.Today;
+    private DateTime _gcalTo = DateTime.Today.AddDays(56);
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var raciTask = Api.GetRaciAsync(ProjectId);
+            var rolesTask = Api.GetManagementRolesAsync(ProjectId);
+            var calendarsTask = Api.GetWorkCalendarsAsync(ProjectId);
+
+            await Task.WhenAll(raciTask, rolesTask, calendarsTask);
+
+            _raci = await raciTask;
+            _roles = await rolesTask;
+            _calendars = await calendarsTask;
+
+            if (string.IsNullOrWhiteSpace(_roleBindingActor))
+                _roleBindingActor = _roles.CurrentActor;
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveRaciAsync()
+    {
+        await Api.UpsertRaciAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                _raciKey,
+                new(_raciType, _raciTarget),
+                Null(_raciR),
+                Null(_raciA),
+                Split(_raciC),
+                Split(_raciI)));
+
+        await NotifyAndReloadAsync("RACI saved.");
+    }
+
+    private async Task SaveRoleBindingAsync()
+    {
+        await Api.UpsertManagementRoleAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                _roleBindingKey,
+                _roleBindingActor,
+                _roleBindingRole,
+                Null(_roleBindingName)));
+
+        await NotifyAndReloadAsync("Management role binding saved.");
+    }
+
+    private async Task SaveCalendarAsync()
+    {
+        await Api.UpsertWorkCalendarAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                _calendarKey,
+                _calendarName,
+                Null(_calendarTeam),
+                _calendarHoursDay,
+                null,
+                _calendarMeetings,
+                _calendarSupport,
+                ParseExceptions(_calendarExceptions),
+                "Asia/Tokyo"));
+
+        await NotifyAndReloadAsync(
+            "Work calendar saved and capacity recalculated.");
+    }
+
+    private async Task RunGoogleCalendarAsync(bool dryRun)
+    {
+        _lastCalendarSync = await Api.SyncManagementGoogleCalendarAsync(
+            ProjectId,
+            new(
+                ProjectId,
+                _calendarKey,
+                _gcalId,
+                _gcalToken,
+                Utc(_gcalFrom),
+                Utc(_gcalTo),
+                Null(_calendarTeam),
+                "Asia/Tokyo",
+                dryRun));
+
+        if (!dryRun)
+            _gcalToken = "";
+
+        await NotifyAndReloadAsync(
+            dryRun
+                ? "Google Calendar dry run completed."
+                : "Google Calendar synchronized into capacity.");
+    }
+
+    private async Task NotifyAndReloadAsync(string message)
+    {
+        await LoadAsync();
+        await Changed.InvokeAsync(message);
+    }
+
+    private static IReadOnlyList<CapacityExceptionInput> ParseExceptions(
+        string value)
+    {
+        var list = new List<CapacityExceptionInput>();
+
+        foreach (var line in value.Split(
+                     '\n',
+                     StringSplitOptions.TrimEntries
+                     | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = line.Split('|', StringSplitOptions.TrimEntries);
+
+            if (parts.Length < 4
+                || !DateTime.TryParse(parts[0], out var start)
+                || !DateTime.TryParse(parts[1], out var end)
+                || !decimal.TryParse(parts[2], out var hours))
+            {
+                continue;
+            }
+
+            list.Add(
+                new(
+                    new DateTimeOffset(
+                            start.Date,
+                            TimeZoneInfo.Local.GetUtcOffset(start.Date))
+                        .ToUniversalTime(),
+                    new DateTimeOffset(
+                            end.Date.AddDays(1).AddTicks(-1),
+                            TimeZoneInfo.Local.GetUtcOffset(end.Date))
+                        .ToUniversalTime(),
+                    hours,
+                    parts[3],
+                    parts.Length > 4 ? parts[4] : null));
+        }
+
+        return list;
+    }
+
+    private static string[] Split(string value) =>
+        value.Split(
+            ',',
+            StringSplitOptions.TrimEntries
+            | StringSplitOptions.RemoveEmptyEntries);
+
+    private static string? Null(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+
+    private static DateTimeOffset Utc(DateTime value) =>
+        new DateTimeOffset(
+                value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(value, DateTimeKind.Local)
+                    : value)
+            .ToUniversalTime();
+}
