@@ -86,7 +86,7 @@ function Test-FragmentedName {
             $joined += $tokens[$end]
             if ($tokens[$end].Length -le 2) { $shortCount++ }
             if ($joined.Length -gt $candidateNormalized.Length) { break }
-            if (($end-$start+1) -ge 3 -and $shortCount -ge 3 -and $joined.Equals($candidateNormalized,[System.StringComparison]::OrdinalIgnoreCase)) { return $true }
+            if (($end-$start+1) -ge 5 -and $shortCount -ge 4 -and $joined.Equals($candidateNormalized,[System.StringComparison]::OrdinalIgnoreCase)) { return $true }
         }
     }
     return $false
