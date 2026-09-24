@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Project File Scanner responsibilities for this repository area.
 using System.Security.Cryptography;
 using System.Text;
 

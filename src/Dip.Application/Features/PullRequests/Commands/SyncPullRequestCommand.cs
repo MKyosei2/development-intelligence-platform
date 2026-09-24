@@ -1,1 +1,1 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Sync Pull Request Command responsibilities for pull requests.

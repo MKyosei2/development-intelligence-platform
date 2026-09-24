@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements release predictor responsibilities for app.
 import math
 
 from app.core.config import Settings

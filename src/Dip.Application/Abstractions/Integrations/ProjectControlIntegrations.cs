@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Project Control Integrations responsibilities for integrations.
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Domain.Enums;
 

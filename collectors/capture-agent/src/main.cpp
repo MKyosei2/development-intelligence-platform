@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements main responsibilities for capture agent.
 #include <windows.h>
 #include <d3d11.h>
 #include <dxgi1_2.h>

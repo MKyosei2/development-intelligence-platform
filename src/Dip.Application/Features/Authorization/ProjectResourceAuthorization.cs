@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Project Resource Authorization responsibilities for authorization.
 namespace Dip.Application.Features.Authorization;
 
 public enum ProjectResourceKind { QaRun, Incident, DurableJob, BenchmarkRun, ReplaySession, ReplayRun, Artifact, PipelineRun }
