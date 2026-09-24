@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements health responsibilities for routes.
 from fastapi import APIRouter
 
 router = APIRouter(tags=["health"])

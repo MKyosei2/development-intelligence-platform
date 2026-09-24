@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements risk responsibilities for routes.
 from fastapi import APIRouter, Depends
 
 from app.api.dependencies import get_risk_analyzer

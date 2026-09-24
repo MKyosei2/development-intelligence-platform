@@ -1,1 +1,1 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Rate Limit Middleware responsibilities for this repository area.

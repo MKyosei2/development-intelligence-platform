@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Queue Message responsibilities for events.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record QueueMessage<T>(
