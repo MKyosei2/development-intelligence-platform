@@ -24,6 +24,28 @@ if (-not $InventoryPath) { $InventoryPath=Join-Path $Repo 'artifacts\source-read
 $Issues=New-Object 'System.Collections.Generic.List[object]'
 $Inventory=New-Object 'System.Collections.Generic.List[object]'
 
+$GenericPurposes = @(
+    'Verifies expected behavior and invariants for the surrounding feature.',
+    'Automates a repeatable development or verification workflow for this repository.',
+    'Provides repository tooling used by development and verification workflows.',
+    'Renders and coordinates this web surface and its user interactions.',
+    'Exposes HTTP endpoints for this API responsibility.',
+    'Defines a persistence boundary used by the application layer.',
+    'Persists and queries data for this application boundary.',
+    'Runs background processing for this application responsibility.',
+    'Coordinates application behavior for this feature area.',
+    'Defines data exchanged across this application boundary.',
+    'Defines domain behavior and state for this feature area.',
+    'Provides infrastructure behavior for this application boundary.',
+    'Implements web-facing behavior for this application surface.',
+    'Defines a focused responsibility within the development intelligence platform.'
+)
+
+function Test-GenericPurpose {
+    param([Parameter(Mandatory = $true)][string]$Purpose)
+    return $GenericPurposes -contains $Purpose.Trim()
+}
+
 function Get-RelativePath([string]$Path) {
     $full=[System.IO.Path]::GetFullPath($Path)
     return ($full.Substring($Repo.Length) -replace '^[\\/]+','').Replace([char]92,[char]47)
@@ -102,6 +124,7 @@ foreach($rootName in @('src','tests','scripts','tools','services','collectors','
             if($purposeMatches.Count -gt 1){Add-Issue ERROR DUPLICATE_PURPOSE $relative 'Exactly one Purpose comment is allowed.'}
             if($purpose.Length -lt 12 -or $purpose.Length -gt 180){Add-Issue WARN PURPOSE_LENGTH $relative "Purpose length is $($purpose.Length); expected 12-180 characters."}
             if(Test-BrokenPurpose $purpose $file.FullName $text){Add-Issue ERROR BROKEN_PURPOSE $relative 'Purpose contains character-split filename/type text.'}
+            if(Test-GenericPurpose -Purpose $purpose){Add-Issue ERROR GENERIC_PURPOSE $relative 'Purpose must describe the concrete responsibility of this source file.'}
         }
         for($i=0;$i -lt $lines.Count;$i++) {
             if(($extension -eq '.cs' -or $extension -eq '.razor') -and (Test-CompressedCodeLine $lines[$i])) { Add-Issue ERROR COMPRESSED_SOURCE $relative 'Line contains compressed code statements.' ($i+1) }
