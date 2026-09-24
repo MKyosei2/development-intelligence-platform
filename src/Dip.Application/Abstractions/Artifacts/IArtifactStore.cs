@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Artifact Store responsibilities for artifacts.
 namespace Dip.Application.Abstractions.Artifacts;
 
 public sealed record StoredArtifactContent(string StorageKey, string Sha256, long SizeBytes, string ContentType);

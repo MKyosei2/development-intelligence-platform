@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Collector Report responsibilities for generic json collector.
 using System.Text.Json.Serialization;
 
 namespace GenericJsonCollector.Models;

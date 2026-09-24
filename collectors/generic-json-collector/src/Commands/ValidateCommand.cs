@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Validate Command responsibilities for generic json collector.
 using GenericJsonCollector.Parsing;
 using GenericJsonCollector.Validation;
 

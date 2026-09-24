@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Duplicate Detector responsibilities for dip.
 #pragma once
 #include "dip/CollectorTypes.hpp"
 #include <unordered_map>

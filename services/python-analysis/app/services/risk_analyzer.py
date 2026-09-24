@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements risk analyzer responsibilities for app.
 from app.schemas.common import EvidenceItem
 from app.schemas.risk import RiskContribution, RiskRequest, RiskResponse
 

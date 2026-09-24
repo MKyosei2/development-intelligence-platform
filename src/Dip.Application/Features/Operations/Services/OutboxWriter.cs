@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Outbox Writer responsibilities for operations.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;

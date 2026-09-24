@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Game Replay Executor responsibilities for replay.
 namespace Dip.Application.Abstractions.Replay;
 
 public sealed record ReplayExecutionRequest(string Command, string Arguments, string? WorkingDirectory, string Scene, string InputArtifactId, int RandomSeed, int DurationSeconds, string CommitSha, string BuildId, string HardwareFingerprint);

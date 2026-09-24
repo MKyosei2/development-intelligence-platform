@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Exception Handling Middleware responsibilities for this repository area.
 using System.Diagnostics;
 using System.Text.Json;
 namespace Dip.Api.Middleware;

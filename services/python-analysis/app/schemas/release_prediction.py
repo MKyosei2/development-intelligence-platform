@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements release prediction responsibilities for schemas.
 from pydantic import BaseModel, Field
 
 from app.schemas.common import EvidenceItem
