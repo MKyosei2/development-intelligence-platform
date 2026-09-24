@@ -77,7 +77,7 @@ function Test-FragmentedPurpose([string]$Purpose,[string]$Candidate) {
             $joined+=$tokens[$end]
             if($tokens[$end].Length -le 2){$short++}
             if($joined.Length -gt $normalized.Length){break}
-            if(($end-$start+1)-ge 3 -and $short -ge 2 -and $joined.Equals($normalized,[System.StringComparison]::OrdinalIgnoreCase)){return $true}
+            if(($end-$start+1)-ge 3 -and $short -ge 3 -and $joined.Equals($normalized,[System.StringComparison]::OrdinalIgnoreCase)){return $true}
         }
     }
     return $false
