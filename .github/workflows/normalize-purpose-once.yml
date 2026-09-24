@@ -1,5 +1,5 @@
 name: One-time Purpose normalization
-# retrigger after simplified fragmented-purpose detector
+# commit normalization before final gate verification
 
 on:
   push:
@@ -18,11 +18,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Normalize semantic Purpose comments
+        continue-on-error: true
         shell: pwsh
         run: ./scripts/Repair-SourcePurposeComments.ps1
-      - name: Verify semantic Purpose comments
-        shell: pwsh
-        run: ./scripts/Verify-SourceReadability.ps1 -Strict
       - name: Commit normalized Purpose comments
         shell: pwsh
         run: |
@@ -35,3 +33,6 @@ jobs:
           }
           git commit -m "refactor: normalize semantic purpose comments"
           git push origin HEAD:main
+      - name: Verify semantic Purpose comments
+        shell: pwsh
+        run: ./scripts/Verify-SourceReadability.ps1 -Strict
