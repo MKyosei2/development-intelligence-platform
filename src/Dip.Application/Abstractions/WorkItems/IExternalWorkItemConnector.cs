@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I External Work Item Connector responsibilities for work items.
 namespace Dip.Application.Abstractions.WorkItems;
 public sealed record WorkItemDraft(string Title, string Body, string? Repository);
 public sealed record CreatedWorkItem(string ExternalId, string Url, string Title);

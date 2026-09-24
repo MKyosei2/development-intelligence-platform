@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Dip Operational Metrics responsibilities for observability.
 namespace Dip.Application.Abstractions.Observability;
 public interface IDipOperationalMetrics
 {

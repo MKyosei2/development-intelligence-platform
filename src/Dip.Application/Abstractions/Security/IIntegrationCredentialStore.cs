@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Integration Credential Store responsibilities for security.
 namespace Dip.Application.Abstractions.Security;
 
 public interface IIntegrationCredentialStore

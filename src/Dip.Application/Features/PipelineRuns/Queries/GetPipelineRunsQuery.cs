@@ -1,1 +1,1 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Get Pipeline Runs Query responsibilities for pipeline runs.

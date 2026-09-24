@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Release Provenance Collector responsibilities for provenance.
 namespace Dip.Application.Abstractions.Provenance;
 public sealed record ProvenanceComponent(string Type, string Name, string Version, string? Path, string? Sha256);
 public sealed record ProvenanceSnapshot(string RepositoryRoot, string Runtime, string OperatingSystem, IReadOnlyList<ProvenanceComponent> Components, IReadOnlyDictionary<string, string> Files);

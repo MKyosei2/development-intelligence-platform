@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Integration Connector Registry responsibilities for integrations.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Features.Integrations;

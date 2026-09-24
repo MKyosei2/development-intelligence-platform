@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements DIP Collector Module responsibilities for public.
 #pragma once
 #include "Modules/ModuleManager.h"
 

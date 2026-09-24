@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Collector Report Parser responsibilities for parsing.
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GenericJsonCollector.Models;

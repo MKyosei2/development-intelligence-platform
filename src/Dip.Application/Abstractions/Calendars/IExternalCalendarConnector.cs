@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I External Calendar Connector responsibilities for calendars.
 namespace Dip.Application.Abstractions.Calendars;
 
 public sealed record ExternalCalendarEvent(string Id, string Summary, DateTimeOffset StartsAtUtc, DateTimeOffset EndsAtUtc, bool AllDay, string Status);
