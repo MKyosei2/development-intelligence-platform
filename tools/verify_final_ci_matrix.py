@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements v er if y f in al c i m at ri x tooling used by repository verification and development workflows.
+# Purpose: Requires all 11 publication workflows to be Green for one exact source revision.
 from __future__ import annotations
 
 import argparse

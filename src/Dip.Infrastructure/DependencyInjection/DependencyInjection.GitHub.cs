@@ -1,4 +1,4 @@
-// Purpose: Implements G it Hu bD ep en de nc yI nj ec ti on infrastructure integration for d ep en de nc yi nj ec ti on.
+// Purpose: Registers GitHub integration services and the evidence-integration foundation.
 using Dip.Application.Abstractions.GitHub;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Infrastructure.GitHub;
@@ -25,8 +25,8 @@ public static class GitHubDependencyInjection
         services.AddSingleton<Dip.Application.Abstractions.Integrations.IVersionControlConnector,
             Dip.Infrastructure.Integrations.GitHubVersionControlConnector>();
 
-        // Difficulty-1 foundation is registered here so existing API Program.cs
-        // remains unchanged and the legacy GitHub integration keeps working.
+        // Evidence Integration is registered here so the existing API composition root
+        // keeps the GitHub path and the generalized evidence connector path aligned.
         services.AddEvidenceIntegrationFoundation(configuration);
         return services;
     }

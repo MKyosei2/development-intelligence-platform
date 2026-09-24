@@ -1,0 +1,77 @@
+@* Purpose: Presents the reviewer-facing Project Truth context and current evidence-backed risk signals without mixing secondary management tooling. *@
+@using Dip.Application.Features.Dashboard
+@using Dip.Application.Features.QualityGovernance
+
+<section class="card mb-4" data-testid="reviewer-project-truth-panel">
+    <div class="card-header">
+        <div>
+            <div class="eyebrow">Reviewer focus · Project Truth</div>
+            <strong>Evidence-backed project state</strong>
+        </div>
+        <a class="btn btn-outline-primary btn-sm"
+           href="@($"/dashboard/{ProjectId}")">
+            Open full Project Truth
+        </a>
+    </div>
+
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="metric-card h-100">
+                    <span>Release decision</span>
+                    <strong class="metric-text">
+                        @(Overview?.ReleaseDecision ?? "Not evaluated")
+                    </strong>
+                    <small>
+                        @(Overview?.ReleaseConfidence?.ToString("0.#") ?? "—")% confidence
+                    </small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card h-100">
+                    <span>Change risk</span>
+                    <strong class="metric-text">
+                        @(Overview?.ChangeRiskLevel ?? "Not assessed")
+                    </strong>
+                    <small>
+                        @(Overview?.ChangeRiskScore?.ToString("0.#") ?? "—") / 100
+                    </small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card h-100">
+                    <span>Active incidents</span>
+                    <strong>@(Overview?.ActiveIncidents ?? 0)</strong>
+                    <small>@(Overview?.CriticalIncidents ?? 0) critical</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card h-100">
+                    <span>QA release gate</span>
+                    <strong class="metric-text">
+                        @(Governance?.GateVerdict ?? "Not evaluated")
+                    </strong>
+                    <small>
+                        @(Governance?.EvidenceConfidence ?? "No evidence")
+                        @(Governance is null ? "" : $"{Governance.EvidenceConfidencePercent:0}%")
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-light border mt-3 mb-0">
+            <strong>Interpretation boundary</strong>
+            <div class="small">
+                These values summarize current recorded evidence. Forecasts,
+                risk scores, and confidence are decision support, not guarantees.
+                Historical PASS evidence is not relabeled as current-revision PASS.
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public IntelligenceDashboardDto? Overview { get; set; }
+    [Parameter] public QaGovernanceOverviewDto? Governance { get; set; }
+}

@@ -1,0 +1,444 @@
+@* Purpose: Owns project notification loading, persisted disposition actions, history display, and destination routing outside the main layout. *@
+@using Dip.Application.Features.Management
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+@if (Open)
+{
+    <div class="position-fixed top-0 start-0 w-100 h-100"
+         style="z-index:1040;background:rgba(0,0,0,.22)"
+         @onclick="CloseAsync"></div>
+
+    <aside class="card shadow-lg"
+           style="position:fixed;z-index:1050;right:0;top:0;bottom:0;width:min(460px,96vw);margin:0;border-radius:0;overflow:auto"
+           data-testid="notification-drawer">
+        <div class="card-header position-sticky top-0 bg-body"
+             style="z-index:2">
+            <div>
+                <div class="eyebrow">Active project</div>
+                <strong>Notifications</strong>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <button class="btn btn-outline-secondary btn-sm"
+                        type="button"
+                        @onclick="ReloadAsync"
+                        disabled="@_loading">
+                    ↻
+                </button>
+                <button class="btn btn-outline-secondary btn-sm"
+                        type="button"
+                        @onclick="CloseAsync">
+                    Close
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body border-bottom">
+            <div class="d-flex justify-content-between align-items-center gap-3">
+                <div>
+                    <strong>@UnreadCount unread</strong>
+                    <div class="small text-muted">
+                        Alert state remains evidence-backed and persisted.
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary"
+                        type="button"
+                        @onclick="ToggleHistory">
+                    @(_showHistory ? "Active only" : "Show history")
+                </button>
+            </div>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="card-body">
+                <LoadingState Message="Loading notifications…" />
+            </div>
+        }
+        else if (_error is not null)
+        {
+            <div class="card-body">
+                <div class="alert alert-warning mb-0">@_error</div>
+            </div>
+        }
+        else if (VisibleNotifications.Count == 0)
+        {
+            <div class="card-body">
+                <div class="compact-empty">
+                    <span class="status-dot healthy"></span>
+                    <div>
+                        <strong>No notifications</strong>
+                        <small>There are no active alerts for this view.</small>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="list-group list-group-flush">
+                @foreach (var item in VisibleNotifications)
+                {
+                    <div class="list-group-item p-3 @NotificationReadClass(item)">
+                        <div class="d-flex justify-content-between gap-3 align-items-start">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <StatusBadge Value="@item.Alert.Severity" />
+                                    @if (!IsRead(item))
+                                    {
+                                        <span class="badge text-bg-primary">Unread</span>
+                                    }
+                                    @if (item.RequiresEscalation)
+                                    {
+                                        <span class="badge text-bg-warning">Escalation</span>
+                                    }
+                                </div>
+                                <strong>@item.Alert.Title</strong>
+                                <div class="small text-muted mt-1">
+                                    @item.Alert.Category · routed to @item.RoutedRole
+                                </div>
+                            </div>
+                            <small class="text-muted text-nowrap">
+                                @FormatRelative(item.Alert.TriggeredAtUtc)
+                            </small>
+                        </div>
+
+                        <p class="small mt-2 mb-1">@item.Alert.Explanation</p>
+                        <div class="small text-muted">
+                            Recommended: @item.Alert.RecommendedAction
+                        </div>
+                        <div class="small text-muted mt-1">
+                            State: <strong>@item.State.Status</strong>
+                            · escalation L@item.State.EscalationLevel
+                        </div>
+
+                        @if (item.State.SnoozeUntilUtc is { } snooze)
+                        {
+                            <div class="small text-muted">
+                                Snoozed until @snooze.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                            </div>
+                        }
+
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <button class="btn btn-primary btn-sm"
+                                    type="button"
+                                    @onclick="() => OpenNotificationAsync(item)">
+                                Open
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm"
+                                    type="button"
+                                    @onclick="() => LoadHistoryAsync(item)"
+                                    disabled="@_historyLoading">
+                                History
+                            </button>
+
+                            @if (!item.State.Status.Equals(
+                                     "Acknowledged",
+                                     StringComparison.OrdinalIgnoreCase))
+                            {
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        @onclick="() => AcknowledgeAsync(item)">
+                                    Acknowledge
+                                </button>
+                            }
+
+                            @if (item.Visible)
+                            {
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        @onclick="() => SnoozeAsync(item)">
+                                    Snooze 1h
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        @onclick="() => ResolveAsync(item)">
+                                    Resolve
+                                </button>
+                            }
+                        </div>
+
+                        @if (_historyAlertKey?.Equals(
+                                 item.Alert.Key,
+                                 StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            <div class="border-top mt-3 pt-3"
+                                 data-testid="notification-history">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong class="small">Event history</strong>
+                                    <span class="small text-muted">
+                                        @_history.Count event(s)
+                                    </span>
+                                </div>
+
+                                @if (_historyLoading)
+                                {
+                                    <div class="small text-muted">Loading history…</div>
+                                }
+                                else if (_history.Count == 0)
+                                {
+                                    <div class="small text-muted">
+                                        No persisted notification event has been recorded yet.
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var history in _history)
+                                    {
+                                        <div class="small border-start ps-2 mb-2">
+                                            <div>
+                                                <strong>@history.Action</strong>
+                                                · @FormatRelative(history.AtUtc)
+                                            </div>
+                                            <div class="text-muted">
+                                                @history.Actor
+                                                @if (!string.IsNullOrWhiteSpace(history.Comment))
+                                                {
+                                                    <span> · @history.Comment</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </aside>
+}
+
+@code {
+    [Parameter] public Guid? ProjectId { get; set; }
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback Close { get; set; }
+    [Parameter] public EventCallback<int> UnreadCountChanged { get; set; }
+
+    private bool _showHistory;
+    private bool _loading;
+    private string? _error;
+    private Guid? _loadedProjectId;
+    private string? _historyAlertKey;
+    private bool _historyLoading;
+    private IReadOnlyList<NotificationHistoryEntryDto> _history =
+        Array.Empty<NotificationHistoryEntryDto>();
+    private IReadOnlyList<OperationalAlertDto> _alerts =
+        Array.Empty<OperationalAlertDto>();
+
+    public int UnreadCount =>
+        _alerts.Count(x => x.Visible && x.State.ViewedAtUtc is null);
+
+    private IReadOnlyList<OperationalAlertDto> VisibleNotifications =>
+        (_showHistory ? _alerts : _alerts.Where(x => x.Visible)).ToArray();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ProjectId != _loadedProjectId)
+            await ReloadAsync();
+    }
+
+    public async Task ReloadAsync()
+    {
+        if (ProjectId is not { } projectId)
+        {
+            _alerts = Array.Empty<OperationalAlertDto>();
+            _loadedProjectId = null;
+            _historyAlertKey = null;
+            _history = Array.Empty<NotificationHistoryEntryDto>();
+            await UnreadCountChanged.InvokeAsync(0);
+            return;
+        }
+
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            if (_loadedProjectId != projectId)
+            {
+                _historyAlertKey = null;
+                _history = Array.Empty<NotificationHistoryEntryDto>();
+            }
+
+            _alerts = await Api.GetOperationalAlertsAsync(projectId, 8);
+            _loadedProjectId = projectId;
+            await UnreadCountChanged.InvokeAsync(UnreadCount);
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Task CloseAsync() => Close.InvokeAsync();
+    private void ToggleHistory() => _showHistory = !_showHistory;
+
+    private async Task LoadHistoryAsync(OperationalAlertDto item)
+    {
+        if (ProjectId is not { } projectId)
+            return;
+
+        if (_historyAlertKey?.Equals(
+                item.Alert.Key,
+                StringComparison.OrdinalIgnoreCase) == true
+            && !_historyLoading)
+        {
+            _historyAlertKey = null;
+            _history = Array.Empty<NotificationHistoryEntryDto>();
+            return;
+        }
+
+        _historyAlertKey = item.Alert.Key;
+        _historyLoading = true;
+        _error = null;
+
+        try
+        {
+            _history = await Api.GetAlertHistoryAsync(
+                projectId,
+                item.Alert.Key,
+                100);
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _historyLoading = false;
+        }
+    }
+
+    private async Task MarkReadAsync(OperationalAlertDto item)
+    {
+        if (item.State.ViewedAtUtc is not null
+            || ProjectId is not { } projectId)
+        {
+            return;
+        }
+
+        await Api.SetAlertDispositionAsync(
+            projectId,
+            item.Alert.Key,
+            new AlertDispositionCommand(
+                projectId,
+                item.Alert.Key,
+                "browser",
+                "read",
+                null,
+                "Viewed in the DIP notification drawer."));
+
+        await ReloadAsync();
+    }
+
+    private async Task OpenNotificationAsync(OperationalAlertDto item)
+    {
+        try
+        {
+            await MarkReadAsync(item);
+            await CloseAsync();
+
+            if (ProjectId is not { } projectId)
+                return;
+
+            var category =
+                $"{item.Alert.Category} {item.Alert.SourceKey} {item.Alert.Title}";
+
+            if (category.Contains("qa", StringComparison.OrdinalIgnoreCase)
+                || category.Contains("quality", StringComparison.OrdinalIgnoreCase)
+                || category.Contains("test", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/dashboard/{projectId}/qa");
+            }
+            else if (category.Contains("ci", StringComparison.OrdinalIgnoreCase)
+                     || category.Contains("build", StringComparison.OrdinalIgnoreCase)
+                     || category.Contains("pipeline", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/dashboard/{projectId}/ci");
+            }
+            else
+            {
+                Navigation.NavigateTo($"/dashboard/{projectId}/management");
+            }
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private Task AcknowledgeAsync(OperationalAlertDto item) =>
+        ChangeStateAsync(
+            item,
+            "acknowledge",
+            null,
+            "Acknowledged from the DIP notification drawer.");
+
+    private Task SnoozeAsync(OperationalAlertDto item) =>
+        ChangeStateAsync(
+            item,
+            "snooze",
+            DateTimeOffset.UtcNow.AddHours(1),
+            "Snoozed for one hour from the DIP notification drawer.");
+
+    private Task ResolveAsync(OperationalAlertDto item) =>
+        ChangeStateAsync(
+            item,
+            "resolve",
+            null,
+            "Resolved from the DIP notification drawer.");
+
+    private async Task ChangeStateAsync(
+        OperationalAlertDto item,
+        string disposition,
+        DateTimeOffset? snoozeUntilUtc,
+        string comment)
+    {
+        if (ProjectId is not { } projectId)
+            return;
+
+        try
+        {
+            await Api.SetAlertDispositionAsync(
+                projectId,
+                item.Alert.Key,
+                new AlertDispositionCommand(
+                    projectId,
+                    item.Alert.Key,
+                    "browser",
+                    disposition,
+                    snoozeUntilUtc,
+                    comment));
+
+            await ReloadAsync();
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private static bool IsRead(OperationalAlertDto item) =>
+        item.State.ViewedAtUtc is not null;
+
+    private static string NotificationReadClass(OperationalAlertDto item) =>
+        IsRead(item) ? string.Empty : "bg-body-tertiary";
+
+    private static string FormatRelative(DateTimeOffset value)
+    {
+        var elapsed = DateTimeOffset.UtcNow - value.ToUniversalTime();
+
+        if (elapsed.TotalMinutes < 1)
+            return "now";
+        if (elapsed.TotalHours < 1)
+            return $"{Math.Max(1, (int)elapsed.TotalMinutes)}m ago";
+        if (elapsed.TotalDays < 1)
+            return $"{Math.Max(1, (int)elapsed.TotalHours)}h ago";
+
+        return value.ToLocalTime().ToString("MM-dd HH:mm");
+    }
+}

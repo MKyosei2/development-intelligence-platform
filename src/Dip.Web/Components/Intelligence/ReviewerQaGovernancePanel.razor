@@ -1,0 +1,91 @@
+@* Purpose: Summarizes the QA governance gate, evidence freshness, flaky tests, regressions, waivers, and technical-debt trend for reviewers. *@
+@using Dip.Application.Features.QualityGovernance
+
+@if (Governance is not null)
+{
+    <section class="card mb-4" data-testid="reviewer-qa-governance-panel">
+        <div class="card-header">
+            <div>
+                <div class="eyebrow">Reviewer focus · QA Governance</div>
+                <strong>Quality gate evidence</strong>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <a class="btn btn-sm btn-outline-primary"
+                   href="@($"/dashboard/{ProjectId}/qa-governance")">
+                    Manage governance
+                </a>
+                <span class="badge @GateBadge(Governance.GateVerdict)">
+                    @Governance.GateVerdict
+                </span>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-2">
+                    <div class="small text-muted">QA self-health</div>
+                    <div class="h5">@Governance.SystemHealth</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="small text-muted">Open findings</div>
+                    <div class="h3">@Governance.OpenFindings</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="small text-muted">Flaky tests</div>
+                    <div class="h3">@Governance.FlakyTests</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="small text-muted">Regressions</div>
+                    <div class="h3">@Governance.RegressedBaselines</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="small text-muted">Active waivers</div>
+                    <div class="h3">@Governance.ActiveWaivers</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="small text-muted">Evidence freshness</div>
+                    <div class="h5">@Governance.Freshness</div>
+                    <div class="small text-muted">
+                        @Governance.EvidenceConfidence
+                        @Governance.EvidenceConfidencePercent.ToString("0")%
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-lg-9">
+                    <div class="alert alert-light border mb-0">
+                        <strong>Gate explanation</strong>
+                        <div>@Governance.GateSummary</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted">Technical debt score</div>
+                        <div class="h3">@Governance.TechnicalDebtScore.ToString("0.#")</div>
+                        <div class="small text-muted">
+                            @Governance.TrendDirection
+                            (@Governance.TechnicalDebtDelta.ToString("+0.##;-0.##;0"))
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public QaGovernanceOverviewDto? Governance { get; set; }
+
+    private static string GateBadge(string verdict) =>
+        verdict.Equals("Go", StringComparison.OrdinalIgnoreCase)
+            ? "bg-success"
+            : verdict.Equals("NoGo", StringComparison.OrdinalIgnoreCase)
+                ? "bg-danger"
+                : verdict.Equals(
+                    "ReviewRequired",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "bg-warning text-dark"
+                    : "bg-secondary";
+}

@@ -1,4 +1,4 @@
-# Purpose: Implements skin analyzer responsibilities for analyzers.
+# Purpose: Measures Maya skin-cluster counts and flags unusually large connected influence sets.
 from dip_maya_collector.models import CollectorIssue, CollectorMetric, CollectorReport
 
 def analyze(cmds, report: CollectorReport, max_influences: int = 4) -> None:

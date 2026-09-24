@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements f in al iz e p or tf ol io e vi de nc e tooling used by repository verification and development workflows.
+# Purpose: Finalizes exact-revision CI, benchmark, engine-runtime, and Project Truth evidence into one auditable bundle.
 from __future__ import annotations
 
 import argparse
@@ -76,25 +76,21 @@ def main() -> int:
     unreal = load(paths["unreal"])
     project_truth = load(paths["projectTruth"])
 
-    # 1) Exact-revision CI.
     require_sha("CI matrix", ci.get("sourceCommit"), expected)
     if ci.get("requiredCount") != 11 or ci.get("greenCount") != 11 or ci.get("allGreen") is not True:
         raise RuntimeError("Final CI evidence is not an 11/11 Green matrix.")
 
-    # 2) Exact-revision benchmark.
     require_sha("Benchmark", benchmark.get("sourceCommit"), expected)
     if benchmark.get("sourceWorkingTreeDirty") is not False:
         raise RuntimeError("Benchmark was measured from a dirty working tree.")
     require_true("Benchmark passed", benchmark.get("passed"))
 
-    # 3) Real Unity runtime AND quality gate.
     require_sha("Unity evidence", unity.get("dipSourceCommit"), expected)
     require_true("Unity runtimeVerified", unity.get("runtimeVerified"))
     require_true("Unity qualityGatePassed", unity.get("qualityGatePassed"))
     if not unity.get("targetRepository") or not unity.get("targetCommit"):
         raise RuntimeError("Unity target project identity is incomplete.")
 
-    # 4) Real Unreal runtime AND quality gate.
     require_sha("Unreal evidence", unreal.get("dipSourceCommit"), expected)
     require_true("Unreal runtimeVerified", unreal.get("runtimeVerified"))
     require_true("Unreal qualityGatePassed", unreal.get("qualityGatePassed"))
@@ -102,16 +98,11 @@ def main() -> int:
     if engine.get("attempted") is not True or engine.get("timedOut") is True or not engine.get("report"):
         raise RuntimeError("Unreal native Automation execution evidence is incomplete.")
 
-    # 5) Real Project -> DIP -> Project Truth. Presence alone is not sufficient.
     require_sha("Project Truth case-study evidence", project_truth.get("dipSourceCommit"), expected)
     if project_truth.get("targetRepository") != unity.get("targetRepository"):
-        raise RuntimeError(
-            "Project Truth targetRepository does not match the verified Unity target repository."
-        )
+        raise RuntimeError("Project Truth targetRepository does not match the verified Unity target repository.")
     if str(project_truth.get("targetCommit") or "").lower() != str(unity.get("targetCommit") or "").lower():
-        raise RuntimeError(
-            "Project Truth targetCommit does not match the verified Unity target commit."
-        )
+        raise RuntimeError("Project Truth targetCommit does not match the verified Unity target commit.")
 
     claim = project_truth.get("claim")
     truth = project_truth.get("projectTruth")
@@ -122,20 +113,15 @@ def main() -> int:
         raise RuntimeError("Project Truth evidence does not contain the completion claim output.")
     if not isinstance(truth, dict):
         raise RuntimeError("Project Truth evidence does not contain dashboard output.")
-
     if truth.get("qualityGateStatus") != "Passed":
-        raise RuntimeError(
-            f"Project Truth quality gate is not Passed: {truth.get('qualityGateStatus')!r}"
-        )
+        raise RuntimeError(f"Project Truth quality gate is not Passed: {truth.get('qualityGateStatus')!r}")
     if claim.get("verificationStatus") != "Confirmed":
         raise RuntimeError(
             "The real-project completion claim is not Confirmed by current-revision evidence: "
             f"{claim.get('verificationStatus')!r}"
         )
     if int(truth.get("contradictionCount") or 0) != 0:
-        raise RuntimeError(
-            f"Project Truth contains contradictions: {truth.get('contradictionCount')!r}"
-        )
+        raise RuntimeError(f"Project Truth contains contradictions: {truth.get('contradictionCount')!r}")
 
     output_root = Path(args.output_root).resolve() / expected
     output_root.mkdir(parents=True, exist_ok=True)
@@ -145,14 +131,12 @@ def main() -> int:
         destination = output_root / source.name
         if source.resolve() != destination.resolve():
             destination.write_bytes(source.read_bytes())
-        copied.append(
-            {
-                "kind": label,
-                "file": destination.name,
-                "sha256": sha256(destination),
-                "bytes": destination.stat().st_size,
-            }
-        )
+        copied.append({
+            "kind": label,
+            "file": destination.name,
+            "sha256": sha256(destination),
+            "bytes": destination.stat().st_size,
+        })
 
     summary = {
         "schema": "dip.final-portfolio-evidence.v2",
@@ -182,19 +166,14 @@ def main() -> int:
         "files": copied,
     }
     summary_path = output_root / "FINAL_EVIDENCE_SUMMARY.json"
-    summary_path.write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    manifest_entries = copied + [
-        {
-            "kind": "summary",
-            "file": summary_path.name,
-            "sha256": sha256(summary_path),
-            "bytes": summary_path.stat().st_size,
-        }
-    ]
+    manifest_entries = copied + [{
+        "kind": "summary",
+        "file": summary_path.name,
+        "sha256": sha256(summary_path),
+        "bytes": summary_path.stat().st_size,
+    }]
     manifest_path = output_root / "SHA256SUMS.txt"
     manifest_path.write_text(
         "".join(f"{entry['sha256']}  {entry['file']}\n" for entry in manifest_entries),

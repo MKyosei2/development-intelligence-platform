@@ -1,4 +1,4 @@
-# Purpose: Implements material analyzer responsibilities for analyzers.
+# Purpose: Measures Maya material and shading-engine counts for collector reports.
 from dip_maya_collector.models import CollectorMetric, CollectorReport
 
 def analyze(cmds, report: CollectorReport) -> None:

@@ -1,4 +1,4 @@
-// Purpose: Implements Q ua li ty Au to ma ti on De pe nd en cy In je ct io n infrastructure integration for d ep en de nc yi nj ec ti on.
+// Purpose: Registers quality automation, visual QA, asset QA, and enterprise fleet infrastructure services.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Features.Management;
@@ -13,10 +13,13 @@ namespace Dip.Infrastructure;
 
 public static class QualityAutomationDependencyInjection
 {
-    public static IServiceCollection AddQualityAutomationFoundation(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddQualityAutomationFoundation(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
+
         services.AddScoped<IQualityAutomationRepository, QualityAutomationRepository>();
         services.AddScoped<IClaimEvidenceAssessmentRepository, ClaimEvidenceAssessmentRepository>();
         services.AddSingleton<IVisualComparator, PortablePngVisualComparator>();
@@ -26,7 +29,7 @@ public static class QualityAutomationDependencyInjection
         services.AddScoped<AssetQaService>();
         services.AddScoped<ClaimEvidenceAssessmentService>();
         services.AddScoped<ProducerIntelligenceService>();
-        services.AddDifficultyFiveFoundation(configuration);
+        services.AddEnterpriseFleetInfrastructure(configuration);
         return services;
     }
 }

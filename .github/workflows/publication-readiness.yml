@@ -28,6 +28,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Purpose tooling regression
+        shell: pwsh
+        run: ./scripts/Test-SourcePurposeTooling.ps1
+
       - name: Verify source readability
         shell: pwsh
         run: |
@@ -42,8 +46,21 @@ jobs:
       - name: Portfolio readiness
         run: python tools/validate_portfolio_readiness.py --root . --output artifacts/portfolio-readiness/static.json
 
-      - name: Validate three-stage Actions policy
+      - name: Validate Actions and source-mutation policy
         run: python tools/verify_actions_policy.py
+
+      - name: Reject obsolete source-mutating workflow files
+        shell: python
+        run: |
+          from pathlib import Path
+          obsolete = [
+              Path('.github/workflows/normalize-purpose-once.yml'),
+              Path('scripts/Apply-PortfolioPurposeComments.ps1'),
+          ]
+          present = [str(path) for path in obsolete if path.exists()]
+          if present:
+              raise SystemExit('Obsolete one-shot/source-mutating files must be deleted: ' + ', '.join(present))
+          print('PASS: obsolete source mutation files are absent.')
 
       - name: Parse critical PowerShell scripts
         shell: pwsh
@@ -55,7 +72,11 @@ jobs:
             'scripts/Complete-PortfolioRelease.ps1',
             'scripts/Run-PortfolioBenchmarks.ps1',
             'scripts/Run-GovernanceLoadTest.ps1',
-            'scripts/Verify-UnityCollector.ps1'
+            'scripts/Verify-UnityCollector.ps1',
+            'scripts/SourcePurposeRules.ps1',
+            'scripts/Test-SourcePurposeTooling.ps1',
+            'scripts/Repair-SourcePurposeComments.ps1',
+            'scripts/Verify-SourceReadability.ps1'
           )
           foreach ($file in $files) {
             if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {

@@ -59,7 +59,7 @@ jobs:
           retention-days: 14
 
   maya-collector-smoke:
-    name: Maya collector dependency-free smoke
+    name: Maya collector dependency-free validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -67,22 +67,25 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Compile Maya collector
-        run: python -m compileall collectors/maya-collector/dip_maya_collector
+      - name: Compile Maya collector and tests
+        run: python -m compileall collectors/maya-collector/dip_maya_collector collectors/maya-collector/tests
       - name: Import Maya-independent contracts
         working-directory: collectors/maya-collector
         run: |
           python -c "from dip_maya_collector import models; from dip_maya_collector.reporting import report_writer; print('Maya-independent contracts import successfully')"
+      - name: Dependency-free Maya collector unit tests
+        working-directory: collectors/maya-collector
+        run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Confirm Maya runtime boundary is explicit
         working-directory: collectors/maya-collector
         run: |
-          python - <<'PY'
+          python - <<'PYBOUNDARY'
           from pathlib import Path
           text = Path('dip_maya_collector/main.py').read_text(encoding='utf-8')
           assert 'import maya.cmds as cmds' in text
           assert 'Run this collector inside Autodesk Maya or mayapy.' in text
-          print('PASS: hosted CI does not pretend to provide Maya runtime verification.')
-          PY
+          print('PASS: hosted CI validates Maya-independent behavior without pretending to provide Maya runtime verification.')
+          PYBOUNDARY
 
   portfolio-evidence-tooling:
     name: Validate exact-revision evidence tooling

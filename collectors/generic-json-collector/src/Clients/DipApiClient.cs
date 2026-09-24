@@ -1,4 +1,4 @@
-// Purpose: Implements Dip Api Client responsibilities for clients.
+// Purpose: Submits collector reports to the DIP API and normalizes success and error responses.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -68,6 +68,18 @@ public sealed class DipApiClient
                 ExtractError(body, response.StatusCode));
         }
 
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return new(
+                false,
+                (int)response.StatusCode,
+                null,
+                null,
+                false,
+                null,
+                "The API returned an empty response.");
+        }
+
         ApiCollectorReportResult? result;
         try
         {
@@ -120,7 +132,7 @@ public sealed class DipApiClient
         }
         catch (JsonException)
         {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            // Intentionally ignored to preserve the existing best-effort fallback behavior.
         }
 
         return body.Length <= 2000 ? body : body[..2000];

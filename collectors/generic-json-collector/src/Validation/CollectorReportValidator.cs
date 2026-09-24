@@ -1,4 +1,4 @@
-// Purpose: Implements Collector Report Validator responsibilities for validation.
+// Purpose: Validates Generic JSON collector reports against schema, revision, timing, metric, and evidence safety boundaries.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using GenericJsonCollector.Models;

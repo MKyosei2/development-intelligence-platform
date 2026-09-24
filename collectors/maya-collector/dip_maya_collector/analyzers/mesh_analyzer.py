@@ -1,4 +1,4 @@
-# Purpose: Implements mesh analyzer responsibilities for analyzers.
+# Purpose: Measures Maya mesh counts and triangle totals and flags meshes that exceed the configured triangle threshold.
 from dip_maya_collector.models import CollectorIssue, CollectorMetric, CollectorReport
 
 def analyze(cmds, report: CollectorReport, max_triangles: int = 100000) -> None:

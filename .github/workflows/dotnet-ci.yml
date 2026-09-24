@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - ".portfolio-ci-trigger"
 
 permissions:
   contents: read
@@ -41,13 +43,18 @@ jobs:
         run: dotnet test tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=infrastructure-tests.trx" --collect "XPlat Code Coverage" --results-directory TestResults
       - name: Integration tests
         run: dotnet test tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj --configuration Release --no-build --logger "trx;LogFileName=integration-tests.trx" --results-directory TestResults
+      - name: Generic JSON Collector tests
+        run: dotnet test collectors/generic-json-collector/tests/GenericJsonCollector.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=generic-json-collector-tests.trx" --results-directory TestResults
       - name: Project Truth / Release / QA coverage gates
         run: >
           python tools/check_core_coverage.py
           --results TestResults
           --minimum 50
-          --critical-minimum 0
+          --critical-minimum 65
           --summary-json TestResults/core-coverage-summary.json
+      - name: Purpose tooling regression
+        shell: pwsh
+        run: ./scripts/Test-SourcePurposeTooling.ps1
       - name: Source readability
         shell: pwsh
         run: ./scripts/Verify-SourceReadability.ps1 -Strict

@@ -1,0 +1,264 @@
+@* Purpose: Loads secondary management, incident, job, replay, performance, project-control, hardware, and forecast intelligence outside the reviewer primary path. *@
+@using Dip.Application.Features.Dashboard
+@using Dip.Application.Features.Incidents
+@using Dip.Application.Features.Intelligence
+@using Dip.Application.Features.Jobs
+@using Dip.Application.Features.Management
+@using Dip.Application.Features.Performance
+@using Dip.Application.Features.Replay
+@inject ApiClient Api
+
+<section class="card mb-4" data-testid="supporting-intelligence-panel">
+    <div class="card-header">
+        <div>
+            <div class="eyebrow">Supporting intelligence</div>
+            <strong>Operational and management detail</strong>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm"
+                type="button"
+                @onclick="LoadAsync"
+                disabled="@_loading">
+            @(_loading ? "Loading…" : "Refresh")
+        </button>
+    </div>
+
+    <div class="card-body">
+        @if (_loading)
+        {
+            <LoadingState Message="Loading supporting intelligence…" />
+        }
+        else if (_error is not null)
+        {
+            <div class="alert alert-warning mb-0">@_error</div>
+        }
+        else
+        {
+            <div class="alert alert-light border">
+                This section is intentionally secondary in Reviewer Mode.
+                It provides context but does not replace Project Truth,
+                QA evidence, or release verification.
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <span>Active incidents</span>
+                        <strong>@_incidents.Count</strong>
+                        <small>persisted incident summaries</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <span>Durable jobs</span>
+                        <strong>@_jobs.Count</strong>
+                        <small>recent recorded jobs</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <span>Replay scenarios</span>
+                        <strong>@_replays.Count</strong>
+                        <small>deterministic replay definitions</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <span>Performance budgets</span>
+                        <strong>@_budgets.Count</strong>
+                        <small>applicable budget profiles</small>
+                    </div>
+                </div>
+            </div>
+
+            @if (_management is not null)
+            {
+                <div class="border rounded p-3 mb-4">
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                        <div>
+                            <div class="eyebrow">Management</div>
+                            <strong>@_management.OverallStatus</strong>
+                        </div>
+                        <a class="btn btn-outline-secondary btn-sm"
+                           href="@($"/dashboard/{ProjectId}/management")">
+                            Open Management
+                        </a>
+                    </div>
+                    <p class="mb-2">@_management.Summary.PlainLanguageSummary</p>
+                    <div class="small text-muted">
+                        Health @_management.HealthScore.ToString("0.#") / 100 ·
+                        @_management.Blockers.Open open blocker(s) ·
+                        @_management.Decisions.DecisionsPending pending decision(s)
+                    </div>
+                </div>
+            }
+
+            @if (_projectControl is not null)
+            {
+                <div class="border rounded p-3 mb-4">
+                    <div class="eyebrow">Project control</div>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <strong>@_projectControl.GraphNodes</strong>
+                            <div class="small text-muted">graph nodes</div>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>@_projectControl.NotReadyFeatures</strong>
+                            <div class="small text-muted">features not ready</div>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>@_projectControl.BlockedMilestones</strong>
+                            <div class="small text-muted">blocked milestones</div>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>@_projectControl.FailedCiRuns</strong>
+                            <div class="small text-muted">failed CI runs</div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="row g-3 mb-4">
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="eyebrow">Incidents</div>
+                        @if (_incidents.Count == 0)
+                        {
+                            <p class="small text-muted mb-0">No incidents.</p>
+                        }
+                        else
+                        {
+                            <ul class="mb-0">
+                                @foreach (var incident in _incidents.Take(6))
+                                {
+                                    <li>
+                                        <strong>@incident.Severity</strong>
+                                        · @incident.Title
+                                        · @incident.Status
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="eyebrow">Durable jobs</div>
+                        @if (_jobs.Count == 0)
+                        {
+                            <p class="small text-muted mb-0">No jobs.</p>
+                        }
+                        else
+                        {
+                            <ul class="mb-0">
+                                @foreach (var job in _jobs.Take(6))
+                                {
+                                    <li>
+                                        <strong>@job.Type</strong>
+                                        · @job.Status
+                                        · @job.ProgressPercent.ToString("0.#")%
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted">Release risk forecast</div>
+                        <div class="h3">
+                            @(_forecast?.ReleaseRiskPercent.ToString("0.#") ?? "—")%
+                        </div>
+                        <div>@(_forecast?.Confidence ?? "No forecast") confidence</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted">Estimated completion window</div>
+                        <div class="h5">@Window()</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted">Hardware calibration</div>
+                        <div class="h3">
+                            @(_overview?.HardwareCalibration.MeanAbsoluteErrorPercent.ToString("0.##") ?? "0")%
+                        </div>
+                        <div>
+                            MAE · @(_overview?.HardwareCalibration.Samples ?? 0) samples
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+
+    private bool _loading = true;
+    private string? _error;
+    private ForecastResult? _forecast;
+    private IntelligenceDashboardDto? _overview;
+    private IReadOnlyList<DurableJobDto> _jobs =
+        Array.Empty<DurableJobDto>();
+    private IReadOnlyList<IncidentSummaryDto> _incidents =
+        Array.Empty<IncidentSummaryDto>();
+    private IReadOnlyList<ReplaySessionDto> _replays =
+        Array.Empty<ReplaySessionDto>();
+    private IReadOnlyList<PerformanceBudgetProfileDto> _budgets =
+        Array.Empty<PerformanceBudgetProfileDto>();
+    private ProjectControlDashboardDto? _projectControl;
+    private ManagementDashboardDto? _management;
+
+    protected override async Task OnParametersSetAsync() =>
+        await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var forecastTask = Api.GetForecastAsync(ProjectId);
+            var overviewTask = Api.GetIntelligenceDashboardAsync(ProjectId);
+            var jobsTask = Api.GetJobsAsync(ProjectId);
+            var incidentsTask = Api.GetIncidentsAsync(ProjectId);
+            var replayTask = Api.GetReplaySessionsAsync(ProjectId);
+            var budgetsTask = Api.GetPerformanceBudgetsAsync(ProjectId);
+            var projectControlTask =
+                Api.GetProjectControlDashboardAsync(ProjectId);
+            var managementTask =
+                Api.GetManagementDashboardAsync(ProjectId);
+
+            _forecast = await forecastTask;
+            _overview = await overviewTask;
+            _jobs = await jobsTask;
+            _incidents = await incidentsTask;
+            _replays = await replayTask;
+            _budgets = await budgetsTask;
+            _projectControl = await projectControlTask;
+            _management = await managementTask;
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string Window() =>
+        _forecast?.EarliestCompletionUtc is null
+        || _forecast.LatestCompletionUtc is null
+            ? "Not enough evidence"
+            : $"{_forecast.EarliestCompletionUtc:yyyy-MM-dd} "
+              + $"– {_forecast.LatestCompletionUtc:yyyy-MM-dd}";
+}

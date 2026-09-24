@@ -1,0 +1,237 @@
+@* Purpose: Renders selected QA run findings, recent immutable QA evidence, and quality-trend history. *@
+@using Dip.Application.Features.Dashboard
+@using Dip.Application.Features.QualityAutomation
+
+<div data-testid="qa-evidence-summary">
+    @if (LastRun is not null)
+    {
+        <section class="card mb-4 qa-result-card">
+            <div class="card-header">
+                <div>
+                    <div class="eyebrow">Selected / latest run</div>
+                    <strong>QA evidence summary</strong>
+                </div>
+                <StatusBadge Value="@LastRun.Status" />
+            </div>
+
+            <div class="card-body">
+                <div class="qa-result-summary">
+                    <div><span>Findings</span><strong>@LastRun.FindingCount</strong></div>
+                    <div><span>Critical</span><strong class="text-danger">@LastRun.CriticalFindingCount</strong></div>
+                    <div><span>Warnings</span><strong class="text-warning">@LastRun.WarningFindingCount</strong></div>
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                @if (LastRun.Findings.Count == 0)
+                {
+                    <div class="compact-empty">
+                        <span class="status-dot healthy"></span>
+                        <div>
+                            <strong>No findings</strong>
+                            <small>The available adapters reported no problem for this run.</small>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Severity</th>
+                                    <th>Finding</th>
+                                    <th>Tool</th>
+                                    <th>Location</th>
+                                    <th>Reproduction</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var finding in LastRun.Findings.Take(100))
+                                {
+                                    <tr>
+                                        <td><StatusBadge Value="@finding.Severity" /></td>
+                                        <td>
+                                            <strong>@finding.Title</strong>
+                                            <div class="small text-muted finding-message">@finding.Message</div>
+                                        </td>
+                                        <td>@finding.Tool</td>
+                                        <td>@FormatLocation(finding.FilePath, finding.Line)</td>
+                                        <td>@finding.ReproductionStatus</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <div class="card-footer d-flex gap-2">
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="@($"/dashboard/{ProjectId}/qa/runs/{LastRun.QaRunId}")">
+                    Open evidence
+                </a>
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="@($"/dashboard/{ProjectId}/qa-governance")">
+                    Open QA Governance
+                </a>
+            </div>
+        </section>
+    }
+
+    <section class="card mb-4">
+        <div class="card-header">
+            <strong>Recent QA evidence</strong>
+            <span>@(Dashboard?.RecentQaRuns.Count ?? 0) run(s)</span>
+        </div>
+        <div class="card-body p-0">
+            @if (Dashboard?.RecentQaRuns.Count > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Run</th>
+                                <th>Language</th>
+                                <th>Status</th>
+                                <th>Findings</th>
+                                <th>Reproduced</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var run in Dashboard.RecentQaRuns)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@($"/dashboard/{ProjectId}/qa/runs/{run.Id}")">
+                                            <code>@ShortGuid(run.Id)</code>
+                                        </a>
+                                    </td>
+                                    <td>@run.Language</td>
+                                    <td><StatusBadge Value="@run.Status" /></td>
+                                    <td>
+                                        @run.FindingCount
+                                        <span class="text-danger">
+                                            (@run.CriticalFindingCount critical)
+                                        </span>
+                                    </td>
+                                    <td>@run.ReproducedFindingCount</td>
+                                    <td>@FormatDate(run.CreatedAtUtc)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="compact-empty">
+                    <span class="status-dot neutral"></span>
+                    <div>
+                        <strong>No QA runs yet</strong>
+                        <small>Run QA to create quality evidence for this project.</small>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <strong>Quality trend</strong>
+            <span>@Trends.Count recorded run(s)</span>
+        </div>
+        <div class="card-body p-0">
+            @if (Trends.Count == 0)
+            {
+                <div class="compact-empty">
+                    <span class="status-dot neutral"></span>
+                    <div>
+                        <strong>No trend data yet</strong>
+                        <small>Trend evidence appears after QA runs are persisted.</small>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Run</th>
+                                <th>Created</th>
+                                <th>Status</th>
+                                <th>Language</th>
+                                <th>Findings</th>
+                                <th>Critical</th>
+                                <th>Warnings</th>
+                                <th>Relative load</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var point in Trends)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@($"/dashboard/{ProjectId}/qa/runs/{point.RunId}")">
+                                            <code>@ShortGuid(point.RunId)</code>
+                                        </a>
+                                    </td>
+                                    <td>@FormatDate(point.CreatedAtUtc)</td>
+                                    <td><StatusBadge Value="@point.Status" /></td>
+                                    <td>@point.Language</td>
+                                    <td>@point.FindingCount</td>
+                                    <td class="text-danger">@point.CriticalFindingCount</td>
+                                    <td class="text-warning">@point.WarningFindingCount</td>
+                                    <td style="min-width:160px">
+                                        <div class="progress" style="height:8px">
+                                            <div class="progress-bar"
+                                                 role="progressbar"
+                                                 style="width:@TrendWidth(point)%"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public QaRunResultDto? LastRun { get; set; }
+    [Parameter] public ProjectDashboardDetails? Dashboard { get; set; }
+    [Parameter] public IReadOnlyList<QaTrendPointClientDto> Trends { get; set; } =
+        Array.Empty<QaTrendPointClientDto>();
+
+    private int MaxTrendFindings =>
+        Math.Max(
+            1,
+            Trends.Count == 0
+                ? 1
+                : Trends.Max(x => x.FindingCount));
+
+    private int TrendWidth(QaTrendPointClientDto point) =>
+        (int)Math.Clamp(
+            Math.Round(
+                point.FindingCount * 100m / MaxTrendFindings),
+            0m,
+            100m);
+
+    private static string ShortGuid(Guid value) =>
+        value.ToString("N")[..8];
+
+    private static string FormatDate(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    private static string FormatLocation(string? path, int? line) =>
+        string.IsNullOrWhiteSpace(path)
+            ? "—"
+            : line is null
+                ? path
+                : $"{path}:{line}";
+}

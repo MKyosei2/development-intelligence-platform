@@ -1,4 +1,4 @@
-// Purpose: Implements Collector Report Parser responsibilities for parsing.
+// Purpose: Parses bounded Generic JSON collector-report files into typed report models with cancellation support.
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GenericJsonCollector.Models;

@@ -1,4 +1,4 @@
-// Purpose: Implements D ip Db Co nt ex t infrastructure integration for p er si st en ce.
+// Purpose: Defines the EF Core persistence surface for DIP application, evidence, QA, integration, and enterprise state.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -76,26 +76,25 @@ public sealed class DipDbContext : DbContext, IUnitOfWork
     public DbSet<DevelopmentGraphNode> DevelopmentGraphNodes => Set<DevelopmentGraphNode>();
     public DbSet<DevelopmentGraphEdge> DevelopmentGraphEdges => Set<DevelopmentGraphEdge>();
 
-    // Difficulty-1 foundation.
+    // Integration and source-binding state.
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<ProjectSourceBinding> ProjectSourceBindings => Set<ProjectSourceBinding>();
     public DbSet<PolicyProfile> PolicyProfiles => Set<PolicyProfile>();
 
-    // Phase-2 local/non-Git artifact tracking foundation.
+    // Artifact tracking for local and non-Git production inputs.
     public DbSet<TrackedArtifact> TrackedArtifacts => Set<TrackedArtifact>();
     public DbSet<TrackedArtifactVersion> TrackedArtifactVersions => Set<TrackedArtifactVersion>();
     public DbSet<ArtifactPreview> ArtifactPreviews => Set<ArtifactPreview>();
     public DbSet<ArtifactDependency> ArtifactDependencies => Set<ArtifactDependency>();
 
-    // Phase-4 quality automation / explainable management intelligence.
+    // Quality Automation and evidence-backed assessment state.
     public DbSet<QualityAutomationProfile> QualityAutomationProfiles => Set<QualityAutomationProfile>();
     public DbSet<GoldenMasterProfile> GoldenMasterProfiles => Set<GoldenMasterProfile>();
     public DbSet<VisualComparisonRecord> VisualComparisonRecords => Set<VisualComparisonRecord>();
     public DbSet<AssetQaFindingRecord> AssetQaFindingRecords => Set<AssetQaFindingRecord>();
     public DbSet<ClaimEvidenceAssessmentRecord> ClaimEvidenceAssessmentRecords => Set<ClaimEvidenceAssessmentRecord>();
 
-
-    // Phase-5 enterprise fleet / tenancy / integrity / identity governance.
+    // Enterprise Fleet, tenancy, evidence integrity, and identity governance state.
     public DbSet<OrganizationTenant> OrganizationTenants => Set<OrganizationTenant>();
     public DbSet<ProjectTenantBinding> ProjectTenantBindings => Set<ProjectTenantBinding>();
     public DbSet<AgentEnrollmentToken> AgentEnrollmentTokens => Set<AgentEnrollmentToken>();

@@ -1,4 +1,4 @@
-# Purpose: Implements animation analyzer responsibilities for analyzers.
+# Purpose: Measures Maya animation-curve count and configured timeline length.
 from dip_maya_collector.models import CollectorMetric, CollectorReport
 
 def analyze(cmds, report: CollectorReport) -> None:

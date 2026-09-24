@@ -1,4 +1,4 @@
-# Purpose: Implements report writer responsibilities for reporting.
+# Purpose: Serializes Maya collector reports as UTF-8 JSON and creates the destination directory when needed.
 import json
 from pathlib import Path
 from dip_maya_collector.models import CollectorReport

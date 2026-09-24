@@ -1,0 +1,98 @@
+@* Purpose: Presents release-readiness decision evidence, blockers, required actions, and exact-verification navigation for reviewers. *@
+@using Dip.Application.Features.Release
+
+<section class="card mb-4" data-testid="release-evidence-panel">
+    <div class="card-header">
+        <div>
+            <div class="eyebrow">Reviewer focus · Verification</div>
+            <strong>Release Evidence</strong>
+        </div>
+        @if (Readiness is not null)
+        {
+            <StatusBadge Value="@Readiness.Decision" />
+        }
+    </div>
+
+    <div class="card-body">
+        @if (Readiness is null)
+        {
+            <div class="compact-empty">
+                <span class="status-dot neutral"></span>
+                <div>
+                    <strong>Release readiness has not been evaluated.</strong>
+                    <small>
+                        No release decision is promoted without current evidence.
+                    </small>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="mb-3">@Readiness.Summary</p>
+
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="eyebrow">Blockers</div>
+                        @if (Readiness.Blockers.Count == 0)
+                        {
+                            <p class="small text-muted mb-0">
+                                No blocker is recorded by the current readiness evaluation.
+                            </p>
+                        }
+                        else
+                        {
+                            <ul class="mb-0">
+                                @foreach (var blocker in Readiness.Blockers)
+                                {
+                                    <li>@blocker</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="eyebrow">Required actions</div>
+                        @if (Readiness.RequiredActions.Count == 0)
+                        {
+                            <p class="small text-muted mb-0">
+                                No required action is recorded.
+                            </p>
+                        }
+                        else
+                        {
+                            <ol class="mb-0">
+                                @foreach (var action in Readiness.RequiredActions)
+                                {
+                                    <li>@action</li>
+                                }
+                            </ol>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="@($"/dashboard/{ProjectId}/ci")">
+                    Inspect CI evidence
+                </a>
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="@($"/dashboard/{ProjectId}/qa")">
+                    Inspect QA evidence
+                </a>
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="@($"/dashboard/{ProjectId}/qa-governance")">
+                    Inspect QA governance
+                </a>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public ReleaseReadinessDto? Readiness { get; set; }
+}

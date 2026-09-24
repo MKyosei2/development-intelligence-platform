@@ -1,4 +1,4 @@
-// Purpose: Exposes M an ag ed Co nn ec ti on Pr oj ec ts HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes managed integration project discovery and import HTTP endpoints.
 using System.Text.Json;
 using Dip.Api.Authorization;
 using Dip.Application.Features.Integrations;
@@ -93,7 +93,7 @@ public sealed class ManagedConnectionProjectsController(
             return BadRequest(new
             {
                 error = "resource_not_repository",
-                message = "Difficulty-1 managed import currently supports repository resources."
+                message = "Managed import currently supports repository resources only."
             });
 
         var projectName = string.IsNullOrWhiteSpace(command.ProjectName)

@@ -1,0 +1,391 @@
+@* Purpose: Owns bounded autonomous-debug configuration, execution, verification results, and durable session history. *@
+@using Dip.Application.Features.GitHubIntegration
+@using Dip.Application.Features.QualityAutomation
+@inject ApiClient Api
+
+<section class="card" data-testid="qa-autonomous-debug-panel">
+    <div class="card-header">
+        <div>
+            <div class="eyebrow">Evidence grounded</div>
+            <strong>Autonomous Debug</strong>
+        </div>
+        <span>Human review required</span>
+    </div>
+
+    <div class="card-body">
+        <div class="alert alert-light border small">
+            The AI proposes bounded hypotheses and candidates only.
+            DIP verifies candidates in a disposable workspace; it never edits
+            or merges the source workspace automatically.
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+
+        <div class="row g-3">
+            <div class="col-12 col-xl-7">
+                <div class="form-grid">
+                    <label class="form-label mb-0">Subject key</label>
+                    <input class="form-control"
+                           data-testid="qa-debug-subject"
+                           @bind="_subject" />
+
+                    <label class="form-label mb-0">Question</label>
+                    <textarea class="form-control"
+                              data-testid="qa-debug-question"
+                              rows="4"
+                              @bind="_question"></textarea>
+
+                    <label class="form-label mb-0">Evidence JSON</label>
+                    <textarea class="form-control font-monospace"
+                              data-testid="qa-debug-evidence"
+                              rows="7"
+                              @bind="_evidenceJson"></textarea>
+
+                    <label class="form-label mb-0">
+                        Repository context
+                        <span class="text-muted">(optional)</span>
+                    </label>
+                    <textarea class="form-control font-monospace"
+                              rows="4"
+                              @bind="_repositoryContext"></textarea>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-5">
+                <div class="form-grid">
+                    <label class="form-label mb-0">Domain</label>
+                    <select class="form-select" @bind="_domain">
+                        <option value="software">software</option>
+                        <option value="media.production">media.production</option>
+                        <option value="construction">construction</option>
+                        <option value="generic.project">generic.project</option>
+                    </select>
+
+                    <div class="d-flex gap-2">
+                        <div class="flex-fill">
+                            <label class="form-label small">Hypotheses</label>
+                            <input class="form-control"
+                                   type="number"
+                                   min="1"
+                                   max="10"
+                                   @bind="_maxHypotheses" />
+                        </div>
+                        <div class="flex-fill">
+                            <label class="form-label small">Experiments</label>
+                            <input class="form-control"
+                                   type="number"
+                                   min="1"
+                                   max="10"
+                                   @bind="_maxExperiments" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <div class="flex-fill">
+                            <label class="form-label small">AI calls</label>
+                            <input class="form-control"
+                                   type="number"
+                                   min="2"
+                                   max="20"
+                                   @bind="_maxAiCalls" />
+                        </div>
+                        <div class="flex-fill">
+                            <label class="form-label small">Timeout sec</label>
+                            <input class="form-control"
+                                   type="number"
+                                   min="30"
+                                   max="1800"
+                                   @bind="_timeoutSeconds" />
+                        </div>
+                    </div>
+
+                    <label class="form-label mb-0">
+                        Wall-clock budget (minutes)
+                    </label>
+                    <input class="form-control"
+                           type="number"
+                           min="1"
+                           max="120"
+                           @bind="_wallClockMinutes" />
+
+                    <button class="btn btn-primary"
+                            data-testid="qa-run-autonomous-debug"
+                            type="button"
+                            disabled="@(!CanRun || _running)"
+                            @onclick="RunAsync">
+                        @(_running ? "Running bounded experiments…" : "Run autonomous debug")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (_session is not null)
+    {
+        <div class="card-body border-top"
+             data-testid="qa-autonomous-debug-result">
+            <div class="d-flex justify-content-between gap-3 align-items-start mb-3">
+                <div>
+                    <div class="eyebrow">
+                        Session <code>@ShortGuid(_session.SessionId)</code>
+                    </div>
+                    <h2 class="h5 mb-1">@_session.Status</h2>
+                    <p class="mb-0">@_session.Summary</p>
+                </div>
+                <StatusBadge Value="@_session.Status" />
+            </div>
+
+            <h3 class="h6">Hypotheses</h3>
+            @if (_session.Hypotheses.Count == 0)
+            {
+                <p class="small text-muted">No grounded hypothesis was returned.</p>
+            }
+            else
+            {
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Confidence</th>
+                                <th>Hypothesis</th>
+                                <th>Evidence</th>
+                                <th>Suggested experiments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var hypothesis in _session.Hypotheses)
+                            {
+                                <tr>
+                                    <td>@hypothesis.Confidence.ToString("P0")</td>
+                                    <td>
+                                        <strong>@hypothesis.Title</strong>
+                                        <div class="small text-muted">
+                                            @hypothesis.Explanation
+                                        </div>
+                                    </td>
+                                    <td>@hypothesis.EvidenceIds.Count</td>
+                                    <td>@string.Join(", ", hypothesis.SuggestedExperiments)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <h3 class="h6">Verification attempts</h3>
+            @if (_session.Attempts.Count == 0)
+            {
+                <p class="small text-muted">No candidate experiment was executed.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Hypothesis</th>
+                                <th>Verified</th>
+                                <th>Summary</th>
+                                <th>Artifact</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var attempt in _session.Attempts)
+                            {
+                                <tr>
+                                    <td><StatusBadge Value="@attempt.Status" /></td>
+                                    <td>@attempt.HypothesisTitle</td>
+                                    <td>@(attempt.Verified ? "Yes" : "No")</td>
+                                    <td>@attempt.Summary</td>
+                                    <td><code>@(attempt.ArtifactRoot ?? "—")</code></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="card-body border-top" data-testid="qa-debug-history">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+                <div class="eyebrow">Durable history</div>
+                <strong>Recent autonomous debug sessions</strong>
+            </div>
+            <span>@_sessions.Count session(s)</span>
+        </div>
+
+        @if (_sessions.Count == 0)
+        {
+            <p class="small text-muted mb-0">
+                No autonomous debug session has been persisted for this project.
+            </p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Subject</th>
+                            <th>Domain</th>
+                            <th>Started</th>
+                            <th>Attempts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var session in _sessions)
+                        {
+                            <tr class="@(_session?.SessionId == session.SessionId ? "table-active" : string.Empty)"
+                                style="cursor:pointer"
+                                @onclick="() => _session = session">
+                                <td><StatusBadge Value="@session.Status" /></td>
+                                <td>
+                                    <strong>@session.SubjectKey</strong>
+                                    <div class="small text-muted">
+                                        <code>@ShortGuid(session.SessionId)</code>
+                                    </div>
+                                </td>
+                                <td><code>@session.DomainId</code></td>
+                                <td>@FormatDate(session.StartedAtUtc)</td>
+                                <td>@session.Attempts.Count</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public GitHubProjectRepositoryDto? Repository { get; set; }
+    [Parameter] public QualityIssueClientDto? SeedIssue { get; set; }
+
+    private Guid? _seedIssueId;
+    private string _subject = "qa-failure";
+    private string _question =
+        "Explain the most likely root cause using only the supplied evidence, "
+        + "then verify the smallest safe candidate in isolation.";
+    private string _evidenceJson = "{}";
+    private string? _repositoryContext;
+    private string _domain = "software";
+    private int _maxHypotheses = 4;
+    private int _maxExperiments = 3;
+    private int _maxAiCalls = 5;
+    private int _timeoutSeconds = 900;
+    private int _wallClockMinutes = 30;
+    private bool _running;
+    private string? _error;
+    private AutonomousDebugSessionDto? _session;
+    private IReadOnlyList<AutonomousDebugSessionDto> _sessions =
+        Array.Empty<AutonomousDebugSessionDto>();
+
+    private bool CanRun =>
+        Repository?.Workspace is not null
+        && !string.IsNullOrWhiteSpace(_subject)
+        && !string.IsNullOrWhiteSpace(_question)
+        && !string.IsNullOrWhiteSpace(_evidenceJson);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_seedIssueId != SeedIssue?.Id && SeedIssue is not null)
+        {
+            _seedIssueId = SeedIssue.Id;
+            _subject = string.IsNullOrWhiteSpace(SeedIssue.Fingerprint)
+                ? SeedIssue.Id.ToString("N")
+                : SeedIssue.Fingerprint;
+
+            _question =
+                $"Explain the root cause of '{SeedIssue.Title}' and verify "
+                + "the smallest safe candidate without modifying the source workspace.";
+
+            _evidenceJson =
+                string.IsNullOrWhiteSpace(SeedIssue.EvidenceJson)
+                    ? "{}"
+                    : SeedIssue.EvidenceJson!;
+        }
+
+        await LoadHistoryAsync();
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try
+        {
+            var selected = _session?.SessionId;
+            _sessions =
+                await Api.GetAutonomousDebugSessionsAsync(ProjectId, 20);
+
+            _session = selected is { } id
+                ? _sessions.FirstOrDefault(x => x.SessionId == id)
+                  ?? _sessions.FirstOrDefault()
+                : _sessions.FirstOrDefault();
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        _error = null;
+
+        var workspace = Repository?.Workspace;
+        if (workspace is null)
+        {
+            _error = "Synchronize the repository before autonomous debugging.";
+            return;
+        }
+
+        _running = true;
+
+        try
+        {
+            var budget = new AutonomousDebugBudget(
+                Math.Clamp(_maxHypotheses, 1, 10),
+                Math.Clamp(_maxExperiments, 1, 10),
+                Math.Clamp(_maxAiCalls, 2, 20),
+                Math.Clamp(_timeoutSeconds, 30, 1800),
+                Math.Clamp(_wallClockMinutes, 1, 120));
+
+            _session = await Api.RunAutonomousDebugAsync(
+                ProjectId,
+                _subject.Trim(),
+                _question.Trim(),
+                _evidenceJson,
+                workspace.WorkspaceRelativePath,
+                string.IsNullOrWhiteSpace(_repositoryContext)
+                    ? null
+                    : _repositoryContext,
+                workspace.CommitSha,
+                "auto",
+                _domain,
+                budget);
+
+            await LoadHistoryAsync();
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+
+    private static string ShortGuid(Guid value) =>
+        value.ToString("N")[..8];
+
+    private static string FormatDate(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}

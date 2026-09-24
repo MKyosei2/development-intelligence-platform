@@ -320,7 +320,7 @@ public sealed class IntegrationConnectionService
         ArgumentNullException.ThrowIfNull(command);
         if (!command.Provider.Equals("GitHub", StringComparison.OrdinalIgnoreCase))
             throw new NotSupportedException(
-                "Difficulty-1 currently implements GitHub as the first formal connector.");
+                "GitHub is currently the supported managed connector.");
         if (string.IsNullOrWhiteSpace(command.DisplayName))
             throw new ArgumentException("DisplayName is required.", nameof(command));
 

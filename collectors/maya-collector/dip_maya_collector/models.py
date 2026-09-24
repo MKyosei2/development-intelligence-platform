@@ -1,4 +1,4 @@
-# Purpose: Implements models responsibilities for dip maya collector.
+# Purpose: Defines Maya collector report, metric, and issue data transferred to reporting and ingestion boundaries.
 from dataclasses import asdict, dataclass, field
 from typing import Any
 

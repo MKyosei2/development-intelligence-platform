@@ -1,12 +1,10 @@
-@* Purpose: Renders the M ai nL ay ou t UI and coordinates its l ay ou t interactions. *@
-@using Dip.Application.Features.Management
+@* Purpose: Renders the application shell and prioritizes Project Truth, QA, and Verification for read-only reviewers while preserving full developer navigation. *@
 @using Dip.Application.Features.Realtime
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject NavigationManager Navigation
 @inject ProjectState Projects
 @inject RealtimeUpdateService Realtime
-@inject ApiClient Api
 @inject IConfiguration Configuration
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -14,12 +12,16 @@
     <aside class="sidebar">
         <a class="brand" href="/">
             <span class="brand-mark">DI</span>
-            <span><strong>DIP</strong><small>Development Intelligence</small></span>
+            <span>
+                <strong>DIP</strong>
+                <small>Development Intelligence</small>
+            </span>
         </a>
 
         <div class="project-picker">
             <label for="project-select">Active project</label>
-            <select id="project-select" data-testid="active-project-select"
+            <select id="project-select"
+                    data-testid="active-project-select"
                     value="@(Projects.CurrentProjectId?.ToString() ?? string.Empty)"
                     @onchange="ProjectChanged"
                     disabled="@Projects.IsLoading">
@@ -35,40 +37,130 @@
             </div>
         </div>
 
-        <nav class="side-nav" aria-label="Primary navigation" data-testid="primary-navigation">
+        <nav class="side-nav"
+             aria-label="Primary navigation"
+             data-testid="primary-navigation">
             <div class="nav-section" data-testid="nav-section-start">Start</div>
-            <a class="@NavClass("/", exact: true)" href="/"><span>◫</span> Portfolio</a>
+            <a class="@NavClass("/", exact: true)" href="/">
+                <span>◫</span> Portfolio
+            </a>
+
             @if (!_viewerReadOnly)
             {
-                <a class="@NavClass("/projects/import/github")" data-enhance-nav="false" href="/projects/import/github"><span>⌘</span> Import GitHub</a>
-                <a class="@NavClass("/projects/new")" href="/projects/new"><span>＋</span> Manual Project</a>
+                <a class="@NavClass("/projects/import/github")"
+                   data-enhance-nav="false"
+                   href="/projects/import/github">
+                    <span>⌘</span> Import GitHub
+                </a>
+                <a class="@NavClass("/projects/new")" href="/projects/new">
+                    <span>＋</span> Manual Project
+                </a>
             }
 
             @if (Projects.CurrentProjectId is { } projectId)
             {
-                <a class="@OperationFlowNavClass(projectId)"
-                   data-testid="operation-flow-nav"
-                   href="@($"/dashboard/{projectId}#operation-flow")"><span>◎</span> Operation Flow</a>
-                <a class="@ProjectOverviewNavClass(projectId)"
-                   href="@($"/dashboard/{projectId}")"><span>▦</span> Project Overview</a>
+                @if (_viewerReadOnly)
+                {
+                    <div class="nav-section" data-testid="nav-section-reviewer-focus">
+                        Reviewer focus
+                    </div>
+                    <a class="@ProjectOverviewNavClass(projectId)"
+                       data-testid="reviewer-project-truth-nav"
+                       href="@($"/dashboard/{projectId}")">
+                        <span>◎</span> Project Truth
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/qa", exact: true)"
+                       data-testid="reviewer-qa-nav"
+                       href="@($"/dashboard/{projectId}/qa")">
+                        <span>✓</span> QA
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/intelligence")"
+                       data-testid="reviewer-verification-nav"
+                       href="@($"/dashboard/{projectId}/intelligence")">
+                        <span>◆</span> Verification
+                    </a>
 
-                <div class="nav-section" data-testid="nav-section-observe">Observe</div>
-                <a class="@NavClass($"/dashboard/{projectId}/repository")" href="@($"/dashboard/{projectId}/repository")"><span>⌘</span> Repository</a>
-                <a class="@NavClass($"/dashboard/{projectId}/ci")" href="@($"/dashboard/{projectId}/ci")"><span>▶</span> CI / Builds</a>
-                <a class="@NavClass($"/dashboard/{projectId}/qa", exact: true)" href="@($"/dashboard/{projectId}/qa")"><span>✓</span> QA</a>
+                    <div class="nav-section" data-testid="nav-section-reviewer-supporting">
+                        Supporting
+                    </div>
+                    <a class="@NavClass($"/dashboard/{projectId}/repository")"
+                       href="@($"/dashboard/{projectId}/repository")">
+                        <span>⌘</span> Repository
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/ci")"
+                       href="@($"/dashboard/{projectId}/ci")">
+                        <span>▶</span> CI / Builds
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/qa-governance")"
+                       href="@($"/dashboard/{projectId}/qa-governance")">
+                        <span>◇</span> QA Governance
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/management")"
+                       href="@($"/dashboard/{projectId}/management")">
+                        <span>▣</span> Management
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/sources")"
+                       href="@($"/dashboard/{projectId}/sources")">
+                        <span>⇄</span> Plan & Sources
+                    </a>
+                }
+                else
+                {
+                    <a class="@OperationFlowNavClass(projectId)"
+                       data-testid="operation-flow-nav"
+                       href="@($"/dashboard/{projectId}#operation-flow")">
+                        <span>◎</span> Operation Flow
+                    </a>
+                    <a class="@ProjectOverviewNavClass(projectId)"
+                       href="@($"/dashboard/{projectId}")">
+                        <span>▦</span> Project Overview
+                    </a>
 
-                <div class="nav-section" data-testid="nav-section-understand">Understand</div>
-                <a class="@NavClass($"/dashboard/{projectId}/intelligence")" href="@($"/dashboard/{projectId}/intelligence")"><span>◆</span> Intelligence</a>
+                    <div class="nav-section" data-testid="nav-section-observe">Observe</div>
+                    <a class="@NavClass($"/dashboard/{projectId}/repository")"
+                       href="@($"/dashboard/{projectId}/repository")">
+                        <span>⌘</span> Repository
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/ci")"
+                       href="@($"/dashboard/{projectId}/ci")">
+                        <span>▶</span> CI / Builds
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/qa", exact: true)"
+                       href="@($"/dashboard/{projectId}/qa")">
+                        <span>✓</span> QA
+                    </a>
 
-                <div class="nav-section" data-testid="nav-section-operate">Operate</div>
-                <a class="@NavClass($"/dashboard/{projectId}/management")" href="@($"/dashboard/{projectId}/management")"><span>▣</span> Management</a>
-                <a class="@NavClass($"/dashboard/{projectId}/sources")" href="@($"/dashboard/{projectId}/sources")"><span>⇄</span> Plan & Sources</a>
-                <a class="@NavClass($"/dashboard/{projectId}/qa-governance")" href="@($"/dashboard/{projectId}/qa-governance")"><span>◇</span> QA Governance</a>
+                    <div class="nav-section" data-testid="nav-section-understand">Understand</div>
+                    <a class="@NavClass($"/dashboard/{projectId}/intelligence")"
+                       href="@($"/dashboard/{projectId}/intelligence")">
+                        <span>◆</span> Intelligence
+                    </a>
+
+                    <div class="nav-section" data-testid="nav-section-operate">Operate</div>
+                    <a class="@NavClass($"/dashboard/{projectId}/management")"
+                       href="@($"/dashboard/{projectId}/management")">
+                        <span>▣</span> Management
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/sources")"
+                       href="@($"/dashboard/{projectId}/sources")">
+                        <span>⇄</span> Plan & Sources
+                    </a>
+                    <a class="@NavClass($"/dashboard/{projectId}/qa-governance")"
+                       href="@($"/dashboard/{projectId}/qa-governance")">
+                        <span>◇</span> QA Governance
+                    </a>
+                }
             }
 
-            <div class="nav-section" data-testid="nav-section-platform">Platform</div>
-            <a class="@NavClass("/system")" href="/system"><span>●</span> Platform Operations</a>
-            <a class="@NavClass("/settings")" href="/settings"><span>⚙</span> Settings</a>
+            <div class="nav-section" data-testid="nav-section-platform">
+                @(_viewerReadOnly ? "Secondary platform" : "Platform")
+            </div>
+            <a class="@NavClass("/system")" href="/system">
+                <span>●</span> Platform Operations
+            </a>
+            <a class="@NavClass("/settings")" href="/settings">
+                <span>⚙</span> Settings
+            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -78,18 +170,29 @@
                     <Authorized Context="auth">
                         <div class="user-chip">
                             <span class="user-avatar">@Initial(auth.User.Identity?.Name)</span>
-                            <span><strong>@(auth.User.Identity?.Name ?? "Signed in")</strong><small>@Role(auth.User)</small></span>
+                            <span>
+                                <strong>@(auth.User.Identity?.Name ?? "Signed in")</strong>
+                                <small>@Role(auth.User)</small>
+                            </span>
                         </div>
                         <a class="sidebar-action" href="/auth/logout">Sign out</a>
                     </Authorized>
                     <NotAuthorized>
-                        <a class="btn btn-primary w-100" href="/auth/login">Sign in with GitHub</a>
+                        <a class="btn btn-primary w-100" href="/auth/login">
+                            Sign in with GitHub
+                        </a>
                     </NotAuthorized>
                 </AuthorizeView>
             }
             else
             {
-                <div class="local-mode"><span class="status-dot healthy"></span><span><strong>Local development</strong><small>Authentication disabled</small></span></div>
+                <div class="local-mode">
+                    <span class="status-dot healthy"></span>
+                    <span>
+                        <strong>Local development</strong>
+                        <small>Authentication disabled</small>
+                    </span>
+                </div>
             }
         </div>
     </aside>
@@ -97,38 +200,68 @@
     <div class="main-column">
         <header class="app-header" data-testid="app-header">
             <div class="header-project-context">
-                <div class="eyebrow">@(Projects.CurrentProjectId is null ? "Portfolio" : "Active project")</div>
+                <div class="eyebrow">
+                    @(Projects.CurrentProjectId is null ? "Portfolio" : "Active project")
+                </div>
                 <div class="header-title">@CurrentProjectName</div>
                 @if (Projects.CurrentProject is { } project)
                 {
-                    <div class="header-subtitle">@project.DefaultBranch · @ShortRepository(project.Repository)</div>
+                    <div class="header-subtitle">
+                        @project.DefaultBranch · @ShortRepository(project.Repository)
+                    </div>
                 }
             </div>
+
             <div class="header-actions">
                 @if (Projects.LastRefreshedAtUtc is { } refreshed)
                 {
-                    <span class="header-sync">Updated @refreshed.ToLocalTime().ToString("HH:mm:ss")</span>
+                    <span class="header-sync">
+                        Updated @refreshed.ToLocalTime().ToString("HH:mm:ss")
+                    </span>
                 }
+
                 <button class="btn btn-outline-secondary btn-sm position-relative"
                         type="button"
                         @onclick="ToggleNotifications"
                         disabled="@(Projects.CurrentProjectId is null)"
                         aria-label="Notifications">
                     🔔 Notifications
-                    @if (UnreadNotificationCount > 0)
+                    @if (_unreadNotificationCount > 0)
                     {
-                        <span class="badge text-bg-danger ms-1">@UnreadNotificationCount</span>
+                        <span class="badge text-bg-danger ms-1">
+                            @_unreadNotificationCount
+                        </span>
                     }
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" data-testid="guided-tour-help" type="button" @onclick="StartGuidedTour">? Guided tour</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="RefreshProjects" disabled="@Projects.IsLoading">↻ Refresh</button>
+
+                <button class="btn btn-outline-secondary btn-sm"
+                        data-testid="guided-tour-help"
+                        type="button"
+                        @onclick="StartGuidedTour">
+                    ? Guided tour
+                </button>
+
+                <button class="btn btn-outline-secondary btn-sm"
+                        type="button"
+                        @onclick="RefreshProjects"
+                        disabled="@Projects.IsLoading">
+                    ↻ Refresh
+                </button>
+
                 @if (!_viewerReadOnly)
                 {
-                    <a class="btn btn-primary btn-sm" data-enhance-nav="false" href="/projects/import/github">Import repository</a>
+                    <a class="btn btn-primary btn-sm"
+                       data-enhance-nav="false"
+                       href="/projects/import/github">
+                        Import repository
+                    </a>
                 }
                 else
                 {
-                    <span class="badge text-bg-secondary" data-testid="reviewer-mode-badge">Reviewer · read only</span>
+                    <span class="badge text-bg-secondary"
+                          data-testid="reviewer-mode-badge">
+                        Reviewer · read only
+                    </span>
                 }
             </div>
         </header>
@@ -136,194 +269,100 @@
         <main class="content">
             @if (Projects.Error is not null)
             {
-                <div class="alert alert-warning project-state-warning">Project list refresh failed: @Projects.Error</div>
+                <div class="alert alert-warning project-state-warning">
+                    Project list refresh failed: @Projects.Error
+                </div>
             }
             @Body
         </main>
     </div>
 
-    @if (_notificationOpen)
-    {
-        <div style="position:fixed;inset:0;z-index:1040;background:rgba(0,0,0,.22)" @onclick="CloseNotifications"></div>
-        <aside class="card shadow-lg"
-               style="position:fixed;z-index:1050;right:0;top:0;bottom:0;width:min(460px,96vw);margin:0;border-radius:0;overflow:auto"
-               data-testid="notification-drawer">
-            <div class="card-header position-sticky top-0 bg-body" style="z-index:2">
-                <div><div class="eyebrow">Active project</div><strong>Notifications</strong></div>
-                <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="ReloadNotificationsAsync" disabled="@_notificationLoading">↻</button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="CloseNotifications">Close</button>
-                </div>
-            </div>
-            <div class="card-body border-bottom">
-                <div class="d-flex justify-content-between align-items-center gap-3">
-                    <div><strong>@UnreadNotificationCount unread</strong><div class="small text-muted">Acknowledgement and snooze use the existing management alert state.</div></div>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="ToggleNotificationHistory">@(_showNotificationHistory ? "Active only" : "Show history")</button>
-                </div>
-            </div>
-
-            @if (_notificationLoading)
-            {
-                <div class="card-body">
-                    <div class="compact-empty">
-                        <div class="spinner small-spinner"></div>
-                        <div><strong>Loading notifications…</strong></div>
-                    </div>
-                </div>
-            }
-            else if (_notificationError is not null)
-            {
-                <div class="card-body"><div class="alert alert-warning mb-0">@_notificationError</div></div>
-            }
-            else if (VisibleNotifications.Count == 0)
-            {
-                <div class="card-body">
-                    <div class="compact-empty">
-                        <span class="status-dot healthy"></span>
-                        <div><strong>No notifications</strong><small>There are no active alerts for this view.</small></div>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="list-group list-group-flush">
-                    @foreach (var item in VisibleNotifications)
-                    {
-                        <div class="list-group-item p-3 @NotificationReadClass(item)">
-                            <div class="d-flex justify-content-between gap-3 align-items-start">
-                                <div>
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <StatusBadge Value="@item.Alert.Severity" />
-                                        @if (!IsRead(item))
-                                        {
-                                            <span class="badge text-bg-primary">Unread</span>
-                                        }
-                                        @if (item.RequiresEscalation)
-                                        {
-                                            <span class="badge text-bg-warning">Escalation</span>
-                                        }
-                                    </div>
-                                    <strong>@item.Alert.Title</strong>
-                                    <div class="small text-muted mt-1">@item.Alert.Category · routed to @item.RoutedRole</div>
-                                </div>
-                                <small class="text-muted text-nowrap">@FormatRelative(item.Alert.TriggeredAtUtc)</small>
-                            </div>
-                            <p class="small mt-2 mb-1">@item.Alert.Explanation</p>
-                            <div class="small text-muted">Recommended: @item.Alert.RecommendedAction</div>
-                            <div class="small text-muted mt-1">State: <strong>@item.State.Status</strong> · escalation L@item.State.EscalationLevel</div>
-                            @if (item.State.SnoozeUntilUtc is { } snooze)
-                            {
-                                <div class="small text-muted">Snoozed until @snooze.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</div>
-                            }
-                            <div class="d-flex flex-wrap gap-2 mt-3">
-                                <button class="btn btn-primary btn-sm" type="button" @onclick="() => OpenNotificationAsync(item)">Open</button>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => LoadAlertHistoryAsync(item)" disabled="@_notificationHistoryLoading">History</button>
-                                @if (!item.State.Status.Equals("Acknowledged", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => AcknowledgeAsync(item)">Acknowledge</button>
-                                }
-                                @if (item.Visible)
-                                {
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => SnoozeAsync(item)">Snooze 1h</button>
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => ResolveAsync(item)">Resolve</button>
-                                }
-                            </div>
-
-                            @if (_historyAlertKey?.Equals(item.Alert.Key, StringComparison.OrdinalIgnoreCase) == true)
-                            {
-                                <div class="border-top mt-3 pt-3" data-testid="notification-history">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong class="small">Event history</strong>
-                                        <span class="small text-muted">@_notificationHistory.Count event(s)</span>
-                                    </div>
-                                    @if (_notificationHistoryLoading)
-                                    {
-                                        <div class="small text-muted">Loading history…</div>
-                                    }
-                                    else if (_notificationHistory.Count == 0)
-                                    {
-                                        <div class="small text-muted">No persisted notification event has been recorded yet.</div>
-                                    }
-                                    else
-                                    {
-                                        @foreach (var history in _notificationHistory)
-                                        {
-                                            <div class="small border-start ps-2 mb-2">
-                                                <div><strong>@history.Action</strong> · @FormatRelative(history.AtUtc)</div>
-                                                <div class="text-muted">
-                                                    <span>@history.Actor</span>
-                                                    @if (!string.IsNullOrWhiteSpace(history.Comment))
-                                                    {
-                                                        <span> · @history.Comment</span>
-                                                    }
-                                                </div>
-                                            </div>
-                                        }
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        </aside>
-    }
+    <ProjectNotificationDrawer @ref="_notificationDrawer"
+                               ProjectId="@Projects.CurrentProjectId"
+                               Open="@_notificationOpen"
+                               Close="CloseNotifications"
+                               UnreadCountChanged="OnUnreadCountChanged" />
 
     <GuidedTour @ref="_guidedTour" />
 </div>
 
 @code {
     private GuidedTour? _guidedTour;
+    private ProjectNotificationDrawer? _notificationDrawer;
     private bool _requireAuthentication;
     private bool _viewerReadOnly;
     private string _realtimeState = "Disconnected";
     private bool _notificationOpen;
-    private bool _showNotificationHistory;
-    private bool _notificationLoading;
-    private string? _notificationError;
-    private Guid? _notificationsProjectId;
-    private string? _historyAlertKey;
-    private bool _notificationHistoryLoading;
-    private IReadOnlyList<NotificationHistoryEntryDto> _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
-    private IReadOnlyList<OperationalAlertDto> _alerts = Array.Empty<OperationalAlertDto>();
+    private int _unreadNotificationCount;
 
     protected override async Task OnInitializedAsync()
     {
-        _requireAuthentication = Configuration.GetValue<bool?>("Authentication:RequireAuthenticatedUser") ?? false;
-        var publicReadOnly = Configuration.GetValue<bool?>("PublicAccess:ReadOnly") ?? false;
-        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        _viewerReadOnly = publicReadOnly && authenticationState.User.Identity?.IsAuthenticated != true;
+        _requireAuthentication =
+            Configuration.GetValue<bool?>(
+                "Authentication:RequireAuthenticatedUser")
+            ?? false;
+
+        var publicReadOnly =
+            Configuration.GetValue<bool?>("PublicAccess:ReadOnly")
+            ?? false;
+
+        var authenticationState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        _viewerReadOnly =
+            publicReadOnly
+            && authenticationState.User.Identity?.IsAuthenticated != true;
+
         Navigation.LocationChanged += OnLocationChanged;
         Projects.Changed += OnProjectsChanged;
         Realtime.ProjectEvent += OnRealtimeEvent;
         Realtime.ConnectionStateChanged += OnRealtimeStateChanged;
-        Projects.SelectFromPath(Navigation.ToBaseRelativePath(Navigation.Uri));
+
+        Projects.SelectFromPath(
+            Navigation.ToBaseRelativePath(Navigation.Uri));
+
         await Projects.InitializeAsync();
         await Realtime.StartAsync();
+
         _realtimeState = Realtime.State.ToString();
         await Realtime.SetProjectAsync(Projects.CurrentProjectId);
-        await LoadNotificationsAsync(loadReadState: false);
     }
 
-    private string CurrentProjectName => Projects.CurrentProject?.Name ?? "All projects";
-    private string RealtimeLabel => _realtimeState.Equals("Connected", StringComparison.OrdinalIgnoreCase) ? "Live updates" : "Manual refresh";
-    private string RealtimeDot => _realtimeState.Equals("Connected", StringComparison.OrdinalIgnoreCase) ? "healthy" : "neutral";
-    private int UnreadNotificationCount => _alerts.Count(x => x.Visible && x.State.ViewedAtUtc is null);
-    private IReadOnlyList<OperationalAlertDto> VisibleNotifications
-        => (_showNotificationHistory ? _alerts : _alerts.Where(x => x.Visible)).ToArray();
+    private string CurrentProjectName =>
+        Projects.CurrentProject?.Name ?? "All projects";
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    private string RealtimeLabel =>
+        _realtimeState.Equals(
+            "Connected",
+            StringComparison.OrdinalIgnoreCase)
+            ? "Live updates"
+            : "Manual refresh";
+
+    private string RealtimeDot =>
+        _realtimeState.Equals(
+            "Connected",
+            StringComparison.OrdinalIgnoreCase)
+            ? "healthy"
+            : "neutral";
+
+    private void OnLocationChanged(
+        object? sender,
+        LocationChangedEventArgs args)
     {
-        _ = InvokeAsync(async () =>
-        {
-            Projects.SelectFromPath(Navigation.ToBaseRelativePath(args.Location));
-            await Realtime.SetProjectAsync(Projects.CurrentProjectId);
-            await LoadNotificationsAsync(loadReadState: true);
-            StateHasChanged();
-        });
+        _ = InvokeAsync(
+            async () =>
+            {
+                Projects.SelectFromPath(
+                    Navigation.ToBaseRelativePath(args.Location));
+                await Realtime.SetProjectAsync(
+                    Projects.CurrentProjectId);
+                await ReloadNotificationsAsync();
+                StateHasChanged();
+            });
     }
 
-    private void OnProjectsChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnProjectsChanged() =>
+        _ = InvokeAsync(StateHasChanged);
 
     private void OnRealtimeStateChanged(string state)
     {
@@ -336,25 +375,28 @@
         if (Projects.CurrentProjectId != evt.ProjectId)
             return;
 
-        _ = InvokeAsync(async () =>
-        {
-            await Projects.RefreshAsync();
-            await LoadNotificationsAsync(loadReadState: false);
-            StateHasChanged();
-        });
+        _ = InvokeAsync(
+            async () =>
+            {
+                await Projects.RefreshAsync();
+                await ReloadNotificationsAsync();
+                StateHasChanged();
+            });
     }
 
     private async Task RefreshProjects()
     {
         await Projects.RefreshAsync();
-        await LoadNotificationsAsync(loadReadState: true);
+        await ReloadNotificationsAsync();
     }
 
-    private void StartGuidedTour() => _guidedTour?.StartProductTour();
+    private void StartGuidedTour() =>
+        _guidedTour?.StartProductTour();
 
     private void ProjectChanged(ChangeEventArgs args)
     {
         var value = args.Value?.ToString();
+
         if (Guid.TryParse(value, out var projectId))
         {
             Projects.Select(projectId);
@@ -370,180 +412,52 @@
     private async Task ToggleNotifications()
     {
         _notificationOpen = !_notificationOpen;
+
         if (_notificationOpen)
-            await LoadNotificationsAsync(loadReadState: true);
+            await ReloadNotificationsAsync();
     }
 
-    private void CloseNotifications() => _notificationOpen = false;
-    private void ToggleNotificationHistory() => _showNotificationHistory = !_showNotificationHistory;
-    private Task ReloadNotificationsAsync() => LoadNotificationsAsync(loadReadState: false);
-
-    private async Task LoadNotificationsAsync(bool loadReadState)
-    {
-        var projectId = Projects.CurrentProjectId;
-        if (projectId is null)
-        {
-            _alerts = Array.Empty<OperationalAlertDto>();
-            _notificationsProjectId = null;
-            _historyAlertKey = null;
-            _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
-            return;
-        }
-
-        _notificationLoading = true;
-        _notificationError = null;
-        try
-        {
-            if (_notificationsProjectId != projectId)
-            {
-                _historyAlertKey = null;
-                _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
-            }
-
-            _alerts = await Api.GetOperationalAlertsAsync(projectId.Value, 8);
-            _notificationsProjectId = projectId;
-        }
-        catch (Exception exception)
-        {
-            _notificationError = exception.Message;
-        }
-        finally
-        {
-            _notificationLoading = false;
-        }
-    }
-
-    private async Task LoadAlertHistoryAsync(OperationalAlertDto item)
-    {
-        if (Projects.CurrentProjectId is not { } projectId)
-            return;
-
-        if (_historyAlertKey?.Equals(item.Alert.Key, StringComparison.OrdinalIgnoreCase) == true
-            && !_notificationHistoryLoading)
-        {
-            _historyAlertKey = null;
-            _notificationHistory = Array.Empty<NotificationHistoryEntryDto>();
-            return;
-        }
-
-        _historyAlertKey = item.Alert.Key;
-        _notificationHistoryLoading = true;
-        _notificationError = null;
-        try
-        {
-            _notificationHistory = await Api.GetAlertHistoryAsync(projectId, item.Alert.Key, 100);
-        }
-        catch (Exception exception)
-        {
-            _notificationError = exception.Message;
-        }
-        finally
-        {
-            _notificationHistoryLoading = false;
-        }
-    }
-
-    private async Task MarkReadAsync(OperationalAlertDto item)
-    {
-        if (item.State.ViewedAtUtc is not null || Projects.CurrentProjectId is not { } projectId)
-            return;
-
-        try
-        {
-            await Api.SetAlertDispositionAsync(
-                projectId,
-                item.Alert.Key,
-                new AlertDispositionCommand(
-                    projectId,
-                    item.Alert.Key,
-                    "browser",
-                    "read",
-                    null,
-                    "Viewed in the DIP notification drawer."));
-            await LoadNotificationsAsync(loadReadState: false);
-        }
-        catch (Exception exception)
-        {
-            _notificationError = exception.Message;
-        }
-    }
-
-    private async Task OpenNotificationAsync(OperationalAlertDto item)
-    {
-        await MarkReadAsync(item);
+    private void CloseNotifications() =>
         _notificationOpen = false;
-        if (Projects.CurrentProjectId is not { } projectId)
-            return;
 
-        var category = $"{item.Alert.Category} {item.Alert.SourceKey} {item.Alert.Title}";
-        if (category.Contains("qa", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("quality", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("test", StringComparison.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo($"/dashboard/{projectId}/qa");
-        }
-        else if (category.Contains("ci", StringComparison.OrdinalIgnoreCase)
-                 || category.Contains("build", StringComparison.OrdinalIgnoreCase)
-                 || category.Contains("pipeline", StringComparison.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo($"/dashboard/{projectId}/ci");
-        }
-        else
-        {
-            Navigation.NavigateTo($"/dashboard/{projectId}/management");
-        }
-    }
+    private Task ReloadNotificationsAsync() =>
+        _notificationDrawer?.ReloadAsync() ?? Task.CompletedTask;
 
-    private Task AcknowledgeAsync(OperationalAlertDto item)
-        => ChangeAlertStateAsync(item, "acknowledge", null, "Acknowledged from the DIP notification drawer.");
-
-    private Task SnoozeAsync(OperationalAlertDto item)
-        => ChangeAlertStateAsync(item, "snooze", DateTimeOffset.UtcNow.AddHours(1), "Snoozed for one hour from the DIP notification drawer.");
-
-    private Task ResolveAsync(OperationalAlertDto item)
-        => ChangeAlertStateAsync(item, "resolve", null, "Resolved from the DIP notification drawer.");
-
-    private async Task ChangeAlertStateAsync(
-        OperationalAlertDto item,
-        string disposition,
-        DateTimeOffset? snoozeUntilUtc,
-        string comment)
+    private void OnUnreadCountChanged(int count)
     {
-        if (Projects.CurrentProjectId is not { } projectId)
-            return;
-
-        try
-        {
-            await Api.SetAlertDispositionAsync(
-                projectId,
-                item.Alert.Key,
-                new AlertDispositionCommand(projectId, item.Alert.Key, "browser", disposition, snoozeUntilUtc, comment));
-            await LoadNotificationsAsync(loadReadState: false);
-        }
-        catch (Exception exception)
-        {
-            _notificationError = exception.Message;
-        }
+        _unreadNotificationCount = count;
+        StateHasChanged();
     }
 
-    private static bool IsRead(OperationalAlertDto item) => item.State.ViewedAtUtc is not null;
-    private static string NotificationReadClass(OperationalAlertDto item) => IsRead(item) ? string.Empty : "bg-body-tertiary";
-
-    private string NavClass(string target, bool exact = false)
+    private string NavClass(
+        string target,
+        bool exact = false)
     {
         var path = CurrentPath();
+
         var active = exact
-            ? path.Equals(target, StringComparison.OrdinalIgnoreCase)
-            : path.StartsWith(target, StringComparison.OrdinalIgnoreCase);
+            ? path.Equals(
+                target,
+                StringComparison.OrdinalIgnoreCase)
+            : path.StartsWith(
+                target,
+                StringComparison.OrdinalIgnoreCase);
+
         return active ? "active" : string.Empty;
     }
 
     private string OperationFlowNavClass(Guid projectId)
     {
         var path = CurrentPath();
-        var fragment = Navigation.ToAbsoluteUri(Navigation.Uri).Fragment;
-        return path.Equals($"/dashboard/{projectId}", StringComparison.OrdinalIgnoreCase)
-               && fragment.Equals("#operation-flow", StringComparison.OrdinalIgnoreCase)
+        var fragment =
+            Navigation.ToAbsoluteUri(Navigation.Uri).Fragment;
+
+        return path.Equals(
+                   $"/dashboard/{projectId}",
+                   StringComparison.OrdinalIgnoreCase)
+               && fragment.Equals(
+                   "#operation-flow",
+                   StringComparison.OrdinalIgnoreCase)
             ? "active"
             : string.Empty;
     }
@@ -551,42 +465,54 @@
     private string ProjectOverviewNavClass(Guid projectId)
     {
         var path = CurrentPath();
-        var fragment = Navigation.ToAbsoluteUri(Navigation.Uri).Fragment;
-        return path.Equals($"/dashboard/{projectId}", StringComparison.OrdinalIgnoreCase)
-               && !fragment.Equals("#operation-flow", StringComparison.OrdinalIgnoreCase)
+        var fragment =
+            Navigation.ToAbsoluteUri(Navigation.Uri).Fragment;
+
+        return path.Equals(
+                   $"/dashboard/{projectId}",
+                   StringComparison.OrdinalIgnoreCase)
+               && !fragment.Equals(
+                   "#operation-flow",
+                   StringComparison.OrdinalIgnoreCase)
             ? "active"
             : string.Empty;
     }
 
     private string CurrentPath()
     {
-        var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+        var path =
+            "/"
+            + Navigation
+                .ToBaseRelativePath(Navigation.Uri)
+                .Split('?', '#')[0]
+                .Trim('/');
+
         return path == "//" ? "/" : path;
     }
 
-    private static string Initial(string? value)
-        => string.IsNullOrWhiteSpace(value) ? "U" : value.Trim()[0].ToString().ToUpperInvariant();
+    private static string Initial(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? "U"
+            : value.Trim()[0].ToString().ToUpperInvariant();
 
-    private static string Role(System.Security.Claims.ClaimsPrincipal user)
-        => user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Member";
+    private static string Role(
+        System.Security.Claims.ClaimsPrincipal user) =>
+        user.FindFirst(
+            System.Security.Claims.ClaimTypes.Role)
+            ?.Value
+        ?? "Member";
 
     private static string ShortRepository(string repository)
     {
-        if (Uri.TryCreate(repository, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(
+                repository,
+                UriKind.Absolute,
+                out var uri))
+        {
             return uri.AbsolutePath.Trim('/');
-        return repository;
-    }
+        }
 
-    private static string FormatRelative(DateTimeOffset value)
-    {
-        var elapsed = DateTimeOffset.UtcNow - value.ToUniversalTime();
-        if (elapsed.TotalMinutes < 1)
-            return "now";
-        if (elapsed.TotalHours < 1)
-            return $"{Math.Max(1, (int)elapsed.TotalMinutes)}m ago";
-        if (elapsed.TotalDays < 1)
-            return $"{Math.Max(1, (int)elapsed.TotalHours)}h ago";
-        return value.ToLocalTime().ToString("MM-dd HH:mm");
+        return repository;
     }
 
     public void Dispose()

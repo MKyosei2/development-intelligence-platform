@@ -1,8 +1,9 @@
 #requires -Version 5.1
-# Purpose: Runs the permanent source Purpose repair and strict readability gates without invoking one-shot refactor tooling.
+# Purpose: Verifies source readability by default and applies Purpose repair only when explicitly requested.
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot
+    [string]$RepositoryRoot,
+    [switch]$Apply
 )
 
 Set-StrictMode -Version Latest
@@ -16,5 +17,8 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = (Resolve-Path (Join-Path $scriptDirectory '..')).Path
 }
 
-& (Join-Path $PSScriptRoot 'Repair-SourcePurposeComments.ps1') -RepositoryRoot $RepositoryRoot
+& (Join-Path $PSScriptRoot 'Test-SourcePurposeTooling.ps1')
+if ($Apply) {
+    & (Join-Path $PSScriptRoot 'Repair-SourcePurposeComments.ps1') -RepositoryRoot $RepositoryRoot -Apply
+}
 & (Join-Path $PSScriptRoot 'Verify-SourceReadability.ps1') -RepositoryRoot $RepositoryRoot -Strict

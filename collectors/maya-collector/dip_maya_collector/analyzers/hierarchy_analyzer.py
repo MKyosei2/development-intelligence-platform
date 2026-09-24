@@ -1,4 +1,4 @@
-# Purpose: Implements hierarchy analyzer responsibilities for analyzers.
+# Purpose: Measures Maya transform counts and identifies parentless root transforms.
 from dip_maya_collector.models import CollectorMetric, CollectorReport
 
 def analyze(cmds, report: CollectorReport) -> None:

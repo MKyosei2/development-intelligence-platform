@@ -1,5 +1,5 @@
 #requires -Version 5.1
-# Purpose: Audits first-party source readability, Purpose coverage, empty catch blocks, and compressed C#/Razor code.
+# Purpose: Audits first-party source readability with shared Purpose fragmentation rules and no source mutation.
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot,
@@ -12,9 +12,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $invocationScriptPath = $MyInvocation.MyCommand.Path
-    if ([string]::IsNullOrWhiteSpace($invocationScriptPath)) {
-        throw 'Unable to resolve the script path. Supply -RepositoryRoot explicitly.'
-    }
+    if ([string]::IsNullOrWhiteSpace($invocationScriptPath)) { throw 'Unable to resolve the script path. Supply -RepositoryRoot explicitly.' }
     $scriptDirectory = Split-Path -Parent $invocationScriptPath
     $RepositoryRoot = (Resolve-Path (Join-Path $scriptDirectory '..')).Path
 }
@@ -23,6 +21,7 @@ if (-not $ReportPath) { $ReportPath=Join-Path $Repo 'artifacts\source-readabilit
 if (-not $InventoryPath) { $InventoryPath=Join-Path $Repo 'artifacts\source-readability\inventory.csv' }
 $Issues=New-Object 'System.Collections.Generic.List[object]'
 $Inventory=New-Object 'System.Collections.Generic.List[object]'
+. (Join-Path $PSScriptRoot 'SourcePurposeRules.ps1')
 
 $GenericPurposes = @(
     'Verifies expected behavior and invariants for the surrounding feature.',
@@ -41,11 +40,7 @@ $GenericPurposes = @(
     'Defines a focused responsibility within the development intelligence platform.'
 )
 
-function Test-GenericPurpose {
-    param([Parameter(Mandatory = $true)][string]$Purpose)
-    return $GenericPurposes -contains $Purpose.Trim()
-}
-
+function Test-GenericPurpose([string]$Purpose) { return $GenericPurposes -contains $Purpose.Trim() }
 function Get-RelativePath([string]$Path) {
     $full=[System.IO.Path]::GetFullPath($Path)
     return ($full.Substring($Repo.Length) -replace '^[\\/]+','').Replace([char]92,[char]47)
@@ -67,29 +62,18 @@ function Get-DeclaredTypeNames([string]$Text) {
     $pattern='(?m)^(?:public|internal)\s+(?:(?:sealed|static|abstract|partial|readonly)\s+)*(?:class|record(?:\s+(?:class|struct))?|interface|enum|struct)\s+([A-Za-z_][A-Za-z0-9_]*)'
     return @([regex]::Matches($Text,$pattern) | ForEach-Object {$_.Groups[1].Value} | Select-Object -Unique)
 }
-function Test-FragmentedPurpose([string]$Purpose,[string]$Candidate) {
-    $tokens=@([regex]::Matches($Purpose,'[A-Za-z0-9]+') | ForEach-Object {$_.Value})
-    $shortRun=0
-    foreach($token in $tokens) {
-        if($token.Length -le 2) {
-            $shortRun++
-            if($shortRun -ge 5){return $true}
-        } else {
-            $shortRun=0
-        }
+function Get-BrokenPurposeCandidates([string]$FilePath,[string]$Text) {
+    $candidates=New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    [void]$candidates.Add([System.IO.Path]::GetFileNameWithoutExtension($FilePath))
+    foreach($typeName in @(Get-DeclaredTypeNames $Text)){[void]$candidates.Add($typeName)}
+    foreach($part in @((Get-RelativePath $FilePath) -split '/')) {
+        $name=[System.IO.Path]::GetFileNameWithoutExtension($part)
+        if($name.Length -ge 3){[void]$candidates.Add($name)}
     }
-    return $false
+    return @($candidates | ForEach-Object { [string]$_ })
 }
 function Test-BrokenPurpose([string]$Purpose,[string]$FilePath,[string]$Text) {
-    $candidates=New-Object 'System.Collections.Generic.List[string]'
-    $candidates.Add([System.IO.Path]::GetFileNameWithoutExtension($FilePath)) | Out-Null
-    foreach($typeName in @(Get-DeclaredTypeNames $Text)) {
-        if(-not $candidates.Contains($typeName)){$candidates.Add($typeName) | Out-Null}
-    }
-    foreach($candidate in $candidates) {
-        if(Test-FragmentedPurpose $Purpose $candidate){return $true}
-    }
-    return $false
+    return Test-BrokenPurposeText -Purpose $Purpose -Candidates @(Get-BrokenPurposeCandidates -FilePath $FilePath -Text $Text)
 }
 function Test-CompressedCodeLine([string]$Line) {
     if ($Line.Length -lt 180) { return $false }
@@ -109,8 +93,10 @@ foreach($rootName in @('src','tests','scripts','tools','services','collectors','
     if(-not(Test-Path -LiteralPath $root -PathType Container)){continue}
     foreach($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
         if(Test-ExcludedPath $file.FullName){continue}
-        $extension=$file.Extension.ToLowerInvariant(); if($extension -notin $extensions){continue}
-        $text=[System.IO.File]::ReadAllText($file.FullName); if([string]::IsNullOrEmpty($text)){continue}
+        $extension=$file.Extension.ToLowerInvariant()
+        if($extension -notin $extensions){continue}
+        $text=[System.IO.File]::ReadAllText($file.FullName)
+        if([string]::IsNullOrEmpty($text)){continue}
         $relative=Get-RelativePath $file.FullName
         $normalizedText=$text -replace "`r`n","`n" -replace "`r","`n"
         $lines=@($normalizedText -split "`n")
@@ -121,8 +107,8 @@ foreach($rootName in @('src','tests','scripts','tools','services','collectors','
             $purpose=$purposeMatches[0].Groups[1].Value.Trim()
             if($purposeMatches.Count -gt 1){Add-Issue ERROR DUPLICATE_PURPOSE $relative 'Exactly one Purpose comment is allowed.'}
             if($purpose.Length -lt 12 -or $purpose.Length -gt 180){Add-Issue WARN PURPOSE_LENGTH $relative "Purpose length is $($purpose.Length); expected 12-180 characters."}
-            if(Test-BrokenPurpose $purpose $file.FullName $text){Add-Issue ERROR BROKEN_PURPOSE $relative 'Purpose contains character-split filename/type text.'}
-            if(Test-GenericPurpose -Purpose $purpose){Add-Issue ERROR GENERIC_PURPOSE $relative 'Purpose must describe the concrete responsibility of this source file.'}
+            if(Test-BrokenPurpose $purpose $file.FullName $text){Add-Issue ERROR BROKEN_PURPOSE $relative 'Purpose contains a character-split filename, type, or path identifier.'}
+            if(Test-GenericPurpose $purpose){Add-Issue ERROR GENERIC_PURPOSE $relative 'Purpose must describe the concrete responsibility of this source file.'}
         }
         for($i=0;$i -lt $lines.Count;$i++) {
             if(($extension -eq '.cs' -or $extension -eq '.razor') -and (Test-CompressedCodeLine $lines[$i])) { Add-Issue ERROR COMPRESSED_SOURCE $relative 'Line contains compressed code statements.' ($i+1) }

@@ -1,8 +1,9 @@
 #requires -Version 5.1
-# Purpose: Repairs missing, duplicate, malformed, and unreadable Purpose comments in first-party handwritten source, including Razor and tooling source.
+# Purpose: Repairs only missing, duplicate, generic, or identifier-fragmented Purpose comments when explicitly applied.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$RepositoryRoot,
+    [switch]$Apply,
     [switch]$WhatIfReport
 )
 
@@ -19,6 +20,8 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 $Repo = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92, 47))
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $Changed = New-Object 'System.Collections.Generic.List[string]'
+$WouldChange = New-Object 'System.Collections.Generic.List[string]'
+. (Join-Path $PSScriptRoot 'SourcePurposeRules.ps1')
 
 $GenericPurposes = @(
     'Verifies expected behavior and invariants for the surrounding feature.',
@@ -75,27 +78,21 @@ function Get-PurposeMatch {
     return [regex]::Match($Line, '^\s*(?://|#)\s*Purpose\s*:\s*(.*?)\s*$')
 }
 
-function Test-FragmentedName {
-    param([string]$Purpose,[string]$Candidate)
-    $tokens = @([regex]::Matches($Purpose, '[A-Za-z0-9]+') | ForEach-Object { $_.Value })
-    $shortRun = 0
-    foreach ($token in $tokens) {
-        if ($token.Length -le 2) {
-            $shortRun++
-            if ($shortRun -ge 5) { return $true }
-        } else {
-            $shortRun = 0
-        }
+function Get-BrokenPurposeCandidates {
+    param([string]$FilePath,[string]$Content)
+    $candidates = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    [void]$candidates.Add([System.IO.Path]::GetFileNameWithoutExtension($FilePath))
+    foreach ($typeName in @(Get-DeclaredTypeNames -Content $Content)) { [void]$candidates.Add($typeName) }
+    foreach ($part in @((Get-RelativePath $FilePath) -split '/')) {
+        $name = [System.IO.Path]::GetFileNameWithoutExtension($part)
+        if ($name.Length -ge 3) { [void]$candidates.Add($name) }
     }
-    return $false
+    return @($candidates | ForEach-Object { [string]$_ })
 }
+
 function Test-BrokenPurpose {
     param([string]$Purpose,[string]$FilePath,[string]$Content)
-    $candidates = New-Object 'System.Collections.Generic.List[string]'
-    $candidates.Add([System.IO.Path]::GetFileNameWithoutExtension($FilePath)) | Out-Null
-    foreach ($typeName in @(Get-DeclaredTypeNames -Content $Content)) { if (-not $candidates.Contains($typeName)) { $candidates.Add($typeName) | Out-Null } }
-    foreach ($candidate in $candidates) { if (Test-FragmentedName -Purpose $Purpose -Candidate $candidate) { return $true } }
-    return $false
+    return Test-BrokenPurposeText -Purpose $Purpose -Candidates @(Get-BrokenPurposeCandidates -FilePath $FilePath -Content $Content)
 }
 
 function Get-FeatureLabel {
@@ -109,14 +106,12 @@ function Get-FeatureLabel {
         'Configurations','Models','Abstractions','Middleware','Extensions',
         'Workers','Support','Common'
     )
-
     for ($i = $parts.Count - 2; $i -ge 0; $i--) {
         $candidate = $parts[$i]
         if ([string]::IsNullOrWhiteSpace($candidate) -or $candidate -in $ignored) { continue }
         if ($candidate -match '^Dip\.') { continue }
         return (ConvertTo-HumanName $candidate).ToLowerInvariant()
     }
-
     return 'this repository area'
 }
 
@@ -136,48 +131,20 @@ function Get-ReplacementPurpose {
     $subject = Get-SubjectLabel $name
     $feature = Get-FeatureLabel $FilePath
 
-    if ($baseName -eq 'Program') {
-        return "Composes and starts the $feature host with its configured dependencies."
-    }
-    if ($relative -match '^tests/') {
-        return "Verifies $subject behavior, edge cases, and invariants for $feature."
-    }
-    if ($relative -match '^scripts/') {
-        return "Automates $subject for repository development and verification workflows."
-    }
-    if ($relative -match '^tools/') {
-        return "Implements $subject tooling used by repository verification and development workflows."
-    }
-    if ($relative -match '^src/Dip\.Web/.+\.razor$') {
-        return "Renders the $subject UI and coordinates its $feature interactions."
-    }
-    if ($name -match 'Controller$') {
-        return "Exposes $subject HTTP endpoints for $feature."
-    }
-    if ($name -match '^I[A-Z].*Repository$') {
-        return "Defines persistence operations required by $subject in $feature."
-    }
-    if ($name -match 'Repository$') {
-        return "Persists and queries $subject state for $feature."
-    }
-    if ($name -match 'Worker$|Job$') {
-        return "Runs $subject background processing for $feature."
-    }
-    if ($name -match 'Service$') {
-        return "Coordinates $subject application operations for $feature."
-    }
-    if ($name -match 'Dto$|DTO$|Request$|Response$|Contract') {
-        return "Defines $subject data exchanged by $feature."
-    }
-    if ($relative -match '^src/Dip\.Domain/') {
-        return "Defines $subject domain behavior and invariants for $feature."
-    }
-    if ($relative -match '^src/Dip\.Infrastructure/') {
-        return "Implements $subject infrastructure integration for $feature."
-    }
-    if ($relative -match '^src/Dip\.Web/') {
-        return "Implements $subject web behavior for $feature."
-    }
+    if ($baseName -eq 'Program') { return "Composes and starts the $feature host with its configured dependencies." }
+    if ($relative -match '^tests/') { return "Verifies $subject behavior, edge cases, and invariants for $feature." }
+    if ($relative -match '^scripts/') { return "Automates $subject for repository development and verification workflows." }
+    if ($relative -match '^tools/') { return "Implements $subject tooling used by repository verification and development workflows." }
+    if ($relative -match '^src/Dip\.Web/.+\.razor$') { return "Renders the $subject UI and coordinates its $feature interactions." }
+    if ($name -match 'Controller$') { return "Exposes $subject HTTP endpoints for $feature." }
+    if ($name -match '^I[A-Z].*Repository$') { return "Defines persistence operations required by $subject in $feature." }
+    if ($name -match 'Repository$') { return "Persists and queries $subject state for $feature." }
+    if ($name -match 'Worker$|Job$') { return "Runs $subject background processing for $feature." }
+    if ($name -match 'Service$') { return "Coordinates $subject application operations for $feature." }
+    if ($name -match 'Dto$|DTO$|Request$|Response$|Contract') { return "Defines $subject data exchanged by $feature." }
+    if ($relative -match '^src/Dip\.Domain/') { return "Defines $subject domain behavior and invariants for $feature." }
+    if ($relative -match '^src/Dip\.Infrastructure/') { return "Implements $subject infrastructure integration for $feature." }
+    if ($relative -match '^src/Dip\.Web/') { return "Implements $subject web behavior for $feature." }
     return "Implements $subject responsibilities for $feature."
 }
 
@@ -198,34 +165,6 @@ function Get-InsertionIndex {
     }
     elseif ($Extension -eq '.razor') { return 0 }
     return $index
-}
-
-function Assert-PurposeIntegrity {
-    $failures=New-Object 'System.Collections.Generic.List[string]'
-    $extensions = @('.cs','.razor','.ps1','.py','.cpp','.c','.h','.hpp','.js','.ts','.tsx','.jsx')
-    foreach ($rootName in @('src','tests','scripts','tools','services','collectors','plugins')) {
-        $root = Join-Path $Repo $rootName
-        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
-        foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
-            if (Test-ExcludedPath $file.FullName) { continue }
-            $extension=$file.Extension.ToLowerInvariant()
-            if ($extension -notin $extensions) { continue }
-            $content=[System.IO.File]::ReadAllText($file.FullName)
-            if ([string]::IsNullOrEmpty($content)) { continue }
-            $matches=New-Object 'System.Collections.Generic.List[object]'
-            foreach($line in (($content -replace "`r`n","`n" -replace "`r","`n") -split "`n")) {
-                $match=Get-PurposeMatch -Line $line -Extension $extension
-                if($match.Success){$matches.Add($match) | Out-Null}
-            }
-            $relative=Get-RelativePath $file.FullName
-            if($matches.Count -ne 1){$failures.Add("${relative}: expected exactly one Purpose comment; found $($matches.Count)") | Out-Null; continue}
-            $purpose=$matches[0].Groups[1].Value.Trim()
-            if(Test-BrokenPurpose -Purpose $purpose -FilePath $file.FullName -Content $content){$failures.Add("${relative}: Purpose comment is still fragmented") | Out-Null}
-            if(Test-GenericPurpose -Purpose $purpose){$failures.Add("${relative}: Purpose comment is generic and must describe the concrete responsibility") | Out-Null}
-        }
-    }
-    if($failures.Count -gt 0){throw "Purpose integrity verification failed:`n$($failures -join "`n")"}
-    Write-Host 'PASS: Purpose comments are present, unique, and non-fragmented.' -ForegroundColor Green
 }
 
 $extensions = @('.cs','.razor','.ps1','.py','.cpp','.c','.h','.hpp','.js','.ts','.tsx','.jsx')
@@ -256,7 +195,8 @@ foreach ($rootName in @('src','tests','scripts','tools','services','collectors',
             $first=$indexes[0]
             $purpose=(Get-PurposeMatch -Line $lines[$first] -Extension $extension).Groups[1].Value.Trim()
             if ($purpose.Length -lt 12 -or $purpose.Length -gt 180 -or (Test-BrokenPurpose -Purpose $purpose -FilePath $file.FullName -Content $content) -or (Test-GenericPurpose -Purpose $purpose)) {
-                $lines[$first]=$replacementLine; $needsChange=$true
+                $lines[$first]=$replacementLine
+                $needsChange=$true
             }
             if ($indexes.Count -gt 1) {
                 for ($j=$indexes.Count-1;$j -ge 1;$j--) { $lines.RemoveAt($indexes[$j]) }
@@ -265,7 +205,11 @@ foreach ($rootName in @('src','tests','scripts','tools','services','collectors',
         }
         if (-not $needsChange) { continue }
         $relative=Get-RelativePath $file.FullName
-        if ($WhatIfReport -or $WhatIfPreference) { Write-Host "[WOULD FIX] $relative" -ForegroundColor Yellow; continue }
+        $WouldChange.Add($relative) | Out-Null
+        if (-not $Apply -or $WhatIfReport -or $WhatIfPreference) {
+            Write-Host "[WOULD FIX] $relative" -ForegroundColor Yellow
+            continue
+        }
         if ($PSCmdlet.ShouldProcess($relative,'Normalize Purpose comment')) {
             [System.IO.File]::WriteAllText($file.FullName,(($lines -join "`n").TrimEnd("`n")+"`n"),$Utf8NoBom)
             $Changed.Add($relative) | Out-Null
@@ -273,5 +217,9 @@ foreach ($rootName in @('src','tests','scripts','tools','services','collectors',
         }
     }
 }
-Write-Host "Purpose normalization complete. Changed: $($Changed.Count)" -ForegroundColor Cyan
-if(-not $WhatIfReport -and -not $WhatIfPreference){Assert-PurposeIntegrity}
+
+if (-not $Apply) {
+    Write-Host "Purpose repair preview complete. Would change: $($WouldChange.Count). Re-run with -Apply to write changes." -ForegroundColor Cyan
+} else {
+    Write-Host "Purpose repair complete. Changed: $($Changed.Count)" -ForegroundColor Cyan
+}

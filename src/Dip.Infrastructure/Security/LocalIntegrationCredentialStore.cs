@@ -1,4 +1,4 @@
-// Purpose: Implements L oc al In te gr at io nC re de nt ia lS to re infrastructure integration for s ec ur it y.
+// Purpose: Stores integration credentials in an encrypted per-user local secret store.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,10 +7,9 @@ using Dip.Application.Abstractions.Security;
 namespace Dip.Infrastructure.Security;
 
 /// <summary>
-/// Difficulty-1 local secret store. Secret bodies are kept out of PostgreSQL and
-/// out of the repository. Files are AES-GCM encrypted under the current user's
-/// local application-data directory. Enterprise vault providers replace this
-/// implementation in the later Credential Vault milestone.
+/// Stores integration secrets outside PostgreSQL and the repository. Secret files are
+/// AES-GCM encrypted under the current user's local application-data directory, and
+/// filesystem permissions are restricted where the host platform supports POSIX modes.
 /// </summary>
 public sealed class LocalIntegrationCredentialStore : IIntegrationCredentialStore
 {
@@ -43,7 +42,6 @@ public sealed class LocalIntegrationCredentialStore : IIntegrationCredentialStor
         if (string.IsNullOrWhiteSpace(secretJson))
             throw new ArgumentException("Secret JSON is required.", nameof(secretJson));
 
-        // Validate before writing anything.
         using (JsonDocument.Parse(secretJson)) { }
 
         await _gate.WaitAsync(ct);

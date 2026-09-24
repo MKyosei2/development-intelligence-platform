@@ -1,0 +1,122 @@
+@* Purpose: Renders the QA run workspace state, execution controls, and current-run summary. *@
+@using Dip.Application.Features.Dashboard
+@using Dip.Application.Features.GitHubIntegration
+@using Dip.Application.Features.QualityAutomation
+
+<section class="card mb-4" data-testid="qa-run-configuration">
+    <div class="card-header">
+        <div>
+            <div class="eyebrow">Run configuration</div>
+            <strong>Repository QA workspace</strong>
+        </div>
+        <button class="btn btn-primary btn-sm"
+                type="button"
+                disabled="@(!CanRun || Running)"
+                @onclick="RunRequested">
+            @(Running ? "QA running…" : RunButtonText)
+        </button>
+    </div>
+
+    <div class="card-body">
+        @if (Repository?.Workspace is null)
+        {
+            <div class="alert alert-light border mb-0">
+                <strong>Synchronize the repository first.</strong>
+                @if (Repository?.Connection.Connected == true)
+                {
+                    <span> The next run will synchronize the current repository first.</span>
+                }
+                else
+                {
+                    <span> Connect GitHub or synchronize a workspace before running QA.</span>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <span>Workspace</span>
+                    <strong class="metric-text">@(WorkspaceStale ? "Stale" : "Ready")</strong>
+                    <small>@Repository.Workspace.WorkspaceRelativePath</small>
+                </div>
+                <div class="metric-card">
+                    <span>Commit</span>
+                    <strong class="metric-text"><code>@ShortSha(Repository.Workspace.CommitSha)</code></strong>
+                    <small>@Repository.Workspace.Branch</small>
+                </div>
+                <div class="metric-card">
+                    <span>Latest QA</span>
+                    <strong class="metric-text">@LatestQaStatus</strong>
+                    <small>@LatestQaDate</small>
+                </div>
+                <div class="metric-card">
+                    <span>Durable issues</span>
+                    <strong>@OpenIssueCount</strong>
+                    <small>open / reopened</small>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(RunError))
+        {
+            <div class="alert alert-danger mt-3 mb-0">@RunError</div>
+        }
+
+        @if (Running)
+        {
+            <div class="qa-progress mt-3">
+                <div class="qa-progress-head">
+                    <div>
+                        <div class="spinner small-spinner"></div>
+                        <div>
+                            <strong>QA is running</strong>
+                            <small>
+                                Detecting repository technology, running available adapters,
+                                and normalizing findings.
+                            </small>
+                        </div>
+                    </div>
+                    <span>Auto language detection</span>
+                </div>
+                <div class="progress mt-3">
+                    <div class="progress-bar indeterminate"></div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+    [Parameter] public GitHubProjectRepositoryDto? Repository { get; set; }
+    [Parameter] public ProjectDashboardDetails? Dashboard { get; set; }
+    [Parameter] public bool WorkspaceStale { get; set; }
+    [Parameter] public bool Running { get; set; }
+    [Parameter] public string? RunError { get; set; }
+    [Parameter] public int OpenIssueCount { get; set; }
+    [Parameter] public EventCallback RunRequested { get; set; }
+
+    private bool CanRun =>
+        Repository is not null
+        && (Repository.Workspace is not null
+            || Repository.Connection.Connected);
+
+    private string RunButtonText =>
+        Repository?.Workspace is null
+            ? "Sync & Run QA"
+            : WorkspaceStale
+                ? "Sync latest & Run QA"
+                : "Run QA";
+
+    private string LatestQaStatus =>
+        Dashboard?.RecentQaRuns.FirstOrDefault()?.Status ?? "No run";
+
+    private string LatestQaDate =>
+        Dashboard?.RecentQaRuns.FirstOrDefault() is { } run
+            ? run.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+            : "No QA evidence";
+
+    private static string ShortSha(string value) =>
+        value.Length <= 8 ? value : value[..8];
+}
