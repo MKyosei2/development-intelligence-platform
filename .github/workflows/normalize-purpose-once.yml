@@ -1,5 +1,5 @@
 name: One-time Purpose normalization
-# retrigger after conservative fragmented-purpose fix
+# retrigger after simplified fragmented-purpose detector
 
 on:
   push:
