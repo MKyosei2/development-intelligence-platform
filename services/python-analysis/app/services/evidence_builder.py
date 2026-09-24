@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements evidence builder responsibilities for app.
 from app.schemas.common import EvidenceItem
 
 

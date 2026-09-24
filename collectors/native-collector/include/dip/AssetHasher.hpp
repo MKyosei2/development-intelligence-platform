@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Asset Hasher responsibilities for dip.
 #pragma once
 #include <filesystem>
 #include <string>

@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements generate sample data responsibilities for python analysis.
 import json
 import random
 from datetime import UTC, datetime, timedelta

@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Worker Metrics Endpoint responsibilities for this repository area.
 using System.Net;
 using System.Net.Sockets;
 using System.Text;

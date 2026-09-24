@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Queue Client responsibilities for messaging.
 namespace Dip.Application.Abstractions.Messaging;
 
 public sealed record QueueEnvelope(

@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements log classifier responsibilities for app.
 import re
 from dataclasses import dataclass
 

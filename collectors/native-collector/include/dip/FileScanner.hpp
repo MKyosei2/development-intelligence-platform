@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements File Scanner responsibilities for dip.
 #pragma once
 #include "dip/CollectorTypes.hpp"
 

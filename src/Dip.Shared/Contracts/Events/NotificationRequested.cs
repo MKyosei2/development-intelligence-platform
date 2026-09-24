@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Notification Requested responsibilities for events.
 namespace Dip.Shared.Contracts.Events;
 
 public sealed record NotificationRequested(

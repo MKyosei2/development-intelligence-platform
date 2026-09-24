@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements anomaly detector responsibilities for app.
 from statistics import fmean, pstdev
 
 from app.schemas.anomaly import AnomalyPoint, AnomalyRequest, AnomalyResponse

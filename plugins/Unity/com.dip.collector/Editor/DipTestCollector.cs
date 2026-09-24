@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Dip Test Collector responsibilities for editor.
 #if UNITY_INCLUDE_TESTS
 using System;
 using UnityEditor;
