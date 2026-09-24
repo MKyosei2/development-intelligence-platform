@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Git Hub Webhook Processor responsibilities for git hub.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

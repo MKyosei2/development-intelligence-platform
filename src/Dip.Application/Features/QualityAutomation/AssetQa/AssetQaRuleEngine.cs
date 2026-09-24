@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Asset Qa Rule Engine responsibilities for asset qa.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;

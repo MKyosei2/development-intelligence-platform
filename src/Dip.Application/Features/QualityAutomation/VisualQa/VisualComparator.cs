@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Visual Comparator responsibilities for visual qa.
 namespace Dip.Application.Features.QualityAutomation.VisualQa;
 
 public interface IVisualComparator

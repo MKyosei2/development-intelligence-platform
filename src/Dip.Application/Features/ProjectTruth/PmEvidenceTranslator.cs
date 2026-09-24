@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Pm Evidence Translator responsibilities for project truth.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

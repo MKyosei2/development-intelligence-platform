@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements test api responsibilities for python analysis.
 from fastapi.testclient import TestClient
 import pytest
 from pydantic import ValidationError

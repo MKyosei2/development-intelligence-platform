@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements test anomaly detector responsibilities for python analysis.
 from datetime import UTC, datetime, timedelta
 from app.schemas.anomaly import AnomalyRequest, TimeSeriesPoint
 from app.services.anomaly_detector import AnomalyDetector

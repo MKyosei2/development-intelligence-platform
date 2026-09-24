@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements test release predictor responsibilities for python analysis.
 from app.core.config import Settings
 from app.schemas.release_prediction import ReleasePredictionRequest
 from app.services.release_predictor import ReleasePredictor

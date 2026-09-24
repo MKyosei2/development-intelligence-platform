@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Management Xlsx Codec responsibilities for management.
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;

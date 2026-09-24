@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Production Qa Intelligence responsibilities for quality automation.
 using System.Text.Json;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
