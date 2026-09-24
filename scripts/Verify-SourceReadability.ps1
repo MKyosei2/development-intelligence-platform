@@ -68,16 +68,14 @@ function Get-DeclaredTypeNames([string]$Text) {
     return @([regex]::Matches($Text,$pattern) | ForEach-Object {$_.Groups[1].Value} | Select-Object -Unique)
 }
 function Test-FragmentedPurpose([string]$Purpose,[string]$Candidate) {
-    $normalized=$Candidate -replace '[^A-Za-z0-9]',''
-    if ($normalized.Length -lt 4) { return $false }
     $tokens=@([regex]::Matches($Purpose,'[A-Za-z0-9]+') | ForEach-Object {$_.Value})
-    for($start=0;$start -lt $tokens.Count;$start++) {
-        $joined='';$short=0
-        for($end=$start;$end -lt $tokens.Count -and $end -lt ($start+32);$end++) {
-            $joined+=$tokens[$end]
-            if($tokens[$end].Length -le 2){$short++}
-            if($joined.Length -gt $normalized.Length){break}
-            if(($end-$start+1)-ge 5 -and $short -ge 4 -and $joined.Equals($normalized,[System.StringComparison]::OrdinalIgnoreCase)){return $true}
+    $shortRun=0
+    foreach($token in $tokens) {
+        if($token.Length -le 2) {
+            $shortRun++
+            if($shortRun -ge 5){return $true}
+        } else {
+            $shortRun=0
         }
     }
     return $false
