@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements main responsibilities for dip maya collector.
 from datetime import UTC, datetime
 from dip_maya_collector.analyzers import (
     animation_analyzer,

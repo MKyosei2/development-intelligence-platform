@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements models responsibilities for dip maya collector.
 from dataclasses import asdict, dataclass, field
 from typing import Any
 

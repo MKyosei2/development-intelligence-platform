@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Report Writer responsibilities for native collector.
 #include "dip/ReportWriter.hpp"
 #include <fstream>
 

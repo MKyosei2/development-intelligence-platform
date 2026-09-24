@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements main responsibilities for app.
 from collections import Counter
 from contextlib import asynccontextmanager
 import logging

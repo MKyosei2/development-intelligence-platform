@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements train risk model responsibilities for python analysis.
 def main() -> None:
     raise SystemExit("Training is intentionally disabled until labeled project history is available.")
 

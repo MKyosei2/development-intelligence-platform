@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements evaluate models responsibilities for python analysis.
 from app.schemas.risk import RiskFactorInput, RiskRequest
 from app.services.risk_analyzer import RiskAnalyzer
 
