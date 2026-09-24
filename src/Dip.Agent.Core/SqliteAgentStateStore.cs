@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Sqlite Agent State Store responsibilities for this repository area.
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 

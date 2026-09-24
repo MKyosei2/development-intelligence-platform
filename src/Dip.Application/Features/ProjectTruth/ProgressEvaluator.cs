@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Progress Evaluator responsibilities for project truth.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 

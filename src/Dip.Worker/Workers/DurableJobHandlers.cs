@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Durable Job Handlers responsibilities for this repository area.
 using System.Text.Json;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Benchmarks;

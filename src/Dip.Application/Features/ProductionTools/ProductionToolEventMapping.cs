@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Production Tool Event Mapping responsibilities for production tools.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProductionTools;

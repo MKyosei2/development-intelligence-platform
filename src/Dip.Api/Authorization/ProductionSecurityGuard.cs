@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Production Security Guard responsibilities for authorization.
 using Dip.Api.Controllers;
 
 namespace Dip.Api.Authorization;

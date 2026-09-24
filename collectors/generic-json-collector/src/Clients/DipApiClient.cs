@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Dip Api Client responsibilities for clients.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;

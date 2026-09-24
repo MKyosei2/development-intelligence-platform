@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements animation analyzer responsibilities for analyzers.
 from dip_maya_collector.models import CollectorMetric, CollectorReport
 
 def analyze(cmds, report: CollectorReport) -> None:
