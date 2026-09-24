@@ -1,4 +1,4 @@
-# Purpose: Automates a repeatable development or verification workflow for this repository.
+# Purpose: Automates T es t P1 C ap tu re for repository development and verification workflows.
 $ErrorActionPreference="Stop"
 if($env:OS -ne "Windows_NT"){Write-Host "SKIP: capture smoke requires interactive Windows.";exit 0}
 $root=(Resolve-Path (Join-Path $PSScriptRoot "..")).Path

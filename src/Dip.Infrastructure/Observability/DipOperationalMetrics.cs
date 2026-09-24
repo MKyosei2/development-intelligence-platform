@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements D ip Op er at io na lM et ri cs infrastructure integration for o bs er va bi li ty.
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;

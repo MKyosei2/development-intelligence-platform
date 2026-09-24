@@ -1,4 +1,4 @@
-// Purpose: Implements web-facing behavior for this application surface.
+// Purpose: Implements P ro je ct Op er at io nF lo wR es ol ve r web behavior for this repository area.
 using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.GitHubIntegration;
 

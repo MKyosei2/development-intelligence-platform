@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements D if fi cu lt yF iv eD ep en de nc yI nj ec ti on infrastructure integration for d ep en de nc yi nj ec ti on.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Enterprise;
 using Dip.Application.Features.Fleet;

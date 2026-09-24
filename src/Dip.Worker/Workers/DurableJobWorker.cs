@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs D ur ab le Jo b background processing for this repository area.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;

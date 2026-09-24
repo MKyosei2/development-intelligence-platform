@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines C la im Ve ri fi ca ti on St at us domain behavior and invariants for e vi de nc e.
 namespace Dip.Domain.Enums;
 
 public enum ClaimVerificationStatus

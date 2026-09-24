@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates I nt el li ge nc eD as hb oa rd application operations for d as hb oa rd.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Hardware;
 using Dip.Application.Features.Release;

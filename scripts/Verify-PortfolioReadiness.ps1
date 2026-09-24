@@ -1,4 +1,4 @@
-# Purpose: Verifies P or tf ol io Re ad in es s requirements for DIP.
+# Purpose: Automates V er if y P or tf ol io Re ad in es s for repository development and verification workflows.
 [CmdletBinding()]
 param(
     [string]$UnityPath = $env:UNITY_EDITOR_PATH,

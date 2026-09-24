@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines Q ua li ty Ga te Re su lt domain behavior and invariants for q ua li ty.
 using System.Text.Json;
 namespace Dip.Domain.Entities;
  public sealed class QualityGateResult { private QualityGateResult() { }

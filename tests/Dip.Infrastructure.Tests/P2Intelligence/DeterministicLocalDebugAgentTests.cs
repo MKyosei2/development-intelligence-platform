@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies D et er mi ni st ic Lo ca lD eb ug Ag en t behavior, edge cases, and invariants for p2 in te ll ig en ce.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Infrastructure.P2Intelligence;
 using FluentAssertions;

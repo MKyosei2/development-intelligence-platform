@@ -1,4 +1,4 @@
-// Purpose: Persists and queries data for this application boundary.
+// Purpose: Persists and queries M et ri c state for p er si st en ce.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 namespace Dip.Infrastructure.Persistence.Repositories;

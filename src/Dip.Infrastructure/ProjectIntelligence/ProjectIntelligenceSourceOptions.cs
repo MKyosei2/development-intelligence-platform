@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements P ro je ct In te ll ig en ce So ur ce infrastructure integration for p ro je ct in te ll ig en ce.
 namespace Dip.Infrastructure.ProjectIntelligence;
 
 public sealed class ProjectIntelligenceSourceOptions

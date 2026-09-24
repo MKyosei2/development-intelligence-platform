@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements U ni ve rs al Sy nt ax Tr ee infrastructure integration for q ua li ty au to ma ti on.
 namespace Dip.Infrastructure.QualityAutomation;
 
 public enum UniversalSyntaxKind { Root, Block, Group, Index, Call, Assignment, Identifier, Literal, Token }

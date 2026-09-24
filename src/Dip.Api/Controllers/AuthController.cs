@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for this API responsibility.
+// Purpose: Exposes A ut h HTTP endpoints for c on tr ol le rs.
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines O ut bo xM es sa ge domain behavior and invariants for o pe ra ti on s.
 namespace Dip.Domain.Entities;
  public sealed class OutboxMessage { private OutboxMessage() { }
 public OutboxMessage(Guid id, string messageType, string payloadJson, string correlationId, string? causationId, DateTimeOffset createdAtUtc) { Id = id == Guid.Empty ? Guid.NewGuid() : id;

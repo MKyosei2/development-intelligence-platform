@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for this API responsibility.
+// Purpose: Exposes R eg re ss io nT ri ag e HTTP endpoints for c on tr ol le rs.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Triage;

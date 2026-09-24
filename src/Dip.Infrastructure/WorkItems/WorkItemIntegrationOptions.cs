@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements W or kI te mI nt eg ra ti on infrastructure integration for w or ki te ms.
 namespace Dip.Infrastructure.WorkItems;
 public sealed class WorkItemIntegrationOptions
 {

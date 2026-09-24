@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs C ol le ct or background processing for this repository area.
 using Dip.Agent.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

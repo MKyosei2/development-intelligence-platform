@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements R el ia bi li ty Ru nn er infrastructure integration for i nt el li ge nc e.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

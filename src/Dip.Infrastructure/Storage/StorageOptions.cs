@@ -1,1 +1,1 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements S to ra ge infrastructure integration for s to ra ge.

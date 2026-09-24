@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies P ip el in eR un behavior, edge cases, and invariants for this repository area.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Dip.Domain.Exceptions;

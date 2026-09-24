@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements A rt if ac tS to re infrastructure integration for a rt if ac ts.
 namespace Dip.Infrastructure.Artifacts;
 public sealed class ArtifactStoreOptions
 {

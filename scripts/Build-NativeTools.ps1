@@ -1,4 +1,4 @@
-# Purpose: Automates a repeatable development or verification workflow for this repository.
+# Purpose: Automates B ui ld N at iv eT oo ls for repository development and verification workflows.
 param([string]$Configuration="Release")
 $ErrorActionPreference="Stop"
 $root=(Resolve-Path (Join-Path $PSScriptRoot "..")).Path

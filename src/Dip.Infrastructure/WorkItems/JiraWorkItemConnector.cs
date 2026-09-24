@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements J ir aW or kI te mC on ne ct or infrastructure integration for w or ki te ms.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;

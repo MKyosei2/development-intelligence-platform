@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates P2 Te ch ni ca lI nt el li ge nc e application operations for p2 in te ll ig en ce.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

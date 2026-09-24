@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for this API responsibility.
+// Purpose: Exposes C on ne ct io ns HTTP endpoints for c on tr ol le rs.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Integrations;
 using Microsoft.AspNetCore.Authorization;

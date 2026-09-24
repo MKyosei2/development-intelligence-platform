@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines A rt if ac tR ec or d domain behavior and invariants for a rt if ac ts.
 namespace Dip.Domain.Entities;
 
 public sealed class ArtifactRecord

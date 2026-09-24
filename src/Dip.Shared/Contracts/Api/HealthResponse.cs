@@ -1,1 +1,1 @@
-// Purpose: Defines data exchanged across this application boundary.
+// Purpose: Defines H ea lt h data exchanged by a pi.

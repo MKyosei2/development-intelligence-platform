@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs F le et background processing for this repository area.
 using Dip.Agent.Core;
 namespace Dip.Agent.Windows;
 public sealed class FleetWorker(AgentOptions options,ILogger<FleetWorker> logger):BackgroundService

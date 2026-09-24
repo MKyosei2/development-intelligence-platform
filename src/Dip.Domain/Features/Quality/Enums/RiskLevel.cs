@@ -1,1 +1,1 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines R is kL ev el domain behavior and invariants for q ua li ty.

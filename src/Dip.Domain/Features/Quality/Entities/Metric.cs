@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines M et ri c domain behavior and invariants for q ua li ty.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class Metric

@@ -1,4 +1,4 @@
-# Purpose: Initializes S el fH os te dP os tg re s required by DIP.
+# Purpose: Automates I ni ti al iz e S el fH os te dP os tg re s for repository development and verification workflows.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

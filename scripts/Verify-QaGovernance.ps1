@@ -1,4 +1,4 @@
-# Purpose: Verifies Q aG ov er na nc e requirements for DIP.
+# Purpose: Automates V er if y Q aG ov er na nc e for repository development and verification workflows.
 [CmdletBinding()]
 param([string]$Configuration='Release')
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest

@@ -1,4 +1,4 @@
-# Purpose: Verifies P ro je ct Co nt ro l requirements for DIP.
+# Purpose: Automates V er if y P ro je ct Co nt ro l for repository development and verification workflows.
 [CmdletBinding()]
 param(
     [switch]$RunIntegration,

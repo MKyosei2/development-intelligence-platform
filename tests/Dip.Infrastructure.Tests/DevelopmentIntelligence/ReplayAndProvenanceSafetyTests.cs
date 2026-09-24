@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies R ep la yA nd Pr ov en an ce Sa fe ty behavior, edge cases, and invariants for d ev el op me nt in te ll ig en ce.
 using Dip.Application.Abstractions.Replay;
 using Dip.Infrastructure.Provenance;
 using Dip.Infrastructure.QualityAutomation;

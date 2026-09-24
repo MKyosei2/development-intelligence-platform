@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements G it Hu bW eb ho ok Ve ri fi er infrastructure integration for g it hu b.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Abstractions.GitHub;

@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements M in io Ar ti fa ct St or e infrastructure integration for a rt if ac ts.
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;

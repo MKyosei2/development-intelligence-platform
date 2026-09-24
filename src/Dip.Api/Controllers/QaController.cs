@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for this API responsibility.
+// Purpose: Exposes Q a HTTP endpoints for c on tr ol le rs.
 using Dip.Api.Authorization;
 using Dip.Api.Hubs;
 using Dip.Application.Abstractions.Persistence;

@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements B en ch ma rk Ex ec ut or infrastructure integration for b en ch ma rk s.
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;

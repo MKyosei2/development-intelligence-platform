@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements E xt er na lE ve nt In ge st io n infrastructure integration for e xt er na le ve nt s.
 namespace Dip.Infrastructure.ExternalEvents;
 public sealed class ExternalEventIngestionOptions
 {

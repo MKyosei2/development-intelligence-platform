@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements I de Di ag no st ic No rm al iz er infrastructure integration for q ua li ty au to ma ti on.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines R el ea se Re ad in es sS na ps ho t domain behavior and invariants for o pe ra ti on s.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ReleaseReadinessSnapshot

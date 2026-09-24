@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies P os tg re Sq lF ix tu re behavior, edge cases, and invariants for d at ab as e.
 using Testcontainers.PostgreSql;
 
 namespace Dip.IntegrationTests.Database;

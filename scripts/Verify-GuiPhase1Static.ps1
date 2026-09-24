@@ -1,4 +1,4 @@
-# Purpose: Verifies G ui Ph as e1 St at ic requirements for DIP.
+# Purpose: Automates V er if y G ui Ph as e1 St at ic for repository development and verification workflows.
 [CmdletBinding()]
 param()
 

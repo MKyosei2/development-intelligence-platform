@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines G ol de nM as te rP ro fi le domain behavior and invariants for a rt if ac ts.
 namespace Dip.Domain.Entities;
 
 public sealed class GoldenMasterProfile

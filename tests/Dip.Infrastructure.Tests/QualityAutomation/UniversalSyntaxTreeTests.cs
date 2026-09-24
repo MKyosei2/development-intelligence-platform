@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies U ni ve rs al Sy nt ax Tr ee behavior, edge cases, and invariants for q ua li ty au to ma ti on.
 using Dip.Infrastructure.QualityAutomation;
 namespace Dip.Infrastructure.Tests.QualityAutomation;
 public sealed class UniversalSyntaxTreeTests

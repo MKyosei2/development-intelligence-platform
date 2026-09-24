@@ -1,4 +1,4 @@
-// Purpose: Implements web-facing behavior for this application surface.
+// Purpose: Implements M an ag em en tO pe ra ti on s web behavior for d as hb oa rd.
 using Dip.Application.Features.Management;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;

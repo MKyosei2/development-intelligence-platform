@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements Q ua li ty Au to ma ti on De pe nd en cy In je ct io n infrastructure integration for d ep en de nc yi nj ec ti on.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Application.Features.Management;

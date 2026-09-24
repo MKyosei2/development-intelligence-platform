@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies G it Hu bW eb ho ok Ve ri fi er behavior, edge cases, and invariants for this repository area.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Infrastructure.GitHub;

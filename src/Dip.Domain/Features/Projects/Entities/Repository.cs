@@ -1,1 +1,1 @@
-// Purpose: Persists and queries data for this application boundary.
+// Purpose: Persists and queries R ep os it or y state for p ro je ct s.

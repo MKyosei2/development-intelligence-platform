@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates I nc id en tA gg re ga ti on application operations for i nc id en ts.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;

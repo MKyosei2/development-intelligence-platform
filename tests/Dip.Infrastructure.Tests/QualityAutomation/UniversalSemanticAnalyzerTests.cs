@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies U ni ve rs al Se ma nt ic An al yz er behavior, edge cases, and invariants for q ua li ty au to ma ti on.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

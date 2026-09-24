@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines L an gu ag eI d domain behavior and invariants for q ua li ty.
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;

@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements G am eR ep la yE xe cu to r infrastructure integration for r ep la y.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Abstractions.Replay;

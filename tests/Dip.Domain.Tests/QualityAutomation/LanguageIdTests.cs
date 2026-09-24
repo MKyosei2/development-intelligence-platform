@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies L an gu ag eI d behavior, edge cases, and invariants for q ua li ty au to ma ti on.
 using System.Text.Json;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

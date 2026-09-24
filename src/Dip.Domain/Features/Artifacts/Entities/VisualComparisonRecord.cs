@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines V is ua lC om pa ri so nR ec or d domain behavior and invariants for a rt if ac ts.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

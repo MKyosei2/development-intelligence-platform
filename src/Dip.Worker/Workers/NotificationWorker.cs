@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs N ot if ic at io n background processing for this repository area.
 using Dip.Application.Abstractions.Messaging;
 using Dip.Infrastructure.Messaging;
 using Dip.Worker.Options;

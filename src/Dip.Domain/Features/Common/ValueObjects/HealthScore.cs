@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines H ea lt hS co re domain behavior and invariants for this repository area.
 using System.Globalization;
 using Dip.Domain.Exceptions;
 namespace Dip.Domain.ValueObjects;

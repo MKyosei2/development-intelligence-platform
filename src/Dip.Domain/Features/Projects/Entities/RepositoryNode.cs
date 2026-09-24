@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines R ep os it or yN od e domain behavior and invariants for p ro je ct s.
 namespace Dip.Domain.Entities;
 public sealed class RepositoryNode
 {

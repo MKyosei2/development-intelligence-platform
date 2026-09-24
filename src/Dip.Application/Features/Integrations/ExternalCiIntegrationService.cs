@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates E xt er na lC iI nt eg ra ti on application operations for i nt eg ra ti on s.
 using System.Text.Json;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Abstractions.Persistence;

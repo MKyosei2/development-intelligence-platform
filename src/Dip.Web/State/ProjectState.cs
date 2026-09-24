@@ -1,4 +1,4 @@
-// Purpose: Implements web-facing behavior for this application surface.
+// Purpose: Implements P ro je ct St at e web behavior for s ta te.
 using Dip.Application.Features.Dashboard;
 using Dip.Web.Services;
 

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines Q ua li ty Is su eF in ge rp ri nt domain behavior and invariants for q ua li ty.
 using System.Security.Cryptography;
 using System.Text;
 namespace Dip.Domain.Services;

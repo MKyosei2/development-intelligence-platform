@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements Q aG ov er na nc eE xe cu ti on Co or di na to r infrastructure integration for p er si st en ce.
 using System.Collections.Concurrent;
 using System.Data;
 using Dip.Application.Features.QualityGovernance;

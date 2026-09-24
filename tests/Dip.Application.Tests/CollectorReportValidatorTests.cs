@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies C ol le ct or Re po rt Va li da to r behavior, edge cases, and invariants for this repository area.
 using Dip.Application.Features.Collectors;
 using Dip.Shared.Contracts.Collectors;
 using Xunit;

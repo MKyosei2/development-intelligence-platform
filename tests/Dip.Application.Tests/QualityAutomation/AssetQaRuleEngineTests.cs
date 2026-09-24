@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies A ss et Qa Ru le En gi ne behavior, edge cases, and invariants for q ua li ty au to ma ti on.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Application.Features.QualityAutomation.AssetQa;

@@ -1,4 +1,4 @@
-// Purpose: Implements web-facing behavior for this application surface.
+// Purpose: Implements o nb oa rd in g web behavior for j s.
 export function getBoolean(key) {
     try {
         return window.localStorage.getItem(key) === 'true';

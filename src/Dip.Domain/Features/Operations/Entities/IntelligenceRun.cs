@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines I nt el li ge nc eR un domain behavior and invariants for o pe ra ti on s.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class IntelligenceRun

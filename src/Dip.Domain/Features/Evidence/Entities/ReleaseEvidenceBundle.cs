@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines R el ea se Ev id en ce Bu nd le domain behavior and invariants for e vi de nc e.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ReleaseEvidenceBundle

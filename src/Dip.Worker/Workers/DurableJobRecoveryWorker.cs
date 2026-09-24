@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs D ur ab le Jo bR ec ov er y background processing for this repository area.
 using Dip.Application.Abstractions.Observability;
 using Dip.Application.Features.Jobs;
 using Microsoft.Extensions.Options;

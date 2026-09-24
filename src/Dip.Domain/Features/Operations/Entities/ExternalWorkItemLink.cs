@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines E xt er na lW or kI te mL in k domain behavior and invariants for o pe ra ti on s.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ExternalWorkItemLink

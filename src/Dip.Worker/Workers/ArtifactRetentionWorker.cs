@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs A rt if ac tR et en ti on background processing for this repository area.
 using Dip.Application.Features.Artifacts;
 using Dip.Infrastructure.Artifacts;
 using Microsoft.Extensions.Options;

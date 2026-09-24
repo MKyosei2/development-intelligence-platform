@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies O ut bo xM es sa ge behavior, edge cases, and invariants for this repository area.
 using Dip.Domain.Entities;
 using Xunit;
 

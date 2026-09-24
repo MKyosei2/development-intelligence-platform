@@ -1,1 +1,1 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements L oc al Ob je ct St or ag e infrastructure integration for s to ra ge.

@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements C ol la bo ra ti on We bh oo kV er if ie r infrastructure integration for p ro je ct in te ll ig en ce.
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;

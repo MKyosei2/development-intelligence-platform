@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements G it Hu bC on ne ct or infrastructure integration for g it hu b.
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;

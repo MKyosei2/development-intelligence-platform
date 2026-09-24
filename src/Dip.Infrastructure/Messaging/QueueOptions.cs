@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements Q ue ue infrastructure integration for m es sa gi ng.
 namespace Dip.Infrastructure.Messaging;
 public sealed class QueueOptions
 {

@@ -1,4 +1,4 @@
-// Purpose: Exposes HTTP endpoints for this API responsibility.
+// Purpose: Exposes Q aG ov er na nc e HTTP endpoints for c on tr ol le rs.
 using System.Diagnostics;
 using Dip.Api.Authorization;
 using Dip.Application.Features.QualityGovernance;

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines S im ul at io nS ta tu s domain behavior and invariants for q ua li ty.
 namespace Dip.Domain.Enums;
 
 public enum SimulationStatus

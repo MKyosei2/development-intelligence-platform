@@ -1,4 +1,4 @@
-// Purpose: Defines data exchanged across this application boundary.
+// Purpose: Defines A ss et Qa Co nt ra ct s data exchanged by a ss et qa.
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
 

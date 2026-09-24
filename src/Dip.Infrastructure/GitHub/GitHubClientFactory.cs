@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements G it Hu bC li en tF ac to ry infrastructure integration for g it hu b.
 using Microsoft.Extensions.Options;
 using Octokit;
 

@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies L oc al Ar ti fa ct St or e behavior, edge cases, and invariants for a rt if ac ts.
 using System.Text;
 using Dip.Infrastructure.Artifacts;
 using Microsoft.Extensions.Options;

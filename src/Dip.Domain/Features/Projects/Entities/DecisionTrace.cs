@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines D ec is io nT ra ce domain behavior and invariants for p ro je ct s.
 namespace Dip.Domain.Entities;
 
 public sealed class DecisionTrace

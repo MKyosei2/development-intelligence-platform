@@ -1,1 +1,1 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines I nv al id Pr oj ec tS ta te Ex ce pt io n domain behavior and invariants for e xc ep ti on s.

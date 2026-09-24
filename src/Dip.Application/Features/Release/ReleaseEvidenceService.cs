@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates R el ea se Ev id en ce application operations for r el ea se.
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;

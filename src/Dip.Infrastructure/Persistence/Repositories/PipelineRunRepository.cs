@@ -1,4 +1,4 @@
-// Purpose: Persists and queries data for this application boundary.
+// Purpose: Persists and queries P ip el in eR un state for p er si st en ce.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;

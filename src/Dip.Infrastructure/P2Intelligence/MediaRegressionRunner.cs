@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements M ed ia Re gr es si on Ru nn er infrastructure integration for p2 in te ll ig en ce.
 using System.Text.Json;
 using Dip.Application.Features.P2Intelligence;
 using Dip.Application.Features.QualityAutomation;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Provides repository tooling used by development and verification workflows.
+# Purpose: Implements p ub li sh r ea l p ro je ct e vi de nc e tooling used by repository verification and development workflows.
 from __future__ import annotations
 
 import argparse

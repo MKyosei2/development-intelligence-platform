@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates W or kC al en da rI nt eg ra ti on application operations for m an ag em en t.
 using Dip.Application.Abstractions.Calendars;
 using Dip.Application.Abstractions.Time;
 

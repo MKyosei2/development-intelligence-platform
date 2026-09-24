@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines I nc id en tO cc ur re nc e domain behavior and invariants for o pe ra ti on s.
 namespace Dip.Domain.Entities;
 public sealed class IncidentOccurrence
 {

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines P er fo rm an ce Bu dg et Ev al ua ti on domain behavior and invariants for q ua li ty.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class PerformanceBudgetEvaluation

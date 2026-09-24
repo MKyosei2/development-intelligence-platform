@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements A rt if ac tT ra ck in gD ep en de nc yI nj ec ti on infrastructure integration for d ep en de nc yi nj ec ti on.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Artifacts;
 using Dip.Infrastructure.Persistence.Repositories;

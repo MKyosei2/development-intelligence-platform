@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates E nv ir on me nt Sn ap sh ot application operations for q ua li ty au to ma ti on.
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;

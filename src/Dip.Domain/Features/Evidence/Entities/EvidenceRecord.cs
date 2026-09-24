@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines E vi de nc eR ec or d domain behavior and invariants for e vi de nc e.
 using System.Text.Json;
 using Dip.Domain.Enums;
 

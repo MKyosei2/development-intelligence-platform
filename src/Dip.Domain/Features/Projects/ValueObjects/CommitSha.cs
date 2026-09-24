@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines C om mi tS ha domain behavior and invariants for p ro je ct s.
 using Dip.Domain.Exceptions;
 namespace Dip.Domain.ValueObjects;
  public readonly record struct CommitSha { public string Value { get;

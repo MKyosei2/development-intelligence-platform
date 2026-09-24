@@ -1,4 +1,4 @@
-// Purpose: Defines a persistence boundary used by the application layer.
+// Purpose: Defines persistence operations required by I Pr oc es se dW eb ho ok in p er si st en ce.
 using Dip.Domain.Entities;
 namespace Dip.Application.Abstractions.Persistence;
 public interface IProcessedWebhookRepository

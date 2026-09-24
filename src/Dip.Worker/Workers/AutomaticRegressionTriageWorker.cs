@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs A ut om at ic Re gr es si on Tr ia ge background processing for this repository area.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Triage;
 using Dip.Domain.Enums;

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines B en ch ma rk Ru n domain behavior and invariants for q ua li ty.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class BenchmarkRun

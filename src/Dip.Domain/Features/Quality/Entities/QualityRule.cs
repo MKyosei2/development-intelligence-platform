@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines Q ua li ty Ru le domain behavior and invariants for q ua li ty.
 namespace Dip.Domain.Entities;
  public sealed class QualityRule { public Guid Id { get;
  set;

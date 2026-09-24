@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines Q ua li ty Is su e domain behavior and invariants for q ua li ty.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class QualityIssue { private QualityIssue() { }

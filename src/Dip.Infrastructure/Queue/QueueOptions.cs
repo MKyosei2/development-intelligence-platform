@@ -1,1 +1,1 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements Q ue ue infrastructure integration for q ue ue.

@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements C od eO wn er sO wn er sh ip Re so lv er infrastructure integration for q ua li ty au to ma ti on.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Application.Features.QualityGovernance;

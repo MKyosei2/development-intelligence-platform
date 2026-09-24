@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates O nb oa rd in gS ta te application operations for this repository area.
 using Microsoft.JSInterop;
 
 namespace Dip.Web.Services;

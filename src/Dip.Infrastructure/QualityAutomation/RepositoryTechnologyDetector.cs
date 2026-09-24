@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements R ep os it or yT ec hn ol og yD et ec to r infrastructure integration for q ua li ty au to ma ti on.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;

@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs D ur ab le background processing for o pe ra ti on s.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

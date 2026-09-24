@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies D ai ly Su mm ar yS ce na ri o behavior, edge cases, and invariants for s ce na ri os.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

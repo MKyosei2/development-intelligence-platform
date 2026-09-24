@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies P ro je ct sA pi behavior, edge cases, and invariants for a pi.
 using System.Net;
 using System.Net.Http.Json;
 using Dip.IntegrationTests.Database;

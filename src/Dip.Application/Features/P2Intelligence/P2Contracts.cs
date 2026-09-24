@@ -1,4 +1,4 @@
-// Purpose: Defines data exchanged across this application boundary.
+// Purpose: Defines P2 Co nt ra ct s data exchanged by p2 in te ll ig en ce.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.P2Intelligence;

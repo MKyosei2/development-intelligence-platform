@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies S ql it eA ge nt St at eS to re behavior, edge cases, and invariants for this repository area.
 using Dip.Agent.Core;
 using FluentAssertions;
 

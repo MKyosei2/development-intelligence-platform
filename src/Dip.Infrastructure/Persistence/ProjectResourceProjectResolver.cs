@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements P ro je ct Re so ur ce Pr oj ec tR es ol ve r infrastructure integration for p er si st en ce.
 using Dip.Application.Features.Authorization;
 using Microsoft.EntityFrameworkCore;
 

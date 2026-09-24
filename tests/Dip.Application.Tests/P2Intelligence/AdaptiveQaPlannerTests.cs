@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies A da pt iv eQ aP la nn er behavior, edge cases, and invariants for p2 in te ll ig en ce.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.P2Intelligence;

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines Q aR un St at us domain behavior and invariants for o pe ra ti on s.
 namespace Dip.Domain.Enums;
 
 public enum QaRunStatus

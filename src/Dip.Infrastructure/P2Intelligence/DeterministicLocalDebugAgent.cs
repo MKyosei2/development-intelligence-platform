@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements D et er mi ni st ic Lo ca lD eb ug Ag en t infrastructure integration for p2 in te ll ig en ce.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 

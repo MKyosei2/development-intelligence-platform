@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates M an ag em en tS pr ea ds he et application operations for m an ag em en t.
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

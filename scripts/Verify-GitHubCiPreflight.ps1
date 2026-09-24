@@ -1,4 +1,4 @@
-# Purpose: Verifies G it Hu bC iP re fl ig ht requirements for DIP.
+# Purpose: Automates V er if y G it Hu bC iP re fl ig ht for repository development and verification workflows.
 [CmdletBinding()]
 param(
     [switch]$SkipGui,

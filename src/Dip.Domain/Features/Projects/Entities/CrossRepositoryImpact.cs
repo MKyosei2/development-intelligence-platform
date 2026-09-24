@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines C ro ss Re po si to ry Im pa ct domain behavior and invariants for p ro je ct s.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class CrossRepositoryImpact

@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies d as hb oa rd l oa d behavior, edge cases, and invariants for k6.
 import http from "k6/http";
 import { check } from "k6";
 

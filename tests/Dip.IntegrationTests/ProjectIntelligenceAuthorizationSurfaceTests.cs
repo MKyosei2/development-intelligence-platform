@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies P ro je ct In te ll ig en ce Au th or iz at io nS ur fa ce behavior, edge cases, and invariants for this repository area.
 using System.Reflection;
 using Dip.Api.Authorization;
 using Dip.Api.Controllers;

@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines A da pt iv eQ aP la nS na ps ho t domain behavior and invariants for q ua li ty.
 namespace Dip.Domain.Entities;
 
 public sealed class AdaptiveQaPlanSnapshot

@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements Q aE xe cu ti on infrastructure integration for q ua li ty au to ma ti on.
 namespace Dip.Infrastructure.QualityAutomation;
 
 public sealed class QaExecutionOptions

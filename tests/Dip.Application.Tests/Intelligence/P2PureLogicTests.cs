@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies P2 Pu re Lo gi c behavior, edge cases, and invariants for i nt el li ge nc e.
 using Dip.Application.Features.Intelligence;
 using Xunit;
 namespace Dip.Application.Tests.Intelligence;

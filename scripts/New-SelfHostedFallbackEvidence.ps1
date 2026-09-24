@@ -1,4 +1,4 @@
-# Purpose: Automates a repeatable development or verification workflow for this repository.
+# Purpose: Automates N ew S el fH os te dF al lb ac kE vi de nc e for repository development and verification workflows.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

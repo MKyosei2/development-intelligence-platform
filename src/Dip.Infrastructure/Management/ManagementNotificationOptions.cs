@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements M an ag em en tN ot if ic at io n infrastructure integration for m an ag em en t.
 namespace Dip.Infrastructure.Management;
 
 public sealed class ManagementNotificationOptions

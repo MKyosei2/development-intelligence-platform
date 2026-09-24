@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies P ro je ct Pl an Un de rs ta nd in gE ng in e behavior, edge cases, and invariants for p ro je ct in te ll ig en ce.
 using Dip.Application.Features.ProjectIntelligence;
 using FluentAssertions;
 

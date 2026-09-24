@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines G am eR ep la yM et ri c domain behavior and invariants for q ua li ty.
 namespace Dip.Domain.Entities;
 public sealed class GameReplayMetric
 {

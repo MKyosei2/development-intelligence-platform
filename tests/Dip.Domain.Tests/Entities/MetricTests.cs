@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies M et ri c behavior, edge cases, and invariants for this repository area.
 using Dip.Domain.Entities;
 using FluentAssertions;
 

@@ -1,4 +1,4 @@
-# Purpose: Invokes the DIP M an ua lC I workflow.
+# Purpose: Automates I nv ok e M an ua lC I for repository development and verification workflows.
 [CmdletBinding()]
 param(
     [ValidateSet('Fast','Targeted','Full')]

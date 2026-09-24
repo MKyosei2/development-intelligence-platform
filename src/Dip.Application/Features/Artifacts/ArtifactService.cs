@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates A rt if ac t application operations for a rt if ac ts.
 using System.Text.Json;
 using Dip.Application.Abstractions.Artifacts;
 using Dip.Application.Abstractions.Observability;

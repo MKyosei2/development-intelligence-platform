@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines D ev el op me nt Gr ap hN od e domain behavior and invariants for p ro je ct s.
 using System.Text.Json.Nodes;
 using Dip.Domain.Enums;
 

@@ -1,4 +1,4 @@
-// Purpose: Verifies expected behavior and invariants for the surrounding feature.
+// Purpose: Verifies I nc id en t behavior, edge cases, and invariants for p la tf or mi nt el li ge nc e.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

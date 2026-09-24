@@ -1,4 +1,4 @@
-// Purpose: Coordinates application behavior for this feature area.
+// Purpose: Coordinates P er fo rm an ce Si mu la ti on application operations for h ar dw ar e.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

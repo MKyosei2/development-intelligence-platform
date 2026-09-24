@@ -1,4 +1,4 @@
-// Purpose: Defines domain behavior and state for this feature area.
+// Purpose: Defines O rg an iz at io nT en an t domain behavior and invariants for i de nt it y.
 namespace Dip.Domain.Entities;
 
 public sealed class OrganizationTenant

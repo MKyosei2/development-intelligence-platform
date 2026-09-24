@@ -1,4 +1,4 @@
-// Purpose: Provides infrastructure behavior for this application boundary.
+// Purpose: Implements G it Hu bV er si on Co nt ro lC on ne ct or infrastructure integration for i nt eg ra ti on s.
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Domain.Enums;

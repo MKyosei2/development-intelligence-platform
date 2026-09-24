@@ -1,4 +1,4 @@
-// Purpose: Runs background processing for this application responsibility.
+// Purpose: Runs T oo lB ri dg e background processing for this repository area.
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;

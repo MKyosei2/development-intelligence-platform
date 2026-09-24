@@ -1,4 +1,4 @@
-# Purpose: Automates a repeatable development or verification workflow for this repository.
+# Purpose: Automates S et D IP P ro du ct io nB ri dg eE nv ir on me nt for repository development and verification workflows.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,
