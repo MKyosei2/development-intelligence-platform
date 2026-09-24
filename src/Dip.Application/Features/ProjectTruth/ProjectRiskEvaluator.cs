@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Project Risk Evaluator responsibilities for project truth.
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.ProjectTruth;

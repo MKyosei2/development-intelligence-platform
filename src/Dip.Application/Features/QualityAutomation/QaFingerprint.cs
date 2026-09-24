@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Qa Fingerprint responsibilities for quality automation.
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

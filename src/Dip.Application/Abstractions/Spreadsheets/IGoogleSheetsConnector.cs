@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Google Sheets Connector responsibilities for spreadsheets.
 namespace Dip.Application.Abstractions.Spreadsheets;
 
 public sealed record GoogleSheetGrid(string Name, IReadOnlyList<IReadOnlyList<string>> Rows);

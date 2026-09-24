@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Git Hub Application Dependency Injection responsibilities for dependency injection.
 using Dip.Application.Features.GitHub;
 using Microsoft.Extensions.DependencyInjection;
 namespace Dip.Application;

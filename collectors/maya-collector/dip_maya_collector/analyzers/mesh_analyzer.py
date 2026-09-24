@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements mesh analyzer responsibilities for analyzers.
 from dip_maya_collector.models import CollectorIssue, CollectorMetric, CollectorReport
 
 def analyze(cmds, report: CollectorReport, max_triangles: int = 100000) -> None:

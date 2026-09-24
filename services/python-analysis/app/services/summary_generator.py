@@ -1,4 +1,4 @@
-# Purpose: Defines a focused responsibility within the development intelligence platform.
+# Purpose: Implements summary generator responsibilities for app.
 from app.schemas.summary import SummaryInput, SummaryResponse
 from app.services.evidence_builder import EvidenceBuilder
 

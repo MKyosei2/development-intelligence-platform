@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements Git Hub Quality Report Formatter responsibilities for git hub.
 namespace Dip.Application.Features.GitHub;
 
 public static class GitHubQualityReportFormatter

@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements I Git Hub Repository Catalog responsibilities for git hub.
 using Dip.Application.Features.GitHubIntegration;
 
 namespace Dip.Application.Abstractions.GitHub;

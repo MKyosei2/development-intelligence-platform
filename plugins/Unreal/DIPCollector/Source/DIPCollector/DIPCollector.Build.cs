@@ -1,4 +1,4 @@
-// Purpose: Defines a focused responsibility within the development intelligence platform.
+// Purpose: Implements DIP Collector responsibilities for dip collector.
 using UnrealBuildTool;
 
 public class DIPCollector : ModuleRules
