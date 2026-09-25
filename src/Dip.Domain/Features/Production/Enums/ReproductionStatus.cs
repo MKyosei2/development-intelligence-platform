@@ -1,4 +1,4 @@
-// Purpose: Defines R ep ro du ct io nS ta tu s domain behavior and invariants for p ro du ct io n.
+// Purpose: Defines Reproduction Status domain behavior and invariants for production.
 namespace Dip.Domain.Enums;
 
 public enum ReproductionStatus

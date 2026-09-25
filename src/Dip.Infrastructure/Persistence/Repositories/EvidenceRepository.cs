@@ -1,4 +1,4 @@
-// Purpose: Persists and queries E vi de nc e state for p er si st en ce.
+// Purpose: Implements Evidence Repository infrastructure behavior for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

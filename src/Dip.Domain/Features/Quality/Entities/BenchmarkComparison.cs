@@ -1,4 +1,4 @@
-// Purpose: Defines B en ch ma rk Co mp ar is on domain behavior and invariants for q ua li ty.
+// Purpose: Defines Benchmark Comparison domain behavior and invariants for quality.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class BenchmarkComparison

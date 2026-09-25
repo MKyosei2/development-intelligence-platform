@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Project domain behavior and invariants for projects.
 using Dip.Domain.ValueObjects;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Persists and queries Q aG ov er na nc e state for p er si st en ce.
+// Purpose: Implements QA Governance Repository infrastructure behavior for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

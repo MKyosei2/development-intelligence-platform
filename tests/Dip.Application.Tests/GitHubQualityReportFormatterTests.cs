@@ -1,4 +1,4 @@
-// Purpose: Verifies G it Hu bQ ua li ty Re po rt Fo rm at te r behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Git Hub Quality Report Formatter behavior, edge cases, and repository invariants.
 using Dip.Application.Features.GitHub;
 using Xunit;
 

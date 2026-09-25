@@ -1,4 +1,4 @@
-// Purpose: Defines E vi de nc eR el at io n domain behavior and invariants for e vi de nc e.
+// Purpose: Defines Evidence Relation domain behavior and invariants for evidence.
 namespace Dip.Domain.Enums;
 
 public enum EvidenceRelation

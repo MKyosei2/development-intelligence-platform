@@ -1,4 +1,4 @@
-// Purpose: Defines G ol de nM as te rP ro fi le domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines Golden Master Profile domain behavior and invariants for artifacts.
 namespace Dip.Domain.Entities;
 
 public sealed class GoldenMasterProfile

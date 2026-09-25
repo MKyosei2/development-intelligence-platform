@@ -1,4 +1,4 @@
-// Purpose: Coordinates P er fo rm an ce Bu dg et application operations for p er fo rm an ce.
+// Purpose: Implements Performance Budget Service application behavior for performance.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

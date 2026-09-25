@@ -1,2 +1,2 @@
-// Purpose: Defines M et ri cC om pa ri so nS ta tu s domain behavior and invariants for q ua li ty.
+// Purpose: Defines Metric Comparison Status domain behavior and invariants for quality.
 namespace Dip.Domain.Enums; public enum MetricComparisonStatus { Comparable, BaselineMissing, EnvironmentMismatch, InsufficientData, NotComparable }

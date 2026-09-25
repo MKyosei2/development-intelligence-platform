@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y G it Hu bC iP re fl ig ht for repository development and verification workflows.
+# Purpose: Runs Verify Git Hub CI Preflight as part of repository development and verification workflows.
 [CmdletBinding()]
 param(
     [switch]$SkipGui,

@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro ce ss Ex ec ut or Sa nd bo x behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies Process Executor Sandbox behavior, edge cases, and repository invariants.
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;
 using Microsoft.Extensions.Options;

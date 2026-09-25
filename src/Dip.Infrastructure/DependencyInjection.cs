@@ -1,4 +1,4 @@
-// Purpose: Implements D ep en de nc yI nj ec ti on infrastructure integration for this repository area.
+// Purpose: Implements Dependency Injection infrastructure behavior for this repository area.
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

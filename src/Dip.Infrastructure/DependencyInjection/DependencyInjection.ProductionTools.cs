@@ -1,4 +1,4 @@
-// Purpose: Implements P ro du ct io nT oo ls De pe nd en cy In je ct io n infrastructure integration for d ep en de nc yi nj ec ti on.
+// Purpose: Implements Dependency Injection Production Tools infrastructure behavior for this repository area.
 using Dip.Application.Features.ProductionTools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

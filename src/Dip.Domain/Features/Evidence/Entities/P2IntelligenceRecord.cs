@@ -1,4 +1,4 @@
-// Purpose: Defines P2 In te ll ig en ce Re co rd domain behavior and invariants for e vi de nc e.
+// Purpose: Defines P 2 Intelligence Record domain behavior and invariants for evidence.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

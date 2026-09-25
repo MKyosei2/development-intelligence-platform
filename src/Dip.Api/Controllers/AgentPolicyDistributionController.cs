@@ -1,4 +1,4 @@
-// Purpose: Exposes A ge nt Po li cy Di st ri bu ti on HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Agent Policy Distribution HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Enterprise;

@@ -1,4 +1,4 @@
-// Purpose: Verifies A da pt iv eP ro je ct Ri sk Ev al ua to r behavior, edge cases, and invariants for p ro je ct tr ut h.
+// Purpose: Verifies Adaptive Project Risk Evaluator behavior, edge cases, and repository invariants.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

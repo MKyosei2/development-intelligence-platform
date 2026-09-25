@@ -1,4 +1,4 @@
-// Purpose: Defines Q aL an gu ag e domain behavior and invariants for this repository area.
+// Purpose: Defines QA Language domain behavior and invariants for common.
 namespace Dip.Domain.Enums;
 
 public enum QaLanguage

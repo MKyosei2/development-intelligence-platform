@@ -1,4 +1,4 @@
-// Purpose: Persists and queries T ra ck ed Ar ti fa ct state for p er si st en ce.
+// Purpose: Implements Tracked Artifact Repository infrastructure behavior for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct sA pi behavior, edge cases, and invariants for a pi.
+// Purpose: Verifies Projects API behavior, edge cases, and repository invariants.
 using System.Net;
 using System.Net.Http.Json;
 using Dip.IntegrationTests.Database;

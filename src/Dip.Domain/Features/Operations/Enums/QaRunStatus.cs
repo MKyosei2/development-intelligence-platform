@@ -1,4 +1,4 @@
-// Purpose: Defines Q aR un St at us domain behavior and invariants for o pe ra ti on s.
+// Purpose: Defines QA Run Status domain behavior and invariants for operations.
 namespace Dip.Domain.Enums;
 
 public enum QaRunStatus

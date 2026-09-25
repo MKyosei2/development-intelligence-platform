@@ -1,4 +1,4 @@
-// Purpose: Verifies P os tg re Sq lF ix tu re behavior, edge cases, and invariants for d at ab as e.
+// Purpose: Verifies Postgre SQL Fixture behavior, edge cases, and repository invariants.
 using Testcontainers.PostgreSql;
 
 namespace Dip.IntegrationTests.Database;

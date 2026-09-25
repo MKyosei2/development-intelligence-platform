@@ -1,4 +1,4 @@
-// Purpose: Verifies C ol le ct or Pi pe li ne Sc en ar io behavior, edge cases, and invariants for s ce na ri os.
+// Purpose: Verifies Collector Pipeline Scenario behavior, edge cases, and repository invariants.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

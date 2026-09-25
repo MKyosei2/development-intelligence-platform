@@ -1,4 +1,4 @@
-// Purpose: Verifies L an gu ag eI d behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies Language ID behavior, edge cases, and repository invariants.
 using System.Text.Json;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

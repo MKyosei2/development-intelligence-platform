@@ -1,4 +1,4 @@
-// Purpose: Verifies G it Br an ch Qa Wo rk sp ac eM an ag er behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies Git Branch QA Workspace Manager behavior, edge cases, and repository invariants.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Abstractions.GitHub;

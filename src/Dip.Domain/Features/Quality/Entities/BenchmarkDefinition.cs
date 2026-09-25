@@ -1,4 +1,4 @@
-// Purpose: Defines B en ch ma rk De fi ni ti on domain behavior and invariants for q ua li ty.
+// Purpose: Defines Benchmark Definition domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 public sealed class BenchmarkDefinition
 {

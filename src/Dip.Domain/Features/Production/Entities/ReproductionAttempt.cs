@@ -1,4 +1,4 @@
-// Purpose: Defines R ep ro du ct io nA tt em pt domain behavior and invariants for p ro du ct io n.
+// Purpose: Defines Reproduction Attempt domain behavior and invariants for production.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

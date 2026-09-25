@@ -1,1 +1,1 @@
-// Purpose: Defines P ul l data exchanged by p ro je ct s.
+// Purpose: Defines Pull Request domain behavior and invariants for projects.

@@ -1,4 +1,4 @@
-// Purpose: Defines Q aG ov er na nc eE nu ms domain behavior and invariants for q ua li ty.
+// Purpose: Defines QA Governance Enums domain behavior and invariants for quality.
 namespace Dip.Domain.Enums;
 
 public enum FindingLifecycleStatus { New, Confirmed, Assigned, InProgress, Fixed, Verified, Closed, Suppressed, AcceptedRisk, Duplicate, WontFix }

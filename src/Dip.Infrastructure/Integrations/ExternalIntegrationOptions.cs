@@ -1,4 +1,4 @@
-// Purpose: Implements E xt er na lI nt eg ra ti on infrastructure integration for i nt eg ra ti on s.
+// Purpose: Implements External Integration Options infrastructure behavior for this repository area.
 namespace Dip.Infrastructure.Integrations;
 
 public sealed class PerforceOptions

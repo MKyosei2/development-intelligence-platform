@@ -1,4 +1,4 @@
-// Purpose: Verifies B ra nc hQ aP ol ic y behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies Branch QA Policy behavior, edge cases, and repository invariants.
 using Dip.Application.Features.QualityAutomation;
 using FluentAssertions;
 

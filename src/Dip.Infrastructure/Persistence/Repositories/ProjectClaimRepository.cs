@@ -1,4 +1,4 @@
-// Purpose: Persists and queries P ro je ct Cl ai m state for p er si st en ce.
+// Purpose: Implements Project Claim Repository infrastructure behavior for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

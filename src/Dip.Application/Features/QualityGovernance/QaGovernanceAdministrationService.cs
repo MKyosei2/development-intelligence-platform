@@ -1,4 +1,4 @@
-// Purpose: Coordinates Q aG ov er na nc eA dm in is tr at io n application operations for q ua li ty go ve rn an ce.
+// Purpose: Implements QA Governance Administration Service application behavior for quality governance.
 using System.Text.Json;
 using Dip.Application.Abstractions.Observability;
 using Dip.Application.Abstractions.Persistence;

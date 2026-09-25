@@ -1,4 +1,4 @@
-// Purpose: Verifies T es tI mp ac tA na ly ze r behavior, edge cases, and invariants for p2 in te ll ig en ce.
+// Purpose: Verifies Test Impact Analyzer behavior, edge cases, and repository invariants.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Infrastructure.P2Intelligence;
 using Dip.Infrastructure.QualityAutomation;

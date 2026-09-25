@@ -1,4 +1,4 @@
-// Purpose: Defines Q aG ov er na nc eH ar de ni ng En ti ti es domain behavior and invariants for i de nt it y.
+// Purpose: Defines QA Governance Hardening Entities domain behavior and invariants for identity.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

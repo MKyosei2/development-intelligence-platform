@@ -1,1 +1,1 @@
-// Purpose: Defines I nv al id Pr oj ec tS ta te Ex ce pt io n domain behavior and invariants for e xc ep ti on s.
+// Purpose: Defines Invalid Project State Exception domain behavior and invariants for this repository area.

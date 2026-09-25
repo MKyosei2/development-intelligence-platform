@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Tr ut hP ol ic y behavior, edge cases, and invariants for p ro je ct tr ut h.
+// Purpose: Verifies Project Truth Policy behavior, edge cases, and repository invariants.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Enums;
 using FluentAssertions;

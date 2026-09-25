@@ -1,4 +1,4 @@
-// Purpose: Coordinates C ha ng eI mp ac tA na ly si s application operations for c ha ng ei mp ac t.
+// Purpose: Implements Change Impact Analysis Service application behavior for change impact.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

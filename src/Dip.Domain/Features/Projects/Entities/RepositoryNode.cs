@@ -1,4 +1,4 @@
-// Purpose: Defines R ep os it or yN od e domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Repository Node domain behavior and invariants for projects.
 namespace Dip.Domain.Entities;
 public sealed class RepositoryNode
 {

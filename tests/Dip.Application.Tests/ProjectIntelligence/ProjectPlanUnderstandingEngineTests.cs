@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Pl an Un de rs ta nd in gE ng in e behavior, edge cases, and invariants for p ro je ct in te ll ig en ce.
+// Purpose: Verifies Project Plan Understanding Engine behavior, edge cases, and repository invariants.
 using Dip.Application.Features.ProjectIntelligence;
 using FluentAssertions;
 

@@ -1,1 +1,1 @@
-// Purpose: Defines P ag ed data exchanged by a pi.
+// Purpose: Implements Paged Response behavior for this repository area.

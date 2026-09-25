@@ -1,4 +1,4 @@
-// Purpose: Exposes R el ea se Ev id en ce HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Release Evidence HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Release;
 using Microsoft.AspNetCore.Authorization;

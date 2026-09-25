@@ -1,4 +1,4 @@
-// Purpose: Verifies I nc id en t behavior, edge cases, and invariants for p la tf or mi nt el li ge nc e.
+// Purpose: Verifies Incident behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

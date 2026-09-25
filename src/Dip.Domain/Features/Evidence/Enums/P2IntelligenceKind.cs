@@ -1,4 +1,4 @@
-// Purpose: Defines P2 In te ll ig en ce Ki nd domain behavior and invariants for e vi de nc e.
+// Purpose: Defines P 2 Intelligence Kind domain behavior and invariants for evidence.
 namespace Dip.Domain.Enums;
 
 public enum P2IntelligenceKind

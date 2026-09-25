@@ -1,4 +1,4 @@
-// Purpose: Defines H ar dw ar eB ac k domain behavior and invariants for q ua li ty.
+// Purpose: Defines Hardware Backtest domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 public sealed class HardwareBacktest
 {

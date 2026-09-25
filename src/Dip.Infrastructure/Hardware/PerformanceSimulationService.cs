@@ -1,4 +1,4 @@
-// Purpose: Coordinates P er fo rm an ce Si mu la ti on application operations for h ar dw ar e.
+// Purpose: Implements Performance Simulation Service infrastructure behavior for this repository area.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

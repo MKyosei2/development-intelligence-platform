@@ -1,4 +1,4 @@
-// Purpose: Defines Q aF in di ng domain behavior and invariants for p ro du ct io n.
+// Purpose: Defines QA Finding domain behavior and invariants for production.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 

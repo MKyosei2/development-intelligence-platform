@@ -1,4 +1,4 @@
-// Purpose: Exposes P ol ic yP ro fi le s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Policy Profiles HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Policies;

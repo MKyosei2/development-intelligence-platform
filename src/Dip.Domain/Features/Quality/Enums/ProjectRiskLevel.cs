@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Ri sk Le ve l domain behavior and invariants for q ua li ty.
+// Purpose: Defines Project Risk Level domain behavior and invariants for quality.
 namespace Dip.Domain.Enums;
 
 public enum ProjectRiskLevel

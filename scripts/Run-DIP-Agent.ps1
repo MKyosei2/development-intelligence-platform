@@ -1,4 +1,4 @@
-# Purpose: Automates R un D IP A ge nt for repository development and verification workflows.
+# Purpose: Runs Run DIP Agent as part of repository development and verification workflows.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,

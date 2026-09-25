@@ -1,4 +1,4 @@
-// Purpose: Implements C pp Qa En gi ne infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements C++ QA Engine infrastructure behavior for quality automation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
