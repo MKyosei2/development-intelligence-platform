@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y S el fH os te dW in do ws Pr ef li gh t for repository development and verification workflows.
+# Purpose: Verifies self-hosted Windows Preflight for repository development and validation workflows.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

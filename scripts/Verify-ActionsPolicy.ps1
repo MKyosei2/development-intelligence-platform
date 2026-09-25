@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y A ct io ns Po li cy for repository development and verification workflows.
+# Purpose: Verifies Actions Policy for repository development and validation workflows.
 [CmdletBinding()]
 param()
 

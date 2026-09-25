@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y G ui Ph as e1 St at ic for repository development and verification workflows.
+# Purpose: Verifies GUI Phase1 Static for repository development and validation workflows.
 [CmdletBinding()]
 param()
 

@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y P ro je ct Co nt ro l for repository development and verification workflows.
+# Purpose: Verifies Project Control for repository development and validation workflows.
 [CmdletBinding()]
 param(
     [switch]$RunIntegration,
