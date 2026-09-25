@@ -32,7 +32,21 @@ else
 
             @if (!string.IsNullOrWhiteSpace(_spreadsheetError))
             {
-                <div class="alert alert-danger">@_spreadsheetError</div>
+                <div class="alert alert-danger"
+                     role="alert"
+                     data-testid="spreadsheet-error">
+                    @_spreadsheetError
+                </div>
+            }
+
+            @if (_spreadsheetBusy)
+            {
+                <div class="alert alert-info"
+                     role="status"
+                     data-testid="spreadsheet-busy"
+                     data-operation="@_spreadsheetOperation">
+                    @_spreadsheetOperation in progress…
+                </div>
             }
 
             <div class="row g-3 align-items-end">
@@ -401,6 +415,7 @@ External: @conflict.ExternalValue</pre>
     private string? _spreadsheetFileName;
     private string _spreadsheetDomainOverride = "";
     private bool _spreadsheetBusy;
+    private string? _spreadsheetOperation;
     private string? _spreadsheetError;
     private SpreadsheetSchemaAnalysisDto? _spreadsheetAnalysis;
     private FlexibleSpreadsheetImportResult? _spreadsheetPreview;
@@ -532,6 +547,7 @@ External: @conflict.ExternalValue</pre>
 
     private Task AnalyzeSpreadsheetAsync() =>
         RunSpreadsheetOperationAsync(
+            "Analyze spreadsheet",
             async () =>
             {
                 var bytes = RequireSpreadsheetBytes();
@@ -551,6 +567,7 @@ External: @conflict.ExternalValue</pre>
 
     private Task PreviewSpreadsheetAsync() =>
         RunSpreadsheetOperationAsync(
+            "Spreadsheet dry run",
             async () =>
             {
                 var bytes = RequireSpreadsheetBytes();
@@ -572,6 +589,7 @@ External: @conflict.ExternalValue</pre>
 
     private Task ImportSpreadsheetAsync() =>
         RunSpreadsheetOperationAsync(
+            "Spreadsheet import",
             async () =>
             {
                 var bytes = RequireSpreadsheetBytes();
@@ -595,7 +613,9 @@ External: @conflict.ExternalValue</pre>
                     + $"{_spreadsheetImport.DependencyLinks} dependency link(s).");
             });
 
-    private async Task RunSpreadsheetOperationAsync(Func<Task> operation)
+    private async Task RunSpreadsheetOperationAsync(
+        string operationName,
+        Func<Task> operation)
     {
         if (!CanUseSpreadsheet)
         {
@@ -604,7 +624,9 @@ External: @conflict.ExternalValue</pre>
         }
 
         _spreadsheetBusy = true;
+        _spreadsheetOperation = operationName;
         _spreadsheetError = null;
+        await InvokeAsync(StateHasChanged);
 
         try
         {
@@ -612,11 +634,16 @@ External: @conflict.ExternalValue</pre>
         }
         catch (Exception exception)
         {
-            _spreadsheetError = exception.Message;
+            _spreadsheetAnalysis = null;
+            _spreadsheetPreview = null;
+            _spreadsheetImport = null;
+            _spreadsheetError = $"{operationName} failed: {exception.Message}";
         }
         finally
         {
             _spreadsheetBusy = false;
+            _spreadsheetOperation = null;
+            await InvokeAsync(StateHasChanged);
         }
     }
 

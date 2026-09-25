@@ -1,4 +1,4 @@
-// Purpose: Verifies M an ag em en tO pe ra ti on sC on tr ac t behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Management Operations Contract behavior, edge cases, and repository invariants.
 using System.IO.Compression;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;
@@ -184,6 +184,55 @@ public sealed class ManagementOperationsContractTests
 
         analysis.Sheets.Single(x => x.SheetName == "VFX Shot Schedule").ObjectKind.Should().Be("media.shot");
         analysis.Sheets.Single(x => x.SheetName == "VFX Review Log").ObjectKind.Should().Be("media.review");
+    }
+
+    [Fact]
+    public async Task SpreadsheetSchemaAnalysis_RealXlsx_IsReadOnlyAndKeepsVfxShotIdentity()
+    {
+        var projectId = Guid.NewGuid();
+        var graphRepository = new InMemoryGraphRepository();
+        var unitOfWork = new TrackingUnitOfWork();
+        var clock = new FixedClock(
+            new DateTimeOffset(2026, 8, 28, 0, 0, 0, TimeSpan.Zero));
+        var graph = new DevelopmentGraphService(
+            graphRepository,
+            unitOfWork,
+            clock);
+        var evidence = new InMemoryEvidenceRepository();
+        var service = new SpreadsheetSchemaInferenceService(
+            graph,
+            evidence,
+            unitOfWork,
+            clock);
+        var xlsx = BuildXlsx(
+            "VFX Shot Schedule",
+            ["管理番号", "ショット", "担当者", "ステータス", "リテイク", "備考"],
+            [
+                ["sh010", "sh010", "Compositor A", "Review", "1", "smoke pass"],
+                ["sh020", "sh020", "Compositor B", "InProgress", "0", "fire pass"]
+            ]);
+
+        SpreadsheetSchemaAnalysisDto analysis;
+        await using (var stream = new MemoryStream(xlsx, writable: false))
+            analysis = await service.AnalyzeXlsxAsync(
+                projectId,
+                stream,
+                CancellationToken.None);
+
+        analysis.DomainId.Should().Be("media.production");
+        analysis.Sheets.Should().ContainSingle();
+        analysis.Sheets[0].ObjectKind.Should().Be("media.shot");
+        analysis.Sheets[0].DataRows.Should().Be(2);
+
+        graphRepository.Nodes.Should().BeEmpty(
+            "schema analysis must never persist graph nodes");
+        graphRepository.Edges.Should().BeEmpty(
+            "schema analysis must never persist graph edges");
+        evidence.Items.Should().BeEmpty(
+            "schema analysis must never publish evidence");
+        unitOfWork.SaveCount.Should().Be(
+            0,
+            "schema analysis is a read-only operation");
     }
 
     [Fact]

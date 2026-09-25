@@ -94,6 +94,10 @@ public sealed class SpreadsheetSchemaInferenceService(
         ct.ThrowIfCancellationRequested();
 
         var workbook = ManagementXlsxCodec.Read(stream);
+        if (workbook.Count == 0)
+            throw new InvalidDataException(
+                "Workbook contains no readable worksheets.");
+
         return Task.FromResult(AnalyzeWorkbook(projectId, workbook));
     }
 
@@ -103,6 +107,7 @@ public sealed class SpreadsheetSchemaInferenceService(
     {
         if (projectId == Guid.Empty)
             throw new ArgumentException("ProjectId is required.", nameof(projectId));
+        ArgumentNullException.ThrowIfNull(workbook);
 
         var sheets = new List<SpreadsheetSheetInferenceDto>();
         var warnings = new List<string>();
@@ -406,14 +411,36 @@ public sealed class SpreadsheetSchemaInferenceService(
 
     private static string InferDomain(string sheetName, IReadOnlyList<string> headers)
     {
-        var text = (sheetName + " " + string.Join(' ', headers)).ToLowerInvariant();
-        var construction = Score(text, ConstructionSignals);
-        var media = Score(text, MediaSignals);
-        var software = Score(text, SoftwareSignals);
+        var sheet = sheetName.ToLowerInvariant();
+        var headerText = string.Join(' ', headers).ToLowerInvariant();
+
+        // The worksheet name describes the managed collection and therefore has
+        // higher authority than incidental columns such as Review or Retake.
+        var construction =
+            Score(sheet, ConstructionSignals) * 3
+            + Score(headerText, ConstructionSignals);
+        var media =
+            Score(sheet, MediaSignals) * 3
+            + Score(headerText, MediaSignals);
+        var software =
+            Score(sheet, SoftwareSignals) * 3
+            + Score(headerText, SoftwareSignals);
+
         var max = Math.Max(construction, Math.Max(media, software));
-        if (max == 0) return "generic.project";
-        if (construction == max) return "construction";
-        if (media == max) return "media.production";
+        if (max == 0)
+            return "generic.project";
+
+        if (media == max && Score(sheet, MediaSignals) > 0)
+            return "media.production";
+        if (construction == max && Score(sheet, ConstructionSignals) > 0)
+            return "construction";
+        if (software == max && Score(sheet, SoftwareSignals) > 0)
+            return "software";
+
+        if (construction == max)
+            return "construction";
+        if (media == max)
+            return "media.production";
         return "software";
     }
 

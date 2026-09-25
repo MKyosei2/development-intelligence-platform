@@ -1,4 +1,4 @@
-// Purpose: Coordinates M an ag em en tS pr ea ds he et application operations for m an ag em en t.
+// Purpose: Implements Management Spreadsheet Service application behavior for management.
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -112,8 +112,25 @@ public sealed class ManagementSpreadsheetService
         return new(projectId, sheets, _clock.UtcNow);
     }
 
-    public async Task<byte[]> ExportXlsxAsync(Guid projectId, CancellationToken ct) => ManagementXlsxCodec.Write(await BuildWorkbookAsync(projectId, ct));
-    public async Task<SpreadsheetImportResult> ImportXlsxAsync(Guid projectId, Stream stream, CancellationToken ct) => await ApplyRowsAsync(projectId, ManagementXlsxCodec.Read(stream), ct);
+    public async Task<byte[]> ExportXlsxAsync(Guid projectId, CancellationToken ct) =>
+        ManagementXlsxCodec.Write(await BuildWorkbookAsync(projectId, ct));
+
+    public async Task<SpreadsheetImportResult> ImportXlsxAsync(
+        Guid projectId,
+        Stream stream,
+        CancellationToken ct)
+    {
+        if (projectId == Guid.Empty)
+            throw new ArgumentException("ProjectId is required.", nameof(projectId));
+        ArgumentNullException.ThrowIfNull(stream);
+        ct.ThrowIfCancellationRequested();
+
+        // Decoding is intentionally completed before the mutation boundary.
+        // Schema analysis uses SpreadsheetSchemaInferenceService and never calls
+        // ApplyRowsAsync, so Analyze cannot persist project state.
+        var workbook = ManagementXlsxCodec.Read(stream);
+        return await ApplyRowsAsync(projectId, workbook, ct);
+    }
 
     public async Task<GoogleSheetsSyncResult> SyncGoogleAsync(GoogleSheetsSyncCommand c, CancellationToken ct)
     {

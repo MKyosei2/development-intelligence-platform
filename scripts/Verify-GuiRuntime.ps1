@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y G ui Ru nt im e for repository development and verification workflows.
+# Purpose: Runs Verify GUI Runtime as part of repository development and verification workflows.
 [CmdletBinding()]
 param(
     [int]$StartupTimeoutSeconds=420,
@@ -47,7 +47,44 @@ function Save-Json([string]$name,$value){
 function Wait-Http($name,$url,$deadline){
     $lastError=$null
     do{
-        try{
+        function Write-PlaywrightFailureSummary {
+    param([Parameter(Mandatory=$true)][string]$UiE2eRoot)
+
+    $resultRoot=Join-Path $UiE2eRoot 'artifacts\test-results'
+    $summaryPath=Join-Path $out 'playwright-failure-summary.txt'
+    $lines=[System.Collections.Generic.List[string]]::new()
+    $lines.Add("Playwright failure summary") | Out-Null
+    $lines.Add("GeneratedAtUtc=$([DateTimeOffset]::UtcNow.ToString('o'))") | Out-Null
+
+    if(-not(Test-Path -LiteralPath $resultRoot)){
+        $lines.Add("No Playwright test-results directory was produced.") | Out-Null
+    }
+    else{
+        $contexts=@(Get-ChildItem -LiteralPath $resultRoot -Recurse -File -Filter 'error-context.md' -ErrorAction SilentlyContinue)
+        if($contexts.Count -eq 0){
+            $lines.Add("No error-context.md files were produced.") | Out-Null
+        }
+        foreach($context in $contexts){
+            $lines.Add("") | Out-Null
+            $lines.Add("===== $($context.FullName) =====") | Out-Null
+            try{
+                foreach($line in Get-Content -LiteralPath $context.FullName -ErrorAction Stop){
+                    $lines.Add($line) | Out-Null
+                }
+            }
+            catch{
+                $lines.Add("Unable to read error context: $($_.Exception.Message)") | Out-Null
+            }
+        }
+    }
+
+    $lines | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+    foreach($line in $lines){
+        Write-Host "[PLAYWRIGHT DIAGNOSTIC] $line"
+    }
+}
+
+try{
             $r=Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 5
             if($r.StatusCode -ge 200 -and $r.StatusCode -lt 400){
                 Write-Host "$name PASS" -ForegroundColor Green
@@ -211,7 +248,10 @@ try{
                 )
                 if($Headed){$playwrightArgs+='--headed'}
                 & $npxCommand @playwrightArgs
-                if($LASTEXITCODE -ne 0){throw "Playwright E2E failed with exit code $LASTEXITCODE"}
+                if($LASTEXITCODE -ne 0){
+                    Write-PlaywrightFailureSummary -UiE2eRoot $uiE2e
+                    throw "Playwright E2E failed with exit code $LASTEXITCODE"
+                }
                 $playwrightPassed=$true
                 Pass-Phase 'PLAYWRIGHT_TESTS'
             }
@@ -232,7 +272,10 @@ try{
                 mcr.microsoft.com/playwright:v1.55.0-noble `
                 bash -lc "if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --package-lock=false --no-audit --no-fund; fi && npx playwright test tests/gui-onboarding.spec.mjs --retries=0"
 
-            if($LASTEXITCODE -ne 0){throw "Docker Playwright E2E failed with exit code $LASTEXITCODE"}
+            if($LASTEXITCODE -ne 0){
+                Write-PlaywrightFailureSummary -UiE2eRoot (Join-Path $root 'tests/Dip.UiE2E')
+                throw "Docker Playwright E2E failed with exit code $LASTEXITCODE"
+            }
             $playwrightPassed=$true
             Pass-Phase 'PLAYWRIGHT_DOCKER_TESTS'
         }

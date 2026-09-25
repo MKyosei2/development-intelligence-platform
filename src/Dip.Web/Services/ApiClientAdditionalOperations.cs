@@ -1,6 +1,7 @@
 // Purpose: Provides additive web-client operations for management, QA, debugging, and project intelligence.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Dip.Application.Features.Management;
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
@@ -9,6 +10,9 @@ namespace Dip.Web.Services;
 
 public static class ApiClientAdditionalOperations
 {
+    private static readonly JsonSerializerOptions WebJson =
+        new(JsonSerializerDefaults.Web);
+
     private const string XlsxContentType =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -20,10 +24,10 @@ public static class ApiClientAdditionalOperations
         using var response = await Http(client).PostAsync(
             $"api/v1/project-control/projects/{projectId}/management.xlsx/analyze",
             form, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<SpreadsheetSchemaAnalysisDto>(
-                   cancellationToken: cancellationToken)
-               ?? throw new InvalidDataException("Spreadsheet analysis API returned an empty response.");
+        return await ReadRequiredJsonAsync<SpreadsheetSchemaAnalysisDto>(
+            response,
+            "Spreadsheet analysis",
+            cancellationToken);
     }
 
     public static async Task<FlexibleSpreadsheetImportResult> ImportFlexibleManagementSpreadsheetAsync(
@@ -39,10 +43,10 @@ public static class ApiClientAdditionalOperations
         using var response = await Http(client).PostAsync(
             $"api/v1/project-control/projects/{projectId}/management.xlsx/import-flexible?{query}",
             form, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<FlexibleSpreadsheetImportResult>(
-                   cancellationToken: cancellationToken)
-               ?? throw new InvalidDataException("Flexible spreadsheet import API returned an empty response.");
+        return await ReadRequiredJsonAsync<FlexibleSpreadsheetImportResult>(
+            response,
+            dryRun ? "Flexible spreadsheet dry run" : "Flexible spreadsheet import",
+            cancellationToken);
     }
 
     public static async Task<AutonomousDebugSessionDto> RunAutonomousDebugAsync(
@@ -155,6 +159,59 @@ public static class ApiClientAdditionalOperations
         return await Http(client).GetFromJsonAsync<ProjectManagementCommandCenterDto>(
                    url, cancellationToken)
                ?? throw new InvalidDataException("Project management command-center API returned an empty response.");
+    }
+
+    private static async Task<T> ReadRequiredJsonAsync<T>(
+        HttpResponseMessage response,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var detail = CompactPayload(payload);
+            throw new HttpRequestException(
+                $"{operation} API returned HTTP {(int)response.StatusCode} "
+                + $"({response.ReasonPhrase ?? "Unknown"})."
+                + (detail.Length == 0 ? string.Empty : $" Response: {detail}"),
+                null,
+                response.StatusCode);
+        }
+
+        if (string.IsNullOrWhiteSpace(payload))
+            throw new InvalidDataException(
+                $"{operation} API returned HTTP {(int)response.StatusCode} with an empty response body.");
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(payload, WebJson)
+                ?? throw new InvalidDataException(
+                    $"{operation} API returned JSON null instead of {typeof(T).Name}.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidDataException(
+                $"{operation} API returned invalid JSON for {typeof(T).Name}. "
+                + $"Payload: {CompactPayload(payload)}",
+                exception);
+        }
+    }
+
+    private static string CompactPayload(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+            return string.Empty;
+
+        var compact = string.Join(
+            ' ',
+            payload.Split(
+                ['\r', '\n', '\t'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        return compact.Length <= 1000
+            ? compact
+            : compact[..1000] + "…";
     }
 
     private static MultipartFormDataContent CreateWorkbookForm(string fileName, byte[] content)

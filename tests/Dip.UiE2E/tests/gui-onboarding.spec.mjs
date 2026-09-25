@@ -27,6 +27,20 @@ async function getUniversalGraph(request, projectId, domainId = null) {
   return response.json();
 }
 
+
+async function waitForSpreadsheetOutcome(page, timeout = 12_000) {
+  const result = page.getByTestId('spreadsheet-analysis-result');
+  const error = page.getByTestId('spreadsheet-error');
+  await expect(result.or(error)).toBeVisible({ timeout });
+
+  if (await error.isVisible()) {
+    throw new Error(
+      'Spreadsheet UI reported an error: ' + (await error.innerText()).trim());
+  }
+
+  return result;
+}
+
 test.describe('DIP GUI onboarding', () => {
   test('portfolio and GitHub repository picker are reachable', async ({ page }) => {
     await page.goto('/');
@@ -141,10 +155,31 @@ test.describe('DIP GUI onboarding', () => {
     await expect(page.getByTestId('spreadsheet-dry-run')).toBeEnabled();
     await expect(page.getByTestId('spreadsheet-apply')).toBeEnabled();
 
+    const analyzeResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === 'POST'
+      && response.url().includes(
+        '/api/v1/project-control/projects/' + projectId + '/management.xlsx/analyze'));
+
     await page.getByTestId('spreadsheet-analyze').click();
-    await expect(page.getByTestId('spreadsheet-analysis-result')).toBeVisible();
-    await expect(page.getByTestId('spreadsheet-analysis-result')).toContainText('media.production');
-    await expect(page.getByTestId('spreadsheet-analysis-result')).toContainText('media.shot');
+
+    const busy = page.getByTestId('spreadsheet-busy');
+    if (await busy.isVisible())
+      await expect(busy).toContainText('Analyze');
+
+    const analyzeResponse = await analyzeResponsePromise;
+    const analysisResult = await waitForSpreadsheetOutcome(page);
+
+    if (!analyzeResponse.ok()) {
+      const responseBody = await analyzeResponse.text();
+      throw new Error(
+        'Spreadsheet analyze API returned HTTP '
+        + analyzeResponse.status()
+        + ': '
+        + responseBody);
+    }
+
+    await expect(analysisResult).toContainText('media.production');
+    await expect(analysisResult).toContainText('media.shot');
 
     await page.getByTestId('spreadsheet-dry-run').click();
     await expect(page.getByTestId('spreadsheet-import-result')).toContainText('Dry-run result');
