@@ -1,4 +1,4 @@
-// Purpose: Verifies E nt er pr is eF ou nd at io n behavior, edge cases, and invariants for e nt er pr is e.
+// Purpose: Verifies Enterprise Foundation behavior, edge cases, and invariants.
 using Dip.Application.Features.Enterprise;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

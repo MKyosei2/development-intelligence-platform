@@ -1,4 +1,4 @@
-// Purpose: Runs D ur ab le Jo bR ec ov er y background processing for this repository area.
+// Purpose: Runs Durable Job Recovery Worker background processing for DIP.
 using Dip.Application.Abstractions.Observability;
 using Dip.Application.Features.Jobs;
 using Microsoft.Extensions.Options;
