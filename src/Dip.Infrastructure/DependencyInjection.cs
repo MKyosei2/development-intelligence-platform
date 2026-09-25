@@ -88,7 +88,7 @@ public static class DependencyInjection
         services.AddSingleton<IMinimumHardwareRunner, MinimumHardwareRunner>();
         services.AddSingleton<IRegressionRunner, RegressionRunner>();
         services.AddSingleton<IReliabilityRunner, ReliabilityRunner>();
-        services.AddSingleton<IMediaRegressionRunner, MediaRegressionRunner>();
+        services.AddSingleton<Dip.Application.Features.Intelligence.IMediaRegressionRunner, Dip.Infrastructure.Intelligence.MediaRegressionRunner>();
         services.AddSingleton<IFuzzRunner, FuzzRunner>();
         services.AddSingleton<IMutationRunner, MutationRunner>();
         services.AddScoped<IOutboxRepository, OutboxRepository>();
