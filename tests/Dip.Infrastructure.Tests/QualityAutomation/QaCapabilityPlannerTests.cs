@@ -1,4 +1,4 @@
-// Purpose: Verifies Q aC ap ab il it yP la nn er behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies QA Capability Planner behavior, edge cases, and invariants.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

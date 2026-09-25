@@ -1,4 +1,4 @@
-// Purpose: Verifies U ni ve rs al Sy nt ax Tr ee behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies Universal Syntax Tree behavior, edge cases, and invariants.
 using Dip.Infrastructure.QualityAutomation;
 namespace Dip.Infrastructure.Tests.QualityAutomation;
 public sealed class UniversalSyntaxTreeTests
