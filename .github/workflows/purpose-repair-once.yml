@@ -1,0 +1,35 @@
+name: One-time Purpose Repair
+on:
+  push:
+    branches: [fix/normalize-purpose-comments-20260925]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: fix/normalize-purpose-comments-20260925
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Repair malformed Purpose comments
+        run: python tools/repair_malformed_purpose_comments_once.py
+      - name: Verify diff
+        run: git diff --check
+      - name: Commit repairs
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No malformed Purpose comments remained."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests scripts tools services collectors plugins
+          git commit -m "fix: normalize malformed Purpose comments [skip ci]"
+          git push origin HEAD:fix/normalize-purpose-comments-20260925
