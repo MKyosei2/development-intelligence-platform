@@ -1,4 +1,4 @@
-// Purpose: Defines Q ua li ty Is su e domain behavior and invariants for q ua li ty.
+// Purpose: Defines Quality Issue domain behavior and invariants.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class QualityIssue { private QualityIssue() { }

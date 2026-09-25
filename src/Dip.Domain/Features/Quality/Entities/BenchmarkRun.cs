@@ -1,4 +1,4 @@
-// Purpose: Defines B en ch ma rk Ru n domain behavior and invariants for q ua li ty.
+// Purpose: Defines Benchmark Run domain behavior and invariants.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class BenchmarkRun
