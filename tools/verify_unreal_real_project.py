@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements v er if y u nr ea l r ea l p ro je ct tooling used by repository verification and development workflows.
+# Purpose: Provides verify unreal real project tooling for repository verification and development workflows.
 from __future__ import annotations
 
 import argparse

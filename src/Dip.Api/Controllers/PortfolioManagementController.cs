@@ -1,4 +1,4 @@
-// Purpose: Exposes P or tf ol io Ma na ge me nt HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Portfolio Management HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Authorization;

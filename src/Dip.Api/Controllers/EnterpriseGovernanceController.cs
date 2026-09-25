@@ -1,4 +1,4 @@
-// Purpose: Exposes E nt er pr is eG ov er na nc e HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Enterprise Governance HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Enterprise;
 using Dip.Application.Features.Evidence;
