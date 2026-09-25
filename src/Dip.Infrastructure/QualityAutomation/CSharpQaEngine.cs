@@ -1,4 +1,4 @@
-// Purpose: Implements C Sh ar pQ aE ng in e infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements CSharp QA Engine infrastructure behavior for Quality Automation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

@@ -1,4 +1,4 @@
-// Purpose: Implements G it Hu bV er si on Co nt ro lC on ne ct or infrastructure integration for i nt eg ra ti on s.
+// Purpose: Implements GitHub Version Control Connector infrastructure behavior for Integrations.
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.DevelopmentGraph;
 using Dip.Domain.Enums;

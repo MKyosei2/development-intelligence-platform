@@ -1,4 +1,4 @@
-// Purpose: Defines Q ua li ty Au to ma ti on Pr of il e domain behavior and invariants for q ua li ty.
+// Purpose: Defines Quality Automation Profile domain state and invariants.
 namespace Dip.Domain.Entities;
 
 public sealed class QualityAutomationProfile
