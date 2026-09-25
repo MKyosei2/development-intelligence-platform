@@ -1,4 +1,4 @@
-// Purpose: Defines H ea lt hS co re domain behavior and invariants for this repository area.
+// Purpose: Defines Health Score domain behavior and invariants.
 using System.Globalization;
 using Dip.Domain.Exceptions;
 namespace Dip.Domain.ValueObjects;

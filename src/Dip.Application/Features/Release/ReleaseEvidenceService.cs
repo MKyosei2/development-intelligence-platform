@@ -1,4 +1,4 @@
-// Purpose: Coordinates R el ea se Ev id en ce application operations for r el ea se.
+// Purpose: Coordinates Release Evidence Service application behavior for Release.
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;

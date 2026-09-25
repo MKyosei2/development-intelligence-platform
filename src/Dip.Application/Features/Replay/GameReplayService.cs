@@ -1,4 +1,4 @@
-// Purpose: Coordinates G am eR ep la y application operations for r ep la y.
+// Purpose: Coordinates Game Replay Service application behavior for Replay.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Replay;

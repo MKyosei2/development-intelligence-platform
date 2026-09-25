@@ -1,4 +1,4 @@
-// Purpose: Coordinates R ev ie wI nt el li ge nc e application operations for r ev ie w.
+// Purpose: Coordinates Review Intelligence Service application behavior for Review.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

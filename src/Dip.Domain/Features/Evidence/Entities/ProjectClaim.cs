@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Cl ai m domain behavior and invariants for e vi de nc e.
+// Purpose: Defines Project Claim domain behavior and invariants.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Coordinates M ul ti Re po si to ry Gr ap h application operations for this repository area.
+// Purpose: Coordinates Multi Repository Graph Service application behavior for Repositories.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
