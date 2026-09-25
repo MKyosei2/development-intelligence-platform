@@ -1,4 +1,4 @@
-// Purpose: Implements M an if es tQ aA da pt er infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements Manifest QA Adapter infrastructure behavior for quality automation.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
