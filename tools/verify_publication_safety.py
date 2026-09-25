@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements v er if y p ub li ca ti on s af et y tooling used by repository verification and development workflows.
+# Purpose: Defines verify publication safety responsibilities for this repository area.
 """Fail-closed pre-publication secret/file scanner for DIP.
 
 Literal production-like credentials remain hard failures. Runtime references

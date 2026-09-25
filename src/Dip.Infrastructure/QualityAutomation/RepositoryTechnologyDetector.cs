@@ -1,4 +1,4 @@
-// Purpose: Implements R ep os it or yT ec hn ol og yD et ec to r infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements Repository Technology Detector infrastructure responsibilities for quality automation.
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;

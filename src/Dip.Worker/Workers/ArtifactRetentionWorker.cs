@@ -1,4 +1,4 @@
-// Purpose: Runs A rt if ac tR et en ti on background processing for this repository area.
+// Purpose: Runs Artifact Retention background processing for DIP.
 using Dip.Application.Features.Artifacts;
 using Dip.Infrastructure.Artifacts;
 using Microsoft.Extensions.Options;

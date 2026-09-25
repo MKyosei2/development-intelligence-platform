@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct In te ll ig en ce So ur ce s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Project Intelligence Sources HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.ProjectIntelligence;
 using Dip.Domain.Enums;

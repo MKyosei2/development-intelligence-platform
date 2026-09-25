@@ -1,4 +1,4 @@
-// Purpose: Implements Q aC ap ab il it yP la nn er infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements QA Capability Planner infrastructure responsibilities for quality automation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 

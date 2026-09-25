@@ -1,4 +1,4 @@
-// Purpose: Persists and queries D ev el op me nt Gr ap h state for p er si st en ce.
+// Purpose: Implements Development Graph Repository infrastructure responsibilities for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

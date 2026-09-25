@@ -1,4 +1,4 @@
-// Purpose: Defines P2 In te ll ig en ce St at us domain behavior and invariants for this repository area.
+// Purpose: Defines P2 Intelligence Status domain behavior and invariants for common.
 namespace Dip.Domain.Enums;
 
 public enum P2IntelligenceStatus

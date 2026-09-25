@@ -1,4 +1,4 @@
-# Purpose: Automates S et D IP P ro du ct io nB ri dg eE nv ir on me nt for repository development and verification workflows.
+# Purpose: Defines Set DIP Production Bridge Environment responsibilities for this repository area.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][Guid]$ProjectId,

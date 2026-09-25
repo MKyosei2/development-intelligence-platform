@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct St at e web behavior for s ta te.
+// Purpose: Implements Project State web behavior for state.
 using Dip.Application.Features.Dashboard;
 using Dip.Web.Services;
 

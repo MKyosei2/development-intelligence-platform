@@ -1,4 +1,4 @@
-// Purpose: Verifies Q aG ov er na nc eE nt it ie s behavior, edge cases, and invariants for q ua li ty go ve rn an ce.
+// Purpose: Defines QA Governance Entities Tests responsibilities for this repository area.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

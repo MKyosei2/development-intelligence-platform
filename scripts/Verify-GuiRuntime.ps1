@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y G ui Ru nt im e for repository development and verification workflows.
+# Purpose: Defines Verify GUI Runtime responsibilities for this repository area.
 [CmdletBinding()]
 param(
     [int]$StartupTimeoutSeconds=420,

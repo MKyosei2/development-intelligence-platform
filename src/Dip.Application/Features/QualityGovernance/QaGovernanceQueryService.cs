@@ -1,4 +1,4 @@
-// Purpose: Coordinates Q aG ov er na nc eQ ue ry application operations for q ua li ty go ve rn an ce.
+// Purpose: Coordinates QA Governance Query application responsibilities for quality governance.
 using System.Text;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

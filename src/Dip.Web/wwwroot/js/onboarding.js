@@ -1,4 +1,4 @@
-// Purpose: Implements o nb oa rd in g web behavior for j s.
+// Purpose: Implements onboarding web behavior for wwwroot.
 export function getBoolean(key) {
     try {
         return window.localStorage.getItem(key) === 'true';

@@ -1,4 +1,4 @@
-// Purpose: Exposes H ar dw ar eB ac kt es ts HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Hardware Backtests HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Hardware;
 using Microsoft.AspNetCore.Authorization;

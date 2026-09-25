@@ -1,4 +1,4 @@
-// Purpose: Implements S en tr yI nc id en tI ng es ti on Ad ap te r infrastructure integration for e xt er na le ve nt s.
+// Purpose: Implements Sentry Incident Ingestion Adapter infrastructure responsibilities for external events.
 using System.Text.Json;
 using Dip.Application.Features.ExternalEvents;
 

@@ -1,4 +1,4 @@
-// Purpose: Implements Q aP ar si ng infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements QA Parsing infrastructure responsibilities for quality automation.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;

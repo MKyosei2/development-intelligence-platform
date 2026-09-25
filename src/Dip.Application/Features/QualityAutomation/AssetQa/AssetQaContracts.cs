@@ -1,4 +1,4 @@
-// Purpose: Defines A ss et Qa Co nt ra ct s data exchanged by a ss et qa.
+// Purpose: Coordinates Asset QA Contracts application responsibilities for quality automation.
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
 

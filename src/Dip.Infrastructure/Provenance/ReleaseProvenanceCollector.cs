@@ -1,4 +1,4 @@
-// Purpose: Implements R el ea se Pr ov en an ce Co ll ec to r infrastructure integration for p ro ve na nc e.
+// Purpose: Implements Release Provenance Collector infrastructure responsibilities for provenance.
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Xml.Linq;

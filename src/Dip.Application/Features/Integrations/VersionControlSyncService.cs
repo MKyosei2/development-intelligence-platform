@@ -1,4 +1,4 @@
-// Purpose: Coordinates V er si on Co nt ro lS yn c application operations for i nt eg ra ti on s.
+// Purpose: Coordinates Version Control Sync application responsibilities for integrations.
 using System.Text.Json;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Abstractions.Persistence;

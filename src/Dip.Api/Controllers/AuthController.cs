@@ -1,4 +1,4 @@
-// Purpose: Exposes A ut h HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Auth HTTP endpoints for the DIP API.
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;

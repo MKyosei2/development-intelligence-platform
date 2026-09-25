@@ -1,4 +1,4 @@
-// Purpose: Exposes E vi de nc eI ng es ti on HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Evidence Ingestion HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Evidence;

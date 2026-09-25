@@ -1,4 +1,4 @@
-// Purpose: Verifies Q ua li ty Ga te Fa il ur eS ce na ri o behavior, edge cases, and invariants for s ce na ri os.
+// Purpose: Defines Quality Gate Failure Scenario responsibilities for this repository area.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

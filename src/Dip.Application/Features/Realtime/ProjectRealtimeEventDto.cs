@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Re al ti me Ev en t data exchanged by r ea lt im e.
+// Purpose: Coordinates Project Realtime Event DTO application responsibilities for realtime.
 namespace Dip.Application.Features.Realtime;
 
 public sealed record ProjectRealtimeEventDto(

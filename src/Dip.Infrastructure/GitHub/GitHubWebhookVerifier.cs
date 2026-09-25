@@ -1,4 +1,4 @@
-// Purpose: Implements G it Hu bW eb ho ok Ve ri fi er infrastructure integration for g it hu b.
+// Purpose: Implements GitHub Webhook Verifier infrastructure responsibilities for github.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Abstractions.GitHub;

@@ -1,4 +1,4 @@
-// Purpose: Defines E vi de nc eS ou rc eT yp e domain behavior and invariants for e vi de nc e.
+// Purpose: Defines Evidence Source Type domain behavior and invariants for evidence.
 namespace Dip.Domain.Enums;
 
 public enum EvidenceSourceType

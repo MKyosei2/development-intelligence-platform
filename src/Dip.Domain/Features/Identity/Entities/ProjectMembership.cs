@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Me mb er sh ip domain behavior and invariants for i de nt it y.
+// Purpose: Defines Project Membership domain behavior and invariants for identity.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

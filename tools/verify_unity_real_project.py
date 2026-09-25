@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements v er if y u ni ty r ea l p ro je ct tooling used by repository verification and development workflows.
+# Purpose: Defines verify unity real project responsibilities for this repository area.
 from __future__ import annotations
 
 import argparse

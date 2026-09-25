@@ -1,4 +1,4 @@
-// Purpose: Implements P yt ho nQ aE ng in e infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements Python QA Engine infrastructure responsibilities for quality automation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro du ct io nQ aI nt el li ge nc e behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines Production QA Intelligence Tests responsibilities for this repository area.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

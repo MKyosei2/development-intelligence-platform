@@ -1,4 +1,4 @@
-// Purpose: Defines A ss et Qa Fi nd in gR ec or d domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines Asset QA Finding Record domain behavior and invariants for artifacts.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

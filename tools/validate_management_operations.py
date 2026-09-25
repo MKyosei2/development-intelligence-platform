@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements v al id at e m an ag em en t o pe ra ti on s tooling used by repository verification and development workflows.
+# Purpose: Defines validate management operations responsibilities for this repository area.
 """Static source-contract validation for DIP Management Operations S+/S implementation.
 
 This is intentionally not a replacement for `dotnet build` or live connector tests.

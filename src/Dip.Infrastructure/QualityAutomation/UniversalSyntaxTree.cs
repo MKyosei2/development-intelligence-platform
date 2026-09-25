@@ -1,4 +1,4 @@
-// Purpose: Implements U ni ve rs al Sy nt ax Tr ee infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements Universal Syntax Tree infrastructure responsibilities for quality automation.
 namespace Dip.Infrastructure.QualityAutomation;
 
 public enum UniversalSyntaxKind { Root, Block, Group, Index, Call, Assignment, Identifier, Literal, Token }

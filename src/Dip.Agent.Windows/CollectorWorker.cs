@@ -1,4 +1,4 @@
-// Purpose: Runs C ol le ct or background processing for this repository area.
+// Purpose: Implements Collector Worker endpoint-agent responsibilities for collector worker.
 using Dip.Agent.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

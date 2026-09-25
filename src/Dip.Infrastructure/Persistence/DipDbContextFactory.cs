@@ -1,4 +1,4 @@
-// Purpose: Implements D ip Db Co nt ex tF ac to ry infrastructure integration for p er si st en ce.
+// Purpose: Implements DIP DB Context Factory infrastructure responsibilities for persistence.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 

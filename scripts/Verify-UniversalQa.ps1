@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y U ni ve rs al Qa for repository development and verification workflows.
+# Purpose: Defines Verify Universal QA responsibilities for this repository area.
 [CmdletBinding()]
 param([string[]]$RequireLanguages=@('python','csharp','cpp','javascript','customlang'))
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest

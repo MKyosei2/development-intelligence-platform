@@ -1,4 +1,4 @@
-// Purpose: Verifies D ai ly Su mm ar yS ce na ri o behavior, edge cases, and invariants for s ce na ri os.
+// Purpose: Defines Daily Summary Scenario responsibilities for this repository area.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

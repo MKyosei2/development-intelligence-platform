@@ -1,4 +1,4 @@
-// Purpose: Verifies R ep os it or yT ec hn ol og yD et ec to r behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines Repository Technology Detector Tests responsibilities for this repository area.
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;

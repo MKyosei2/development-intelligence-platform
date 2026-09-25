@@ -1,4 +1,4 @@
-// Purpose: Implements G am eR ep la yE xe cu to r infrastructure integration for r ep la y.
+// Purpose: Implements Game Replay Executor infrastructure responsibilities for replay.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Abstractions.Replay;

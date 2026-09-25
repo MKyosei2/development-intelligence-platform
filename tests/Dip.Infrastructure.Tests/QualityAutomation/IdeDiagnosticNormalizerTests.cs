@@ -1,4 +1,4 @@
-// Purpose: Verifies I de Di ag no st ic No rm al iz er behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines IDE Diagnostic Normalizer Tests responsibilities for this repository area.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

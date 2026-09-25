@@ -1,4 +1,4 @@
-// Purpose: Verifies Q ua li ty Is su e behavior, edge cases, and invariants for this repository area.
+// Purpose: Defines Quality Issue Tests responsibilities for this repository area.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

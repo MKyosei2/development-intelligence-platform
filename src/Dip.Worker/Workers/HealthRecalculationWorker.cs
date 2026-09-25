@@ -1,4 +1,4 @@
-// Purpose: Runs H ea lt hR ec al cu la ti on background processing for this repository area.
+// Purpose: Runs Health Recalculation background processing for DIP.
 namespace Dip.Worker.Workers;
 public sealed class HealthRecalculationWorker : BackgroundService
 {

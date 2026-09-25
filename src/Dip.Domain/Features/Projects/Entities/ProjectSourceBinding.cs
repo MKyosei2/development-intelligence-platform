@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct So ur ce Bi nd in g domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Project Source Binding domain behavior and invariants for projects.
 namespace Dip.Domain.Entities;
 
 public sealed class ProjectSourceBinding

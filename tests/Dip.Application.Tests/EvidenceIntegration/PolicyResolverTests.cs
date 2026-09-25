@@ -1,4 +1,4 @@
-// Purpose: Verifies P ol ic yR es ol ve r behavior, edge cases, and invariants for e vi de nc ei nt eg ra ti on.
+// Purpose: Defines Policy Resolver Tests responsibilities for this repository area.
 using Dip.Application.Features.Policies;
 using FluentAssertions;
 

@@ -1,4 +1,4 @@
-// Purpose: Runs T oo lB ri dg e background processing for this repository area.
+// Purpose: Implements Tool Bridge Worker endpoint-agent responsibilities for tool bridge worker.
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;

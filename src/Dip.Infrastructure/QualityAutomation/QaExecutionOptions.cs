@@ -1,4 +1,4 @@
-// Purpose: Implements Q aE xe cu ti on infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements QA Execution Options infrastructure responsibilities for quality automation.
 namespace Dip.Infrastructure.QualityAutomation;
 
 public sealed class QaExecutionOptions

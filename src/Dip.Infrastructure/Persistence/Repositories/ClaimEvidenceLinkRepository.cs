@@ -1,4 +1,4 @@
-// Purpose: Persists and queries C la im Ev id en ce Li nk state for p er si st en ce.
+// Purpose: Implements Claim Evidence Link Repository infrastructure responsibilities for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

@@ -1,4 +1,4 @@
-// Purpose: Implements T es tI mp ac tA na ly ze r infrastructure integration for p2 in te ll ig en ce.
+// Purpose: Implements Test Impact Analyzer infrastructure responsibilities for p2 intelligence.
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;

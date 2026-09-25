@@ -1,4 +1,4 @@
-// Purpose: Implements P2 Le ga cy St or es infrastructure integration for p er si st en ce.
+// Purpose: Implements P2 Legacy Stores infrastructure responsibilities for persistence.
 using Dip.Application.Features.Intelligence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

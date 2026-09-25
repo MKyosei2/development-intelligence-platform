@@ -1,4 +1,4 @@
-// Purpose: Defines R el ea se Ev id en ce Bu nd le domain behavior and invariants for e vi de nc e.
+// Purpose: Defines Release Evidence Bundle domain behavior and invariants for evidence.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ReleaseEvidenceBundle

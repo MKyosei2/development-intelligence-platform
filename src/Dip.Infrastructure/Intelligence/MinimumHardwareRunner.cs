@@ -1,4 +1,4 @@
-// Purpose: Implements M in im um Ha rd wa re Ru nn er infrastructure integration for i nt el li ge nc e.
+// Purpose: Implements Minimum Hardware Runner infrastructure responsibilities for intelligence.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.Hardware;

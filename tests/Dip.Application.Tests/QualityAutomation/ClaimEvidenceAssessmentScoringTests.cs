@@ -1,4 +1,4 @@
-// Purpose: Verifies C la im Ev id en ce As se ss me nt Sc or in g behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines Claim Evidence Assessment Scoring Tests responsibilities for this repository area.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Domain.Enums;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-// Purpose: Implements L in ea rW or kI te mC on ne ct or infrastructure integration for w or ki te ms.
+// Purpose: Implements Linear Work Item Connector infrastructure responsibilities for work items.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;

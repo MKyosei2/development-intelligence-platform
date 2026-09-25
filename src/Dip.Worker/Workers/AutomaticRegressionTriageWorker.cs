@@ -1,4 +1,4 @@
-// Purpose: Runs A ut om at ic Re gr es si on Tr ia ge background processing for this repository area.
+// Purpose: Runs Automatic Regression Triage background processing for DIP.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Triage;
 using Dip.Domain.Enums;

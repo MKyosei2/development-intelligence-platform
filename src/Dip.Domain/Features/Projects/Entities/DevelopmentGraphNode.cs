@@ -1,4 +1,4 @@
-// Purpose: Defines D ev el op me nt Gr ap hN od e domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Development Graph Node domain behavior and invariants for projects.
 using System.Text.Json.Nodes;
 using Dip.Domain.Enums;
 

@@ -1,4 +1,4 @@
-// Purpose: Implements P er fo rc eV er si on Co nt ro lC on ne ct or infrastructure integration for i nt eg ra ti on s.
+// Purpose: Implements Perforce Version Control Connector infrastructure responsibilities for integrations.
 using System.Diagnostics;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Features.DevelopmentGraph;

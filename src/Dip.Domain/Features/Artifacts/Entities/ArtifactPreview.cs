@@ -1,4 +1,4 @@
-// Purpose: Defines A rt if ac tP re vi ew domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines Artifact Preview domain behavior and invariants for artifacts.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

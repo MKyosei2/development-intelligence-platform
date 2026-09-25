@@ -1,4 +1,4 @@
-// Purpose: Persists and queries P ip el in eR un state for p er si st en ce.
+// Purpose: Implements Pipeline Run Repository infrastructure responsibilities for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.ValueObjects;

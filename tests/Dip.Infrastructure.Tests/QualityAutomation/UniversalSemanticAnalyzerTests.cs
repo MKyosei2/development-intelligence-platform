@@ -1,4 +1,4 @@
-// Purpose: Verifies U ni ve rs al Se ma nt ic An al yz er behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines Universal Semantic Analyzer Tests responsibilities for this repository area.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

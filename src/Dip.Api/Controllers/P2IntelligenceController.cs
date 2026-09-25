@@ -1,4 +1,4 @@
-// Purpose: Exposes P2 In te ll ig en ce HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes P2 Intelligence HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.P2Intelligence;
 using Microsoft.AspNetCore.Authorization;

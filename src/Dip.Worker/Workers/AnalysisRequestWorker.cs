@@ -1,4 +1,4 @@
-// Purpose: Runs A na ly si sR eq ue st background processing for this repository area.
+// Purpose: Runs Analysis Request background processing for DIP.
 using Dip.Application.Abstractions.Messaging;
 using Dip.Infrastructure.Messaging;
 using Dip.Worker.Options;

@@ -1,4 +1,4 @@
-// Purpose: Verifies G ov er na nc eH ar de ni ng behavior, edge cases, and invariants for p er si st en ce.
+// Purpose: Defines Governance Hardening Tests responsibilities for this repository area.
 using Dip.Application.Features.Authorization;
 using Dip.Domain.Entities;
 using Dip.Infrastructure.Persistence;

@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Tr ut hS ce na ri o behavior, edge cases, and invariants for s ce na ri os.
+// Purpose: Defines Project Truth Scenario responsibilities for this repository area.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 

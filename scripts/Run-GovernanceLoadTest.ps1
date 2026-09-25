@@ -1,4 +1,4 @@
-# Purpose: Automates R un G ov er na nc eL oa d for repository development and verification workflows.
+# Purpose: Defines Run Governance Load Test responsibilities for this repository area.
 [CmdletBinding()]
 param(
     [int]$ProjectCount=10,

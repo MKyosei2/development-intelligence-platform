@@ -1,4 +1,4 @@
-// Purpose: Implements Q aB ug Mi ni mi ze r infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements QA Bug Minimizer infrastructure responsibilities for quality automation.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

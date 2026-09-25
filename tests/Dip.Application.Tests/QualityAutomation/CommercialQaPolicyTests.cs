@@ -1,4 +1,4 @@
-// Purpose: Verifies C om me rc ia lQ aP ol ic y behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines Commercial QA Policy Tests responsibilities for this repository area.
 using Dip.Application.Features.QualityAutomation;
 using FluentAssertions;
 

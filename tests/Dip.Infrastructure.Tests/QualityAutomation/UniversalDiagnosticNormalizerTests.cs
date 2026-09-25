@@ -1,4 +1,4 @@
-// Purpose: Verifies U ni ve rs al Di ag no st ic No rm al iz er behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines Universal Diagnostic Normalizer Tests responsibilities for this repository area.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

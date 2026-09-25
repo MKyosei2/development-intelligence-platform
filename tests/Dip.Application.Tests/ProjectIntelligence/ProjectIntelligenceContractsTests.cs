@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct In te ll ig en ce Co nt ra ct s behavior, edge cases, and invariants for p ro je ct in te ll ig en ce.
+// Purpose: Defines Project Intelligence Contracts Tests responsibilities for this repository area.
 using Dip.Application.Features.ProjectIntelligence;
 using FluentAssertions;
 

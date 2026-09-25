@@ -1,4 +1,4 @@
-// Purpose: Implements I de Di ag no st ic No rm al iz er infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements IDE Diagnostic Normalizer infrastructure responsibilities for quality automation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 

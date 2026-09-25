@@ -1,4 +1,4 @@
-// Purpose: Coordinates D ec is io nL og application operations for d ec is io ns.
+// Purpose: Coordinates Decision Log application responsibilities for decisions.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

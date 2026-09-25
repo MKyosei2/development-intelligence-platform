@@ -1,1 +1,1 @@
-// Purpose: Implements S to ra ge infrastructure integration for s to ra ge.
+// Purpose: Implements Storage Options infrastructure responsibilities for storage.

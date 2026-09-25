@@ -1,4 +1,4 @@
-// Purpose: Verifies w eb ho ok l oa d behavior, edge cases, and invariants for k6.
+// Purpose: Defines webhook load responsibilities for this repository area.
 import http from "k6/http";
 import { check, sleep } from "k6";
 

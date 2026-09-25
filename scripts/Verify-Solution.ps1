@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y S ol ut io n for repository development and verification workflows.
+# Purpose: Defines Verify Solution responsibilities for this repository area.
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release')][string]$Configuration='Release',

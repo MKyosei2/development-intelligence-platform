@@ -1,4 +1,4 @@
-// Purpose: Implements N at iv eS ym bo li ca to r infrastructure integration for p2 in te ll ig en ce.
+// Purpose: Implements Native Symbolicator infrastructure responsibilities for p2 intelligence.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.P2Intelligence;

@@ -1,4 +1,4 @@
-// Purpose: Verifies C ol le ct or Re po rt Va li da to r behavior, edge cases, and invariants for this repository area.
+// Purpose: Defines Collector Report Validator Tests responsibilities for this repository area.
 using Dip.Application.Features.Collectors;
 using Dip.Shared.Contracts.Collectors;
 using Xunit;

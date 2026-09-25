@@ -1,1 +1,1 @@
-// Purpose: Verifies p ip el in e l oa d behavior, edge cases, and invariants for k6.
+// Purpose: Defines pipeline load responsibilities for this repository area.

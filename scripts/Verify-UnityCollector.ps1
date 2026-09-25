@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y U ni ty Co ll ec to r for repository development and verification workflows.
+# Purpose: Defines Verify Unity Collector responsibilities for this repository area.
 [CmdletBinding()]
 param(
     [string]$UnityPath = $env:UNITY_EDITOR_PATH,

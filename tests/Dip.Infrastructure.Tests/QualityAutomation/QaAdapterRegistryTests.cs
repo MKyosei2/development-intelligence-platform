@@ -1,4 +1,4 @@
-// Purpose: Verifies Q aA da pt er Re gi st ry behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Defines QA Adapter Registry Tests responsibilities for this repository area.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;

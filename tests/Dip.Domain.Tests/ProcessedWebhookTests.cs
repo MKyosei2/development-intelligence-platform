@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro ce ss ed We bh oo k behavior, edge cases, and invariants for this repository area.
+// Purpose: Defines Processed Webhook Tests responsibilities for this repository area.
 using Dip.Domain.Entities;
 using Xunit;
 

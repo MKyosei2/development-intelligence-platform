@@ -1,1 +1,1 @@
-// Purpose: Implements G it Hu bW or kf lo wR un Mo de l infrastructure integration for g it hu b.
+// Purpose: Implements GitHub Workflow Run Model infrastructure responsibilities for github.

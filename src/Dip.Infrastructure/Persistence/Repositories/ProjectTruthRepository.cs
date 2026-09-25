@@ -1,4 +1,4 @@
-// Purpose: Persists and queries P ro je ct Tr ut h state for p er si st en ce.
+// Purpose: Implements Project Truth Repository infrastructure responsibilities for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

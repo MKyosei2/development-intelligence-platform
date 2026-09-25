@@ -1,4 +1,4 @@
-// Purpose: Defines persistence operations required by I Pr oc es se dW eb ho ok in p er si st en ce.
+// Purpose: Coordinates I Processed Webhook Repository application responsibilities for this repository area.
 using Dip.Domain.Entities;
 namespace Dip.Application.Abstractions.Persistence;
 public interface IProcessedWebhookRepository

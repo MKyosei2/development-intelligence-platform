@@ -1,4 +1,4 @@
-// Purpose: Verifies D as hb oa rd behavior, edge cases, and invariants for this repository area.
+// Purpose: Defines Dashboard Tests responsibilities for this repository area.
 using Dip.Application.Features.Dashboard;
 using FluentAssertions;
 

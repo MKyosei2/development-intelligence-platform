@@ -1,4 +1,4 @@
-// Purpose: Defines M et ri c domain behavior and invariants for q ua li ty.
+// Purpose: Defines Metric domain behavior and invariants for quality.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class Metric

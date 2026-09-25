@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Mu ta ti on Co or di na to r infrastructure integration for p er si st en ce.
+// Purpose: Implements Project Mutation Coordinator infrastructure responsibilities for persistence.
 using System.Collections.Concurrent;
 using System.Data;
 using Dip.Application.Features.Authorization;

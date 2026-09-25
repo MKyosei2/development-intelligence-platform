@@ -1,4 +1,4 @@
-// Purpose: Implements G am eP ro je ct Qa Pa ck infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements Game Project QA Pack infrastructure responsibilities for quality automation.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;

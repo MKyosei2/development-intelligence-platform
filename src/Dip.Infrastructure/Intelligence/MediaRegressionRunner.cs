@@ -1,4 +1,4 @@
-// Purpose: Implements M ed ia Re gr es si on Ru nn er infrastructure integration for i nt el li ge nc e.
+// Purpose: Implements Media Regression Runner infrastructure responsibilities for intelligence.
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;

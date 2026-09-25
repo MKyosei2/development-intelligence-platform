@@ -1,4 +1,4 @@
-// Purpose: Verifies P mE vi de nc eT ra ns la to r behavior, edge cases, and invariants for p ro je ct tr ut h.
+// Purpose: Defines Pm Evidence Translator Tests responsibilities for this repository area.
 using Dip.Application.Features.ProjectTruth;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Entities;

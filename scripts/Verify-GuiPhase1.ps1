@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y G ui Ph as e1 for repository development and verification workflows.
+# Purpose: Defines Verify GUI Phase1 responsibilities for this repository area.
 [CmdletBinding()]
 param(
     [int]$StartupTimeoutSeconds=420,

@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Tr ut hS na ps ho t domain behavior and invariants for e vi de nc e.
+// Purpose: Defines Project Truth Snapshot domain behavior and invariants for evidence.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

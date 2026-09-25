@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Re so ur ce Pr oj ec tR es ol ve r infrastructure integration for p er si st en ce.
+// Purpose: Implements Project Resource Project Resolver infrastructure responsibilities for persistence.
 using Dip.Application.Features.Authorization;
 using Microsoft.EntityFrameworkCore;
 

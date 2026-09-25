@@ -1,2 +1,2 @@
-// Purpose: Implements G lo ba lU si ng s web behavior for this repository area.
+// Purpose: Implements Global Usings web behavior for global usings.
 global using Dip.Web.Services;

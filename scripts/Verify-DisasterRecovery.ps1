@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y D is as te rR ec ov er y for repository development and verification workflows.
+# Purpose: Defines Verify Disaster Recovery responsibilities for this repository area.
 [CmdletBinding()]
 param(
     [string]$DatabaseUser=$(if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}),

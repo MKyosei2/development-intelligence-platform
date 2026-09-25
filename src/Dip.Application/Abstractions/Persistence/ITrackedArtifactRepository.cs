@@ -1,4 +1,4 @@
-// Purpose: Defines persistence operations required by I Tr ac ke dA rt if ac t in p er si st en ce.
+// Purpose: Coordinates I Tracked Artifact Repository application responsibilities for this repository area.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Abstractions.Persistence;

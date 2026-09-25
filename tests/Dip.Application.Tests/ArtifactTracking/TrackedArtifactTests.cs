@@ -1,4 +1,4 @@
-// Purpose: Verifies T ra ck ed Ar ti fa ct behavior, edge cases, and invariants for a rt if ac tt ra ck in g.
+// Purpose: Defines Tracked Artifact Tests responsibilities for this repository area.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

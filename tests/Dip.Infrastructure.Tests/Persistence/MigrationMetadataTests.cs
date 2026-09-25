@@ -1,4 +1,4 @@
-// Purpose: Verifies M ig ra ti on Me ta da ta behavior, edge cases, and invariants for p er si st en ce.
+// Purpose: Defines Migration Metadata Tests responsibilities for this repository area.
 using Dip.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;

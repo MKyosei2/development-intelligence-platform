@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct In te ll ig en ce Au th or iz at io nS ur fa ce behavior, edge cases, and invariants for this repository area.
+// Purpose: Defines Project Intelligence Authorization Surface Tests responsibilities for this repository area.
 using System.Reflection;
 using Dip.Api.Authorization;
 using Dip.Api.Controllers;

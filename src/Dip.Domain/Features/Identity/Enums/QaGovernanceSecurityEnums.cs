@@ -1,4 +1,4 @@
-// Purpose: Defines Q aG ov er na nc eS ec ur it yE nu ms domain behavior and invariants for i de nt it y.
+// Purpose: Defines QA Governance Security Enums domain behavior and invariants for identity.
 namespace Dip.Domain.Enums;
 
 public enum ProjectMembershipRole { Viewer, Member, Maintainer, Owner }

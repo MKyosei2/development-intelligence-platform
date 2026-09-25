@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro du ce rI nt el li ge nc e HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Producer Intelligence HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Management;

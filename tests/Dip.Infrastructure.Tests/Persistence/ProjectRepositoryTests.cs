@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Re po si to ry behavior, edge cases, and invariants for p er si st en ce.
+// Purpose: Defines Project Repository Tests responsibilities for this repository area.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

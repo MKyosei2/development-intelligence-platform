@@ -1,4 +1,4 @@
-// Purpose: Coordinates I nt el li ge nc eD as hb oa rd application operations for d as hb oa rd.
+// Purpose: Coordinates Intelligence Dashboard application responsibilities for dashboard.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Hardware;
 using Dip.Application.Features.Release;

@@ -1,4 +1,4 @@
-// Purpose: Verifies T oo lE ve nt Ou tb ox behavior, edge cases, and invariants for this repository area.
+// Purpose: Implements Tool Event Outbox Tests endpoint-agent responsibilities for this repository area.
 using System.Text.Json;
 using Dip.Agent.Core;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-@* Purpose: Renders the R ep os it or yC ar d UI and coordinates its p ro je ct s interactions. *@
+@* Purpose: Renders the Repository Card UI and coordinates its components interactions. *@
 @using Dip.Application.Features.GitHubIntegration
 
 <article class="repo-card @(Selected ? "selected" : string.Empty) @(Repository.DipProjectId is not null ? "registered" : string.Empty)" data-repository="@Repository.FullName">

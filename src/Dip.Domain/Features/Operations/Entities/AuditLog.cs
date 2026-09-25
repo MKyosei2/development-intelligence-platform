@@ -1,4 +1,4 @@
-// Purpose: Defines A ud it Lo g domain behavior and invariants for o pe ra ti on s.
+// Purpose: Defines Audit Log domain behavior and invariants for operations.
 namespace Dip.Domain.Entities;
 
 /// <summary>

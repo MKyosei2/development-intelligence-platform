@@ -1,4 +1,4 @@
-// Purpose: Verifies E vi de nc eP ol ic y behavior, edge cases, and invariants for p2 in te ll ig en ce.
+// Purpose: Defines Evidence Policy Tests responsibilities for this repository area.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

@@ -1,4 +1,4 @@
-// Purpose: Exposes W or kI te ms HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Work Items HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.WorkItems;

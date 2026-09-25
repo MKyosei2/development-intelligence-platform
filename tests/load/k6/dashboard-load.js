@@ -1,4 +1,4 @@
-// Purpose: Verifies d as hb oa rd l oa d behavior, edge cases, and invariants for k6.
+// Purpose: Defines dashboard load responsibilities for this repository area.
 import http from "k6/http";
 import { check } from "k6";
 

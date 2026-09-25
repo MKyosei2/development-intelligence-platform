@@ -1,4 +1,4 @@
-// Purpose: Verifies G am eR eg re ss io nE va lu at or behavior, edge cases, and invariants for p2 in te ll ig en ce.
+// Purpose: Defines Game Regression Evaluator Tests responsibilities for this repository area.
 using Dip.Application.Features.P2Intelligence;
 using FluentAssertions;
 

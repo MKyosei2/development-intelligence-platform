@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements p2 m ed ia c om pa re tooling used by repository verification and development workflows.
+# Purpose: Defines p2 media compare responsibilities for this repository area.
 import argparse, json, math, os, struct, subprocess, tempfile, wave, zlib, binascii
 from pathlib import Path
 

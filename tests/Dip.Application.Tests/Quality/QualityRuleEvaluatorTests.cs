@@ -1,4 +1,4 @@
-// Purpose: Verifies Q ua li ty Ru le Ev al ua to r behavior, edge cases, and invariants for q ua li ty.
+// Purpose: Defines Quality Rule Evaluator Tests responsibilities for this repository area.
 using Dip.Application.Features.Quality;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

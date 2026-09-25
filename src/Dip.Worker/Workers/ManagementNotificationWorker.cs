@@ -1,4 +1,4 @@
-// Purpose: Runs M an ag em en tN ot if ic at io n background processing for this repository area.
+// Purpose: Runs Management Notification background processing for DIP.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Management;

@@ -1,1 +1,1 @@
-// Purpose: Defines P ag ed data exchanged by a pi.
+// Purpose: Defines Paged Response responsibilities for contracts.

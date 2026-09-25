@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Cl ai m behavior, edge cases, and invariants for this repository area.
+// Purpose: Defines Project Claim Tests responsibilities for this repository area.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

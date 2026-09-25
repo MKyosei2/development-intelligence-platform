@@ -1,2 +1,2 @@
-// Purpose: Defines persistence operations required by I Qu al it yR ul e in p er si st en ce.
+// Purpose: Coordinates I Quality Rule Repository application responsibilities for this repository area.
 namespace Dip.Application.Abstractions.Persistence; public interface IQualityRuleRepository { }

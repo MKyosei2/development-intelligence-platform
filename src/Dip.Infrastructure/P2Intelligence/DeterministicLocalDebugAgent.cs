@@ -1,4 +1,4 @@
-// Purpose: Implements D et er mi ni st ic Lo ca lD eb ug Ag en t infrastructure integration for p2 in te ll ig en ce.
+// Purpose: Implements Deterministic Local Debug Agent infrastructure responsibilities for p2 intelligence.
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 

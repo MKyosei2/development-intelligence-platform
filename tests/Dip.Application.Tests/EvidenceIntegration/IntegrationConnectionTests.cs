@@ -1,4 +1,4 @@
-// Purpose: Verifies I nt eg ra ti on Co nn ec ti on behavior, edge cases, and invariants for e vi de nc ei nt eg ra ti on.
+// Purpose: Defines Integration Connection Tests responsibilities for this repository area.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

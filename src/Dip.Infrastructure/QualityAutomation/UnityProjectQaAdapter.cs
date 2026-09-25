@@ -1,4 +1,4 @@
-// Purpose: Implements U ni ty Pr oj ec tQ aA da pt er infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements Unity Project QA Adapter infrastructure responsibilities for quality automation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;

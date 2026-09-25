@@ -1,4 +1,4 @@
-// Purpose: Coordinates E nv ir on me nt Sn ap sh ot application operations for q ua li ty au to ma ti on.
+// Purpose: Implements Environment Snapshot Service infrastructure responsibilities for quality automation.
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;

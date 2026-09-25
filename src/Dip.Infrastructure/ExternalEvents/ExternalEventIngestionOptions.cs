@@ -1,4 +1,4 @@
-// Purpose: Implements E xt er na lE ve nt In ge st io n infrastructure integration for e xt er na le ve nt s.
+// Purpose: Implements External Event Ingestion Options infrastructure responsibilities for external events.
 namespace Dip.Infrastructure.ExternalEvents;
 public sealed class ExternalEventIngestionOptions
 {

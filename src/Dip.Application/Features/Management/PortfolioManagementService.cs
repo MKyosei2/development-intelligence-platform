@@ -1,4 +1,4 @@
-// Purpose: Coordinates P or tf ol io Ma na ge me nt application operations for m an ag em en t.
+// Purpose: Coordinates Portfolio Management application responsibilities for management.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Dashboard;

@@ -1,4 +1,4 @@
-// Purpose: Implements Q aW or ks pa ce Re so lv er infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements QA Workspace Resolver infrastructure responsibilities for quality automation.
 using Dip.Application.Features.QualityAutomation;
 using Microsoft.Extensions.Options;
 
