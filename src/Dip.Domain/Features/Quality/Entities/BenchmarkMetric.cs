@@ -1,4 +1,4 @@
-// Purpose: Defines B en ch ma rk Me tr ic domain behavior and invariants for q ua li ty.
+// Purpose: Defines Benchmark Metric domain behavior and invariants.
 namespace Dip.Domain.Entities;
 public sealed class BenchmarkMetric
 {

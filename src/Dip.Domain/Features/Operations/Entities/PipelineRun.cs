@@ -1,4 +1,4 @@
-// Purpose: Defines P ip el in eR un domain behavior and invariants for o pe ra ti on s.
+// Purpose: Defines Pipeline Run domain behavior and invariants.
 using Dip.Domain.Enums;
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;

@@ -1,4 +1,4 @@
-// Purpose: Runs D ur ab le background processing for o pe ra ti on s.
+// Purpose: Defines Durable Job domain behavior and invariants.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

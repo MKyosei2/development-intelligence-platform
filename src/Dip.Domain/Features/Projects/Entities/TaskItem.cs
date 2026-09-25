@@ -1,1 +1,1 @@
-// Purpose: Defines T as kI te m domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Task Item domain behavior and invariants.
