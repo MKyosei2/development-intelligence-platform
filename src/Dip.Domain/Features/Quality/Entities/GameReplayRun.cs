@@ -1,4 +1,4 @@
-// Purpose: Defines G am eR ep la yR un domain behavior and invariants for q ua li ty.
+// Purpose: Defines Game Replay Run domain behavior and invariants for quality.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 

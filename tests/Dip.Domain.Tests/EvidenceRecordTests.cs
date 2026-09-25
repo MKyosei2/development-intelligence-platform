@@ -1,4 +1,4 @@
-// Purpose: Verifies E vi de nc eR ec or d behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Evidence Record behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

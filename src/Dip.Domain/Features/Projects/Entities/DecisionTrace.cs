@@ -1,4 +1,4 @@
-// Purpose: Defines D ec is io nT ra ce domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Decision Trace domain behavior and invariants for projects.
 namespace Dip.Domain.Entities;
 
 public sealed class DecisionTrace

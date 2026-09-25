@@ -1,4 +1,4 @@
-// Purpose: Verifies P ul lR eq ue st Pi pe li ne Sc en ar io behavior, edge cases, and invariants for s ce na ri os.
+// Purpose: Verifies Pull Request Pipeline Scenario behavior, edge cases, and repository invariants.
 using System.Net;
 using System.Text.Json;
 using Dip.EndToEndTests.Support;

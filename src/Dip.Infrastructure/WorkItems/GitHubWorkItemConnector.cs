@@ -1,4 +1,4 @@
-// Purpose: Implements G it Hu bW or kI te mC on ne ct or infrastructure integration for w or ki te ms.
+// Purpose: Implements Git Hub Work Item Connector infrastructure behavior for this repository area.
 using Dip.Application.Abstractions.WorkItems;
 using Dip.Infrastructure.GitHub;
 using Microsoft.Extensions.Options;

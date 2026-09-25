@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct Me mb er sh ip s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Project Memberships HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Domain.Enums;

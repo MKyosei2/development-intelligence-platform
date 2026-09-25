@@ -1,4 +1,4 @@
-// Purpose: Defines C ha ng eR is kA ss es sm en t domain behavior and invariants for q ua li ty.
+// Purpose: Defines Change Risk Assessment domain behavior and invariants for quality.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ChangeRiskAssessment

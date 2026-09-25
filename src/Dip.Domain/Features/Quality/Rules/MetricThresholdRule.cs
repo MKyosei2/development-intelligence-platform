@@ -1,1 +1,1 @@
-// Purpose: Defines M et ri cT hr es ho ld Ru le domain behavior and invariants for r ul es.
+// Purpose: Defines Metric Threshold Rule domain behavior and invariants for quality.

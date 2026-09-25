@@ -1,4 +1,4 @@
-// Purpose: Defines Q ua li ty Ru le domain behavior and invariants for q ua li ty.
+// Purpose: Defines Quality Rule domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
  public sealed class QualityRule { public Guid Id { get;
  set;

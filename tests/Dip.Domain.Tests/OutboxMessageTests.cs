@@ -1,4 +1,4 @@
-// Purpose: Verifies O ut bo xM es sa ge behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Outbox Message behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Xunit;
 

@@ -1,1 +1,1 @@
-// Purpose: Implements M in io Ob je ct St or ag e infrastructure integration for s to ra ge.
+// Purpose: Implements Minio Object Storage infrastructure behavior for this repository area.

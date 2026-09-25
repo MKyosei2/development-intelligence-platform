@@ -1,4 +1,4 @@
-// Purpose: Implements Q ue ue infrastructure integration for m es sa gi ng.
+// Purpose: Implements Queue Options infrastructure behavior for this repository area.
 namespace Dip.Infrastructure.Messaging;
 public sealed class QueueOptions
 {

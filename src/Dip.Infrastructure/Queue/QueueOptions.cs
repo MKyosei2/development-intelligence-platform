@@ -1,1 +1,1 @@
-// Purpose: Implements Q ue ue infrastructure integration for q ue ue.
+// Purpose: Implements Queue Options infrastructure behavior for this repository area.

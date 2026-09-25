@@ -1,4 +1,4 @@
-// Purpose: Implements M an ag em en tN ot if ic at io n infrastructure integration for m an ag em en t.
+// Purpose: Implements Management Notification Options infrastructure behavior for management.
 namespace Dip.Infrastructure.Management;
 
 public sealed class ManagementNotificationOptions

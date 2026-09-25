@@ -1,4 +1,4 @@
-// Purpose: Verifies O ut bo xW ri te r behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Outbox Writer behavior, edge cases, and repository invariants.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Services;
 using Dip.Domain.Entities;

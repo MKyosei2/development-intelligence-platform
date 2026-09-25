@@ -1,4 +1,4 @@
-// Purpose: Verifies H ea lt hS co re behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Health Score behavior, edge cases, and repository invariants.
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

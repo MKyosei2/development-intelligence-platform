@@ -1,4 +1,4 @@
-// Purpose: Defines T ra ck ed Ar ti fa ct domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines Tracked Artifact domain behavior and invariants for artifacts.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

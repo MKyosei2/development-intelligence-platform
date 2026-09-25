@@ -1,4 +1,4 @@
-// Purpose: Runs O ut bo x background processing for this repository area.
+// Purpose: Runs Outbox Worker background processing for the DIP worker runtime.
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;

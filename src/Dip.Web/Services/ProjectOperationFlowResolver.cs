@@ -1,4 +1,4 @@
-// Purpose: Implements P ro je ct Op er at io nF lo wR es ol ve r web behavior for this repository area.
+// Purpose: Implements Project Operation Flow Resolver web behavior for this repository area.
 using Dip.Application.Features.Dashboard;
 using Dip.Application.Features.GitHubIntegration;
 

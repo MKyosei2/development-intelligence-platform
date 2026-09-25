@@ -1,4 +1,4 @@
-// Purpose: Defines G am eR ep la yM et ri c domain behavior and invariants for q ua li ty.
+// Purpose: Defines Game Replay Metric domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 public sealed class GameReplayMetric
 {

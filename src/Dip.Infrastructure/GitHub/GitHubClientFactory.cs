@@ -1,4 +1,4 @@
-// Purpose: Implements G it Hu bC li en tF ac to ry infrastructure integration for g it hu b.
+// Purpose: Implements Git Hub Client Factory infrastructure behavior for this repository area.
 using Microsoft.Extensions.Options;
 using Octokit;
 

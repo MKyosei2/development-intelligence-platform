@@ -1,4 +1,4 @@
-// Purpose: Exposes L oc al Co ll ec to r HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Local Collector HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;

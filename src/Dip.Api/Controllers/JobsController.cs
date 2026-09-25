@@ -1,4 +1,4 @@
-// Purpose: Exposes J ob s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Jobs HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;

@@ -1,4 +1,4 @@
-// Purpose: Verifies D et er mi ni st ic Lo ca lD eb ug Ag en t behavior, edge cases, and invariants for p2 in te ll ig en ce.
+// Purpose: Verifies Deterministic Local Debug Agent behavior, edge cases, and repository invariants.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Infrastructure.P2Intelligence;
 using FluentAssertions;

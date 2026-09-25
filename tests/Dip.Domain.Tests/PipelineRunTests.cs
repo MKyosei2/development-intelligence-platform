@@ -1,4 +1,4 @@
-// Purpose: Verifies P ip el in eR un behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Pipeline Run behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Dip.Domain.Exceptions;

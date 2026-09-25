@@ -1,4 +1,4 @@
-// Purpose: Implements L in ea rM an ag em en tS yn cA da pt er infrastructure integration for m an ag em en t.
+// Purpose: Implements Linear Management Sync Adapter infrastructure behavior for management.
 using System.Net.Http.Json;
 using System.Text.Json;
 using Dip.Application.Features.Management;

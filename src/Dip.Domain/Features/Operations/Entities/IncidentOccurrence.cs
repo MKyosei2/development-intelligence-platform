@@ -1,4 +1,4 @@
-// Purpose: Defines I nc id en tO cc ur re nc e domain behavior and invariants for o pe ra ti on s.
+// Purpose: Defines Incident Occurrence domain behavior and invariants for operations.
 namespace Dip.Domain.Entities;
 public sealed class IncidentOccurrence
 {

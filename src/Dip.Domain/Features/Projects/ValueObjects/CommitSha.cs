@@ -1,4 +1,4 @@
-// Purpose: Defines C om mi tS ha domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Commit SHA domain behavior and invariants for projects.
 using Dip.Domain.Exceptions;
 namespace Dip.Domain.ValueObjects;
  public readonly record struct CommitSha { public string Value { get;

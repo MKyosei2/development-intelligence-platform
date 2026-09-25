@@ -1,4 +1,4 @@
-// Purpose: Implements G oo gl eC al en da rR es tC on ne ct or infrastructure integration for c al en da rs.
+// Purpose: Implements Google Calendar Rest Connector infrastructure behavior for this repository area.
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;

@@ -1,4 +1,4 @@
-// Purpose: Verifies M ed ia Sp oo l behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Media Spool behavior, edge cases, and repository invariants.
 using System.Text.Json;
 using Dip.Agent.Core;
 using FluentAssertions;

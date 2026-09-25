@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro je ct Fi le Sc an ne r behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Project File Scanner behavior, edge cases, and repository invariants.
 using Dip.Agent.Core;
 using FluentAssertions;
 

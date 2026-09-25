@@ -1,4 +1,4 @@
-// Purpose: Exposes C ap ab il it ie s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Capabilities HTTP endpoints for the DIP API.
 using Dip.Application.Features.Capabilities;
 using Microsoft.AspNetCore.Mvc;
 

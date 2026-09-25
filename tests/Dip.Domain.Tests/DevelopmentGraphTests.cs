@@ -1,4 +1,4 @@
-// Purpose: Verifies D ev el op me nt Gr ap h behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Development Graph behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 

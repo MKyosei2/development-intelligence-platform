@@ -1,4 +1,4 @@
-// Purpose: Verifies P2 En ti ti es behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies P 2 Entities behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using FluentAssertions;

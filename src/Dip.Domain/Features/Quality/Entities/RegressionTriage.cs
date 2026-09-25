@@ -1,4 +1,4 @@
-// Purpose: Defines R eg re ss io nT ri ag e domain behavior and invariants for q ua li ty.
+// Purpose: Defines Regression Triage domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 public sealed class RegressionTriage
 {

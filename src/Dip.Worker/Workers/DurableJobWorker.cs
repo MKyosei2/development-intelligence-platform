@@ -1,4 +1,4 @@
-// Purpose: Runs D ur ab le Jo b background processing for this repository area.
+// Purpose: Runs Durable Job Worker background processing for the DIP worker runtime.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;

@@ -1,4 +1,4 @@
-// Purpose: Defines V is ua lC om pa ri so nR ec or d domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines Visual Comparison Record domain behavior and invariants for artifacts.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Defines E xt er na lW or kI te mL in k domain behavior and invariants for o pe ra ti on s.
+// Purpose: Defines External Work Item Link domain behavior and invariants for operations.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ExternalWorkItemLink

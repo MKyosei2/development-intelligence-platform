@@ -1,1 +1,1 @@
-// Purpose: Implements G it Hu bC li en t infrastructure integration for g it hu b.
+// Purpose: Implements Git Hub Client infrastructure behavior for this repository area.

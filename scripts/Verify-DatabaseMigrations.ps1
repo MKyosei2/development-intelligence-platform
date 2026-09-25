@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y D at ab as eM ig ra ti on s for repository development and verification workflows.
+# Purpose: Runs Verify Database Migrations as part of repository development and verification workflows.
 [CmdletBinding()]
 param(
     [string]$DatabaseUser=$(if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}),

@@ -1,4 +1,4 @@
-// Purpose: Implements L eg ac yM ig ra ti on Ad op te r infrastructure integration for p er si st en ce.
+// Purpose: Implements Legacy Migration Adopter infrastructure behavior for persistence.
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

@@ -1,4 +1,4 @@
-// Purpose: Defines I nt eg ra ti on Co nn ec ti on domain behavior and invariants for i nt eg ra ti on s.
+// Purpose: Defines Integration Connection domain behavior and invariants for integrations.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

@@ -1,4 +1,4 @@
-// Purpose: Exposes M et ri cs HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Metrics HTTP endpoints for the DIP API.
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;

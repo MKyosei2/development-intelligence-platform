@@ -1,4 +1,4 @@
-# Purpose: Automates V er if y S el fH os te dW in do ws Ru nt im e for repository development and verification workflows.
+# Purpose: Runs Verify Self Hosted Windows Runtime as part of repository development and verification workflows.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

@@ -1,4 +1,4 @@
-// Purpose: Implements S la ck Ma na ge me nt No ti fi ca ti on Ch an ne l infrastructure integration for m an ag em en t.
+// Purpose: Implements Slack Management Notification Channel infrastructure behavior for management.
 using System.Net.Http.Json;
 using Dip.Application.Features.Management;
 using Microsoft.Extensions.Options;

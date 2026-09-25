@@ -1,4 +1,4 @@
-// Purpose: Verifies M an ag em en tO pe ra ti on sA ut ho ri za ti on Su rf ac e behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Management Operations Authorization Surface behavior, edge cases, and repository invariants.
 using System.Reflection;
 using Dip.Api.Authorization;
 using Dip.Api.Controllers;

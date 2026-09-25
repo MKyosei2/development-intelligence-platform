@@ -1,4 +1,4 @@
-// Purpose: Defines P ro ce ss ed We bh oo k domain behavior and invariants for i nt eg ra ti on s.
+// Purpose: Defines Processed Webhook domain behavior and invariants for integrations.
 namespace Dip.Domain.Entities;
  public sealed class ProcessedWebhook { private ProcessedWebhook() { }
 public ProcessedWebhook(string deliveryId, string eventName, string payloadHash, DateTimeOffset receivedAtUtc) { DeliveryId = Required(deliveryId, 200);

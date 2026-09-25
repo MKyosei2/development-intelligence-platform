@@ -1,4 +1,4 @@
-// Purpose: Implements Q aA da pt er Re gi st ry infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements QA Adapter Registry infrastructure behavior for quality automation.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 

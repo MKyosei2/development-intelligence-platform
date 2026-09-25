@@ -1,4 +1,4 @@
-// Purpose: Verifies P1 Qa Ev id en ce Sc en ar io behavior, edge cases, and invariants for s ce na ri os.
+// Purpose: Verifies P 1 QA Evidence Scenario behavior, edge cases, and repository invariants.
 using System.Diagnostics;
 using Dip.EndToEndTests.Support;
 using FluentAssertions;

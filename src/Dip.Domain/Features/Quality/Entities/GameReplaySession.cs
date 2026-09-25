@@ -1,4 +1,4 @@
-// Purpose: Defines G am eR ep la yS es si on domain behavior and invariants for q ua li ty.
+// Purpose: Defines Game Replay Session domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 
 public sealed class GameReplaySession

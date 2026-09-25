@@ -1,4 +1,4 @@
-// Purpose: Coordinates O nb oa rd in gS ta te application operations for this repository area.
+// Purpose: Implements Onboarding State Service web behavior for this repository area.
 using Microsoft.JSInterop;
 
 namespace Dip.Web.Services;

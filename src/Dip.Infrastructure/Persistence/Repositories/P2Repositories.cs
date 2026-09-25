@@ -1,4 +1,4 @@
-// Purpose: Implements P2 Re po si to ri es infrastructure integration for p er si st en ce.
+// Purpose: Implements P 2 Repositories infrastructure behavior for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

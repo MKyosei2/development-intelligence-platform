@@ -1,4 +1,4 @@
-// Purpose: Coordinates M an ag em en tA na ly ti cs application operations for m an ag em en t.
+// Purpose: Implements Management Analytics Service application behavior for management.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

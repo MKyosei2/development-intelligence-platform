@@ -1,4 +1,4 @@
-// Purpose: Exposes G am eR ep la y HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Game Replay HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Replay;

@@ -1,4 +1,4 @@
-// Purpose: Defines E vi de nc eC on fi de nc e domain behavior and invariants for e vi de nc e.
+// Purpose: Defines Evidence Confidence domain behavior and invariants for evidence.
 namespace Dip.Domain.Enums;
 
 public enum EvidenceConfidence

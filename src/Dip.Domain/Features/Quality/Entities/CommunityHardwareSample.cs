@@ -1,4 +1,4 @@
-// Purpose: Defines C om mu ni ty Ha rd wa re Sa mp le domain behavior and invariants for q ua li ty.
+// Purpose: Defines Community Hardware Sample domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 public sealed class CommunityHardwareSample
 {

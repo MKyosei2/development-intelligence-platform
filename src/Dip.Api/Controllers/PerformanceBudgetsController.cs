@@ -1,4 +1,4 @@
-// Purpose: Exposes P er fo rm an ce Bu dg et s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Performance Budgets HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Performance;
 using Microsoft.AspNetCore.Authorization;

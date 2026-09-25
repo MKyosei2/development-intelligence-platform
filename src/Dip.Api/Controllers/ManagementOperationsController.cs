@@ -1,4 +1,4 @@
-// Purpose: Exposes M an ag em en tO pe ra ti on s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Management Operations HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Management;
 using Dip.Domain.Enums;

@@ -1,4 +1,4 @@
-// Purpose: Implements Q aT oo lS up po rt infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements QA Tool Support infrastructure behavior for quality automation.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;

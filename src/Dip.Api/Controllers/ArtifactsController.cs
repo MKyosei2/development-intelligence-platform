@@ -1,4 +1,4 @@
-// Purpose: Exposes A rt if ac ts HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Artifacts HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Artifacts;
 using Dip.Application.Features.Authorization;

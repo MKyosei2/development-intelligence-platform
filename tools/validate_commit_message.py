@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements v al id at e c om mi t m es sa ge tooling used by repository verification and development workflows.
+# Purpose: Provides validate commit message tooling for repository verification and development workflows.
 import re, sys
 RX=re.compile(r'^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .{3,72}$')
 def valid(s): return bool(RX.match(s)) or s.startswith('Merge ') or s.startswith('Revert ')

@@ -1,4 +1,4 @@
-// Purpose: Defines I nt el li ge nc eR un domain behavior and invariants for o pe ra ti on s.
+// Purpose: Defines Intelligence Run domain behavior and invariants for operations.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class IntelligenceRun

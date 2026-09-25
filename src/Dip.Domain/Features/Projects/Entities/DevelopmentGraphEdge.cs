@@ -1,4 +1,4 @@
-// Purpose: Defines D ev el op me nt Gr ap hE dg e domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Development Graph Edge domain behavior and invariants for projects.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;
