@@ -1,4 +1,4 @@
-// Purpose: Implements F uz zR un ne r infrastructure behavior for i nt el li ge nc e.
+// Purpose: Implements Fuzz Runner infrastructure behavior for intelligence.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.Intelligence;

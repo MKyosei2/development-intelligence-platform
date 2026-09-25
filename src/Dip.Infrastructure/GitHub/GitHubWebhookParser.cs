@@ -1,1 +1,1 @@
-// Purpose: Implements G it Hu bW eb ho ok Pa rs er infrastructure behavior for g it hu b.
+// Purpose: Implements GitHub Webhook Parser infrastructure behavior for github.

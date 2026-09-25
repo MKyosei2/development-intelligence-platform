@@ -1,4 +1,4 @@
-// Purpose: Implements G it Hu b infrastructure behavior for g it hu b.
+// Purpose: Implements GitHub Options infrastructure behavior for github.
 namespace Dip.Infrastructure.GitHub;
 
 public sealed class GitHubOptions
