@@ -1,4 +1,4 @@
-// Purpose: Verifies V is ua lC om pa ra to r behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies Visual Comparator behavior, edge cases, and invariants.
 using Dip.Application.Features.QualityAutomation.VisualQa;
 using FluentAssertions;
 

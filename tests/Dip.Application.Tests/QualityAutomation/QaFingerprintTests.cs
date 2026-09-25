@@ -1,4 +1,4 @@
-// Purpose: Verifies Q aF in ge rp ri nt behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies QA Fingerprint behavior, edge cases, and invariants.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
