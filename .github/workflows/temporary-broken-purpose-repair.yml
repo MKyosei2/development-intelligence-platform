@@ -1,0 +1,43 @@
+name: Temporary Broken Purpose Repair
+
+on:
+  push:
+    branches:
+      - fix/purpose-comment-normalization-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: broken-purpose-repair-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: fix/purpose-comment-normalization-20260925
+      - name: Repair broken Purpose comments only
+        shell: pwsh
+        run: ./scripts/Repair-BrokenPurposeComments.ps1
+      - name: Show changed files
+        shell: bash
+        run: git diff --name-only
+      - name: Commit repaired comments
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No broken Purpose comments remain."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests scripts tools services collectors plugins
+          git commit -m "fix: normalize remaining broken Purpose comments"
+          git push origin HEAD:fix/purpose-comment-normalization-20260925
