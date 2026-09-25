@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro du ct io nT oo ls HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Production Tools HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.ProductionTools;

@@ -1,4 +1,4 @@
-// Purpose: Exposes P ip el in eR un s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Pipeline Runs HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Features.Authorization;

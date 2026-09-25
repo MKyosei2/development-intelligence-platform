@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Projects HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Projects;

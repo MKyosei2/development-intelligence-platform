@@ -1,4 +1,4 @@
-// Purpose: Exposes Q a HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes QA HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Api.Hubs;
 using Dip.Application.Abstractions.Persistence;
