@@ -1,4 +1,4 @@
-// Purpose: Implements R el ia bi li ty Ru nn er infrastructure integration for i nt el li ge nc e.
+// Purpose: Implements Reliability Runner infrastructure behavior for this repository area.
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;

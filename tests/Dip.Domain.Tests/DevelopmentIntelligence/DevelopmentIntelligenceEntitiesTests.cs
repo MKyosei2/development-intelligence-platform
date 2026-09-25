@@ -1,4 +1,4 @@
-// Purpose: Verifies D ev el op me nt In te ll ig en ce En ti ti es behavior, edge cases, and invariants for d ev el op me nt in te ll ig en ce.
+// Purpose: Verifies Development Intelligence Entities behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

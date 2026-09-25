@@ -1,4 +1,4 @@
-// Purpose: Exposes I nc id en ts HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Incidents HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Authorization;
 using Dip.Application.Features.Incidents;

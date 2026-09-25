@@ -1,4 +1,4 @@
-// Purpose: Exposes S ys te mS ta tu s HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes System Status HTTP endpoints for the DIP API.
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;

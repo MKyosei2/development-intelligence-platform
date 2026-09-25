@@ -1,4 +1,4 @@
-// Purpose: Verifies D ur ab le Jo b behavior, edge cases, and invariants for p la tf or mi nt el li ge nc e.
+// Purpose: Verifies Durable Job behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 using Xunit;

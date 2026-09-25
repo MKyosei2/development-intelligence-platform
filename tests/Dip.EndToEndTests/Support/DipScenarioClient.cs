@@ -1,4 +1,4 @@
-// Purpose: Verifies D ip Sc en ar io Cl ie nt behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies DIP Scenario Client behavior, edge cases, and repository invariants.
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;

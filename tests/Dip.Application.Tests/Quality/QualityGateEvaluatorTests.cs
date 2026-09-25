@@ -1,4 +1,4 @@
-// Purpose: Verifies Q ua li ty Ga te Ev al ua to r behavior, edge cases, and invariants for q ua li ty.
+// Purpose: Verifies Quality Gate Evaluator behavior, edge cases, and repository invariants.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.DevelopmentGraph;

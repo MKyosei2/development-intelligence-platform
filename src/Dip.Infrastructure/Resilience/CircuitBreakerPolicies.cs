@@ -1,1 +1,1 @@
-// Purpose: Implements C ir cu it Br ea ke rP ol ic ie s infrastructure integration for r es il ie nc e.
+// Purpose: Implements Circuit Breaker Policies infrastructure behavior for this repository area.

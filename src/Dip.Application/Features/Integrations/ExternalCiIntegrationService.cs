@@ -1,4 +1,4 @@
-// Purpose: Coordinates E xt er na lC iI nt eg ra ti on application operations for i nt eg ra ti on s.
+// Purpose: Implements External CI Integration Service application behavior for integrations.
 using System.Text.Json;
 using Dip.Application.Abstractions.Integrations;
 using Dip.Application.Abstractions.Persistence;

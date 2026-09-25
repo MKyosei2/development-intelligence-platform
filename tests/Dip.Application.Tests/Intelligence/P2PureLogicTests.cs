@@ -1,4 +1,4 @@
-// Purpose: Verifies P2 Pu re Lo gi c behavior, edge cases, and invariants for i nt el li ge nc e.
+// Purpose: Verifies P 2 Pure Logic behavior, edge cases, and repository invariants.
 using Dip.Application.Features.Intelligence;
 using Xunit;
 namespace Dip.Application.Tests.Intelligence;

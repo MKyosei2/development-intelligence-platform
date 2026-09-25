@@ -1,4 +1,4 @@
-// Purpose: Defines A da pt iv eQ aP la nS na ps ho t domain behavior and invariants for q ua li ty.
+// Purpose: Defines Adaptive QA Plan Snapshot domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 
 public sealed class AdaptiveQaPlanSnapshot

@@ -1,4 +1,4 @@
-// Purpose: Exposes I nt el li ge nc e HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Intelligence HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Intelligence;
 using Microsoft.AspNetCore.Authorization;

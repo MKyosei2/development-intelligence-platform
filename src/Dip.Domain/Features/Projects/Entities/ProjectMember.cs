@@ -1,1 +1,1 @@
-// Purpose: Defines P ro je ct Me mb er domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Project Member domain behavior and invariants for projects.

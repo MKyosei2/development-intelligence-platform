@@ -1,4 +1,4 @@
-// Purpose: Coordinates R ea lt im eU pd at e application operations for this repository area.
+// Purpose: Implements Realtime Update Service web behavior for this repository area.
 using Dip.Application.Features.Realtime;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.SignalR.Client;

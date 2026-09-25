@@ -1,4 +1,4 @@
-// Purpose: Defines A rt if ac tB lo b domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines Artifact Blob domain behavior and invariants for artifacts.
 namespace Dip.Domain.Entities;
 
 public sealed class ArtifactBlob

@@ -1,4 +1,4 @@
-// Purpose: Defines H ar dw ar eC al ib ra ti on domain behavior and invariants for q ua li ty.
+// Purpose: Defines Hardware Calibration domain behavior and invariants for quality.
 namespace Dip.Domain.Entities;
 
 public sealed class HardwareCalibration

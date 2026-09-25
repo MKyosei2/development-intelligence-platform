@@ -1,4 +1,4 @@
-// Purpose: Coordinates M an ag em en tS pr ea ds he et application operations for m an ag em en t.
+// Purpose: Implements Management Spreadsheet Service application behavior for management.
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;

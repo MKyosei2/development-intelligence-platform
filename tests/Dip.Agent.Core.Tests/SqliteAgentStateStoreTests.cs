@@ -1,4 +1,4 @@
-// Purpose: Verifies S ql it eA ge nt St at eS to re behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Sqlite Agent State Store behavior, edge cases, and repository invariants.
 using Dip.Agent.Core;
 using FluentAssertions;
 

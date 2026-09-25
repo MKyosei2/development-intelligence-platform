@@ -1,4 +1,4 @@
-// Purpose: Persists and queries Q ua li ty Is su e state for p er si st en ce.
+// Purpose: Implements Quality Issue Repository infrastructure behavior for persistence.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

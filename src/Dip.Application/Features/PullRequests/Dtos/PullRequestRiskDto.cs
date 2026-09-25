@@ -1,1 +1,1 @@
-// Purpose: Defines P ul lR eq ue st Ri sk data exchanged by p ul lr eq ue st s.
+// Purpose: Implements Pull Request Risk Dto application behavior for pull requests.

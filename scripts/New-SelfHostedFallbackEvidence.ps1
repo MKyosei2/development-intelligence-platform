@@ -1,4 +1,4 @@
-# Purpose: Automates N ew S el fH os te dF al lb ac kE vi de nc e for repository development and verification workflows.
+# Purpose: Runs New Self Hosted Fallback Evidence as part of repository development and verification workflows.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

@@ -1,4 +1,4 @@
-// Purpose: Implements P os tg re sQ ue ue Cl ie nt infrastructure integration for m es sa gi ng.
+// Purpose: Implements Postgres Queue Client infrastructure behavior for this repository area.
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;

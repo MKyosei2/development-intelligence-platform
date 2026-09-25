@@ -1,4 +1,4 @@
-// Purpose: Defines Q ua li ty Ga te Re su lt domain behavior and invariants for q ua li ty.
+// Purpose: Defines Quality Gate Result domain behavior and invariants for quality.
 using System.Text.Json;
 namespace Dip.Domain.Entities;
  public sealed class QualityGateResult { private QualityGateResult() { }

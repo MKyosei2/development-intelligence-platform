@@ -1,4 +1,4 @@
-// Purpose: Runs C ol le ct or Re po rt Pr oc es se d background processing for this repository area.
+// Purpose: Runs Collector Report Processed Worker background processing for the DIP worker runtime.
 using System.Text.Json;
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Features.Quality;

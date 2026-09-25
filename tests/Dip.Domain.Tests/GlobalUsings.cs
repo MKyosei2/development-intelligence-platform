@@ -1,2 +1,2 @@
-// Purpose: Verifies G lo ba lU si ng s behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Global Usings behavior, edge cases, and repository invariants.
 global using Xunit;

@@ -1,4 +1,4 @@
-// Purpose: Exposes N ot if ic at io ns HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Notifications HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Management;
 using Microsoft.AspNetCore.Authorization;

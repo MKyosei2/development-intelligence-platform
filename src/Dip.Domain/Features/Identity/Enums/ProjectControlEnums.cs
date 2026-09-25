@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Co nt ro lE nu ms domain behavior and invariants for i de nt it y.
+// Purpose: Defines Project Control Enums domain behavior and invariants for identity.
 namespace Dip.Domain.Enums;
 
 public enum DevelopmentGraphNodeType

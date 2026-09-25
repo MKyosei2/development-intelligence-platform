@@ -1,4 +1,4 @@
-// Purpose: Verifies C om mi tS ha behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Commit SHA behavior, edge cases, and repository invariants.
 using Dip.Domain.Exceptions;
 using Dip.Domain.ValueObjects;
 using FluentAssertions;

@@ -1,4 +1,4 @@
-# Purpose: Automates B oo ts tr ap P ro je ct Me mb er sh ip s for repository development and verification workflows.
+# Purpose: Runs Bootstrap Project Memberships as part of repository development and verification workflows.
 [CmdletBinding(DefaultParameterSetName='Selected')]
 param(
     [Parameter(Mandatory=$true)][string]$BaseUrl,

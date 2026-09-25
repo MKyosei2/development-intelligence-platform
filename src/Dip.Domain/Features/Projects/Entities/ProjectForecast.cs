@@ -1,4 +1,4 @@
-// Purpose: Defines P ro je ct Fo re ca st domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Project Forecast domain behavior and invariants for projects.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class ProjectForecast

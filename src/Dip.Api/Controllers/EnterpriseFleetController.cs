@@ -1,4 +1,4 @@
-// Purpose: Exposes E nt er pr is eF le et HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Enterprise Fleet HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Enterprise;
 using Dip.Application.Features.Fleet;

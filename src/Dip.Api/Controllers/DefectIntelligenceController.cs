@@ -1,4 +1,4 @@
-// Purpose: Exposes D ef ec tI nt el li ge nc e HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Defect Intelligence HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;

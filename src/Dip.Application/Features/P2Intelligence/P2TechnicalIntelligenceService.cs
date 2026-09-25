@@ -1,4 +1,4 @@
-// Purpose: Coordinates P2 Te ch ni ca lI nt el li ge nc e application operations for p2 in te ll ig en ce.
+// Purpose: Implements P 2 Technical Intelligence Service application behavior for p 2 intelligence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

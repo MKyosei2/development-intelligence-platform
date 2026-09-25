@@ -1,4 +1,4 @@
-// Purpose: Defines C ro ss Re po si to ry Im pa ct domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Cross Repository Impact domain behavior and invariants for projects.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class CrossRepositoryImpact

@@ -1,4 +1,4 @@
-// Purpose: Verifies L oc al Ar ti fa ct St or e behavior, edge cases, and invariants for a rt if ac ts.
+// Purpose: Verifies Local Artifact Store behavior, edge cases, and repository invariants.
 using System.Text;
 using Dip.Infrastructure.Artifacts;
 using Microsoft.Extensions.Options;

@@ -1,1 +1,1 @@
-// Purpose: Implements A ut he nt ic at io n infrastructure integration for a ut he nt ic at io n.
+// Purpose: Implements Authentication Options infrastructure behavior for this repository area.

@@ -1,1 +1,1 @@
-// Purpose: Defines R ep os it or yU rl domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Repository Url domain behavior and invariants for projects.

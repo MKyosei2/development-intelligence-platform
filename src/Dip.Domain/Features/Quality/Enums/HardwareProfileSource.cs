@@ -1,4 +1,4 @@
-// Purpose: Defines H ar dw ar eP ro fi le So ur ce domain behavior and invariants for q ua li ty.
+// Purpose: Defines Hardware Profile Source domain behavior and invariants for quality.
 namespace Dip.Domain.Enums;
 
 public enum HardwareProfileSource

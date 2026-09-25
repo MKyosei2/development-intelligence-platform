@@ -1,4 +1,4 @@
-// Purpose: Defines O rg an iz at io nT en an t domain behavior and invariants for i de nt it y.
+// Purpose: Defines Organization Tenant domain behavior and invariants for identity.
 namespace Dip.Domain.Entities;
 
 public sealed class OrganizationTenant

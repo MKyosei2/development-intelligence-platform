@@ -1,4 +1,4 @@
-// Purpose: Verifies G it Hu bW eb ho ok Ve ri fi er behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Git Hub Webhook Verifier behavior, edge cases, and repository invariants.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Infrastructure.GitHub;

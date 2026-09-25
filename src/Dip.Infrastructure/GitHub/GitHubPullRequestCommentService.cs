@@ -1,4 +1,4 @@
-// Purpose: Coordinates G it Hu bP ul lR eq ue st Co mm en t application operations for g it hu b.
+// Purpose: Implements Git Hub Pull Request Comment Service infrastructure behavior for this repository area.
 using Dip.Application.Abstractions.GitHub;
 using Microsoft.Extensions.Options;
 using Octokit;

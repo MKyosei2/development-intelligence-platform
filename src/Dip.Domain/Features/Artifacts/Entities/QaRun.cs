@@ -1,4 +1,4 @@
-// Purpose: Defines Q aR un domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines QA Run domain behavior and invariants for artifacts.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 

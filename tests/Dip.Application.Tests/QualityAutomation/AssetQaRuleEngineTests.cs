@@ -1,4 +1,4 @@
-// Purpose: Verifies A ss et Qa Ru le En gi ne behavior, edge cases, and invariants for q ua li ty au to ma ti on.
+// Purpose: Verifies Asset QA Rule Engine behavior, edge cases, and repository invariants.
 using System.Text.Json;
 using Dip.Application.Features.ProductionTools;
 using Dip.Application.Features.QualityAutomation.AssetQa;

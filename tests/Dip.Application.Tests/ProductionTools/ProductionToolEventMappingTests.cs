@@ -1,4 +1,4 @@
-// Purpose: Verifies P ro du ct io nT oo lE ve nt Ma pp in g behavior, edge cases, and invariants for p ro du ct io nt oo ls.
+// Purpose: Verifies Production Tool Event Mapping behavior, edge cases, and repository invariants.
 using Dip.Application.Features.ProductionTools;
 using Dip.Domain.Enums;
 using FluentAssertions;

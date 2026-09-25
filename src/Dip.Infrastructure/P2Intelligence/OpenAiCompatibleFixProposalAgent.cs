@@ -1,4 +1,4 @@
-// Purpose: Implements O pe nA iC om pa ti bl eF ix Pr op os al Ag en t infrastructure integration for p2 in te ll ig en ce.
+// Purpose: Implements Open AI Compatible Fix Proposal Agent infrastructure behavior for this repository area.
 using Dip.Application.Features.QualityAutomation;
 
 namespace Dip.Infrastructure.P2Intelligence;

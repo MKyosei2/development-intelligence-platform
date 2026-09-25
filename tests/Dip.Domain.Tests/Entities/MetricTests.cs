@@ -1,4 +1,4 @@
-// Purpose: Verifies M et ri c behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Metric behavior, edge cases, and repository invariants.
 using Dip.Domain.Entities;
 using FluentAssertions;
 

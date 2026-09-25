@@ -1,4 +1,4 @@
-// Purpose: Defines C la im Ve ri fi ca ti on St at us domain behavior and invariants for e vi de nc e.
+// Purpose: Defines Claim Verification Status domain behavior and invariants for evidence.
 namespace Dip.Domain.Enums;
 
 public enum ClaimVerificationStatus

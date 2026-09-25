@@ -1,4 +1,4 @@
-// Purpose: Verifies P2 In te ll ig en ce Sc en ar io behavior, edge cases, and invariants for s ce na ri os.
+// Purpose: Verifies P 2 Intelligence Scenario behavior, edge cases, and repository invariants.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 using Xunit;

@@ -1,4 +1,4 @@
-// Purpose: Defines P er fo rm an ce Si mu la ti on Ru n domain behavior and invariants for q ua li ty.
+// Purpose: Defines Performance Simulation Run domain behavior and invariants for quality.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

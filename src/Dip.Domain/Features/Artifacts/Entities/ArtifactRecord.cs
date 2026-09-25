@@ -1,4 +1,4 @@
-// Purpose: Defines A rt if ac tR ec or d domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines Artifact Record domain behavior and invariants for artifacts.
 namespace Dip.Domain.Entities;
 
 public sealed class ArtifactRecord

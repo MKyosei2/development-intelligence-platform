@@ -1,4 +1,4 @@
-// Purpose: Verifies M an ag em en tO pe ra ti on sC on tr ac t behavior, edge cases, and invariants for this repository area.
+// Purpose: Verifies Management Operations Contract behavior, edge cases, and repository invariants.
 using System.IO.Compression;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;

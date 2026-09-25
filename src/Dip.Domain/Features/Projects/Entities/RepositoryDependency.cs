@@ -1,4 +1,4 @@
-// Purpose: Defines R ep os it or yD ep en de nc y domain behavior and invariants for p ro je ct s.
+// Purpose: Defines Repository Dependency domain behavior and invariants for projects.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class RepositoryDependency

@@ -1,4 +1,4 @@
-// Purpose: Defines Q ua li ty Is su eF in ge rp ri nt domain behavior and invariants for q ua li ty.
+// Purpose: Defines Quality Issue Fingerprint domain behavior and invariants for quality.
 using System.Security.Cryptography;
 using System.Text;
 namespace Dip.Domain.Services;

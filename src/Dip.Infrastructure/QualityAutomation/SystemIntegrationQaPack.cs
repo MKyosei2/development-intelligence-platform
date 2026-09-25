@@ -1,4 +1,4 @@
-// Purpose: Implements S ys te mI nt eg ra ti on Qa Pa ck infrastructure integration for q ua li ty au to ma ti on.
+// Purpose: Implements System Integration QA Pack infrastructure behavior for quality automation.
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;

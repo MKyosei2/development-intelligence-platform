@@ -1,4 +1,4 @@
-// Purpose: Defines persistence operations required by I Ou tb ox in p er si st en ce.
+// Purpose: Implements I Outbox Repository application behavior for persistence.
 using Dip.Domain.Entities;
 namespace Dip.Application.Abstractions.Persistence;
 public interface IOutboxRepository

@@ -1,4 +1,4 @@
-// Purpose: Exposes P ro je ct Ma na ge me nt Co mm an dC en te r HTTP endpoints for c on tr ol le rs.
+// Purpose: Exposes Project Management Command Center HTTP endpoints for the DIP API.
 using Dip.Api.Authorization;
 using Dip.Application.Features.Management;
 using Dip.Domain.Enums;

@@ -1,4 +1,4 @@
-// Purpose: Implements G am eR ep la y infrastructure integration for r ep la y.
+// Purpose: Implements Game Replay Options infrastructure behavior for this repository area.
 namespace Dip.Infrastructure.Replay;
 
 public sealed class GameReplayOptions
