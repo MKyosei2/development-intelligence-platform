@@ -1,4 +1,4 @@
-// Purpose: Implements F uz zR un ne r infrastructure integration for i nt el li ge nc e.
+// Purpose: Implements F uz zR un ne r infrastructure behavior for i nt el li ge nc e.
 using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.Intelligence;

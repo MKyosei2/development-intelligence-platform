@@ -1,1 +1,1 @@
-// Purpose: Implements L og gi ng infrastructure integration for o bs er va bi li ty.
+// Purpose: Implements L og gi ng infrastructure behavior for o bs er va bi li ty.

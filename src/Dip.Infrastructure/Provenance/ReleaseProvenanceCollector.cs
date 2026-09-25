@@ -1,4 +1,4 @@
-// Purpose: Implements R el ea se Pr ov en an ce Co ll ec to r infrastructure integration for p ro ve na nc e.
+// Purpose: Implements R el ea se Pr ov en an ce Co ll ec to r infrastructure behavior for p ro ve na nc e.
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Xml.Linq;

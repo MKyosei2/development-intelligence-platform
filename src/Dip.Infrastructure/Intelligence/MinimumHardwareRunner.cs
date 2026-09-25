@@ -1,4 +1,4 @@
-// Purpose: Implements M in im um Ha rd wa re Ru nn er infrastructure integration for i nt el li ge nc e.
+// Purpose: Implements M in im um Ha rd wa re Ru nn er infrastructure behavior for i nt el li ge nc e.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.Hardware;

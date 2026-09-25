@@ -1,4 +1,4 @@
-// Purpose: Implements I nt el li ge nc eE xe cu ti on Sa fe ty infrastructure integration for i nt el li ge nc e.
+// Purpose: Implements I nt el li ge nc eE xe cu ti on Sa fe ty infrastructure behavior for i nt el li ge nc e.
 using System.Diagnostics;
 
 namespace Dip.Infrastructure.Intelligence;

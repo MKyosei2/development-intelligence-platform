@@ -1,1 +1,1 @@
-// Purpose: Implements S to ra ge infrastructure integration for s to ra ge.
+// Purpose: Implements S to ra ge infrastructure behavior for s to ra ge.

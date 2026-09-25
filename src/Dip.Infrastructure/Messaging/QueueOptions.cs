@@ -1,4 +1,4 @@
-// Purpose: Implements Q ue ue infrastructure integration for m es sa gi ng.
+// Purpose: Implements Q ue ue infrastructure behavior for m es sa gi ng.
 namespace Dip.Infrastructure.Messaging;
 public sealed class QueueOptions
 {

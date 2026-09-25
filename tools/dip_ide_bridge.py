@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Implements d ip i de b ri dg e tooling used by repository verification and development workflows.
+# Purpose: Provides d ip i de b ri dg e tooling for repository verification and development workflows.
 """LSP publishDiagnostics -> DIP defect-intelligence bridge.
 Reads JSON/JSONL publishDiagnostics messages from stdin or --input and posts a
 normalized batch. No source code is uploaded; only diagnostic fields are sent.

@@ -1,4 +1,4 @@
-// Purpose: Implements P la tf or mI nt el li ge nc eR ep os it or ie s infrastructure integration for p er si st en ce.
+// Purpose: Implements P la tf or mI nt el li ge nc eR ep os it or ie s infrastructure behavior for p er si st en ce.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;

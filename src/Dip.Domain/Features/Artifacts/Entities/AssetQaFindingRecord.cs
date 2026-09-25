@@ -1,4 +1,4 @@
-// Purpose: Defines A ss et Qa Fi nd in gR ec or d domain behavior and invariants for a rt if ac ts.
+// Purpose: Defines A ss et QA Fi nd in gR ec or d domain behavior and invariants for a rt if ac ts.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;

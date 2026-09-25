@@ -1,4 +1,4 @@
-// Purpose: Implements O pe nA iC om pa ti bl eF ix Pr op os al Ag en t infrastructure integration for p2 in te ll ig en ce.
+// Purpose: Implements O pe nA iC om pa ti bl eF ix Pr op os al Ag en t infrastructure behavior for p2 in te ll ig en ce.
 using Dip.Application.Features.QualityAutomation;
 
 namespace Dip.Infrastructure.P2Intelligence;

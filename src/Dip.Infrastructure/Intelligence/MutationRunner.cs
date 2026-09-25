@@ -1,4 +1,4 @@
-// Purpose: Implements M ut at io nR un ne r infrastructure integration for i nt el li ge nc e.
+// Purpose: Implements M ut at io nR un ne r infrastructure behavior for i nt el li ge nc e.
 using System.Text.Json;
 using Dip.Application.Features.Intelligence;
 using Dip.Application.Features.QualityAutomation;

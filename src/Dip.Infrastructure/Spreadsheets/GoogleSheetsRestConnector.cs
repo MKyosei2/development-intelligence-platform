@@ -1,4 +1,4 @@
-// Purpose: Implements G oo gl eS he et sR es tC on ne ct or infrastructure integration for s pr ea ds he et s.
+// Purpose: Implements G oo gl eS he et sR es tC on ne ct or infrastructure behavior for s pr ea ds he et s.
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;

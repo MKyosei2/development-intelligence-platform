@@ -1,4 +1,4 @@
-// Purpose: Implements N at iv eS ym bo li ca to r infrastructure integration for p2 in te ll ig en ce.
+// Purpose: Implements N at iv eS ym bo li ca to r infrastructure behavior for p2 in te ll ig en ce.
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.P2Intelligence;

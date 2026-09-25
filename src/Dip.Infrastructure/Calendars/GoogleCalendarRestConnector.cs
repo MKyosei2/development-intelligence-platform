@@ -1,4 +1,4 @@
-// Purpose: Implements G oo gl eC al en da rR es tC on ne ct or infrastructure integration for c al en da rs.
+// Purpose: Implements G oo gl eC al en da rR es tC on ne ct or infrastructure behavior for c al en da rs.
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;

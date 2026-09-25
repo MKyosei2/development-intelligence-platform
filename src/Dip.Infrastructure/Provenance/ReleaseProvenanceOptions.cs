@@ -1,4 +1,4 @@
-// Purpose: Implements R el ea se Pr ov en an ce infrastructure integration for p ro ve na nc e.
+// Purpose: Implements R el ea se Pr ov en an ce infrastructure behavior for p ro ve na nc e.
 namespace Dip.Infrastructure.Provenance;
 
 public sealed class ReleaseProvenanceOptions

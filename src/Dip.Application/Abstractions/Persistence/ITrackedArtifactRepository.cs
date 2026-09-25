@@ -1,4 +1,4 @@
-// Purpose: Defines persistence operations required by I Tr ac ke dA rt if ac t in p er si st en ce.
+// Purpose: Persists and queries I Tr ac ke dA rt if ac t state for p er si st en ce.
 using Dip.Domain.Entities;
 
 namespace Dip.Application.Abstractions.Persistence;

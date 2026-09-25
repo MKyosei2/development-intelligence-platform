@@ -1,4 +1,4 @@
-// Purpose: Implements L oc al Ar ti fa ct St or e infrastructure integration for a rt if ac ts.
+// Purpose: Implements L oc al Ar ti fa ct St or e infrastructure behavior for a rt if ac ts.
 using System.Security.Cryptography;
 using Dip.Application.Abstractions.Artifacts;
 using Microsoft.Extensions.Options;
