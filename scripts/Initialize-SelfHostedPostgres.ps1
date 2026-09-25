@@ -1,4 +1,4 @@
-# Purpose: Automates I ni ti al iz e S el fH os te dP os tg re s for repository development and verification workflows.
+# Purpose: Automates Initialize Self Hosted Postgres for repository development and verification workflows.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

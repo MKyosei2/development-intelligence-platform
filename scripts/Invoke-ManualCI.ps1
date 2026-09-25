@@ -1,4 +1,4 @@
-# Purpose: Automates I nv ok e M an ua lC I for repository development and verification workflows.
+# Purpose: Automates Invoke Manual CI for repository development and verification workflows.
 [CmdletBinding()]
 param(
     [ValidateSet('Fast','Targeted','Full')]

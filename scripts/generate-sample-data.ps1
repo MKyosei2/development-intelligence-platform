@@ -1,4 +1,4 @@
-# Purpose: Automates g en er at e s am pl e d at a for repository development and verification workflows.
+# Purpose: Automates generate sample data for repository development and verification workflows.
 param([string]$OutputDirectory="artifacts/sample-data")
 $ErrorActionPreference="Stop"
 New-Item -ItemType Directory -Force -Path $OutputDirectory|Out-Null

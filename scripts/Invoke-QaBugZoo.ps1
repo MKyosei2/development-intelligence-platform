@@ -1,4 +1,4 @@
-# Purpose: Automates I nv ok e Q aB ug Zo o for repository development and verification workflows.
+# Purpose: Automates Invoke QA Bug Zoo for repository development and verification workflows.
 [CmdletBinding()]
 param(
     [switch]$AllowMissingTools,
