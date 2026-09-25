@@ -55,8 +55,25 @@ public interface IIdeDiagnosticNormalizer
     IReadOnlyList<QaFindingCandidate> Normalize(IdeDiagnosticBatch batch);
 }
 
+public sealed record AiExecutionMetadata(
+    string Provider,
+    string Model,
+    string PromptVersion,
+    int? InputTokens = null,
+    int? OutputTokens = null,
+    long DurationMs = 0,
+    string? FinishReason = null,
+    bool Grounded = true);
+
 public sealed record FixProposalRequest(Guid ProjectId, string SubjectKey, string Question, string EvidenceJson, string? RepositoryContext);
-public sealed record FixProposalResponse(string Provider, string Model, string Summary, string UnifiedDiff, IReadOnlyList<RegressionTestDraft> RegressionTests, IReadOnlyList<Guid> EvidenceIds);
+public sealed record FixProposalResponse(
+    string Provider,
+    string Model,
+    string Summary,
+    string UnifiedDiff,
+    IReadOnlyList<RegressionTestDraft> RegressionTests,
+    IReadOnlyList<Guid> EvidenceIds,
+    AiExecutionMetadata? Ai = null);
 public interface IFixProposalAgent
 {
     Task<FixProposalResponse?> ProposeAsync(FixProposalRequest request, CancellationToken ct);
@@ -75,7 +92,11 @@ public sealed record DebugHypothesis(
     IReadOnlyList<Guid> EvidenceIds, IReadOnlyList<DebugExperimentKind> SuggestedExperiments);
 public sealed record DebugHypothesisRequest(
     Guid ProjectId, string SubjectKey, string Question, string EvidenceJson, string? RepositoryContext, int MaxHypotheses = 5);
-public sealed record DebugHypothesisResponse(string Provider, string Model, IReadOnlyList<DebugHypothesis> Hypotheses);
+public sealed record DebugHypothesisResponse(
+    string Provider,
+    string Model,
+    IReadOnlyList<DebugHypothesis> Hypotheses,
+    AiExecutionMetadata? Ai = null);
 public interface IAutonomousDebugAgent
 {
     Task<DebugHypothesisResponse?> GenerateHypothesesAsync(DebugHypothesisRequest request, CancellationToken ct);

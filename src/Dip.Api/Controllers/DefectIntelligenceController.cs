@@ -25,8 +25,8 @@ public sealed class DefectIntelligenceController(IFixProposalAgent fixAgent, IVe
         return x is null
             ? UnprocessableEntity(new
             {
-                status = "NoDeterministicProposal",
-                message = "DIP Local Intelligence could not prove a safe deterministic patch for the supplied evidence. No external AI fallback exists."
+                status = "NoGroundedSafeProposal",
+                message = "The configured QA reasoning provider did not return a grounded patch candidate that satisfies the structured-output and safety policy."
             })
             : Ok(x);
     }

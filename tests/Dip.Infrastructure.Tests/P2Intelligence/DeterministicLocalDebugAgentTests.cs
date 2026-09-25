@@ -28,6 +28,7 @@ public sealed class DeterministicLocalDebugAgentTests
         result.Model.Should().Be("deterministic-rules-v1");
         result.Hypotheses.Should().NotBeEmpty();
         result.Hypotheses[0].EvidenceIds.Should().Contain(evidenceId);
+        result.Hypotheses[0].Confidence.Should().BeInRange(0m, 1m);
     }
 
     [Fact]

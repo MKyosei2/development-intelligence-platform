@@ -1,0 +1,18 @@
+{
+  "GenerativeQa": {
+    "Enabled": false,
+    "Endpoint": "https://api.openai.com/v1/chat/completions",
+    "Model": "",
+    "ApiKey": "",
+    "TimeoutSeconds": 90,
+    "MaxOutputTokens": 4096,
+    "MaxInputCharacters": 180000,
+    "MaxResponseCharacters": 1000000,
+    "MaxRetries": 2,
+    "MaxPatchFiles": 10,
+    "MaxPatchChangedLines": 1200,
+    "Temperature": 0.1,
+    "HypothesisPromptVersion": "dip.qa.hypothesis.v1",
+    "FixPromptVersion": "dip.qa.fix.v1"
+  }
+}

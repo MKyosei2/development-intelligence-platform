@@ -11,11 +11,13 @@ using Dip.Infrastructure.Intelligence;
 using Dip.Infrastructure.Messaging;
 using Dip.Infrastructure.Persistence;
 using Dip.Infrastructure.Persistence.Repositories;
+using Dip.Infrastructure.P2Intelligence;
 using Dip.Infrastructure.QualityAutomation;
 using Dip.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Dip.Infrastructure;
 
@@ -119,8 +121,27 @@ public static class DependencyInjection
         services.AddSingleton<Dip.Application.Features.P2Intelligence.IMediaRegressionRunner, Dip.Infrastructure.P2Intelligence.MediaRegressionRunner>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.ITestImpactAnalyzer, Dip.Infrastructure.P2Intelligence.TestImpactAnalyzer>();
         services.AddSingleton<Dip.Application.Features.P2Intelligence.INativeSymbolicator, Dip.Infrastructure.P2Intelligence.NativeSymbolicator>();
-        services.AddSingleton<Dip.Infrastructure.P2Intelligence.DeterministicLocalDebugAgent>();
-        services.AddSingleton<IFixProposalAgent>(sp => sp.GetRequiredService<Dip.Infrastructure.P2Intelligence.DeterministicLocalDebugAgent>());
+
+        // Generative QA is explicit opt-in. Disabled mode keeps the deterministic local baseline.
+        // Enabled mode fails closed at resolution time if endpoint/model/API-key configuration is incomplete.
+        services.Configure<GenerativeQaOptions>(configuration.GetSection(GenerativeQaOptions.SectionName));
+        services.AddSingleton<GenerativeQaRedactor>();
+        services.AddSingleton<GenerativeQaResponseParser>();
+        services.AddSingleton<DeterministicLocalDebugAgent>();
+        services.AddHttpClient<OpenAiCompatibleFixProposalAgent>(client =>
+        {
+            // Per-request timeout is enforced by the adapter so cancellation and retry remain observable.
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        });
+        services.AddScoped<IFixProposalAgent>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<GenerativeQaOptions>>().Value;
+            if (!options.Enabled)
+                return sp.GetRequiredService<DeterministicLocalDebugAgent>();
+            options.ValidateForEnabled();
+            return sp.GetRequiredService<OpenAiCompatibleFixProposalAgent>();
+        });
+
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DipDbContext>());
         services.AddSingleton<ISystemClock, SystemClock>();
 
@@ -131,10 +152,10 @@ public static class DependencyInjection
         services.Configure<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>(configuration.GetSection(Dip.Infrastructure.Artifacts.ArtifactStoreOptions.SectionName));
         services.AddSingleton<Dip.Application.Abstractions.Artifacts.IArtifactStore>(sp =>
         {
-            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>().Value;
+            var options = sp.GetRequiredService<IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>().Value;
             return options.Provider.Equals("Minio", StringComparison.OrdinalIgnoreCase)
-                ? new Dip.Infrastructure.Artifacts.MinioArtifactStore(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>())
-                : new Dip.Infrastructure.Artifacts.LocalArtifactStore(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>());
+                ? new Dip.Infrastructure.Artifacts.MinioArtifactStore(sp.GetRequiredService<IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>())
+                : new Dip.Infrastructure.Artifacts.LocalArtifactStore(sp.GetRequiredService<IOptions<Dip.Infrastructure.Artifacts.ArtifactStoreOptions>>());
         });
         services.AddSingleton<Dip.Application.Features.Benchmarks.IBenchmarkExecutor, Dip.Infrastructure.Benchmarks.BenchmarkExecutor>();
         services.Configure<Dip.Infrastructure.Replay.GameReplayOptions>(configuration.GetSection(Dip.Infrastructure.Replay.GameReplayOptions.SectionName));
