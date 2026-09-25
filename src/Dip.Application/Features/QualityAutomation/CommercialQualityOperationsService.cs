@@ -1,4 +1,4 @@
-// Purpose: Coordinates C om me rc ia lQ ua li ty Op er at io ns application operations for q ua li ty au to ma ti on.
+// Purpose: Implements Commercial Quality Operations Service application logic for Quality Automation.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;

@@ -1,4 +1,4 @@
-// Purpose: Defines P er fo rm an ce Bu dg et Ev al ua ti on domain behavior and invariants for q ua li ty.
+// Purpose: Defines Performance Budget Evaluation domain state and invariants.
 using Dip.Domain.Enums;
 namespace Dip.Domain.Entities;
 public sealed class PerformanceBudgetEvaluation

@@ -1,4 +1,4 @@
-// Purpose: Defines P er fo rm an ce Bu dg et Pr of il e domain behavior and invariants for q ua li ty.
+// Purpose: Defines Performance Budget Profile domain state and invariants.
 namespace Dip.Domain.Entities;
 public sealed class PerformanceBudgetProfile
 {
