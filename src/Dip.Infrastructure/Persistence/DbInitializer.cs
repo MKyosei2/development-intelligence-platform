@@ -1,4 +1,4 @@
-// Purpose: Implements D bI ni ti al iz er infrastructure behavior for p er si st en ce.
+// Purpose: Implements DB Initializer infrastructure behavior for persistence.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

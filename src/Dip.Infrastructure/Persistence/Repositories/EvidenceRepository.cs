@@ -1,4 +1,4 @@
-// Purpose: Persists and queries E vi de nc e state for p er si st en ce.
+// Purpose: Persists and queries Evidence state for DIP.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

@@ -1,4 +1,4 @@
-// Purpose: Persists and queries M et ri c state for p er si st en ce.
+// Purpose: Persists and queries Metric state for DIP.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 namespace Dip.Infrastructure.Persistence.Repositories;

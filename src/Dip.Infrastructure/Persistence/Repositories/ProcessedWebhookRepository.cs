@@ -1,4 +1,4 @@
-// Purpose: Persists and queries P ro ce ss ed We bh oo k state for p er si st en ce.
+// Purpose: Persists and queries Processed Webhook state for DIP.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

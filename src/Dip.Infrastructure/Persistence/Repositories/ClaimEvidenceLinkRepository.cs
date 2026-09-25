@@ -1,4 +1,4 @@
-// Purpose: Persists and queries C la im Ev id en ce Li nk state for p er si st en ce.
+// Purpose: Persists and queries Claim Evidence Link state for DIP.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
