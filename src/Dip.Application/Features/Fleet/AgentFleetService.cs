@@ -1,4 +1,4 @@
-// Purpose: Coordinates A ge nt Fl ee t application operations for f le et.
+// Purpose: Coordinates Agent Fleet Service application behavior for Fleet.
 using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Abstractions.Persistence;

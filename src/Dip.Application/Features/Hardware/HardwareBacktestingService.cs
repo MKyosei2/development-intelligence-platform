@@ -1,4 +1,4 @@
-// Purpose: Coordinates H ar dw ar eB ac kt es ti ng application operations for h ar dw ar e.
+// Purpose: Coordinates Hardware Backtesting Service application behavior for Hardware.
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Domain.Entities;

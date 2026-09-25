@@ -1,4 +1,4 @@
-// Purpose: Coordinates A rt if ac t application operations for a rt if ac ts.
+// Purpose: Coordinates Artifact Service application behavior for Artifacts.
 using System.Text.Json;
 using Dip.Application.Abstractions.Artifacts;
 using Dip.Application.Abstractions.Observability;

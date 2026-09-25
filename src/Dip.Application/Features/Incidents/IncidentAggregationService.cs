@@ -1,4 +1,4 @@
-// Purpose: Coordinates I nc id en tA gg re ga ti on application operations for i nc id en ts.
+// Purpose: Coordinates Incident Aggregation Service application behavior for Incidents.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
