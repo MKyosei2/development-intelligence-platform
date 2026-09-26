@@ -98,6 +98,18 @@ internal static class ProcessCommandValidator
         var equals = trimmed.IndexOf('=');
         if (equals > 0 && equals < trimmed.Length - 1)
         {
+            var name = trimmed[..equals];
+
+            // CMake compiler/linker flag definitions intentionally contain
+            // slash-prefixed switches such as:
+            //   -DCMAKE_CXX_FLAGS=/W4 /fsanitize=address /Zi
+            // Those values are command-line flags, not filesystem paths.
+            // Only the CMAKE_*_FLAGS family is exempted; all ordinary
+            // assignment/path arguments continue through canonical boundary
+            // validation below.
+            if (IsCMakeFlagsAssignment(name))
+                return null;
+
             var value = trimmed[(equals + 1)..].Trim('"');
             if (Path.IsPathFullyQualified(value) || LooksLikeRelativePath(value, workspace))
                 return value;
@@ -199,5 +211,18 @@ internal static class ProcessCommandValidator
             }
         }
         return null;
+    }
+
+    private static bool IsCMakeFlagsAssignment(string name)
+    {
+        var normalized = name
+            .Trim()
+            .TrimStart('-', '/');
+
+        if (!normalized.StartsWith("CMAKE_", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return normalized.EndsWith("_FLAGS", StringComparison.OrdinalIgnoreCase)
+               || normalized.Contains("_FLAGS_", StringComparison.OrdinalIgnoreCase);
     }
 }

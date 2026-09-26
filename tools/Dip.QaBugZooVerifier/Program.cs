@@ -22,8 +22,23 @@ var allCases = Directory
     .OrderBy(testCase => testCase.Language.Value)
     .ThenBy(testCase => testCase.Name, StringComparer.Ordinal)
     .ToArray();
-var skippedCases = allCases.Where(testCase => !testCase.IsSupportedOnCurrentPlatform()).ToArray();
-var cases = allCases.Where(testCase => testCase.IsSupportedOnCurrentPlatform()).ToArray();
+
+var requiredLanguageSet = options.RequiredLanguages
+    .Select(language => language.Value)
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+var skippedCases = allCases
+    .Where(testCase =>
+        !testCase.IsSupportedOnCurrentPlatform()
+        || (!requiredLanguageSet.Contains(testCase.Language.Value)
+            && !HasPrimaryToolchain(testCase.Language)))
+    .ToArray();
+
+var skippedCaseSet = skippedCases.ToHashSet();
+
+var cases = allCases
+    .Where(testCase => !skippedCaseSet.Contains(testCase))
+    .ToArray();
 
 var executor = new ProcessExecutor();
 var normalizer = new UniversalDiagnosticNormalizer();
@@ -72,6 +87,29 @@ if (metrics.ReproducibleCases.Any(result => result.Detected && !result.Reproduce
     return 5;
 return 0;
 
+static bool HasPrimaryToolchain(LanguageId language)
+{
+    var candidates = language.Value.ToLowerInvariant() switch
+    {
+        "bash" => new[] { "bash" },
+        "cpp" => new[] { "cmake" },
+        "csharp" => new[] { "dotnet" },
+        "go" => new[] { "go" },
+        "java" => new[] { "javac" },
+        "javascript" => new[] { "node" },
+        "php" => new[] { "php" },
+        "python" => new[] { "python", "python3" },
+        "ruby" => new[] { "ruby" },
+        _ => Array.Empty<string>()
+    };
+
+    // Languages without an external-tool mapping can still be handled by
+    // manifest/semantic adapters, so they remain executable.
+    return candidates.Length == 0
+           || candidates.Any(candidate =>
+               ProcessExecutor.FindExecutable(candidate) is not null);
+}
+
 static async Task<CaseResult> RunCaseAsync(
     BugZooCase testCase,
     string outputRoot,
@@ -104,7 +142,20 @@ static async Task<CaseResult> RunCaseAsync(
         var noisy = first.Findings
             .Where(finding => finding.Severity is Severity.Critical or Severity.Warning)
             .ToArray();
-        var infrastructureFailure = first.Tools.Count == 0 || first.Tools.All(tool => !tool.WasAvailable);
+
+        // dip-semantic can run without the language's native compiler/runtime.
+        // It must not make a missing primary toolchain look "executed".
+        var executableTools = first.Tools
+            .Where(tool => !string.Equals(
+                tool.Tool,
+                "dip-semantic",
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        var infrastructureFailure =
+            executableTools.Length == 0
+            || executableTools.All(tool => !tool.WasAvailable);
+
         var detected = testCase.ExpectNoFindings ? noisy.Length == 0 : relevant.Length > 0;
         var reproduced = false;
         var reproducibleAttempts = 0;
@@ -393,7 +444,7 @@ static string Markdown(
     builder.AppendLine($"- False-positive rate: **{falsePositiveRate:0.##}%**");
     builder.AppendLine($"- Stable-fingerprint reproduction: **{reproductionRate:0.##}%**");
     builder.AppendLine($"- Infrastructure failures: **{infrastructureFailures}**");
-    builder.AppendLine($"- Platform skipped: **{skipped.Count}**");
+    builder.AppendLine($"- Platform/toolchain skipped: **{skipped.Count}**");
     builder.AppendLine($"- Missing required languages: **{(missing.Count == 0 ? "none" : string.Join(", ", missing))}**");
     builder.AppendLine($"- Median case duration: **{median} ms**").AppendLine();
     builder.AppendLine("| Language | Adapter | Case | Expected | Detected | Reproduced | Infra | ms |");

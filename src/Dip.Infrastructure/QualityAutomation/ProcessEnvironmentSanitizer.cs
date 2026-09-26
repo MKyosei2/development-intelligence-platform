@@ -19,30 +19,67 @@ internal static class ProcessEnvironmentSanitizer
         },
         StringComparer.OrdinalIgnoreCase);
 
+    private static readonly string[] SafeInheritedEnvironmentNames =
+    [
+        "PATH",
+        "PATHEXT",
+        "SystemRoot",
+        "WINDIR",
+        "ComSpec",
+        "HOME",
+        "USERPROFILE",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "ProgramData",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "ProgramW6432",
+        "CommonProgramFiles",
+        "CommonProgramFiles(x86)",
+        "CommonProgramW6432",
+        "DOTNET_ROOT",
+        "DOTNET_ROOT_X64",
+        "JAVA_HOME",
+        "GOPATH",
+        "GOROOT",
+        "NUGET_PACKAGES"
+    ];
+
     internal static void Sanitize(
             IDictionary<string, string?> target,
             IReadOnlyDictionary<string, string>? supplied)
     {
-        var source = target.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+        var source = target.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value,
+            StringComparer.OrdinalIgnoreCase);
+
         target.Clear();
-        foreach (var key in new[]
-                 {
-                         "PATH","SystemRoot","WINDIR","HOME","USERPROFILE","TEMP","TMP","TMPDIR",
-                         "DOTNET_ROOT","DOTNET_ROOT_X64","JAVA_HOME","GOPATH","GOROOT","NUGET_PACKAGES"
-                     })
+
+        foreach (var key in SafeInheritedEnvironmentNames)
         {
-            if (source.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+            if (source.TryGetValue(key, out var value)
+                && !string.IsNullOrWhiteSpace(value))
+            {
                 target[key] = value;
+            }
         }
 
         if (supplied is not null)
         {
             foreach (var pair in supplied)
             {
-                if (!IsSecretName(pair.Key) && !IsUnsafeEnvironmentName(pair.Key))
+                if (!IsSecretName(pair.Key)
+                    && !IsUnsafeEnvironmentName(pair.Key))
+                {
                     target[pair.Key] = pair.Value;
+                }
             }
         }
+
         target["DIP_QA_SANDBOX"] = "1";
     }
 
