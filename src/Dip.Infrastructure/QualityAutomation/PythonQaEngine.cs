@@ -311,7 +311,7 @@ public sealed class PythonQaEngine(
         }
     }
 
-    private static bool HasPytestTargets(
+    internal static bool HasPytestTargets(
         string workspace)
     {
         var enumerationOptions =

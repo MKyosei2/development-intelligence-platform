@@ -115,11 +115,40 @@ if ($testExit -ne 0 -or -not (Test-Path -LiteralPath $testXml -PathType Leaf)) {
     } else {
         '<Unity log was not generated>'
     }
+
     $diagnostic = Join-Path $out 'editmode-failure-tail.txt'
     $tail | Set-Content -LiteralPath $diagnostic -Encoding UTF8
+
+    $licenseBlocked = (
+        $testExit -eq 198 -or
+        $tail -match 'No valid Unity Editor license found' -or
+        $tail -match 'Please activate your license'
+    )
+
+    if ($licenseBlocked) {
+        $blocked = Join-Path $out 'UNITY_COLLECTOR_ENVIRONMENT_BLOCKED.txt'
+
+        @(
+            'STATUS=ENVIRONMENT_BLOCKED',
+            'REASON=UNITY_EDITOR_LICENSE',
+            "Timestamp=$([DateTimeOffset]::UtcNow.ToString('o'))",
+            "SourceCommit=$sourceSha",
+            "UnityVersion=$unityVersion",
+            "ExitCode=$testExit",
+            "Log=$testLog",
+            "Diagnostic=$diagnostic"
+        ) | Set-Content -LiteralPath $blocked -Encoding UTF8
+
+        throw (
+            "Unity Editor environment is blocked because no valid Editor license is active. " +
+            "Activate Unity Hub for the current Windows user, then rerun verification. Evidence=$blocked"
+        )
+    }
+
     if ($testExit -ne 0) {
         throw "Unity EditMode tests failed with exit code $testExit. Log=$testLog Diagnostic=$diagnostic"
     }
+
     throw "Unity test result XML was not generated. Log=$testLog Diagnostic=$diagnostic"
 }
 
