@@ -1,4 +1,4 @@
-// Purpose: Implements G it Hu b infrastructure integration for g it hu b.
+// Purpose: Configures GitHub authentication, webhook validation, pagination, and repository workspace limits.
 namespace Dip.Infrastructure.GitHub;
 
 public sealed class GitHubOptions
@@ -10,8 +10,6 @@ public sealed class GitHubOptions
     public string ProductHeader { get; init; } = "development-intelligence-platform";
     public string QualityReportMarker { get; init; } = "<!-- dip-quality-report -->";
     public int MaxRetryAttempts { get; init; } = 4;
-
-    // GitHub App repository connection. The private key is server-side only.
     public long AppId { get; init; }
     public long InstallationId { get; init; }
     public string AppSlug { get; init; } = string.Empty;

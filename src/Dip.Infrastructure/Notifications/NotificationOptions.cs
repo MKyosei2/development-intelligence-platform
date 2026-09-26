@@ -1,1 +1,1 @@
-// Purpose: Implements N ot if ic at io n infrastructure integration for n ot if ic at io ns.
+// Purpose: Configures notification delivery providers, retries, and channel behavior.

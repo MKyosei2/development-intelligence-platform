@@ -19,7 +19,6 @@ function Invoke-Checked {
         [Parameter(Mandatory = $true)][string]$FilePath,
         [Parameter(Mandatory = $true)][string[]]$Arguments
     )
-
     & $FilePath @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "$FilePath $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
@@ -53,6 +52,9 @@ try {
         'src/Dip.Infrastructure/Intelligence/ReliabilityRunner.cs',
         'src/Dip.Infrastructure/Intelligence/MutationRunner.cs',
         'src/Dip.Infrastructure/P2Intelligence/P2ExperimentRunner.cs',
+        'src/Dip.Infrastructure/P2Intelligence/MutationExperimentRunner.cs',
+        'src/Dip.Infrastructure/P2Intelligence/FuzzExperimentRunner.cs',
+        'src/Dip.Infrastructure/P2Intelligence/ExperimentExecutionSupport.cs',
         'src/Dip.Infrastructure/P2Intelligence/MediaRegressionRunner.cs',
         'src/Dip.Infrastructure/P2Intelligence/TestImpactAnalyzer.cs',
         'src/Dip.Infrastructure/P2Intelligence/NativeSymbolicator.cs',
@@ -70,7 +72,9 @@ try {
     }
 
     $contentChecks = @{
-        'src/Dip.Infrastructure/P2Intelligence/P2ExperimentRunner.cs' = @('Baseline passed','fuzz-manifest.json','MinimizeFailureAsync')
+        'src/Dip.Infrastructure/P2Intelligence/MutationExperimentRunner.cs' = @('Baseline passed')
+        'src/Dip.Infrastructure/P2Intelligence/FuzzExperimentRunner.cs' = @('fuzz-manifest.json','MinimizeFailureAsync')
+        'src/Dip.Infrastructure/P2Intelligence/ExperimentExecutionSupport.cs' = @('MinimizeFailureAsync')
         'src/Dip.Infrastructure/P2Intelligence/TestImpactAnalyzer.cs' = @('ProjectReference','TestImpactResult')
         'src/Dip.Infrastructure/P2Intelligence/NativeSymbolicator.cs' = @('llvm-symbolizer','addr2line','symbolication.json')
         'src/Dip.Application/Features/P2Intelligence/P2Contracts.cs' = @('ITestImpactAnalyzer','INativeSymbolicator')
@@ -82,6 +86,7 @@ try {
         'src/Dip.Application/Features/P2Intelligence/MediaRegressionContracts.cs' = @('MediaRegressionCommand','IMediaRegressionRunner')
         'src/Dip.Application/Features/QualityAutomation/QaOrchestrationService.cs' = @('GetCrashClustersAsync')
     }
+
     foreach ($entry in $contentChecks.GetEnumerator()) {
         $raw = Get-Content -LiteralPath $entry.Key -Raw -Encoding UTF8
         foreach ($token in $entry.Value) {
@@ -92,33 +97,19 @@ try {
     }
 
     if (-not $SkipDotNet) {
-        if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-            throw 'dotnet was not found in PATH.'
-        }
-
+        if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw 'dotnet was not found in PATH.' }
         $sdk = (& dotnet --version | Out-String).Trim()
-        if (-not $sdk.StartsWith('8.')) {
-            throw "Technical-intelligence verification requires .NET SDK 8.x, active SDK is '$sdk'."
-        }
+        if (-not $sdk.StartsWith('8.')) { throw "Technical-intelligence verification requires .NET SDK 8.x, active SDK is '$sdk'." }
 
-        Invoke-Checked -FilePath 'dotnet' -Arguments @(
-            'restore', 'DevelopmentIntelligencePlatform.sln'
-        )
-        Invoke-Checked -FilePath 'dotnet' -Arguments @(
-            'build', 'DevelopmentIntelligencePlatform.sln',
-            '--configuration', 'Release', '--no-restore'
-        )
+        Invoke-Checked -FilePath 'dotnet' -Arguments @('restore', 'DevelopmentIntelligencePlatform.sln')
+        Invoke-Checked -FilePath 'dotnet' -Arguments @('build', 'DevelopmentIntelligencePlatform.sln', '--configuration', 'Release', '--no-restore')
 
         foreach ($project in @(
             'tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj',
             'tests/Dip.Application.Tests/Dip.Application.Tests.csproj',
             'tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj'
         )) {
-            Invoke-Checked -FilePath 'dotnet' -Arguments @(
-                'test', $project,
-                '--configuration', 'Release',
-                '--no-build'
-            )
+            Invoke-Checked -FilePath 'dotnet' -Arguments @('test', $project, '--configuration', 'Release', '--no-build')
         }
     }
 
@@ -129,9 +120,7 @@ try {
 
     if (-not $SkipLiveE2E) {
         $fullVerification = Join-Path $PSScriptRoot 'Verify-Solution.ps1'
-        if (-not (Test-Path -LiteralPath $fullVerification)) {
-            throw 'Verify-Solution.ps1 is required for live technical-intelligence E2E verification.'
-        }
+        if (-not (Test-Path -LiteralPath $fullVerification)) { throw 'Verify-Solution.ps1 is required for live technical-intelligence E2E verification.' }
         & $fullVerification -Configuration Release
         if ($LASTEXITCODE -ne 0) { throw 'Live technical-intelligence E2E verification failed.' }
     }

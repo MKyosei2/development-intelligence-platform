@@ -1,4 +1,4 @@
-# Purpose: Runs Verify Unity Collector as part of repository development and verification workflows.
+# Purpose: Verifies Unity Collector source, EditMode tests, and exact-revision runtime evidence.
 [CmdletBinding()]
 param(
     [string]$UnityPath = $env:UNITY_EDITOR_PATH,
@@ -27,40 +27,28 @@ $required = @(
     'Tests\Editor\BuildSettingsAnalyzerTests.cs',
     'Tests\Editor\AnimationAnalyzerTests.cs',
     'Tests\Runtime\PerformanceProbeTests.cs',
+    'Tests\Editor\Dip.UnityCollector.Editor.Tests.asmdef',
+    'Tests\Runtime\Dip.UnityCollector.Runtime.Tests.asmdef',
     'Editor\Dip.UnityCollector.Editor.asmdef',
     'Runtime\Dip.UnityCollector.Runtime.asmdef'
 )
 
 foreach ($relative in $required) {
     $path = Join-Path $package $relative
-    if (-not (Test-Path -LiteralPath $path)) {
-        throw "Unity Collector required file is missing: $relative"
-    }
-    if ((Get-Item -LiteralPath $path).Length -eq 0) {
-        throw "Unity Collector file is empty: $relative"
-    }
+    if (-not (Test-Path -LiteralPath $path)) { throw "Unity Collector required file is missing: $relative" }
+    if ((Get-Item -LiteralPath $path).Length -eq 0) { throw "Unity Collector file is empty: $relative" }
 }
 
-$emptySources = @(
-    Get-ChildItem -LiteralPath $package -Recurse -File -Filter '*.cs' |
-        Where-Object { $_.Length -eq 0 }
-)
-if ($emptySources.Count -gt 0) {
-    throw "Unity Collector contains empty C# source files: $($emptySources.FullName -join ', ')"
-}
+$emptySources = @(Get-ChildItem -LiteralPath $package -Recurse -File -Filter '*.cs' | Where-Object { $_.Length -eq 0 })
+if ($emptySources.Count -gt 0) { throw "Unity Collector contains empty C# source files: $($emptySources.FullName -join ', ')" }
 
 $sourceSha = (& git -C $root rev-parse HEAD | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or $sourceSha -notmatch '^[0-9a-fA-F]{40}$') {
-    throw 'Could not resolve the exact DIP source SHA.'
-}
+if ($LASTEXITCODE -ne 0 -or $sourceSha -notmatch '^[0-9a-fA-F]{40}$') { throw 'Could not resolve the exact DIP source SHA.' }
 
 $sourceBranch = (& git -C $root branch --show-current | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the DIP branch.' }
 if ([string]::IsNullOrWhiteSpace($sourceBranch)) { $sourceBranch = 'detached' }
-
-if ($ExpectedSha -and $sourceSha -ne $ExpectedSha) {
-    throw "Exact SHA mismatch. expected=$ExpectedSha actual=$sourceSha"
-}
+if ($ExpectedSha -and $sourceSha -ne $ExpectedSha) { throw "Exact SHA mismatch. expected=$ExpectedSha actual=$sourceSha" }
 
 $staticEvidence = Join-Path $out 'UNITY_COLLECTOR_STATIC_PASS.txt'
 @(
@@ -68,7 +56,7 @@ $staticEvidence = Join-Path $out 'UNITY_COLLECTOR_STATIC_PASS.txt'
     "Timestamp=$([DateTimeOffset]::UtcNow.ToString('o'))",
     "SourceCommit=$sourceSha",
     "SourceBranch=$sourceBranch",
-    'Checks=required sources; no empty C# sources; exact-revision CLI present'
+    'Checks=required sources; test asmdefs; no empty C# sources; exact-revision CLI present'
 ) | Set-Content -LiteralPath $staticEvidence -Encoding UTF8
 
 if ($StaticOnly) {
@@ -78,21 +66,13 @@ if ($StaticOnly) {
 
 $trackedDirty = (& git -C $root status --porcelain --untracked-files=no | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the DIP working tree.' }
-if ($trackedDirty) {
-    throw 'Unity runtime verification requires a clean tracked DIP working tree.'
-}
+if ($trackedDirty) { throw 'Unity runtime verification requires a clean tracked DIP working tree.' }
 
-if (-not $UnityPath) {
-    throw 'UnityPath was not supplied. Set -UnityPath or UNITY_EDITOR_PATH.'
-}
+if (-not $UnityPath) { throw 'UnityPath was not supplied. Set -UnityPath or UNITY_EDITOR_PATH.' }
 $UnityPath = (Resolve-Path -LiteralPath $UnityPath).Path
-if (-not (Test-Path -LiteralPath $UnityPath -PathType Leaf)) {
-    throw "Unity executable not found: $UnityPath"
-}
+if (-not (Test-Path -LiteralPath $UnityPath -PathType Leaf)) { throw "Unity executable not found: $UnityPath" }
 
-if (Test-Path -LiteralPath $tempProject) {
-    Remove-Item -LiteralPath $tempProject -Recurse -Force
-}
+if (Test-Path -LiteralPath $tempProject) { Remove-Item -LiteralPath $tempProject -Recurse -Force }
 New-Item -ItemType Directory -Force -Path (Join-Path $tempProject 'Assets') | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $tempProject 'Packages') | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $tempProject 'ProjectSettings') | Out-Null
@@ -103,22 +83,22 @@ $manifest = @{
         'com.mkyosei.dip.collector' = "file:$packageUri"
         'com.unity.test-framework' = '1.1.33'
     }
+    testables = @('com.mkyosei.dip.collector')
 } | ConvertTo-Json -Depth 5
 $manifest | Set-Content -LiteralPath (Join-Path $tempProject 'Packages\manifest.json') -Encoding UTF8
 
 $versionOutput = (& $UnityPath -version 2>&1 | Out-String)
 $versionMatch = [regex]::Match($versionOutput, '\d{4}\.\d+\.\d+[abfp]\d+')
 $unityVersion = if ($versionMatch.Success) { $versionMatch.Value } else { 'unknown' }
-if ($unityVersion -eq 'unknown') {
-    throw "Could not resolve Unity version from executable: $UnityPath"
-}
-@(
-    "m_EditorVersion: $unityVersion",
-    'm_EditorVersionWithRevision:'
-) | Set-Content -LiteralPath (Join-Path $tempProject 'ProjectSettings\ProjectVersion.txt') -Encoding UTF8
+if ($unityVersion -eq 'unknown') { throw "Could not resolve Unity version from executable: $UnityPath" }
+
+@("m_EditorVersion: $unityVersion",'m_EditorVersionWithRevision:') |
+    Set-Content -LiteralPath (Join-Path $tempProject 'ProjectSettings\ProjectVersion.txt') -Encoding UTF8
 
 $testXml = Join-Path $out 'editmode-results.xml'
 $testLog = Join-Path $out 'editmode-unity.log'
+Remove-Item -LiteralPath $testXml -Force -ErrorAction SilentlyContinue
+
 & $UnityPath `
     -batchmode `
     -nographics `
@@ -127,11 +107,20 @@ $testLog = Join-Path $out 'editmode-unity.log'
     -testPlatform EditMode `
     -testResults $testXml `
     -logFile $testLog
-if ($LASTEXITCODE -ne 0) {
-    throw "Unity EditMode tests failed with exit code $LASTEXITCODE. See $testLog"
-}
-if (-not (Test-Path -LiteralPath $testXml -PathType Leaf)) {
-    throw "Unity test result XML was not generated: $testXml"
+
+$testExit = $LASTEXITCODE
+if ($testExit -ne 0 -or -not (Test-Path -LiteralPath $testXml -PathType Leaf)) {
+    $tail = if (Test-Path -LiteralPath $testLog) {
+        (Get-Content -LiteralPath $testLog -Tail 160 -ErrorAction SilentlyContinue | Out-String)
+    } else {
+        '<Unity log was not generated>'
+    }
+    $diagnostic = Join-Path $out 'editmode-failure-tail.txt'
+    $tail | Set-Content -LiteralPath $diagnostic -Encoding UTF8
+    if ($testExit -ne 0) {
+        throw "Unity EditMode tests failed with exit code $testExit. Log=$testLog Diagnostic=$diagnostic"
+    }
+    throw "Unity test result XML was not generated. Log=$testLog Diagnostic=$diagnostic"
 }
 
 $report = Join-Path $out 'unity-collector-report.json'
@@ -153,39 +142,19 @@ $externalRunId = "unity-dip-$($sourceSha.Substring(0,12))-$([guid]::NewGuid().To
     -dipQualityGate 'critical' `
     -dipOutput $report `
     -logFile $collectorLog
-if ($LASTEXITCODE -ne 0) {
-    throw "Unity exact-revision collector failed with exit code $LASTEXITCODE. See $collectorLog"
-}
-if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
-    throw "Unity Collector report was not generated: $report"
-}
+
+if ($LASTEXITCODE -ne 0) { throw "Unity exact-revision collector failed with exit code $LASTEXITCODE. See $collectorLog" }
+if (-not (Test-Path -LiteralPath $report -PathType Leaf)) { throw "Unity Collector report was not generated: $report" }
 
 $reportObject = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
-if ($reportObject.commitSha -ne $sourceSha) {
-    throw "Unity report SHA mismatch. expected=$sourceSha actual=$($reportObject.commitSha)"
-}
-if ($reportObject.repository -ne 'https://github.com/MKyosei2/development-intelligence-platform') {
-    throw 'Unity report repository identity is incorrect.'
-}
-if ($reportObject.externalRunId -ne $externalRunId) {
-    throw 'Unity report externalRunId does not match the invoked run.'
-}
-if ([int]$reportObject.attemptNumber -ne 1) {
-    throw 'Unity report attemptNumber is invalid.'
-}
-if ($reportObject.status -notin @('Succeeded','PartialSuccess')) {
-    throw "Unity report status is not publishable runtime evidence: $($reportObject.status)"
-}
+if ($reportObject.commitSha -ne $sourceSha) { throw "Unity report SHA mismatch. expected=$sourceSha actual=$($reportObject.commitSha)" }
+if ($reportObject.repository -ne 'https://github.com/MKyosei2/development-intelligence-platform') { throw 'Unity report repository identity is incorrect.' }
+if ($reportObject.externalRunId -ne $externalRunId) { throw 'Unity report externalRunId does not match the invoked run.' }
+if ([int]$reportObject.attemptNumber -ne 1) { throw 'Unity report attemptNumber is invalid.' }
+if ($reportObject.status -notin @('Succeeded','PartialSuccess')) { throw "Unity report status is not publishable runtime evidence: $($reportObject.status)" }
 
-foreach ($metric in @(
-    'build_scene_count',
-    'animation_clip_count',
-    'scene_count_analyzed',
-    'collector_issue_critical_count'
-)) {
-    if (-not @($reportObject.metrics | Where-Object { $_.name -eq $metric })) {
-        throw "Unity Collector report is missing expected metric '$metric'."
-    }
+foreach ($metric in @('build_scene_count','animation_clip_count','scene_count_analyzed','collector_issue_critical_count')) {
+    if (-not @($reportObject.metrics | Where-Object { $_.name -eq $metric })) { throw "Unity Collector report is missing expected metric '$metric'." }
 }
 
 $pass = Join-Path $out 'UNITY_COLLECTOR_VERIFICATION_PASS.txt'

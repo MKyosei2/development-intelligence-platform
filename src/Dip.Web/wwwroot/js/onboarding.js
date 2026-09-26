@@ -1,4 +1,4 @@
-// Purpose: Implements o nb oa rd in g web behavior for j s.
+// Purpose: Persists and reads onboarding UI state from browser local storage.
 export function getBoolean(key) {
     try {
         return window.localStorage.getItem(key) === 'true';

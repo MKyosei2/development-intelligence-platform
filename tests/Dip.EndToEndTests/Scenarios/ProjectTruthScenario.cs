@@ -1,4 +1,4 @@
-// Purpose: Verifies Project Truth Scenario behavior, edge cases, and repository invariants.
+// Purpose: Verifies Project Truth behavior for confirmed and contradicted completion claims.
 using Dip.EndToEndTests.Support;
 using FluentAssertions;
 
@@ -12,7 +12,17 @@ public sealed class ProjectTruthScenario
         using var api = new DipScenarioClient();
         var project = await api.CreateProjectAsync("project-truth-confirmed");
 
-        await api.SubmitReportAsync(project, [], []);
+        await api.SubmitReportAsync(
+            project,
+            [new
+            {
+                name = "average_fps",
+                value = 60m,
+                unit = "fps",
+                baselineValue = 60m
+            }],
+            []);
+
         await api.WaitForDashboardAsync(project.Id, "Passed");
         await api.SubmitClaimAsync(project, "Complete", 100m);
 

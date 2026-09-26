@@ -1,4 +1,4 @@
-// Purpose: Defines A ss et Qa Fi nd in gR ec or d domain behavior and invariants for a rt if ac ts.
+// Purpose: Stores an asset-scoped QA finding and its evidence lifecycle in the domain model.
 using Dip.Domain.Enums;
 
 namespace Dip.Domain.Entities;
@@ -8,18 +8,9 @@ public sealed class AssetQaFindingRecord
     private AssetQaFindingRecord() { }
 
     public AssetQaFindingRecord(
-        Guid id,
-        Guid projectId,
-        Guid evidenceId,
-        string source,
-        string ruleId,
-        AssetQaSeverity severity,
-        string title,
-        string message,
-        string? relativePath,
-        string fingerprint,
-        string metadataJson,
-        DateTimeOffset observedAtUtc)
+        Guid id, Guid projectId, Guid evidenceId, string source, string ruleId,
+        AssetQaSeverity severity, string title, string message, string? relativePath,
+        string fingerprint, string metadataJson, DateTimeOffset observedAtUtc)
     {
         if (projectId == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(projectId));
         if (evidenceId == Guid.Empty) throw new ArgumentException("EvidenceId is required.", nameof(evidenceId));
@@ -63,6 +54,7 @@ public sealed class AssetQaFindingRecord
         if (text.Length is < 1 || text.Length > max) throw new ArgumentException($"{name} must be 1-{max} characters.", name);
         return text;
     }
+
     private static string? Optional(string? value, int max, string name)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;

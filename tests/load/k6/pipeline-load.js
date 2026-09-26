@@ -1,1 +1,1 @@
-// Purpose: Verifies p ip el in e l oa d behavior, edge cases, and invariants for k6.
+// Purpose: Load-tests pipeline ingestion and enforces throughput, latency, and failure thresholds.

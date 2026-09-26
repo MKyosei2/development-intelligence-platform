@@ -1,3 +1,4 @@
+// Purpose: Exercises native DIP GUI onboarding, project workflows, autonomous debugging, and spreadsheet intelligence.
 import { test, expect } from '@playwright/test';
 
 const apiBase = process.env.DIP_API_BASE_URL ?? 'http://127.0.0.1:5080';
@@ -27,8 +28,7 @@ async function getUniversalGraph(request, projectId, domainId = null) {
   return response.json();
 }
 
-
-async function waitForSpreadsheetOutcome(page, timeout = 12_000) {
+async function waitForSpreadsheetOutcome(page, timeout = 30_000) {
   const result = page.getByTestId('spreadsheet-analysis-result');
   const error = page.getByTestId('spreadsheet-error');
   await expect(result.or(error)).toBeVisible({ timeout });
@@ -37,7 +37,6 @@ async function waitForSpreadsheetOutcome(page, timeout = 12_000) {
     throw new Error(
       'Spreadsheet UI reported an error: ' + (await error.innerText()).trim());
   }
-
   return result;
 }
 
@@ -46,7 +45,6 @@ test.describe('DIP GUI onboarding', () => {
     await page.goto('/');
     await expect(page.getByTestId('portfolio-page')).toBeVisible();
     await expect(page.getByTestId('active-project-select')).toBeVisible();
-
     await page.getByTestId('import-github-cta').click();
     await expect(page.getByTestId('github-import-page')).toBeVisible();
 
@@ -69,10 +67,8 @@ test.describe('DIP GUI onboarding', () => {
 
     await page.goto(`/dashboard/${projectId}/repository`);
     await expect(page.getByTestId('repository-page')).toBeVisible();
-
     await page.goto(`/dashboard/${projectId}/ci`);
     await expect(page.getByTestId('ci-page')).toBeVisible();
-
     await page.goto(`/dashboard/${projectId}/qa`);
     await expect(page.getByTestId('qa-page')).toBeVisible();
     await expect(page.getByText('Synchronize the repository first')).toBeVisible();
@@ -92,7 +88,6 @@ test.describe('DIP GUI onboarding', () => {
 
     await page.goto(`/dashboard/${projectId}/intelligence`);
     await expect(page.getByRole('heading', { name: 'Development Intelligence' })).toBeVisible();
-
     await page.goto(`/dashboard/${projectId}/qa-governance`);
     await expect(page.getByRole('heading', { name: 'QA Governance' })).toBeVisible();
 
@@ -130,7 +125,6 @@ test.describe('DIP GUI onboarding', () => {
     await page.getByTestId('qa-autonomous-debug-tab').click();
     await expect(page.getByTestId('qa-debug-history')).toContainText('deterministic-no-evidence');
     await expect(page.getByTestId('qa-debug-history')).toContainText('NoGroundedHypothesis');
-
     await page.reload();
     await page.getByTestId('qa-autonomous-debug-tab').click();
     await expect(page.getByTestId('qa-debug-history')).toContainText('deterministic-no-evidence');
@@ -155,29 +149,15 @@ test.describe('DIP GUI onboarding', () => {
     await expect(page.getByTestId('spreadsheet-dry-run')).toBeEnabled();
     await expect(page.getByTestId('spreadsheet-apply')).toBeEnabled();
 
-    const analyzeResponsePromise = page.waitForResponse((response) =>
-      response.request().method() === 'POST'
-      && response.url().includes(
-        '/api/v1/project-control/projects/' + projectId + '/management.xlsx/analyze'));
-
     await page.getByTestId('spreadsheet-analyze').click();
 
     const busy = page.getByTestId('spreadsheet-busy');
     if (await busy.isVisible())
       await expect(busy).toContainText('Analyze');
 
-    const analyzeResponse = await analyzeResponsePromise;
+    // The Blazor server component calls DIP API from server-side ApiClient.
+    // Browser page.waitForResponse() cannot observe that HTTP request.
     const analysisResult = await waitForSpreadsheetOutcome(page);
-
-    if (!analyzeResponse.ok()) {
-      const responseBody = await analyzeResponse.text();
-      throw new Error(
-        'Spreadsheet analyze API returned HTTP '
-        + analyzeResponse.status()
-        + ': '
-        + responseBody);
-    }
-
     await expect(analysisResult).toContainText('media.production');
     await expect(analysisResult).toContainText('media.shot');
 

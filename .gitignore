@@ -20,6 +20,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+*.egg-info/
 node_modules/
 **/CMakeFiles/
 **/CMakeCache.txt

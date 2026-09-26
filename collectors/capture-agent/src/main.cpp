@@ -1,4 +1,4 @@
-// Purpose: Implements main responsibilities for capture agent.
+// Purpose: Captures desktop video and system audio into evidence artifacts for game QA.
 #include <windows.h>
 #include <d3d11.h>
 #include <dxgi1_2.h>
@@ -66,7 +66,7 @@ public:
  void Stop(){if(thread_.joinable())thread_.join();if(writer_)writer_->Finalize();writer_.Reset();duplication_.Reset();staging_.Reset();context_.Reset();device_.Reset();if(mf_)MFShutdown();}
 private:
  void Run(){CoInitializeEx(nullptr,COINIT_MULTITHREADED);const LONGLONG frameDuration=10'000'000/30;LONGLONG timestamp=0;auto next=std::chrono::steady_clock::now();while(!g_stop.load()){next+=std::chrono::milliseconds(33);DXGI_OUTDUPL_FRAME_INFO info{};ComPtr<IDXGIResource> resource;auto hr=duplication_->AcquireNextFrame(100,&info,&resource);if(hr==DXGI_ERROR_WAIT_TIMEOUT){std::this_thread::sleep_until(next);continue;}if(FAILED(hr)){std::cerr<<"AcquireNextFrame failed\n";break;}ComPtr<ID3D11Texture2D> frame;resource.As(&frame);context_->CopyResource(staging_.Get(),frame.Get());D3D11_MAPPED_SUBRESOURCE mapped{};if(SUCCEEDED(context_->Map(staging_.Get(),0,D3D11_MAP_READ,0,&mapped))){ComPtr<IMFMediaBuffer> buffer;DWORD bytes=width_*height_*4;if(SUCCEEDED(MFCreateMemoryBuffer(bytes,&buffer))){BYTE* dst=nullptr;DWORD max=0;buffer->Lock(&dst,&max,nullptr);for(UINT y=0;y<height_;++y)memcpy(dst+y*width_*4,reinterpret_cast<BYTE*>(mapped.pData)+y*mapped.RowPitch,width_*4);buffer->Unlock();buffer->SetCurrentLength(bytes);ComPtr<IMFSample> sample;MFCreateSample(&sample);sample->AddBuffer(buffer.Get());sample->SetSampleTime(timestamp);sample->SetSampleDuration(frameDuration);writer_->WriteSample(streamIndex_,sample.Get());timestamp+=frameDuration;}context_->Unmap(staging_.Get(),0);}duplication_->ReleaseFrame();std::this_thread::sleep_until(next);}CoUninitialize();}
- bool mf_=false;UINT width_=0,height_=0,streamIndex_=0;ComPtr<ID3D11Device> device_;ComPtr<ID3D11DeviceContext> context_;ComPtr<IDXGIOutputDuplication> duplication_;ComPtr<ID3D11Texture2D> staging_;ComPtr<IMFSinkWriter> writer_;std::thread thread_;
+ bool mf_=false;UINT width_=0,height_=0;DWORD streamIndex_=0;ComPtr<ID3D11Device> device_;ComPtr<ID3D11DeviceContext> context_;ComPtr<IDXGIOutputDuplication> duplication_;ComPtr<ID3D11Texture2D> staging_;ComPtr<IMFSinkWriter> writer_;std::thread thread_;
 };
 
 int wmain(int argc,wchar_t**argv)

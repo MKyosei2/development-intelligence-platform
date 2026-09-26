@@ -1,4 +1,4 @@
-// Purpose: Verifies d as hb oa rd l oa d behavior, edge cases, and invariants for k6.
+// Purpose: Load-tests dashboard reads and enforces latency and failure-rate thresholds.
 import http from "k6/http";
 import { check } from "k6";
 
@@ -14,7 +14,6 @@ export const options = {
 export default function () {
   const baseUrl = __ENV.DIP_API_URL || "http://localhost:7001";
   const response = http.get(`${baseUrl}/api/projects`);
-
   check(response, {
     "projects returned": (r) => r.status === 200
   });

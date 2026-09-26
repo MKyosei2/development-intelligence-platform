@@ -1,4 +1,4 @@
-// Purpose: Runs N ot if ic at io n background processing for this repository area.
+// Purpose: Consumes queued notification requests, acknowledges success, and retries or dead-letters failures.
 using Dip.Application.Abstractions.Messaging;
 using Dip.Infrastructure.Messaging;
 using Dip.Worker.Options;
@@ -25,14 +25,10 @@ public sealed class NotificationWorker : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(
-        CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var consumer =
-            $"{Environment.MachineName}-notification";
-
-        var consumerGroup =
-            $"{_options.ConsumerGroup}:notification";
+        var consumer = $"{Environment.MachineName}-notification";
+        var consumerGroup = $"{_options.ConsumerGroup}:notification";
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -45,58 +41,40 @@ public sealed class NotificationWorker : BackgroundService
                     TimeSpan.FromSeconds(5),
                     stoppingToken);
 
-                if (message is null)
-                    continue;
+                if (message is null) continue;
 
-                if (!message.MessageType.Contains(
-                        "NotificationRequested",
-                        StringComparison.OrdinalIgnoreCase))
+                if (!message.MessageType.Contains("NotificationRequested", StringComparison.OrdinalIgnoreCase))
                 {
                     await _queue.AcknowledgeAsync(
                         _options.StreamName,
                         consumerGroup,
                         message.MessageId,
                         stoppingToken);
-
                     continue;
                 }
 
                 try
                 {
-                    _logger.LogInformation(
-                        "Processing notification {MessageId}",
-                        message.MessageId);
-
+                    _logger.LogInformation("Processing notification {MessageId}", message.MessageId);
                     await _queue.AcknowledgeAsync(
                         _options.StreamName,
                         consumerGroup,
                         message.MessageId,
                         stoppingToken);
                 }
-                catch (Exception exception)
-                    when (exception is not OperationCanceledException)
+                catch (Exception exception) when (exception is not OperationCanceledException)
                 {
-                    await HandleFailureAsync(
-                        consumerGroup,
-                        message,
-                        exception,
-                        stoppingToken);
+                    await HandleFailureAsync(consumerGroup, message, exception, stoppingToken);
                 }
             }
-            catch (OperationCanceledException)
-                when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
             catch (Exception exception)
             {
-                _logger.LogError(
-                    exception,
-                    "Notification worker loop failed.");
-
-                await Task.Delay(
-                    TimeSpan.FromSeconds(1),
-                    stoppingToken);
+                _logger.LogError(exception, "Notification worker loop failed.");
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }
     }
@@ -107,8 +85,7 @@ public sealed class NotificationWorker : BackgroundService
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (message.Attempt + 1
-            >= Math.Max(1, _workerOptions.MaxAttempts))
+        if (message.Attempt + 1 >= Math.Max(1, _workerOptions.MaxAttempts))
         {
             await _queue.MoveToDeadLetterAsync(
                 _options.StreamName,
@@ -127,9 +104,6 @@ public sealed class NotificationWorker : BackgroundService
                 cancellationToken);
         }
 
-        _logger.LogError(
-            exception,
-            "Notification failed {MessageId}",
-            message.MessageId);
+        _logger.LogError(exception, "Notification failed {MessageId}", message.MessageId);
     }
 }

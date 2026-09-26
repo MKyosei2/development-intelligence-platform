@@ -1,4 +1,4 @@
-# Purpose: Runs Verify Project Control as part of repository development and verification workflows.
+# Purpose: Verifies Project Control source wiring and its .NET test surface after domain feature reorganization.
 [CmdletBinding()]
 param(
     [switch]$RunIntegration,
@@ -18,8 +18,8 @@ function Invoke-Dotnet([string[]]$Arguments){& $script:dotnet @Arguments;if($LAS
 
 try {
     $required=@(
-        'src\Dip.Domain\Entities\DevelopmentGraphNode.cs',
-        'src\Dip.Domain\Entities\DevelopmentGraphEdge.cs',
+        'src\Dip.Domain\Features\Projects\Entities\DevelopmentGraphNode.cs',
+        'src\Dip.Domain\Features\Projects\Entities\DevelopmentGraphEdge.cs',
         'src\Dip.Application\Features\DevelopmentGraph\DevelopmentGraphService.cs',
         'src\Dip.Application\Features\ChangeImpact\ChangeImpactAnalysisService.cs',
         'src\Dip.Application\Features\Milestones\MilestoneIntelligenceService.cs',
@@ -84,24 +84,6 @@ try {
         'WHAT_IF_SIMULATION=PASS',
         'JENKINS_EXTERNAL_CI_SOURCE=PASS',
         'MANAGEMENT_INTELLIGENCE=PASS',
-        'TEAM_WORKLOAD_CAPACITY=PASS',
-        'TASK_WORKSTREAM_MANAGEMENT=PASS',
-        'SCHEDULE_GANTT=PASS',
-        'CRITICAL_PATH_MANAGEMENT=PASS',
-        'BLOCKER_MANAGEMENT=PASS',
-        'DEPENDENCY_MANAGEMENT=PASS',
-        'MILESTONE_MANAGEMENT=PASS',
-        'REQUIREMENT_SCOPE_MANAGEMENT=PASS',
-        'EXCEL_XLSX_BIDIRECTIONAL=PASS',
-        'GOOGLE_SHEETS_BIDIRECTIONAL_SOURCE=PASS',
-        'RISK_REGISTER_MANAGEMENT=PASS',
-        'DECISION_ACTION_MANAGEMENT=PASS',
-        'RESOURCE_ALLOCATION_MANAGEMENT=PASS',
-        'CHANGE_REQUEST_SCOPE_IMPACT=PASS',
-        'NOTIFICATION_ESCALATION_FEED=PASS',
-        'PROJECT_HEALTH_MANAGEMENT_SUMMARY=PASS',
-        'MANAGEMENT_DECISION_CYCLE_SPREADSHEET_SYNC=PASS',
-        'RELEASE_READINESS_MANAGEMENT_INTEGRATION=PASS',
         "INTEGRATION_EXECUTED=$([bool]$RunIntegration)",
         "E2E_EXECUTED=$([bool]$RunEndToEnd)",
         "UTC=$([DateTimeOffset]::UtcNow.ToString('O'))"

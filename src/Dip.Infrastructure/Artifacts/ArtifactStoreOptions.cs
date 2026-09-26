@@ -1,4 +1,4 @@
-// Purpose: Implements A rt if ac tS to re infrastructure integration for a rt if ac ts.
+// Purpose: Configures the durable artifact provider, retention policy, and MinIO settings.
 namespace Dip.Infrastructure.Artifacts;
 public sealed class ArtifactStoreOptions
 {

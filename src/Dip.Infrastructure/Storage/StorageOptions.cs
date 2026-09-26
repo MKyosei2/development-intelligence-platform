@@ -1,1 +1,1 @@
-// Purpose: Implements S to ra ge infrastructure integration for s to ra ge.
+// Purpose: Configures object-storage provider settings and storage limits used by infrastructure.
