@@ -17,7 +17,7 @@ public sealed class LegacySchemaMismatchException : InvalidOperationException
 /// </summary>
 public sealed class LegacyMigrationAdopter
 {
-    private const string BaselineMigration = "20260812000100_InitialBaseline";
+    private const string BaselineMigration = "202608120001_InitialBaseline";
     private const string EfProductVersion = "8.0.4";
     private readonly ILogger<LegacyMigrationAdopter> _logger;
 
