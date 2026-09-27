@@ -83,6 +83,54 @@ function Require-Command {
     }
 }
 
+function Invoke-NativeCapture {
+    param(
+        [Parameter(Mandatory)][string]$File,
+        [string[]]$Arguments = @(),
+        [string]$WorkingDirectory = $Root
+    )
+
+    $oldLocation = (Get-Location).Path
+    $oldPreference = $ErrorActionPreference
+
+    try {
+        Set-Location -LiteralPath $WorkingDirectory
+        $ErrorActionPreference = 'Continue'
+        $lines = @(
+            & $File @Arguments 2>&1 |
+                ForEach-Object { $_.ToString() }
+        )
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $oldPreference
+        Set-Location -LiteralPath $oldLocation
+    }
+
+    [pscustomobject]@{
+        ExitCode = $exitCode
+        Lines = $lines
+        Text = ($lines -join [Environment]::NewLine)
+    }
+}
+
+function Invoke-NativeChecked {
+    param(
+        [Parameter(Mandatory)][string]$File,
+        [string[]]$Arguments = @(),
+        [string]$WorkingDirectory = $Root
+    )
+
+    $result = Invoke-NativeCapture -File $File -Arguments $Arguments -WorkingDirectory $WorkingDirectory
+    $result.Lines | ForEach-Object { Write-Output $_ }
+
+    if ($result.ExitCode -ne 0) {
+        throw "$File returned exit code $($result.ExitCode)."
+    }
+
+    return $result
+}
+
 Push-Location $Root
 try {
     Invoke-Phase 'Environment' {
@@ -170,58 +218,95 @@ try {
     if (-not $SkipNative) {
         Invoke-Phase 'Native collector build/test' {
             Require-Command cmake
-            Push-Location 'collectors/native-collector'
-            try {
-                foreach ($relative in @(
-                    '../../Directory.Build.props',
-                    '../../Directory.Build.targets',
-                    '../../Directory.Packages.props'
-                )) {
-                    if (-not (Test-Path $relative)) { throw "Missing repository build file: $relative" }
-                    [xml](Get-Content $relative -Raw) | Out-Null
-                }
+            Require-Command ctest
 
-                if (Test-Path 'build-preflight') {
-                    Remove-Item 'build-preflight' -Recurse -Force
-                }
-                cmake -S . -B build-preflight -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-                if ($LASTEXITCODE -ne 0) { throw 'CMake configure failed.' }
-                cmake --build build-preflight --config Release --parallel
-                if ($LASTEXITCODE -ne 0) { throw 'Native build failed.' }
-                ctest --test-dir build-preflight -C Release --output-on-failure
-                if ($LASTEXITCODE -ne 0) { throw 'Native tests failed.' }
+            foreach ($relative in @(
+                'Directory.Build.props',
+                'Directory.Build.targets',
+                'Directory.Packages.props'
+            )) {
+                $absolute = Join-Path $Root $relative
+                if (-not (Test-Path $absolute)) { throw "Missing repository build file: $relative" }
+                [xml](Get-Content $absolute -Raw) | Out-Null
             }
-            finally { Pop-Location }
+
+            $nativeSource = Join-Path $Root 'collectors\native-collector'
+            $nativeBuild = Join-Path $OutDir 'native-build'
+
+            if (Test-Path $nativeBuild) {
+                Remove-Item $nativeBuild -Recurse -Force
+            }
+
+            Invoke-NativeChecked 'cmake' @(
+                '-S', $nativeSource,
+                '-B', $nativeBuild,
+                '-DCMAKE_BUILD_TYPE=Release',
+                '-DBUILD_TESTING=ON'
+            ) | Out-Null
+
+            Invoke-NativeChecked 'cmake' @(
+                '--build', $nativeBuild,
+                '--config', 'Release',
+                '--parallel'
+            ) | Out-Null
+
+            Invoke-NativeChecked 'ctest' @(
+                '--test-dir', $nativeBuild,
+                '-C', 'Release',
+                '--output-on-failure'
+            ) | Out-Null
         }
     }
 
     if (-not $SkipSecurity) {
         Invoke-Phase '.NET dependency vulnerability audit' {
-            $output = dotnet list DevelopmentIntelligencePlatform.sln package --vulnerable --include-transitive 2>&1 | Out-String
-            $output | Write-Host
-            if ($LASTEXITCODE -ne 0) { throw 'NuGet vulnerability audit failed.' }
-            if ($output -match 'has the following vulnerable packages') {
+            $audit = Invoke-NativeCapture -File 'dotnet' -Arguments @(
+                'list',
+                'DevelopmentIntelligencePlatform.sln',
+                'package',
+                '--vulnerable',
+                '--include-transitive'
+            )
+            $audit.Lines | ForEach-Object { Write-Output $_ }
+
+            if ($audit.ExitCode -ne 0) { throw 'NuGet vulnerability audit failed.' }
+            if ($audit.Text -match 'has the following vulnerable packages') {
                 throw 'Vulnerable NuGet package(s) detected.'
             }
         }
 
         Invoke-Phase 'Python dependency vulnerability audit' {
-            python -m pip install --upgrade pip-audit
-            if ($LASTEXITCODE -ne 0) { throw 'pip-audit install failed.' }
-            python -m pip_audit -r services/python-analysis/requirements.txt
-            if ($LASTEXITCODE -ne 0) { throw 'Python dependency vulnerability audit failed.' }
+            Invoke-NativeChecked 'python' @('-m','pip','install','--upgrade','pip-audit') | Out-Null
+            Invoke-NativeChecked 'python' @('-m','pip_audit','-r','services/python-analysis/requirements.txt') | Out-Null
         }
 
         if (Get-Command gitleaks -ErrorAction SilentlyContinue) {
             Invoke-Phase 'Secret scan' {
-                gitleaks git --redact --no-banner .
+                Invoke-NativeChecked 'gitleaks' @('git','--redact','--no-banner','.') | Out-Null
+            }
+        }
+        elseif (Get-Command docker -ErrorAction SilentlyContinue) {
+            $dockerInfo = Invoke-NativeCapture -File 'docker' -Arguments @('info')
+
+            if ($dockerInfo.ExitCode -eq 0) {
+                Invoke-Phase 'Secret scan' {
+                    Invoke-NativeChecked 'docker' @(
+                        'run','--rm',
+                        '-v',"${Root}:/repo",
+                        '-w','/repo',
+                        'zricethezav/gitleaks:latest',
+                        'git','--redact','--no-banner','.'
+                    ) | Out-Null
+                }
+            }
+            else {
+                Add-Result -Name 'Secret scan' -Status 'BLOCKED' -Seconds 0 -Log '' -Message 'Neither local gitleaks nor a running Docker engine is available.'
+                if (-not $ContinueOnFailure) { throw 'Secret scan runtime is unavailable.' }
             }
         }
         else {
-            Add-Result -Name 'Secret scan' -Status 'BLOCKED' -Seconds 0 -Log '' -Message 'gitleaks is not installed locally. Install it before publication; GitHub Security Scan runs gitleaks against full history.'
-            if (-not $ContinueOnFailure) {
-                throw 'gitleaks is required for a complete local preflight.'
-            }
+            Add-Result -Name 'Secret scan' -Status 'BLOCKED' -Seconds 0 -Log '' -Message 'Neither gitleaks nor Docker is available locally.'
+            if (-not $ContinueOnFailure) { throw 'Secret scan runtime is unavailable.' }
         }
 
         Invoke-Phase 'C# static-analysis fallback' {
