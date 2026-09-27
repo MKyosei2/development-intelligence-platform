@@ -21,7 +21,7 @@ $db = 'dip_migration_' + [guid]::NewGuid().ToString('N').Substring(0, 12)
 $oldConnection = $env:ConnectionStrings__PostgreSql
 
 $pg = Resolve-DipPostgresClient `
-    -Host $DatabaseHost `
+    -HostName $DatabaseHost `
     -Port $DatabasePort `
     -User $DatabaseUser `
     -Password $DatabasePassword
