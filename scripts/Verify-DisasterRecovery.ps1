@@ -23,7 +23,7 @@ New-Item -Force -ItemType Directory $out | Out-Null
 $db = 'dip_dr_' + [guid]::NewGuid().ToString('N').Substring(0, 12)
 
 $pg = Resolve-DipPostgresClient `
-    -Host $DatabaseHost `
+    -HostName $DatabaseHost `
     -Port $DatabasePort `
     -User $DatabaseUser `
     -Password $DatabasePassword `
