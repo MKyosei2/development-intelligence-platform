@@ -30,7 +30,7 @@ try {
         'src\Dip.Application\Features\Scenarios\WhatIfSimulationService.cs',
         'src\Dip.Infrastructure\Integrations\PerforceVersionControlConnector.cs',
         'src\Dip.Infrastructure\Integrations\JenkinsCiConnector.cs',
-        'src\Dip.Infrastructure\Persistence\Migrations\202608120004_AddProjectControlGraph.cs',
+        'src\Dip.Infrastructure\Persistence\Migrations\20260812000400_AddProjectControlGraph.cs',
         'src\Dip.Api\Controllers\DevelopmentGraphController.cs',
         'src\Dip.Api\Controllers\ProjectIntegrationController.cs',
         'src\Dip.Api\Controllers\ProjectDecisionController.cs',
@@ -72,7 +72,7 @@ try {
     @(
         'PROJECT_CONTROL_SOURCE_VERIFICATION=PASS',
         "DOTNET_SDK=$version",
-        'MIGRATION=202608120004_AddProjectControlGraph',
+        'MIGRATION=20260812000400_AddProjectControlGraph',
         'QA_LANGUAGE_SCOPE=Universal LanguageId adapters; deep=Python,C++,C#',
         'DEVELOPMENT_GRAPH=PASS',
         'CHANGE_IMPACT=PASS',
