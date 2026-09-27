@@ -35,7 +35,22 @@ internal static partial class QaParsing
             list.Add(new(category, Severity.Warning, tool, $"C# {rule} warning", m.Groups[5].Value.Trim(), m.Groups[1].Value, ParseInt(m.Groups[2].Value), ParseInt(m.Groups[3].Value), RuleId: rule));
         }
         foreach (Match m in DotNetExceptionRegex().Matches(text))
-            list.Add(new("runtime", Severity.Critical, tool, $"Unhandled {m.Groups[1].Value}", m.Groups[2].Value.Trim(), ExceptionType: m.Groups[1].Value, StackTrace: Trim(text)));
+        {
+            var qualifiedExceptionType = m.Groups[1].Value;
+            var separator = qualifiedExceptionType.LastIndexOf('.');
+            var exceptionType = separator >= 0
+                ? qualifiedExceptionType[(separator + 1)..]
+                : qualifiedExceptionType;
+
+            list.Add(new(
+                "runtime",
+                Severity.Critical,
+                tool,
+                $"Unhandled {exceptionType}",
+                m.Groups[2].Value.Trim(),
+                ExceptionType: exceptionType,
+                StackTrace: Trim(text)));
+        }
         foreach (Match m in DotNetStackFrameRegex().Matches(text))
         {
             if (list.Count == 0) break;
