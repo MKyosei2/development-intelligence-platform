@@ -15,7 +15,7 @@ Set-StrictMode -Version Latest
 if ($env:OS -ne 'Windows_NT') { throw 'Formal portfolio verification must run on Windows.' }
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 
-foreach ($command in @('git','dotnet','node','npm','psql','pg_dump','pg_restore')) {
+foreach ($command in @('git','dotnet','node','npm')) {
     if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
         throw "$command is required."
     }
@@ -86,7 +86,7 @@ $payload | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $out 'formal-verifi
     "Commit=$sha",
     "VerifiedAtUtc=$($payload.verifiedAtUtc)",
     'Runtime=Native',
-    'DockerRequired=NO',
+    'PostgreSqlClient=LocalOrDockerFallback',
     'Windows=PASS',
     '.NET=PASS',
     'Unity=PASS',
