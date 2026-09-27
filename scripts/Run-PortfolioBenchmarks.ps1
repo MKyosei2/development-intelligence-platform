@@ -93,7 +93,7 @@ if ($ExpectedSha -and $sourceSha -ne $ExpectedSha) {
 }
 
 $pg = Resolve-DipPostgresClient `
-    -Host $DatabaseHost `
+    -HostName $DatabaseHost `
     -Port $DatabasePort `
     -User $DatabaseUser `
     -Password $DatabasePassword
