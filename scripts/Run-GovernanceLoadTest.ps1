@@ -272,11 +272,13 @@ SELECT gen_random_uuid(),'$projectId'::uuid,md5('${projectId}:'||g::text)||md5('
             Out-Null
     }
 
+    Add-Type -AssemblyName System.Net.Http
+
     $handler =
-        [Net.Http.HttpClientHandler]::new()
+        [System.Net.Http.HttpClientHandler]::new()
 
     $client =
-        [Net.Http.HttpClient]::new($handler)
+        [System.Net.Http.HttpClient]::new($handler)
 
     $client.Timeout =
         [TimeSpan]::FromSeconds(30)
