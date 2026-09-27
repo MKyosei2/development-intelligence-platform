@@ -86,7 +86,7 @@ function Resolve-DipPostgresClient {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Host,
+        [string]$HostName,
 
         [Parameter(Mandatory = $true)]
         [int]$Port,
@@ -113,7 +113,7 @@ function Resolve-DipPostgresClient {
         return [pscustomobject]@{
             Mode = 'Local'
             Container = ''
-            Host = $Host
+            Host = $HostName
             Port = $Port
             User = $User
             Password = $Password
