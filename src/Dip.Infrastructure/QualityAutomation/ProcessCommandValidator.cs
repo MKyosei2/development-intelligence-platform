@@ -215,9 +215,12 @@ internal static class ProcessCommandValidator
 
     private static bool IsCMakeFlagsAssignment(string name)
     {
-        var normalized = name
-            .Trim()
-            .TrimStart('-', '/');
+        var normalized = name.Trim();
+
+        if (normalized.StartsWith("-D", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized[2..];
+        else
+            normalized = normalized.TrimStart('-', '/');
 
         if (!normalized.StartsWith("CMAKE_", StringComparison.OrdinalIgnoreCase))
             return false;
