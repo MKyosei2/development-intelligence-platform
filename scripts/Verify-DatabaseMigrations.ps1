@@ -73,27 +73,94 @@ try {
 
         $latest = $migrations[-1]
 
-        if ($migrations.Count -gt 1) {
-            $previous = $migrations[-2]
-
-            dotnet ef database update $previous `
-                --project src/Dip.Infrastructure `
-                --startup-project src/Dip.Api
-
-            if ($LASTEXITCODE -ne 0) {
-                throw "Migration to previous revision failed: $previous"
-            }
-        }
-
-        dotnet ef database update $latest `
+        # Some historical DIP migrations intentionally retain their original
+        # 12-digit IDs for database compatibility. EF CLI cannot always resolve
+        # those IDs as explicit named targets. Verify rollback with the special
+        # target '0', which is supported independently of migration-ID parsing,
+        # then re-apply the full chain to the latest migration.
+        dotnet ef database update `
             --project src/Dip.Infrastructure `
             --startup-project src/Dip.Api
 
         if ($LASTEXITCODE -ne 0) {
-            throw "Migration to latest revision failed: $latest"
+            throw "Initial migration to latest revision failed: $latest"
         }
 
-        dotnet ef database update $latest `
+        dotnet ef database update 0 `
+            --project src/Dip.Infrastructure `
+            --startup-project src/Dip.Api
+
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Rollback to migration zero failed.'
+        }
+
+        $afterRollback = (
+            Invoke-Psql `
+                -Database $db `
+                -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' `
+                -TuplesOnly |
+            Out-String
+        ).Trim()
+
+        if ($afterRollback -notmatch '^\d+
+
+        $applied = (
+            Invoke-Psql `
+                -Database $db `
+                -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' `
+                -TuplesOnly |
+            Out-String
+        ).Trim()
+
+        if ($applied -notmatch '^\d+$' -or [int]$applied -lt 1) {
+            throw 'Migration history verification failed.'
+        }
+
+        $runtime = Get-DipPostgresRuntimeLabel -Client $pg
+
+        Write-Host (
+            "Database migration verification PASS: $latest " +
+            "($applied applied, client=$runtime)"
+        ) -ForegroundColor Green
+    }
+    finally {
+        Pop-Location
+    }
+}
+finally {
+    $env:ConnectionStrings__PostgreSql = $oldConnection
+
+    try {
+        Invoke-Psql `
+            -Database 'postgres' `
+            -Sql "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$db';" |
+            Out-Null
+    }
+    catch {
+    }
+
+    try {
+        Invoke-Psql `
+            -Database 'postgres' `
+            -Sql "DROP DATABASE IF EXISTS `"$db`";" |
+            Out-Null
+    }
+    catch {
+    }
+}
+ -or [int]$afterRollback -ne 0) {
+            throw "Migration rollback verification failed. Remaining history rows=$afterRollback"
+        }
+
+        dotnet ef database update `
+            --project src/Dip.Infrastructure `
+            --startup-project src/Dip.Api
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Migration re-apply to latest revision failed: $latest"
+        }
+
+        dotnet ef database update `
             --project src/Dip.Infrastructure `
             --startup-project src/Dip.Api
 
