@@ -23,12 +23,21 @@ New-Item `
     Out-Null
 
 if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
+    $searchRoot =
+        if (
+            -not [string]::IsNullOrWhiteSpace($BuildDirectory) `
+            -and (Test-Path -LiteralPath $BuildDirectory -PathType Container)
+        ) {
+            (Resolve-Path -LiteralPath $BuildDirectory).Path
+        }
+        else {
+            Join-Path $root 'collectors\native-collector'
+        }
+
     $candidates =
         @(
             Get-ChildItem `
-                -LiteralPath (
-                    Join-Path $root 'collectors\native-collector'
-                ) `
+                -LiteralPath $searchRoot `
                 -Recurse `
                 -File `
                 -Filter 'dip-native-tests.exe' `
