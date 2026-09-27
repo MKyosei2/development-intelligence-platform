@@ -26,7 +26,7 @@ foreach ($command in @('git', 'dotnet')) {
 }
 
 $pg = Resolve-DipPostgresClient `
-    -Host $PostgreSqlHost `
+    -HostName $PostgreSqlHost `
     -Port $PostgreSqlPort `
     -User $PostgreSqlUser `
     -Password $PostgreSqlPassword
