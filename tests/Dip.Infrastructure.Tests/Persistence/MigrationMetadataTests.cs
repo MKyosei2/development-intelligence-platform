@@ -20,13 +20,13 @@ public sealed class MigrationMetadataTests
         var migrations = db.Database.GetMigrations().ToArray();
         var entities = db.Model.GetEntityTypes().Select(x => x.ClrType.Name).ToHashSet(StringComparer.Ordinal);
 
-        Assert.Contains("202608120001_InitialBaseline", migrations);
-        Assert.Contains("202608120002_AddDurablePlatformIntelligence", migrations);
-        Assert.Contains("202608120003_AddDevelopmentIntelligenceExpansion", migrations);
-        Assert.Contains("202608120004_AddProjectControlGraph", migrations);
-        Assert.Contains("202608130005_AddProjectForecasts", migrations);
-        Assert.Contains("202608140006_AddQaGovernance", migrations);
-        Assert.Contains("202608140007_QaGovernanceHardening", migrations);
+        Assert.Contains("20260812000100_InitialBaseline", migrations);
+        Assert.Contains("20260812000200_AddDurablePlatformIntelligence", migrations);
+        Assert.Contains("20260812000300_AddDevelopmentIntelligenceExpansion", migrations);
+        Assert.Contains("20260812000400_AddProjectControlGraph", migrations);
+        Assert.Contains("20260813000500_AddProjectForecasts", migrations);
+        Assert.Contains("20260814000600_AddQaGovernance", migrations);
+        Assert.Contains("20260814000700_QaGovernanceHardening", migrations);
         Assert.Contains("DurableJob", entities);
         Assert.Contains("ArtifactRecord", entities);
         Assert.Contains("Incident", entities);
