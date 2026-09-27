@@ -10,7 +10,7 @@ Development Intelligence Platformの主な変更をここに記録します。
 
 - GUI Phase 1: GitHub App repository connection、Repository Picker、GitHub-to-DIP import、scoped ProjectState、redesigned Project Overview、Repository / CI / QA GUI、shared loading/error/empty states、SignalR project events、Playwright GUI E2E。
 - Upgrade8-based Development Intelligence expansion: Intelligence Dashboard、deterministic game-session replay、target performance budgets、Unreal Engine collector、real-device hardware backtesting、Change Risk、automatic regression triage、Release Readiness gate、GitHub Issue work-item integration、release provenance / CycloneDX SBOM、OpenTelemetry observability、multi-repository dependency impact。
-- Expansion persistence modelとglobal performance-budget presets向けEF Core migration `20260812000300_AddDevelopmentIntelligenceExpansion`。
+- Expansion persistence modelとglobal performance-budget presets向けEF Core migration `202608120003_AddDevelopmentIntelligenceExpansion`。
 - Domain、Application、Infrastructure、API、Worker、Shared contracts、Blazor Webの初期Layered Architecture。
 - Collector report ingestionとvalidationの基盤。
 - PostgreSQL、Redis、MinIO、Docker Compose、Quality Gate、Dashboardの基盤。
