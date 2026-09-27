@@ -34,7 +34,7 @@ Platformは人物へtruthfulness scoreを付けない。評価対象は、現在
 ## Database互換性
 
 Formal EF Core migration baselineはsourceへ実装済み。
-`20260812000100_InitialBaseline`はmigration導入前のDIP schema、`20260812000200_AddDurablePlatformIntelligence`はdurable artifact/job/incident/benchmark schemaを表す。`LegacyMigrationAdopter`はhistorical `EnsureCreated` databaseを検証してからbaseline適用済みとして記録し、互換性のないlegacy schemaはsilent adoptionせずfail-closedとする。以後`DbInitializer`は通常schema evolution pathとして`MigrateAsync`を使用する。
+`202608120001_InitialBaseline`はmigration導入前のDIP schema、`202608120002_AddDurablePlatformIntelligence`はdurable artifact/job/incident/benchmark schemaを表す。`LegacyMigrationAdopter`はhistorical `EnsureCreated` databaseを検証してからbaseline適用済みとして記録し、互換性のないlegacy schemaはsilent adoptionせずfail-closedとする。以後`DbInitializer`は通常schema evolution pathとして`MigrateAsync`を使用する。
 
 このsource stateは、clean PostgreSQL databaseと代表的なhistorical DIP databaseの両方でtarget .NET/PostgreSQL環境のmigration pathが成功するまで、**live-migration verifiedではない**。
 
@@ -91,7 +91,7 @@ Source implementationには次を含む。
 
 ## Development Intelligence拡張 — 2026-08-12
 
-Upgrade8-based sourceでは、Intelligence Dashboard aggregation、deterministic Game Session Regression Replay、platform Performance Budget、Unreal collector、real-device hardware backtesting/calibration、deterministic Change Risk、automatic evidence-based Regression Triage、Release Readiness gating、explicit GitHub Issue work-item creation、Release Provenance/CycloneDX SBOM bundle、OpenTelemetry/Prometheus/Grafana observability、Multi-repository Dependency Graphを実装した。Persistence modelは`20260812000300_AddDevelopmentIntelligenceExpansion`で拡張する。
+Upgrade8-based sourceでは、Intelligence Dashboard aggregation、deterministic Game Session Regression Replay、platform Performance Budget、Unreal collector、real-device hardware backtesting/calibration、deterministic Change Risk、automatic evidence-based Regression Triage、Release Readiness gating、explicit GitHub Issue work-item creation、Release Provenance/CycloneDX SBOM bundle、OpenTelemetry/Prometheus/Grafana observability、Multi-repository Dependency Graphを実装した。Persistence modelは`202608120003_AddDevelopmentIntelligenceExpansion`で拡張する。
 
 これらも**sourceへImplementedであり、自動的にruntime-verifiedではない**。Completion Evidenceにはexact revisionの.NET 8 build/test、clean/legacy PostgreSQL migration run、live PostgreSQL-backed Worker durable-job test、selected Local/MinIO artifact round trip、OTLP export verification、engine/hardware固有path向けreal Unity/Unreal/device runが必要。Real-device calibrationは実測sampleが記録されるまでemptyのままであり、portfolio benchmarkの`TBD`もfixed-environment measurementまで変更しない。
 
