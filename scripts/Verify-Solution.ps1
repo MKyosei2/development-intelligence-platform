@@ -13,15 +13,21 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'PostgreSqlRuntime.ps1')
+$pg=Resolve-DipPostgresClient `
+    -HostName $PostgreSqlHost `
+    -Port $PostgreSqlPort `
+    -User $PostgreSqlUser `
+    -Password $PostgreSqlPassword
 $out=Join-Path $root 'artifacts\final-verification'
 $completion=Join-Path $out 'PROJECT_COMPLETION.txt'
 $failure=Join-Path $out 'PROJECT_COMPLETION_FAILED.txt'
 New-Item -ItemType Directory -Force -Path $out|Out-Null
 Remove-Item $completion,$failure -Force -ErrorAction SilentlyContinue
 
-function Invoke-Checked([string]$exe,[string[]]$args){
-    & $exe @args
-    if($LASTEXITCODE -ne 0){throw "$exe $($args -join ' ') failed with exit code $LASTEXITCODE"}
+function Invoke-Checked([string]$exe,[string[]]$Arguments){
+    & $exe @Arguments
+    if($LASTEXITCODE -ne 0){throw "$exe $($Arguments -join ' ') failed with exit code $LASTEXITCODE"}
 }
 
 function Wait-Http([string]$uri,[System.Diagnostics.Process]$process){
@@ -38,21 +44,14 @@ function Wait-Http([string]$uri,[System.Diagnostics.Process]$process){
 }
 
 function Invoke-Psql([string]$Database,[string]$Sql,[switch]$TuplesOnly){
-    $oldPwd=$env:PGPASSWORD
-    $env:PGPASSWORD=$PostgreSqlPassword
-    try{
-        $args=@('-h',$PostgreSqlHost,'-p',[string]$PostgreSqlPort,'-U',$PostgreSqlUser,'-d',$Database,'-v','ON_ERROR_STOP=1','-w')
-        if($TuplesOnly){$args+=@('-A','-t')}
-        $args+=@('-c',$Sql)
-        $output=& psql @args
-        if($LASTEXITCODE -ne 0){throw "psql failed for database '$Database'."}
-        return $output
-    }finally{
-        $env:PGPASSWORD=$oldPwd
-    }
+    Invoke-DipPsql `
+        -Client $pg `
+        -Database $Database `
+        -Sql $Sql `
+        -TuplesOnly:$TuplesOnly
 }
 
-foreach($cmd in @('dotnet','git','psql')){
+foreach($cmd in @('dotnet','git')){
     if(-not(Get-Command $cmd -ErrorAction SilentlyContinue)){throw "Required command '$cmd' was not found in PATH."}
 }
 $sdk=(& dotnet --version|Out-String).Trim()
@@ -83,7 +82,7 @@ $oldEnv=@{
 Push-Location $root
 try{
     $probe=(Invoke-Psql 'postgres' 'SELECT 1;' -TuplesOnly | Out-String).Trim()
-    if($probe-ne'1'){throw "Native PostgreSQL is not reachable at ${PostgreSqlHost}:${PostgreSqlPort}."}
+    if($probe-ne'1'){throw "PostgreSQL is not reachable at ${PostgreSqlHost}:${PostgreSqlPort}."}
 
     Invoke-Psql 'postgres' "CREATE DATABASE `"$database`" OWNER `"$PostgreSqlUser`";" | Out-Null
     $databaseCreated=$true
