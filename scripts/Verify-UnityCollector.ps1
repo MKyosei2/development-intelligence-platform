@@ -77,7 +77,17 @@ New-Item -ItemType Directory -Force -Path (Join-Path $tempProject 'Assets') | Ou
 New-Item -ItemType Directory -Force -Path (Join-Path $tempProject 'Packages') | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $tempProject 'ProjectSettings') | Out-Null
 
-$packageUri = $package.Replace('\','/')
+$tempPackage =
+    Join-Path $tempProject 'Packages\com.mkyosei.dip.collector'
+
+if (Test-Path -LiteralPath $tempPackage) {
+    Remove-Item -LiteralPath $tempPackage -Recurse -Force
+}
+
+New-Item -ItemType Directory -Force -Path $tempPackage | Out-Null
+Copy-Item -Path (Join-Path $package '*') -Destination $tempPackage -Recurse -Force
+
+$packageUri = $tempPackage.Replace('\','/')
 $manifest = @{
     dependencies = @{
         'com.mkyosei.dip.collector' = "file:$packageUri"
@@ -85,7 +95,12 @@ $manifest = @{
     }
     testables = @('com.mkyosei.dip.collector')
 } | ConvertTo-Json -Depth 5
-$manifest | Set-Content -LiteralPath (Join-Path $tempProject 'Packages\manifest.json') -Encoding UTF8
+
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText(
+    (Join-Path $tempProject 'Packages\manifest.json'),
+    $manifest,
+    $utf8NoBom)
 
 $versionOutput = (& $UnityPath -version 2>&1 | Out-String)
 $versionMatch = [regex]::Match($versionOutput, '\d{4}\.\d+\.\d+[abfp]\d+')
