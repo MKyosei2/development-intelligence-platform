@@ -349,7 +349,8 @@ finally {
     Pop-Location
 
     $finished = [DateTimeOffset]::UtcNow
-    $status = if (($results | Where-Object status -ne 'PASS').Count -eq 0) { 'PASS' } else { 'FAIL' }
+    $nonPass = @($results | Where-Object { $_.status -ne 'PASS' })
+    $status = if ($nonPass.Count -eq 0) { 'PASS' } else { 'FAIL' }
 
     $payload = [ordered]@{
         schema = 'dip.github-ci-preflight.v1'
