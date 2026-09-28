@@ -50,23 +50,47 @@ builder.Services.AddSingleton<ApiMetricsRegistry>();
 builder.Services.AddHttpClient<GitHubOAuthClient>();
 builder.Services.AddHttpClient("system-status", client => client.Timeout = TimeSpan.FromSeconds(5));
 
-var otlpEndpoint =
-    builder.Configuration["OpenTelemetry:OtlpEndpoint"]
-    ?? "http://localhost:4317";
+var otlpEndpointText =
+    builder.Configuration["OpenTelemetry:OtlpEndpoint"];
+
+Uri? otlpEndpoint = null;
+if (!string.IsNullOrWhiteSpace(otlpEndpointText))
+{
+    if (!Uri.TryCreate(
+            otlpEndpointText,
+            UriKind.Absolute,
+            out otlpEndpoint))
+    {
+        throw new InvalidOperationException(
+            "OpenTelemetry:OtlpEndpoint must be a valid absolute URI.");
+    }
+}
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("dip-api"))
-    .WithTracing(t => t
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddSource("DIP.DevelopmentIntelligence")
-        .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint)))
-    .WithMetrics(m => m
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddRuntimeInstrumentation()
-        .AddMeter("DIP.DevelopmentIntelligence")
-        .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint)));
+    .WithTracing(t =>
+    {
+        t.AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource("DIP.DevelopmentIntelligence");
+
+        if (otlpEndpoint is not null)
+        {
+            t.AddOtlpExporter(o => o.Endpoint = otlpEndpoint);
+        }
+    })
+    .WithMetrics(m =>
+    {
+        m.AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter("DIP.DevelopmentIntelligence");
+
+        if (otlpEndpoint is not null)
+        {
+            m.AddOtlpExporter(o => o.Endpoint = otlpEndpoint);
+        }
+    });
 
 var authenticationSection =
     builder.Configuration.GetSection(AuthOptions.SectionName);
