@@ -176,7 +176,7 @@ function Invoke-StrictDockerTest {
             throw 'The strict-test filter contains unsupported shell metacharacters.'
         }
 
-        $filterPart = ' --filter "' + $Filter + '"'
+        $filterPart = " --filter '$Filter'"
     }
 
     $command =
@@ -825,16 +825,26 @@ try {
         $probeDir = Join-Path $out 'infrastructure-probe'
         New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
 
-        $probeCommand = @'
-set -eu
-test -d /work/.git
-test -f /work/DevelopmentIntelligencePlatform.sln
-actual="$(git -c safe.directory=/work rev-parse HEAD)"
-test "$actual" = "__EXPECTED_SHA__"
-echo container-write-ok > /work/artifacts/docker-primary/infrastructure-probe/container-write.txt
-'@.Replace('__EXPECTED_SHA__',$sourceSha)
+        # Keep verifier commands simple across Windows PowerShell -> Docker Compose -> bash -lc.
+        Invoke-Verifier 'test -d /work/.git' | Out-Null
+        Invoke-Verifier 'test -f /work/DevelopmentIntelligencePlatform.sln' | Out-Null
 
-        Invoke-Verifier $probeCommand | Out-Null
+        $shaCandidates = @(
+            Invoke-Verifier 'git -c safe.directory=/work rev-parse HEAD' |
+            ForEach-Object { $_.ToString().Trim() } |
+            Where-Object { $_ -match '^[0-9a-fA-F]{40}$' }
+        )
+
+        if ($shaCandidates.Count -ne 1) {
+            throw "Verifier container returned an unexpected exact-SHA result. Candidates=$($shaCandidates -join ',')"
+        }
+
+        $containerSha = $shaCandidates[0]
+        if ($containerSha -ne $sourceSha) {
+            throw "Verifier container SHA mismatch. Expected=$sourceSha Actual=$containerSha"
+        }
+
+        Invoke-Verifier 'echo container-write-ok > /work/artifacts/docker-primary/infrastructure-probe/container-write.txt' | Out-Null
 
         $hostProbe = Join-Path $probeDir 'container-write.txt'
         if (-not (Test-Path -LiteralPath $hostProbe -PathType Leaf)) {
@@ -845,6 +855,18 @@ echo container-write-ok > /work/artifacts/docker-primary/infrastructure-probe/co
         if ($probeText -ne 'container-write-ok') {
             throw "Verifier bind-mount probe content mismatch: $probeText"
         }
+
+        [ordered]@{
+            schema = 'dip.verifier-bind-mount-exact-sha.v2'
+            sourceCommit = $sourceSha
+            containerCommit = $containerSha
+            gitDirectoryVisible = $true
+            solutionVisible = $true
+            containerToHostWrite = 'PASS'
+            verifiedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+        } |
+            ConvertTo-Json -Depth 5 |
+            Set-Content -LiteralPath (Join-Path $probeDir 'verifier-bind-mount.json') -Encoding UTF8
     }
 
     Invoke-Stage 'Build Python Analysis image' {
