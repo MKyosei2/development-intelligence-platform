@@ -45,7 +45,8 @@ services:
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=dip_verify;Username=dip;Password=${DIP_VERIFY_POSTGRES_PASSWORD:-dip-verification-password}
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__ApiKey: verification-analysis-key
-      GitHub__WebhookSecret: verification-webhook-secret
+      GitHub__WebhookSecret: ${DIP_VERIFY_GITHUB_WEBHOOK_SECRET:-integration-test-secret}
+      DIP_VERIFY_GITHUB_WEBHOOK_SECRET: ${DIP_VERIFY_GITHUB_WEBHOOK_SECRET:-integration-test-secret}
       GitHub__Token: verification-token
       Authentication__RequireAuthenticatedUser: "false"
       Qa__WorkspaceRoot: /data/dip-workspaces
@@ -124,6 +125,7 @@ services:
     volumes:
       - .:/work
       - verify-nuget:/root/.nuget/packages
+      - verify-workspaces:/data/dip-workspaces
     environment:
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=dip_verify;Username=dip;Password=${DIP_VERIFY_POSTGRES_PASSWORD:-dip-verification-password}
       POSTGRES_HOST: postgres
@@ -135,7 +137,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Testing
       DOTNET_ENVIRONMENT: Testing
       Authentication__RequireAuthenticatedUser: "false"
-      GitHub__WebhookSecret: verification-webhook-secret
+      GitHub__WebhookSecret: ${DIP_VERIFY_GITHUB_WEBHOOK_SECRET:-integration-test-secret}
       GitHub__Token: verification-token
       Qa__WorkspaceRoot: /work
       Qa__ArtifactRoot: /work/artifacts/qa

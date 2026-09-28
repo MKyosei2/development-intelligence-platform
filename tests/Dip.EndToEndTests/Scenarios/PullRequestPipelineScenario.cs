@@ -11,7 +11,9 @@ public sealed class PullRequestPipelineScenario
     [Fact]
     public async Task SignedPullRequestWebhook_IsAcceptedAndIdempotent()
     {
-        const string secret = "integration-test-secret";
+        var secret =
+            Environment.GetEnvironmentVariable("DIP_VERIFY_GITHUB_WEBHOOK_SECRET")
+            ?? "integration-test-secret";
         var deliveryId = Guid.NewGuid().ToString("N");
         var payload = JsonSerializer.Serialize(new
         {

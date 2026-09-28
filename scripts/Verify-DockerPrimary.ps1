@@ -964,6 +964,13 @@ try {
         for($i=0;$i -lt $expected.Count;$i++){ if($reappliedIds[$i] -ne $expected[$i]){ throw "Reapplied migration id mismatch at $i." } }
     }
 
+    Invoke-Stage 'Seed E2E QA workspace' {
+        # The API resolves QA workspaces inside the shared named volume. Seed only
+        # the deterministic E2E fixture from the repository checkout so QA tools
+        # can create transient files without mutating the source tree.
+        Invoke-Verifier "set -eu; target=/data/dip-workspaces/samples/qa-bug-zoo/python/runtime_type_error; rm -rf \"$target\"; mkdir -p \"$(dirname \"$target\")\"; cp -a /work/samples/qa-bug-zoo/python/runtime_type_error \"$target\"; chown -R 10001:10001 /data/dip-workspaces/samples; test -f \"$target/app.py\""
+    }
+
     Invoke-Stage 'Start API Worker Web Analysis' {
         Invoke-ComposeChecked @('up','-d','python-analysis','api','worker','web')
         Wait-Http 'Analysis' "http://127.0.0.1:$($env:DIP_VERIFY_ANALYSIS_PORT)/health"
