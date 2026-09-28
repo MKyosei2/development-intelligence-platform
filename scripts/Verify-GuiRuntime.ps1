@@ -134,7 +134,12 @@ try{
     $env:PublicAccess__ReadOnly='false'
 
     Start-Phase 'START_DIP'
+    $global:LASTEXITCODE=0
     & (Join-Path $PSScriptRoot 'Start-DIP.ps1') -NoBrowser -NoLogRedirect -HealthTimeoutSeconds $StartupTimeoutSeconds
+    $startExitCode=$LASTEXITCODE
+    if($null -ne $startExitCode -and $startExitCode -ne 0){
+        throw "Start-DIP.ps1 failed with exit code $startExitCode"
+    }
     $started=$true
     Pass-Phase 'START_DIP'
 

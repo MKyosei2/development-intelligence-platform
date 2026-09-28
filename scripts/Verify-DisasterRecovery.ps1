@@ -210,11 +210,12 @@ try {
         $zip,
         $dst)
 
-    if (
+    $sourceArtifactHash =
         (Get-FileHash (Join-Path $src 'proof.txt') -Algorithm SHA256).Hash
-        -ne
+    $restoredArtifactHash =
         (Get-FileHash (Join-Path $dst 'proof.txt') -Algorithm SHA256).Hash
-    ) {
+
+    if ($sourceArtifactHash -ne $restoredArtifactHash) {
         throw 'Artifact restore verification mismatch.'
     }
 

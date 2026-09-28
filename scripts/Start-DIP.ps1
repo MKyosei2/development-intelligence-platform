@@ -248,24 +248,26 @@ try {
         '-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8100'
     ) (Join-Path $root 'services\python-analysis')
 
+    $apiDll = Join-Path $root 'src\Dip.Api\bin\Release\net8.0\Dip.Api.dll'
+    $workerDll = Join-Path $root 'src\Dip.Worker\bin\Release\net8.0\Dip.Worker.dll'
+    $webDll = Join-Path $root 'src\Dip.Web\bin\Release\net8.0\Dip.Web.dll'
+    foreach ($dll in @($apiDll,$workerDll,$webDll)) {
+        if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) {
+            throw "Managed runtime DLL was not found: $dll"
+        }
+    }
+
+    # Use dotnet.exe as the trusted host instead of generated unsigned apphost EXEs.
     $api = Start-Tracked 'api' 'dotnet' @(
-        'run','--no-launch-profile','--project',
-        (Join-Path $root 'src\Dip.Api\Dip.Api.csproj'),
-        '-c','Release','--no-build','--no-restore',
-        '--urls','http://127.0.0.1:5080'
+        $apiDll,'--urls','http://127.0.0.1:5080'
     ) $root
 
     $worker = Start-Tracked 'worker' 'dotnet' @(
-        'run','--no-launch-profile','--project',
-        (Join-Path $root 'src\Dip.Worker\Dip.Worker.csproj'),
-        '-c','Release','--no-build','--no-restore'
+        $workerDll
     ) $root
 
     $web = Start-Tracked 'web' 'dotnet' @(
-        'run','--no-launch-profile','--project',
-        (Join-Path $root 'src\Dip.Web\Dip.Web.csproj'),
-        '-c','Release','--no-build','--no-restore',
-        '--urls','http://127.0.0.1:5081'
+        $webDll,'--urls','http://127.0.0.1:5081'
     ) $root
 
     $deadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)

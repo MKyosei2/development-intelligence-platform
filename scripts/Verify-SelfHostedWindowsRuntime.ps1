@@ -79,14 +79,17 @@ try {
     $workerOut = Join-Path $art 'worker.stdout.log'
     $workerErr = Join-Path $art 'worker.stderr.log'
 
+    $apiDll = Join-Path $root 'src\Dip.Api\bin\Release\net8.0\Dip.Api.dll'
+    $workerDll = Join-Path $root 'src\Dip.Worker\bin\Release\net8.0\Dip.Worker.dll'
+    if (-not (Test-Path -LiteralPath $apiDll -PathType Leaf)) { throw "API DLL was not found: $apiDll" }
+    if (-not (Test-Path -LiteralPath $workerDll -PathType Leaf)) { throw "Worker DLL was not found: $workerDll" }
+
     $api = Start-Process -FilePath 'dotnet' -ArgumentList @(
-        'run','--no-launch-profile','--project','src/Dip.Api/Dip.Api.csproj',
-        '-c','Release','--no-build','--no-restore'
+        $apiDll
     ) -PassThru -RedirectStandardOutput $apiOut -RedirectStandardError $apiErr
 
     $worker = Start-Process -FilePath 'dotnet' -ArgumentList @(
-        'run','--no-launch-profile','--project','src/Dip.Worker/Dip.Worker.csproj',
-        '-c','Release','--no-build','--no-restore'
+        $workerDll
     ) -PassThru -RedirectStandardOutput $workerOut -RedirectStandardError $workerErr
 
     $healthy = $false

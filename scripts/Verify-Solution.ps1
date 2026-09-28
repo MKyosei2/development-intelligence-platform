@@ -118,13 +118,17 @@ try{
     $apiErr=Join-Path $out 'api.stderr.log'
     $workerOut=Join-Path $out 'worker.stdout.log'
     $workerErr=Join-Path $out 'worker.stderr.log'
+    $apiDll=Join-Path $root "src\Dip.Api\bin\$Configuration\net8.0\Dip.Api.dll"
+    $workerDll=Join-Path $root "src\Dip.Worker\bin\$Configuration\net8.0\Dip.Worker.dll"
+    if(-not(Test-Path -LiteralPath $apiDll -PathType Leaf)){throw "API DLL was not found: $apiDll"}
+    if(-not(Test-Path -LiteralPath $workerDll -PathType Leaf)){throw "Worker DLL was not found: $workerDll"}
+
+    # Launch managed DLLs through the trusted dotnet host rather than generated apphost EXEs.
     $api=Start-Process dotnet -ArgumentList @(
-        'run','--no-launch-profile','--project','src/Dip.Api/Dip.Api.csproj','-c',$Configuration,
-        '--no-build','--no-restore','--urls',"http://127.0.0.1:$ApiPort"
+        $apiDll,'--urls',"http://127.0.0.1:$ApiPort"
     ) -RedirectStandardOutput $apiOut -RedirectStandardError $apiErr -PassThru
     $worker=Start-Process dotnet -ArgumentList @(
-        'run','--no-launch-profile','--project','src/Dip.Worker/Dip.Worker.csproj','-c',$Configuration,
-        '--no-build','--no-restore'
+        $workerDll
     ) -RedirectStandardOutput $workerOut -RedirectStandardError $workerErr -PassThru
 
     Wait-Http "http://127.0.0.1:$ApiPort/health" $api
@@ -136,6 +140,7 @@ try{
         "Timestamp=$([DateTimeOffset]::UtcNow.ToString('u'))",
         "Configuration=$Configuration",
         'Runtime=NativePostgreSQL',
+        'RuntimeLaunch=dotnet-managed-dll',
         'UnitTests=PASS',
         'IntegrationTests=PASS',
         'LiveE2E=PASS'
