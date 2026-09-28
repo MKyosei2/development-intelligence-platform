@@ -164,8 +164,11 @@ function Invoke-StrictDockerTest {
     $filterPart = ''
 
     if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-        $escaped = $Filter.Replace("'", "'\"'\"'")
-        $filterPart = " --filter '$escaped'"
+        if ($Filter -notmatch '^[A-Za-z0-9_.~|&!=() -]+$') {
+            throw 'The strict-test filter contains unsupported shell metacharacters.'
+        }
+
+        $filterPart = ' --filter "' + $Filter + '"'
     }
 
     $command =
@@ -688,7 +691,7 @@ try {
 
         Invoke-Verifier "dotnet ef database update 0 --project src/Dip.Infrastructure --startup-project src/Dip.Api"
 
-        $exists = (Invoke-ComposePsql -Sql "SELECT CASE WHEN to_regclass('public.`"__EFMigrationsHistory`"') IS NULL THEN 0 ELSE 1 END;" -TuplesOnly | Out-String).Trim()
+        $exists = (Invoke-ComposePsql -Sql 'SELECT CASE WHEN to_regclass(''public."__EFMigrationsHistory"'') IS NULL THEN 0 ELSE 1 END;' -TuplesOnly | Out-String).Trim()
         if($exists -ne '0'){
             $count = (Invoke-ComposePsql -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' -TuplesOnly | Out-String).Trim()
             if($count -ne '0'){ throw "Rollback to zero left migration history rows: $count" }
@@ -722,7 +725,7 @@ try {
         Invoke-Stage 'Playwright GUI' {
             Invoke-ComposeChecked @(
                 'run','--rm','--no-deps','playwright',
-                "if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --package-lock=false --no-audit --no-fund; fi && npx playwright test tests/gui-onboarding.spec.mjs --retries=0"
+                'if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --package-lock=false --no-audit --no-fund; fi && npx playwright test tests/gui-onboarding.spec.mjs --retries=0'
             )
         }
     }
@@ -730,7 +733,7 @@ try {
     Invoke-Stage 'Disaster Recovery' {
         $postgresId = (& docker compose -p $script:ComposeProject -f $script:ComposeFile ps -q postgres | Out-String).Trim()
         if([string]::IsNullOrWhiteSpace($postgresId)){ throw 'Could not resolve verification PostgreSQL container.' }
-        $name = (& docker inspect --format '{{.Name}}' $postgresId | Out-String).Trim().TrimStart('/')
+        $name = (& docker inspect --format '{{.Name}}' $postgresId | Out-String).Trim().TrimStart([char[]]@(47))
         $oldContainer = $env:DIP_POSTGRES_CONTAINER
         try {
             $env:DIP_POSTGRES_CONTAINER = $name
