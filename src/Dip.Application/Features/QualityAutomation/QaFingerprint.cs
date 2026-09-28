@@ -11,12 +11,37 @@ public static class QaFingerprint
     public static string Create(LanguageId language, QaFindingCandidate finding)
     {
         var category = Normalize(finding.Category);
-        var stable = language == LanguageId.Python && category == "runtime" ? PythonRuntimeStable(finding) : string.Join('|', language.Value, category, Normalize(finding.ExceptionType), Normalize(finding.RuleId), NormalizePath(finding.FilePath), finding.Line?.ToString(CultureInfo.InvariantCulture) ?? string.Empty, Normalize(finding.Function), Normalize(FirstMeaningfulLine(finding.StackTrace ?? finding.Message)));
+
+        string stable;
+        if (language == LanguageId.Python && category == "runtime")
+        {
+            stable = PythonRuntimeStable(finding);
+        }
+        else if ((language == LanguageId.Cpp || language == LanguageId.C) && category == "memory-safety")
+        {
+            stable = CppMemorySafetyStable(language, finding);
+        }
+        else
+        {
+            stable = string.Join(
+                '|',
+                language.Value,
+                category,
+                Normalize(finding.ExceptionType),
+                Normalize(finding.RuleId),
+                NormalizePath(finding.FilePath),
+                finding.Line?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                Normalize(finding.Function),
+                Normalize(FirstMeaningfulLine(finding.StackTrace ?? finding.Message)));
+        }
+
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stable)));
     }
+
     private static string PythonRuntimeStable(QaFindingCandidate finding)
     {
-        var exceptionType = Normalize(finding.ExceptionType); var message = Normalize(finding.Message);
+        var exceptionType = Normalize(finding.ExceptionType);
+        var message = Normalize(finding.Message);
         if (string.IsNullOrEmpty(exceptionType))
         {
             var colon = message.IndexOf(':');
@@ -30,9 +55,23 @@ public static class QaFingerprint
                 }
             }
         }
+
         return string.Join('|', LanguageId.Python.Value, "runtime", exceptionType, message);
     }
+
+    private static string CppMemorySafetyStable(LanguageId language, QaFindingCandidate finding) =>
+        string.Join(
+            '|',
+            language.Value,
+            "memory-safety",
+            Normalize(finding.ExceptionType),
+            Normalize(finding.RuleId),
+            NormalizePath(finding.FilePath),
+            finding.Line?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+            Normalize(finding.Function));
+
     private static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant();
+
     private static string NormalizePath(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
@@ -40,5 +79,7 @@ public static class QaFingerprint
         var parts = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
         return string.Join('/', parts.TakeLast(Math.Min(3, parts.Length))).ToLowerInvariant();
     }
-    private static string FirstMeaningfulLine(string value) => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? string.Empty;
+
+    private static string FirstMeaningfulLine(string value) =>
+        value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? string.Empty;
 }
