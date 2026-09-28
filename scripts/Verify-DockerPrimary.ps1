@@ -86,6 +86,17 @@ function Invoke-Verifier {
     )
 }
 
+function Invoke-EfVerifier {
+    param([Parameter(Mandatory=$true)][string]$EfArguments)
+
+    if ([string]::IsNullOrWhiteSpace($EfArguments)) {
+        throw 'EF arguments are required.'
+    }
+
+    # Invoke-Verifier creates an ephemeral docker compose run --rm container.
+    # Restore the local tool and execute dotnet-ef in the SAME container.
+    Invoke-Verifier ("dotnet tool restore && dotnet ef " + $EfArguments)
+}
 function Wait-Http {
     param(
         [Parameter(Mandatory=$true)][string]$Name,
@@ -218,9 +229,12 @@ function Invoke-ComposePsql {
         $args += @('-A','-t')
     }
 
-    $args += @('-c',$Sql)
+    $args += @('-f','-')
 
-    $result = Invoke-DipNativeCapture -File 'docker' -Arguments $args
+    $result = Invoke-DipNativeInputCapture `
+        -File 'docker' `
+        -Arguments $args `
+        -InputText $Sql
     if ($result.ExitCode -ne 0) {
         $message = "psql failed for database '$Database'."
         if (-not [string]::IsNullOrWhiteSpace($result.Text)) {
@@ -914,11 +928,10 @@ try {
     }
 
     Invoke-Stage 'Migration exact apply rollback reapply' {
-        Invoke-Verifier "dotnet tool restore"
-        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+        Invoke-EfVerifier "database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
 
         $expected = @(
-            Invoke-Verifier "dotnet ef migrations list --project src/Dip.Infrastructure --startup-project src/Dip.Api --no-connect"
+            Invoke-EfVerifier "migrations list --project src/Dip.Infrastructure --startup-project src/Dip.Api --no-connect"
         ) | Where-Object { $_ -match '^\d{8,}_.+' } | ForEach-Object { $_.ToString().Trim() }
 
         if($expected.Count -lt 1){ throw 'No EF migrations were discovered inside verifier container.' }
@@ -931,7 +944,7 @@ try {
         if($initialIds.Count -ne $expected.Count){ throw "Initial migration count mismatch. Expected=$($expected.Count) Actual=$($initialIds.Count)" }
         for($i=0;$i -lt $expected.Count;$i++){ if($initialIds[$i] -ne $expected[$i]){ throw "Initial migration id mismatch at $i. Expected=$($expected[$i]) Actual=$($initialIds[$i])" } }
 
-        Invoke-Verifier "dotnet ef database update 0 --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+        Invoke-EfVerifier "database update 0 --project src/Dip.Infrastructure --startup-project src/Dip.Api"
 
         $exists = (Invoke-ComposePsql -Sql 'SELECT CASE WHEN to_regclass(''public."__EFMigrationsHistory"'') IS NULL THEN 0 ELSE 1 END;' -TuplesOnly | Out-String).Trim()
         if($exists -ne '0'){
@@ -939,8 +952,8 @@ try {
             if($count -ne '0'){ throw "Rollback to zero left migration history rows: $count" }
         }
 
-        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
-        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+        Invoke-EfVerifier "database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+        Invoke-EfVerifier "database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
 
         $reappliedIds = @(
             Invoke-ComposePsql -Sql 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";' -TuplesOnly |
@@ -1016,8 +1029,7 @@ try {
         Invoke-ComposeChecked @('down','-v','--remove-orphans') | Out-Null
         Invoke-ComposeChecked @('up','-d','postgres') | Out-Null
         [void](Wait-ComposePostgresReady -TimeoutSeconds 120)
-        Invoke-Verifier "dotnet tool restore"
-        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+        Invoke-EfVerifier "database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
         Invoke-ComposeChecked @('up','-d','python-analysis','api','worker','web')
         Wait-Http 'Benchmark API' "http://127.0.0.1:$($env:DIP_VERIFY_API_PORT)/health"
     }
