@@ -66,3 +66,4 @@ tests/Dip.UiE2E/artifacts/
 .dip/python-venv/
 .dip/runtime/
 .dip/workspaces/
+**/.dipqa/
