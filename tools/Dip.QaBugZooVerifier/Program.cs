@@ -89,10 +89,17 @@ return 0;
 
 static bool HasPrimaryToolchain(LanguageId language)
 {
+    if (language == LanguageId.Cpp)
+    {
+        var hasCmake = ProcessExecutor.FindExecutable("cmake") is not null;
+        var hasCompiler = new[] { "clang++", "g++", "cl", "clang-cl" }
+            .Any(candidate => ProcessExecutor.FindExecutable(candidate) is not null);
+        return hasCmake && hasCompiler;
+    }
+
     var candidates = language.Value.ToLowerInvariant() switch
     {
         "bash" => new[] { "bash" },
-        "cpp" => new[] { "cmake" },
         "csharp" => new[] { "dotnet" },
         "go" => new[] { "go" },
         "java" => new[] { "javac" },
