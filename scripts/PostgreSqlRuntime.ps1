@@ -1,4 +1,81 @@
-# Purpose: Resolves local or Docker-hosted PostgreSQL client tooling for verification scripts without requiring a local PostgreSQL installation.
+﻿# Purpose: Resolves local or Docker-hosted PostgreSQL client tooling for verification scripts without requiring a local PostgreSQL installation.
+
+function Invoke-DipNativeCapture {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$File,
+
+        [string[]]$Arguments = @()
+    )
+
+    # Windows PowerShell 5.1 can promote native-process stderr records when the
+    # caller uses $ErrorActionPreference='Stop'. Native tools such as Docker,
+    # Git, psql and gitleaks legitimately write progress/information to stderr.
+    # Capture both streams under Continue and decide success strictly by exit code.
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        $lines = @(
+            & $File @Arguments 2>&1 |
+                ForEach-Object { $_.ToString() }
+        )
+
+        $exitCode = $LASTEXITCODE
+        if ($null -eq $exitCode) {
+            $exitCode = 0
+        }
+    }
+    catch {
+        $lines = @($_ | Out-String)
+        $exitCode = -999
+    }
+    finally {
+        $ErrorActionPreference = $oldPreference
+    }
+
+    return [pscustomobject]@{
+        ExitCode = [int]$exitCode
+        Lines = @($lines)
+        Text = ($lines -join [Environment]::NewLine)
+    }
+}
+
+function Invoke-DipNativeChecked {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$File,
+
+        [string[]]$Arguments = @(),
+
+        [switch]$DiscardOutput,
+
+        [string]$FailureMessage = ''
+    )
+
+    $result = Invoke-DipNativeCapture -File $File -Arguments $Arguments
+
+    if ($result.ExitCode -ne 0) {
+        $message = if ([string]::IsNullOrWhiteSpace($FailureMessage)) {
+            "$File $($Arguments -join ' ') failed with exit code $($result.ExitCode)."
+        }
+        else {
+            $FailureMessage
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($result.Text)) {
+            $message += "`n$($result.Text)"
+        }
+
+        throw $message
+    }
+
+    if (-not $DiscardOutput) {
+        return @($result.Lines)
+    }
+}
 
 function Resolve-DipPostgresContainer {
     [CmdletBinding()]
@@ -13,15 +90,18 @@ function Resolve-DipPostgresContainer {
         throw 'Docker is required when local PostgreSQL client tools are unavailable.'
     }
 
-    & docker info --format '{{.ServerVersion}}' | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Docker Desktop is not running.'
-    }
+    Invoke-DipNativeChecked `
+        -File 'docker' `
+        -Arguments @('info','--format','{{.ServerVersion}}') `
+        -DiscardOutput `
+        -FailureMessage 'Docker Desktop is not running.'
 
-    $rows = @(& docker ps --format '{{.Names}}|{{.Image}}|{{.Ports}}')
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Could not enumerate running Docker containers.'
-    }
+    $rows = @(
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @('ps','--format','{{.Names}}|{{.Image}}|{{.Ports}}') `
+            -FailureMessage 'Could not enumerate running Docker containers.'
+    )
 
     if (-not [string]::IsNullOrWhiteSpace($PreferredName)) {
         $preferredRows = @(
@@ -178,19 +258,16 @@ function Invoke-DipPsql {
 
             $arguments += @('-c', $Sql)
 
-            if ($DiscardOutput) {
-                & psql @arguments *> $null
-                $output = $null
-            }
-            else {
-                $output = & psql @arguments
-            }
+            $output = Invoke-DipNativeChecked `
+                -File 'psql' `
+                -Arguments $arguments `
+                -DiscardOutput:$DiscardOutput `
+                -FailureMessage "psql failed for database '$Database'."
 
-            if ($LASTEXITCODE -ne 0) {
-                throw "psql failed for database '$Database'."
+            if (-not $DiscardOutput) {
+                return @($output)
             }
-
-            return $output
+            return
         }
         finally {
             $env:PGPASSWORD = $oldPassword
@@ -214,19 +291,15 @@ function Invoke-DipPsql {
 
     $arguments += @('-c', $Sql)
 
-    if ($DiscardOutput) {
-        & docker @arguments *> $null
-        $output = $null
-    }
-    else {
-        $output = & docker @arguments
-    }
+    $output = Invoke-DipNativeChecked `
+        -File 'docker' `
+        -Arguments $arguments `
+        -DiscardOutput:$DiscardOutput `
+        -FailureMessage "docker psql failed for database '$Database' in container '$($Client.Container)'."
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker psql failed for database '$Database' in container '$($Client.Container)'."
+    if (-not $DiscardOutput) {
+        return @($output)
     }
-
-    return $output
 }
 
 function Test-DipPostgresReady {
@@ -250,6 +323,39 @@ function Test-DipPostgresReady {
     }
     catch {
         return $false
+    }
+}
+
+function Wait-DipPostgresReady {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        $Client,
+
+        [int]$TimeoutSeconds = 120,
+
+        [int]$RetryMilliseconds = 1000
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $attempt = 0
+
+    while ((Get-Date) -lt $deadline) {
+        $attempt++
+
+        if (Test-DipPostgresReady -Client $Client) {
+            return [pscustomobject]@{
+                Ready = $true
+                Attempts = $attempt
+            }
+        }
+
+        Start-Sleep -Milliseconds $RetryMilliseconds
+    }
+
+    return [pscustomobject]@{
+        Ready = $false
+        Attempts = $attempt
     }
 }
 

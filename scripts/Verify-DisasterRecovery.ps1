@@ -1,4 +1,4 @@
-# Purpose: Verifies database and artifact disaster recovery using local PostgreSQL tools or a running PostgreSQL Docker container.
+﻿# Purpose: Verifies database and artifact disaster recovery using local PostgreSQL tools or a running PostgreSQL Docker container.
 [CmdletBinding()]
 param(
     [string]$DatabaseUser = $(if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { 'dip' }),
@@ -44,8 +44,9 @@ function Invoke-Psql {
 }
 
 try {
-    if (-not (Test-DipPostgresReady -Client $pg)) {
-        throw "PostgreSQL is not reachable at ${DatabaseHost}:${DatabasePort}."
+    $ready = Wait-DipPostgresReady -Client $pg -TimeoutSeconds 120
+    if (-not $ready.Ready) {
+        throw "PostgreSQL is not reachable at ${DatabaseHost}:${DatabasePort} after $($ready.Attempts) attempt(s)."
     }
 
     Invoke-Psql `
@@ -66,58 +67,66 @@ try {
         $env:PGPASSWORD = $DatabasePassword
 
         try {
-            pg_dump `
-                -h $DatabaseHost `
-                -p $DatabasePort `
-                -U $DatabaseUser `
-                -d $db `
-                -Fc `
-                -f $dump
+            Invoke-DipNativeChecked `
+                -File 'pg_dump' `
+                -Arguments @(
+                    '-h',$DatabaseHost,
+                    '-p',[string]$DatabasePort,
+                    '-U',$DatabaseUser,
+                    '-d',$db,
+                    '-Fc',
+                    '-f',$dump
+                ) `
+                -DiscardOutput `
+                -FailureMessage 'pg_dump failed.'
 
-            if ($LASTEXITCODE -ne 0) {
-                throw 'pg_dump failed.'
-            }
-
-            pg_restore --list $dump *> $null
-            if ($LASTEXITCODE -ne 0) {
-                throw 'pg_restore --list failed.'
-            }
+            Invoke-DipNativeChecked `
+                -File 'pg_restore' `
+                -Arguments @('--list',$dump) `
+                -DiscardOutput `
+                -FailureMessage 'pg_restore --list failed.'
         }
         finally {
             $env:PGPASSWORD = $oldPassword
         }
     }
     else {
-        docker exec `
-            -e "PGPASSWORD=$DatabasePassword" `
-            $pg.Container `
-            pg_dump `
-            -U $DatabaseUser `
-            -d $db `
-            -Fc `
-            -f /tmp/dip-dr.dump
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @(
+                'exec',
+                '-e',"PGPASSWORD=$DatabasePassword",
+                $pg.Container,
+                'pg_dump',
+                '-U',$DatabaseUser,
+                '-d',$db,
+                '-Fc',
+                '-f','/tmp/dip-dr.dump'
+            ) `
+            -DiscardOutput `
+            -FailureMessage 'Docker pg_dump failed.'
 
-        if ($LASTEXITCODE -ne 0) {
-            throw 'Docker pg_dump failed.'
-        }
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @(
+                'exec',
+                $pg.Container,
+                'pg_restore',
+                '--list',
+                '/tmp/dip-dr.dump'
+            ) `
+            -DiscardOutput `
+            -FailureMessage 'Docker pg_restore --list failed.'
 
-        docker exec `
-            $pg.Container `
-            pg_restore `
-            --list `
-            /tmp/dip-dr.dump *> $null
-
-        if ($LASTEXITCODE -ne 0) {
-            throw 'Docker pg_restore --list failed.'
-        }
-
-        docker cp `
-            "$($pg.Container):/tmp/dip-dr.dump" `
-            $dump *> $null
-
-        if ($LASTEXITCODE -ne 0) {
-            throw 'docker cp dump failed.'
-        }
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @(
+                'cp',
+                "$($pg.Container):/tmp/dip-dr.dump",
+                $dump
+            ) `
+            -DiscardOutput `
+            -FailureMessage 'docker cp dump failed.'
     }
 
     Invoke-Psql `
@@ -135,45 +144,50 @@ try {
         $env:PGPASSWORD = $DatabasePassword
 
         try {
-            pg_restore `
-                -h $DatabaseHost `
-                -p $DatabasePort `
-                -U $DatabaseUser `
-                -d $db `
-                --no-owner `
-                --no-privileges `
-                $dump
-
-            if ($LASTEXITCODE -ne 0) {
-                throw 'pg_restore failed.'
-            }
+            Invoke-DipNativeChecked `
+                -File 'pg_restore' `
+                -Arguments @(
+                    '-h',$DatabaseHost,
+                    '-p',[string]$DatabasePort,
+                    '-U',$DatabaseUser,
+                    '-d',$db,
+                    '--no-owner',
+                    '--no-privileges',
+                    $dump
+                ) `
+                -DiscardOutput `
+                -FailureMessage 'pg_restore failed.'
         }
         finally {
             $env:PGPASSWORD = $oldPassword
         }
     }
     else {
-        docker cp `
-            $dump `
-            "$($pg.Container):/tmp/dip-dr.dump" *> $null
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @(
+                'cp',
+                $dump,
+                "$($pg.Container):/tmp/dip-dr.dump"
+            ) `
+            -DiscardOutput `
+            -FailureMessage 'docker cp restore dump failed.'
 
-        if ($LASTEXITCODE -ne 0) {
-            throw 'docker cp restore dump failed.'
-        }
-
-        docker exec `
-            -e "PGPASSWORD=$DatabasePassword" `
-            $pg.Container `
-            pg_restore `
-            -U $DatabaseUser `
-            -d $db `
-            --no-owner `
-            --no-privileges `
-            /tmp/dip-dr.dump
-
-        if ($LASTEXITCODE -ne 0) {
-            throw 'Docker pg_restore failed.'
-        }
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @(
+                'exec',
+                '-e',"PGPASSWORD=$DatabasePassword",
+                $pg.Container,
+                'pg_restore',
+                '-U',$DatabaseUser,
+                '-d',$db,
+                '--no-owner',
+                '--no-privileges',
+                '/tmp/dip-dr.dump'
+            ) `
+            -DiscardOutput `
+            -FailureMessage 'Docker pg_restore failed.'
     }
 
     $value = (
@@ -202,13 +216,8 @@ try {
     $zip = Join-Path $out 'artifacts.zip'
     Remove-Item $zip -Force -ErrorAction SilentlyContinue
 
-    [IO.Compression.ZipFile]::CreateFromDirectory(
-        $src,
-        $zip)
-
-    [IO.Compression.ZipFile]::ExtractToDirectory(
-        $zip,
-        $dst)
+    [IO.Compression.ZipFile]::CreateFromDirectory($src,$zip)
+    [IO.Compression.ZipFile]::ExtractToDirectory($zip,$dst)
 
     $sourceArtifactHash =
         (Get-FileHash (Join-Path $src 'proof.txt') -Algorithm SHA256).Hash
@@ -220,20 +229,25 @@ try {
     }
 
     $sha = (
-        & git -C $root rev-parse HEAD |
+        Invoke-DipNativeChecked `
+            -File 'git' `
+            -Arguments @('-C',$root,'rev-parse','HEAD') `
+            -FailureMessage 'Could not resolve exact repository SHA.' |
         Out-String
     ).Trim()
 
     $runtime = Get-DipPostgresRuntimeLabel -Client $pg
 
     [ordered]@{
-        schema = 'dip-dr-verification-v5'
+        schema = 'dip-dr-verification-v6'
         runtime = $runtime
         sourceCommit = $sha
         verifiedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
         databaseRestore = 'PASS'
         artifactRestore = 'PASS'
         dumpSha256 = (Get-FileHash $dump -Algorithm SHA256).Hash
+        postgresReadyAttempts = $ready.Attempts
+        nativeExitCodePolicy = 'exit-code-only'
     } |
         ConvertTo-Json |
         Set-Content `
@@ -246,6 +260,8 @@ try {
         "Runtime=$runtime"
         'DatabaseRestore=PASS'
         'ArtifactRestore=PASS'
+        "PostgresReadyAttempts=$($ready.Attempts)"
+        'NativeExitCodePolicy=exit-code-only'
     ) |
         Set-Content `
             (Join-Path $out 'DR_VERIFICATION_PASS.txt') `

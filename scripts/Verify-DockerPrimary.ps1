@@ -1,4 +1,4 @@
-# Purpose: Primary exact-revision verification on Linux Docker, isolated from Windows Application Control.
+﻿# Purpose: Primary exact-revision verification on Linux Docker, isolated from Windows Application Control.
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = '',
@@ -11,6 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'PostgreSqlRuntime.ps1')
 
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -29,10 +30,11 @@ foreach ($command in @('git','docker')) {
     }
 }
 
-& docker info *> $null
-if ($LASTEXITCODE -ne 0) {
-    throw 'Docker Engine is not running.'
-}
+Invoke-DipNativeChecked `
+    -File 'docker' `
+    -Arguments @('info') `
+    -DiscardOutput `
+    -FailureMessage 'Docker Engine is not running.'
 
 function Get-FreeTcpPort {
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
@@ -48,10 +50,16 @@ function Get-FreeTcpPort {
 function Invoke-DockerChecked {
     param([string[]]$Arguments)
 
-    & docker @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+    $result = Invoke-DipNativeCapture -File 'docker' -Arguments $Arguments
+    if ($result.ExitCode -ne 0) {
+        $message = "docker $($Arguments -join ' ') failed with exit code $($result.ExitCode)."
+        if (-not [string]::IsNullOrWhiteSpace($result.Text)) {
+            $message += "`n$($result.Text)"
+        }
+        throw $message
     }
+
+    return @($result.Lines)
 }
 
 function Invoke-ComposeChecked {
@@ -164,8 +172,11 @@ function Invoke-StrictDockerTest {
     $filterPart = ''
 
     if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-        $escaped = $Filter.Replace("'", "'\"'\"'")
-        $filterPart = " --filter '$escaped'"
+        if ($Filter -notmatch '^[A-Za-z0-9_.~|&!=() -]+$') {
+            throw 'The strict-test filter contains unsupported shell metacharacters.'
+        }
+
+        $filterPart = ' --filter "' + $Filter + '"'
     }
 
     $command =
@@ -209,12 +220,176 @@ function Invoke-ComposePsql {
 
     $args += @('-c',$Sql)
 
-    $output = & docker @args
-    if ($LASTEXITCODE -ne 0) {
-        throw "psql failed for database '$Database'."
+    $result = Invoke-DipNativeCapture -File 'docker' -Arguments $args
+    if ($result.ExitCode -ne 0) {
+        $message = "psql failed for database '$Database'."
+        if (-not [string]::IsNullOrWhiteSpace($result.Text)) {
+            $message += "`n$($result.Text)"
+        }
+        throw $message
     }
 
-    return $output
+    return @($result.Lines)
+}
+
+function Wait-ComposePostgresReady {
+    param([int]$TimeoutSeconds = 120)
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $attempt = 0
+    $last = ''
+
+    while ((Get-Date) -lt $deadline) {
+        $attempt++
+        try {
+            $probe = (
+                Invoke-ComposePsql -Sql 'SELECT 1;' -TuplesOnly |
+                Out-String
+            ).Trim()
+
+            if ($probe -eq '1') {
+                Write-Host "PostgreSQL readiness PASS after $attempt attempt(s)." -ForegroundColor Green
+                return $attempt
+            }
+
+            $last = "Unexpected probe result: $probe"
+        }
+        catch {
+            $last = $_.Exception.Message
+        }
+
+        Start-Sleep -Seconds 1
+    }
+
+    throw "PostgreSQL did not become ready after $attempt attempt(s). Last=$last"
+}
+
+function Write-NativeDiagnosticLog {
+    param(
+        [Parameter(Mandatory=$true)]$Result,
+        [Parameter(Mandatory=$true)][string]$Path
+    )
+
+    @($Result.Lines) |
+        Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Get-PythonAnalysisFailureClassification {
+    param(
+        [string]$BuildText,
+        [int]$BuildExitCode,
+        [string]$PipText,
+        [int]$PipExitCode
+    )
+
+    if ($BuildExitCode -eq 0) { return 'PASS' }
+
+    $all = $BuildText + [Environment]::NewLine + $PipText
+
+    if ($all -match 'Temporary failure in name resolution|Name or service not known|Could not resolve host|Network is unreachable|ReadTimeout|Connection.*timed out') {
+        return 'NETWORK_OR_DNS_FAILURE'
+    }
+    if ($all -match 'No matching distribution found|Could not find a version that satisfies the requirement|ResolutionImpossible') {
+        return 'DEPENDENCY_RESOLUTION_FAILURE'
+    }
+    if ($all -match 'Failed building wheel|gcc.*error|clang.*error') {
+        return 'NATIVE_WHEEL_OR_BUILD_FAILURE'
+    }
+    if ($all -match 'Multiple top-level packages discovered|package directory .* does not exist') {
+        return 'PACKAGING_OR_PYPROJECT_FAILURE'
+    }
+    if ($BuildText -match 'COPY failed|failed to compute cache key') {
+        return 'DOCKER_BUILD_CONTEXT_OR_COPY_FAILURE'
+    }
+    if ($PipExitCode -ne 0) {
+        return 'PIP_INSTALL_FAILURE_REVIEW_VERBOSE_LOG'
+    }
+
+    return 'DOCKERFILE_OR_BUILDKIT_FAILURE_PIP_INSTALL_IS_HEALTHY'
+}
+
+function Invoke-PythonAnalysisBuildWithDiagnostics {
+    $diagnosticRoot = Join-Path $script:OutDir 'python-analysis-build'
+    New-Item -ItemType Directory -Force -Path $diagnosticRoot | Out-Null
+
+    $composeArgs = @(
+        'compose',
+        '-p', $script:ComposeProject,
+        '-f', $script:ComposeFile,
+        'build',
+        '--progress', 'plain',
+        'python-analysis'
+    )
+
+    $compose = Invoke-DipNativeCapture -File 'docker' -Arguments $composeArgs
+    Write-NativeDiagnosticLog -Result $compose -Path (Join-Path $diagnosticRoot 'compose-build.log')
+
+    if ($compose.ExitCode -eq 0) {
+        [ordered]@{
+            schema = 'dip.python-analysis-build-diagnostic.v1'
+            sourceCommit = $script:SourceSha
+            status = 'PASS'
+            classification = 'COMPOSE_BUILD_PASS'
+            composeExitCode = 0
+            directBuildExitCode = $null
+            pipProbeExitCode = $null
+        } |
+            ConvertTo-Json -Depth 5 |
+            Set-Content (Join-Path $diagnosticRoot 'diagnostic.json') -Encoding UTF8
+
+        @($compose.Lines) | ForEach-Object { Write-Host $_ }
+        return
+    }
+
+    $dockerfile = Join-Path $RepositoryRoot 'infrastructure\docker\analysis.Dockerfile'
+    $tag = 'dip-analysis-diagnostic:' + $script:SourceSha.Substring(0,12).ToLowerInvariant()
+    $direct = Invoke-DipNativeCapture `
+        -File 'docker' `
+        -Arguments @(
+            'build',
+            '--no-cache',
+            '--progress=plain',
+            '-f', $dockerfile,
+            '-t', $tag,
+            $RepositoryRoot
+        )
+    Write-NativeDiagnosticLog -Result $direct -Path (Join-Path $diagnosticRoot 'direct-build.log')
+
+    $pythonRoot = Join-Path $RepositoryRoot 'services\python-analysis'
+    $mount = "type=bind,source=$pythonRoot,target=/src,readonly"
+    $pipCommand = 'set -eu; python --version; python -m pip --version; python -m pip install --upgrade pip; python -m pip install -vvv .; python -c "import app; import fastapi; import numpy; import pandas; import sklearn; print(''PYTHON_IMPORT_PROBE_OK'')"'
+    $pip = Invoke-DipNativeCapture `
+        -File 'docker' `
+        -Arguments @(
+            'run','--rm',
+            '--mount',$mount,
+            '-w','/src',
+            'python:3.12-slim',
+            'sh','-lc',$pipCommand
+        )
+    Write-NativeDiagnosticLog -Result $pip -Path (Join-Path $diagnosticRoot 'pip-probe.log')
+
+    $classification = Get-PythonAnalysisFailureClassification `
+        -BuildText ($compose.Text + [Environment]::NewLine + $direct.Text) `
+        -BuildExitCode $direct.ExitCode `
+        -PipText $pip.Text `
+        -PipExitCode $pip.ExitCode
+
+    [ordered]@{
+        schema = 'dip.python-analysis-build-diagnostic.v1'
+        sourceCommit = $script:SourceSha
+        status = 'FAIL'
+        classification = $classification
+        composeExitCode = $compose.ExitCode
+        directBuildExitCode = $direct.ExitCode
+        pipProbeExitCode = $pip.ExitCode
+        dockerfileChangedByThisFix = $false
+        pyprojectChangedByThisFix = $false
+    } |
+        ConvertTo-Json -Depth 5 |
+        Set-Content (Join-Path $diagnosticRoot 'diagnostic.json') -Encoding UTF8
+
+    throw "Python Analysis image build failed. Classification=$classification. See $diagnosticRoot."
 }
 
 function Get-P95([double[]]$Values) {
@@ -314,12 +489,24 @@ function Wait-HttpBatch {
 }
 
 function Get-ApiContainerMemoryMb {
-    $containerId = (& docker compose -p $script:ComposeProject -f $script:ComposeFile ps -q api | Out-String).Trim()
+    $containerId = (
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @('compose','-p',$script:ComposeProject,'-f',$script:ComposeFile,'ps','-q','api') `
+            -FailureMessage 'Could not query API container for memory measurement.' |
+        Out-String
+    ).Trim()
     if ([string]::IsNullOrWhiteSpace($containerId)) {
         throw 'Could not resolve API container for memory measurement.'
     }
 
-    $usage = (& docker stats --no-stream --format '{{.MemUsage}}' $containerId | Out-String).Trim()
+    $usage = (
+        Invoke-DipNativeChecked `
+            -File 'docker' `
+            -Arguments @('stats','--no-stream','--format','{{.MemUsage}}',$containerId) `
+            -FailureMessage 'docker stats failed for API container.' |
+        Out-String
+    ).Trim()
     if ([string]::IsNullOrWhiteSpace($usage)) {
         throw 'docker stats returned no memory usage.'
     }
@@ -559,7 +746,7 @@ SELECT gen_random_uuid(),'$projectId'::uuid,md5('${projectId}:'||g::text)||md5('
     if(-not $passed){ throw "Governance load failed. readP95=$readP95 writeP95=$writeP95 errorRate=$errorRate" }
 }
 
-$sourceSha = (& git -C $RepositoryRoot rev-parse HEAD | Out-String).Trim()
+$sourceSha = (Invoke-DipNativeChecked -File 'git' -Arguments @('-C',$RepositoryRoot,'rev-parse','HEAD') -FailureMessage 'Could not resolve exact repository SHA.' | Out-String).Trim()
 $script:SourceSha = $sourceSha
 
 if ($sourceSha -notmatch '^[0-9a-fA-F]{40}$') {
@@ -570,7 +757,7 @@ if (-not [string]::IsNullOrWhiteSpace($ExpectedSha) -and $ExpectedSha -ne $sourc
     throw "Exact SHA mismatch. Expected=$ExpectedSha Actual=$sourceSha"
 }
 
-$dirty = (& git -C $RepositoryRoot status --porcelain | Out-String).Trim()
+$dirty = (Invoke-DipNativeChecked -File 'git' -Arguments @('-C',$RepositoryRoot,'status','--porcelain') -FailureMessage 'Could not inspect repository working tree.' | Out-String).Trim()
 if ($dirty) {
     throw "Primary verification requires a clean working tree.`n$dirty"
 }
@@ -590,6 +777,15 @@ $out = Join-Path $RepositoryRoot 'artifacts\docker-primary'
 $script:OutDir = $out
 $testOut = Join-Path $out 'TestResults'
 New-Item -ItemType Directory -Force -Path $out,$testOut | Out-Null
+
+$script:TranscriptStarted = $false
+try {
+    Start-Transcript -Path (Join-Path $out 'verification-transcript.txt') -Force | Out-Null
+    $script:TranscriptStarted = $true
+}
+catch {
+    Write-Warning ("Could not start verification transcript: " + $_.Exception.Message)
+}
 
 $summary = [ordered]@{
     schema = 'dip.docker-primary-verification.v1'
@@ -621,20 +817,47 @@ function Invoke-Stage {
 try {
     Set-Location -LiteralPath $RepositoryRoot
 
-    Invoke-Stage 'Build verification images' {
-        Invoke-ComposeChecked @('build','verifier','python-analysis','api','worker','web')
+    Invoke-Stage 'Build verifier image' {
+        Invoke-ComposeChecked @('build','verifier') | Out-Null
+    }
+
+    Invoke-Stage 'Verifier bind mount exact SHA' {
+        $probeDir = Join-Path $out 'infrastructure-probe'
+        New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+
+        $probeCommand = @'
+set -eu
+test -d /work/.git
+test -f /work/DevelopmentIntelligencePlatform.sln
+actual="$(git -c safe.directory=/work rev-parse HEAD)"
+test "$actual" = "__EXPECTED_SHA__"
+echo container-write-ok > /work/artifacts/docker-primary/infrastructure-probe/container-write.txt
+'@.Replace('__EXPECTED_SHA__',$sourceSha)
+
+        Invoke-Verifier $probeCommand | Out-Null
+
+        $hostProbe = Join-Path $probeDir 'container-write.txt'
+        if (-not (Test-Path -LiteralPath $hostProbe -PathType Leaf)) {
+            throw 'Verifier bind-mount probe did not create the host-visible evidence file.'
+        }
+
+        $probeText = (Get-Content -LiteralPath $hostProbe -Raw).Trim()
+        if ($probeText -ne 'container-write-ok') {
+            throw "Verifier bind-mount probe content mismatch: $probeText"
+        }
+    }
+
+    Invoke-Stage 'Build Python Analysis image' {
+        Invoke-PythonAnalysisBuildWithDiagnostics
+    }
+
+    Invoke-Stage 'Build API Worker Web images' {
+        Invoke-ComposeChecked @('build','api','worker','web') | Out-Null
     }
 
     Invoke-Stage 'Start PostgreSQL' {
-        Invoke-ComposeChecked @('up','-d','postgres')
-        for($i=0;$i -lt 90;$i++){
-            try {
-                $probe = (Invoke-ComposePsql -Sql 'SELECT 1;' -TuplesOnly | Out-String).Trim()
-                if($probe -eq '1'){ return }
-            } catch {}
-            Start-Sleep -Seconds 1
-        }
-        throw 'PostgreSQL did not become ready.'
+        Invoke-ComposeChecked @('up','-d','postgres') | Out-Null
+        [void](Wait-ComposePostgresReady -TimeoutSeconds 120)
     }
 
     Invoke-Stage 'Restore Build Format' {
@@ -688,7 +911,7 @@ try {
 
         Invoke-Verifier "dotnet ef database update 0 --project src/Dip.Infrastructure --startup-project src/Dip.Api"
 
-        $exists = (Invoke-ComposePsql -Sql "SELECT CASE WHEN to_regclass('public.`"__EFMigrationsHistory`"') IS NULL THEN 0 ELSE 1 END;" -TuplesOnly | Out-String).Trim()
+        $exists = (Invoke-ComposePsql -Sql 'SELECT CASE WHEN to_regclass(''public."__EFMigrationsHistory"'') IS NULL THEN 0 ELSE 1 END;' -TuplesOnly | Out-String).Trim()
         if($exists -ne '0'){
             $count = (Invoke-ComposePsql -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' -TuplesOnly | Out-String).Trim()
             if($count -ne '0'){ throw "Rollback to zero left migration history rows: $count" }
@@ -722,25 +945,45 @@ try {
         Invoke-Stage 'Playwright GUI' {
             Invoke-ComposeChecked @(
                 'run','--rm','--no-deps','playwright',
-                "if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --package-lock=false --no-audit --no-fund; fi && npx playwright test tests/gui-onboarding.spec.mjs --retries=0"
+                'if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --package-lock=false --no-audit --no-fund; fi && npx playwright test tests/gui-onboarding.spec.mjs --retries=0'
             )
         }
     }
 
     Invoke-Stage 'Disaster Recovery' {
-        $postgresId = (& docker compose -p $script:ComposeProject -f $script:ComposeFile ps -q postgres | Out-String).Trim()
+        $postgresId = (
+            Invoke-DipNativeChecked `
+                -File 'docker' `
+                -Arguments @('compose','-p',$script:ComposeProject,'-f',$script:ComposeFile,'ps','-q','postgres') `
+                -FailureMessage 'Could not query verification PostgreSQL container.' |
+            Out-String
+        ).Trim()
         if([string]::IsNullOrWhiteSpace($postgresId)){ throw 'Could not resolve verification PostgreSQL container.' }
-        $name = (& docker inspect --format '{{.Name}}' $postgresId | Out-String).Trim().TrimStart('/')
+
+        $name = (
+            Invoke-DipNativeChecked `
+                -File 'docker' `
+                -Arguments @('inspect','--format','{{.Name}}',$postgresId) `
+                -FailureMessage 'Could not inspect verification PostgreSQL container.' |
+            Out-String
+        ).Trim().TrimStart([char[]]@(47))
+
         $oldContainer = $env:DIP_POSTGRES_CONTAINER
         try {
             $env:DIP_POSTGRES_CONTAINER = $name
-            & (Join-Path $PSScriptRoot 'Verify-DisasterRecovery.ps1') `
-                -DatabaseHost '127.0.0.1' `
-                -DatabasePort ([int]$env:DIP_VERIFY_POSTGRES_PORT) `
-                -DatabaseUser 'dip' `
-                -DatabasePassword $script:PostgresPassword
-
-            if($LASTEXITCODE -ne 0){ throw 'Disaster Recovery verification failed.' }
+            Invoke-DipNativeChecked `
+                -File 'powershell.exe' `
+                -Arguments @(
+                    '-NoProfile',
+                    '-ExecutionPolicy','Bypass',
+                    '-File',(Join-Path $PSScriptRoot 'Verify-DisasterRecovery.ps1'),
+                    '-DatabaseHost','127.0.0.1',
+                    '-DatabasePort',[string]([int]$env:DIP_VERIFY_POSTGRES_PORT),
+                    '-DatabaseUser','dip',
+                    '-DatabasePassword',$script:PostgresPassword
+                ) `
+                -DiscardOutput `
+                -FailureMessage 'Disaster Recovery verification failed.'
         }
         finally {
             $env:DIP_POSTGRES_CONTAINER = $oldContainer
@@ -748,15 +991,9 @@ try {
     }
 
     Invoke-Stage 'Reset runtime database for performance evidence' {
-        Invoke-ComposeChecked @('down','-v','--remove-orphans')
-        Invoke-ComposeChecked @('up','-d','postgres')
-        for($i=0;$i -lt 90;$i++){
-            try {
-                $probe = (Invoke-ComposePsql -Sql 'SELECT 1;' -TuplesOnly | Out-String).Trim()
-                if($probe -eq '1'){ break }
-            } catch {}
-            Start-Sleep -Seconds 1
-        }
+        Invoke-ComposeChecked @('down','-v','--remove-orphans') | Out-Null
+        Invoke-ComposeChecked @('up','-d','postgres') | Out-Null
+        [void](Wait-ComposePostgresReady -TimeoutSeconds 120)
         Invoke-Verifier "dotnet tool restore"
         Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
         Invoke-ComposeChecked @('up','-d','python-analysis','api','worker','web')
@@ -781,7 +1018,7 @@ try {
         Invoke-Verifier "python3 -m pip_audit -r services/python-analysis/requirements.txt"
     }
 
-    $dirtyFinal = (& git -C $RepositoryRoot status --porcelain | Out-String).Trim()
+    $dirtyFinal = (Invoke-DipNativeChecked -File 'git' -Arguments @('-C',$RepositoryRoot,'status','--porcelain') -FailureMessage 'Could not inspect final repository working tree.' | Out-String).Trim()
     if($dirtyFinal){
         throw "Verification mutated the source tree.`n$dirtyFinal"
     }
@@ -813,13 +1050,51 @@ catch {
 }
 finally {
     try {
-        & docker compose -p $script:ComposeProject -f $script:ComposeFile logs --no-color *>&1 |
+        $logResult = Invoke-DipNativeCapture `
+            -File 'docker' `
+            -Arguments @('compose','-p',$script:ComposeProject,'-f',$script:ComposeFile,'logs','--no-color')
+        @($logResult.Lines) |
             Set-Content (Join-Path $out 'docker-compose.log') -Encoding UTF8
-    } catch {}
+    }
+    catch {
+    }
 
     if(-not $KeepContainers){
         try {
-            & docker compose -p $script:ComposeProject -f $script:ComposeFile down -v --remove-orphans *> $null
-        } catch {}
+            $cleanup = Invoke-DipNativeCapture `
+                -File 'docker' `
+                -Arguments @('compose','-p',$script:ComposeProject,'-f',$script:ComposeFile,'down','-v','--remove-orphans')
+            @(
+                "ExitCode=$($cleanup.ExitCode)"
+                $cleanup.Lines
+            ) |
+                Set-Content (Join-Path $out 'docker-cleanup.log') -Encoding UTF8
+        }
+        catch {
+        }
+    }
+
+    if ($script:TranscriptStarted) {
+        try {
+            Stop-Transcript | Out-Null
+        }
+        catch {
+        }
+    }
+
+    try {
+        $hashPath = Join-Path $out 'SHA256SUMS.txt'
+        Get-ChildItem -LiteralPath $out -File -Recurse |
+            Where-Object { $_.FullName -ne $hashPath } |
+            Sort-Object FullName |
+            ForEach-Object {
+                $hash = Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256
+                $relative = $_.FullName.Substring($out.Length).TrimStart([char[]]@(92,47))
+                "$($hash.Hash.ToLowerInvariant())  $relative"
+            } |
+            Set-Content -LiteralPath $hashPath -Encoding ASCII
+    }
+    catch {
+        Write-Warning ("Could not create SHA256SUMS.txt: " + $_.Exception.Message)
     }
 }
