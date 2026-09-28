@@ -372,6 +372,33 @@ def cases():
     ]
 
 
+
+def runtime_available(case):
+    executable = which(case.tool)
+    if not executable:
+        return False, "tool unavailable"
+
+    if case.tool == "bash":
+        try:
+            completed = subprocess.run(
+                [executable, "-lc", "exit 0"],
+                capture_output=True,
+                timeout=10,
+                text=False,
+            )
+            if completed.returncode != 0:
+                return (
+                    False,
+                    "tool executable exists but runtime is unavailable",
+                )
+        except Exception:
+            return (
+                False,
+                "tool executable exists but runtime is unavailable",
+            )
+
+    return True, None
+
 def version(tool):
     executable = which(tool)
     if not executable:
@@ -420,14 +447,15 @@ def main():
 
     for case in cases():
         executable = which(case.tool)
+        available, unavailable_reason = runtime_available(case)
 
-        if not executable:
+        if not available:
             results.append(
                 {
                     "language": case.language,
                     "tool": case.tool,
                     "status": "skipped",
-                    "reason": "tool unavailable",
+                    "reason": unavailable_reason,
                 }
             )
             continue

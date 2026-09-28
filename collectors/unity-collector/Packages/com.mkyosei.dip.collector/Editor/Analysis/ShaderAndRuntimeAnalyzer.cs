@@ -5,7 +5,7 @@ namespace Dip.UnityCollector.Editor.Analysis
     {
         public static void Analyze(CollectorReport report,int maxScriptWarnings)
         {
-            var shaderErrors=0,shaderWarnings=0;
+            var shaderErrors=0;var shaderWarnings=0;
                 foreach(var guid in AssetDatabase.FindAssets("t:Shader")){var path=AssetDatabase.GUIDToAssetPath(guid);
                 var shader=AssetDatabase.LoadAssetAtPath<Shader>(path);
                 if(shader==null)continue;

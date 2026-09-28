@@ -49,7 +49,7 @@ try {
         'src\Dip.Application\Features\Dashboard\ManagementDashboardService.cs',
         'src\Dip.Application\Abstractions\Spreadsheets\IGoogleSheetsConnector.cs',
         'src\Dip.Infrastructure\Spreadsheets\GoogleSheetsRestConnector.cs',
-        'docs\MANAGEMENT_INTELLIGENCE.md'
+        'docs\03-operations\COMMERCIAL_PROJECT_MANAGEMENT_AND_BRANCH_QA.md'
     )
     foreach($relative in $required){if(-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)){throw "Missing Project Control source file: $relative"}}
 

@@ -93,7 +93,7 @@ if ($ExpectedSha -and $sourceSha -ne $ExpectedSha) {
 }
 
 $pg = Resolve-DipPostgresClient `
-    -Host $DatabaseHost `
+    -HostName $DatabaseHost `
     -Port $DatabasePort `
     -User $DatabaseUser `
     -Password $DatabasePassword
@@ -443,11 +443,15 @@ try {
                 collectorType = 'portfolio-benchmark'
                 collectorVersion = '1.0.0'
                 projectId = $project.id
-                repository = $project.repositoryUrl
+                repository = [string]$project.repositoryUrl
                 commitSha = $sourceSha
                 branch = 'main'
-                startedAt = $now.AddSeconds(-1)
-                finishedAt = $now
+                startedAt = $now.AddSeconds(-1).ToString(
+                    'o',
+                    [Globalization.CultureInfo]::InvariantCulture)
+                finishedAt = $now.ToString(
+                    'o',
+                    [Globalization.CultureInfo]::InvariantCulture)
                 status = 'Succeeded'
                 metrics = @(
                     @{
@@ -468,12 +472,45 @@ try {
             $watch =
                 [Diagnostics.Stopwatch]::StartNew()
 
-            $response =
-                Invoke-RestMethod `
-                    -Method Post `
-                    "$apiBase/api/v1/collector-reports" `
-                    -ContentType 'application/json' `
-                    -Body $payload
+            try {
+                $response =
+                    Invoke-RestMethod `
+                        -Method Post `
+                        "$apiBase/api/v1/collector-reports" `
+                        -ContentType 'application/json' `
+                        -Body $payload `
+                        -ErrorAction Stop
+            }
+            catch {
+                $responseBody = ''
+
+                try {
+                    if ($_.Exception.Response) {
+                        $stream = $_.Exception.Response.GetResponseStream()
+
+                        if ($stream) {
+                            $reader = New-Object System.IO.StreamReader($stream)
+
+                            try {
+                                $responseBody = $reader.ReadToEnd()
+                            }
+                            finally {
+                                $reader.Dispose()
+                                $stream.Dispose()
+                            }
+                        }
+                    }
+                }
+                catch {
+                    $responseBody = '<unable to read HTTP error body>'
+                }
+
+                throw (
+                    'Collector benchmark submission failed. ' +
+                    $_.Exception.Message +
+                    " ResponseBody=$responseBody"
+                )
+            }
 
             $watch.Stop()
 

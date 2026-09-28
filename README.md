@@ -23,6 +23,8 @@ ClaimとEvidenceを分離し、source、revision、freshness、contradictionを�
 
 ### 2. Game Development QA
 
+**Evidence-Grounded Autonomous Debugging** は、Hypothesis → Candidate → Isolated Verification → Human Review の順に進み、AI出力そのものを検証結果として扱いません。
+
 Unity / Unreal / C++ / toolchain integrationから得たEvidenceを、QA Finding、再現性、regression、performance、quality gateへ接続します。Engine固有payloadを保持しつつ、意思決定に必要な情報をprovider-neutral Evidenceへ昇格します。
 
 ### 3. Verification / Release Operations

@@ -20,7 +20,7 @@ public sealed class CSharpQaEngine(ProcessExecutor executor, UniversalDiagnostic
         var semanticResult = await semantic.AnalyzeAsync(new(LanguageId.CSharp, workspace), ct); findings.AddRange(semanticResult.Findings);
         tools.Add(new("dip-semantic", true, true, 0, 0, string.Empty, string.Empty, $"DIP semantic analysis scanned {semanticResult.FilesAnalyzed} C# source file(s).", Version: "1.0"));
         await Run("dotnet-restore", dotnet, ["restore"], Severity.Critical, "restore");
-        await Run("dotnet-build", dotnet, ["build", "--no-restore", "-c", "Release", "-v", "minimal"], Severity.Critical, "compile");
+        await Run("dotnet-build", dotnet, ["build", "--no-restore", "-c", "Release", "-v", "minimal", "-t:Rebuild"], Severity.Critical, "compile");
         await Run("dotnet-test", dotnet, ["test", "--no-build", "-c", "Release", "--logger", "console;verbosity=minimal"], Severity.Warning, "test");
         await RunOptional("dotnet-format-analyzers", dotnet, ["format", "analyzers", "--verify-no-changes", "--no-restore", "--verbosity", "minimal"], Severity.Warning, "static-analysis");
         if (!string.IsNullOrWhiteSpace(command.RuntimeExecutable))

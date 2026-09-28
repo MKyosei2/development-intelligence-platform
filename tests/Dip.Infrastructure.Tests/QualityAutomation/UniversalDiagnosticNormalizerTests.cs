@@ -48,6 +48,24 @@ public sealed class UniversalDiagnosticNormalizerTests
         finally { File.Delete(path);
          }
     }
+    [Theory]
+    [InlineData("System.DivideByZeroException", "DivideByZeroException")]
+    [InlineData("System.NullReferenceException", "NullReferenceException")]
+    public void CSharpText_NormalizesQualifiedExceptionType(string qualifiedType, string expectedType)
+    {
+        var normalizer = new UniversalDiagnosticNormalizer();
+
+        var findings = normalizer.NormalizeText(
+            LanguageId.CSharp,
+            "dotnet-runtime",
+            string.Empty,
+            $"Unhandled exception. {qualifiedType}: deterministic bug-zoo failure");
+
+        var runtime = findings.Single(finding => finding.Category == "runtime");
+        runtime.ExceptionType.Should().Be(expectedType);
+        runtime.Severity.Should().Be(Severity.Critical);
+    }
+
     private static string Temp(string extension, string content) { var path = Path.Combine(Path.GetTempPath(), "dip-normalizer-" + Guid.NewGuid().ToString("N") + extension);
      File.WriteAllText(path, content);
      return path;
