@@ -1,0 +1,87 @@
+// Purpose: Locks C++ diagnostic normalization against the Bug Zoo regressions found in final verification.
+using Dip.Domain.ValueObjects;
+using Dip.Infrastructure.QualityAutomation;
+using FluentAssertions;
+
+namespace Dip.Infrastructure.Tests.QualityAutomation;
+
+public sealed class CppDiagnosticNormalizationTests
+{
+    private readonly UniversalDiagnosticNormalizer _normalizer = new();
+
+    [Fact]
+    public void Cppcheck_out_of_bounds_is_memory_safety()
+    {
+        const string stderr =
+            "/work/main.cpp:2:32: error: Array 'p[2]' accessed at index 4, which is out of bounds. [arrayIndexOutOfBounds]";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "cppcheck", string.Empty, stderr);
+
+        findings.Should().ContainSingle(x =>
+            x.Category == "memory-safety"
+            && x.Severity.ToString() == "Critical"
+            && x.RuleId == "arrayIndexOutOfBounds");
+    }
+
+    [Fact]
+    public void Cppcheck_information_only_does_not_create_product_finding()
+    {
+        const string stderr =
+            "nofile:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 configurations. [toomanyconfigs]";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "cppcheck", string.Empty, stderr);
+
+        findings.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Ctest_zero_failed_is_not_a_failure()
+    {
+        const string stdout =
+            "100% tests passed, 0 tests failed out of 1";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "ctest", stdout, string.Empty);
+
+        findings.Should().NotContain(x => x.Category == "test");
+    }
+
+    [Fact]
+    public void Ctest_non_zero_failed_is_a_failure()
+    {
+        const string stdout =
+            "50% tests passed, 1 tests failed out of 2";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "ctest", stdout, string.Empty);
+
+        findings.Should().Contain(x => x.Category == "test" && x.RuleId == "ctest");
+    }
+
+    [Fact]
+    public void Gcc_array_bounds_warning_is_memory_safety()
+    {
+        const string stderr =
+            "/work/main.cpp:2:34: warning: array subscript 4 is outside array bounds of 'int [2]' [-Warray-bounds]";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "cmake-build", string.Empty, stderr);
+
+        findings.Should().Contain(x =>
+            x.Category == "memory-safety"
+            && x.Severity.ToString() == "Critical"
+            && x.RuleId == "-Warray-bounds");
+    }
+
+    [Fact]
+    public void Asan_heap_buffer_overflow_remains_exact()
+    {
+        const string stderr =
+            "ERROR: AddressSanitizer: heap-buffer-overflow on address 0x000000000000\n"
+            + "#0 0x1 in main /work/main.cpp:2:32";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "cpp-runtime-asan-auto", string.Empty, stderr);
+
+        findings.Should().Contain(x =>
+            x.Category == "memory-safety"
+            && x.ExceptionType == "heap-buffer-overflow"
+            && x.RuleId == "asan");
+    }
+}

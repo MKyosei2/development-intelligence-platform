@@ -1,4 +1,4 @@
-# Purpose: Verifies EF Core database migrations using local PostgreSQL tools or a running PostgreSQL Docker container.
+# Purpose: Verifies EF Core migrations: exact list, latest apply, rollback-to-zero, reapply, and idempotence.
 [CmdletBinding()]
 param(
     [string]$DatabaseUser = $(if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { 'dip' }),
@@ -40,6 +40,53 @@ function Invoke-Psql {
         -TuplesOnly:$TuplesOnly
 }
 
+function Get-HistoryCount {
+    $exists = (
+        Invoke-Psql `
+            -Database $db `
+            -Sql 'SELECT CASE WHEN to_regclass(''public."__EFMigrationsHistory"'') IS NULL THEN 0 ELSE 1 END;' `
+            -TuplesOnly |
+        Out-String
+    ).Trim()
+
+    if ($exists -eq '0') {
+        return 0
+    }
+
+    if ($exists -ne '1') {
+        throw "Unexpected migration-history existence result: '$exists'"
+    }
+
+    $count = (
+        Invoke-Psql `
+            -Database $db `
+            -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' `
+            -TuplesOnly |
+        Out-String
+    ).Trim()
+
+    if ($count -notmatch '^\d+$') {
+        throw "Invalid migration-history count: '$count'"
+    }
+
+    return [int]$count
+}
+
+function Get-HistoryIds {
+    if ((Get-HistoryCount) -eq 0) {
+        return @()
+    }
+
+    return @(
+        Invoke-Psql `
+            -Database $db `
+            -Sql 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";' `
+            -TuplesOnly |
+        ForEach-Object { $_.ToString().Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
 try {
     if (-not (Test-DipPostgresReady -Client $pg)) {
         throw "PostgreSQL is not reachable at ${DatabaseHost}:${DatabasePort}."
@@ -48,7 +95,7 @@ try {
     Invoke-Psql `
         -Database 'postgres' `
         -Sql "CREATE DATABASE `"$db`" OWNER `"$DatabaseUser`";" |
-        Out-Null
+    Out-Null
 
     $env:ConnectionStrings__PostgreSql =
         "Host=$DatabaseHost;Port=$DatabasePort;Database=$db;Username=$DatabaseUser;Password=$DatabasePassword"
@@ -65,7 +112,9 @@ try {
                 --project src/Dip.Infrastructure `
                 --startup-project src/Dip.Api `
                 --no-connect 2>$null
-        ) | Where-Object { $_ -match '^\d{8,}_.+' }
+        ) |
+        Where-Object { $_ -match '^\d{8,}_.+' } |
+        ForEach-Object { $_.ToString().Trim() }
 
         if ($migrations.Count -lt 1) {
             throw 'No EF migrations were discovered.'
@@ -73,17 +122,24 @@ try {
 
         $latest = $migrations[-1]
 
-        # Some historical DIP migrations intentionally retain their original
-        # 12-digit IDs for database compatibility. EF CLI cannot always resolve
-        # those IDs as explicit named targets. Verify rollback with the special
-        # target '0', which is supported independently of migration-ID parsing,
-        # then re-apply the full chain to the latest migration.
         dotnet ef database update `
             --project src/Dip.Infrastructure `
             --startup-project src/Dip.Api
 
         if ($LASTEXITCODE -ne 0) {
             throw "Initial migration to latest revision failed: $latest"
+        }
+
+        $initialIds = @(Get-HistoryIds)
+
+        if ($initialIds.Count -ne $migrations.Count) {
+            throw "Initial migration count mismatch. Expected=$($migrations.Count) Actual=$($initialIds.Count)"
+        }
+
+        for ($index = 0; $index -lt $migrations.Count; $index++) {
+            if ($initialIds[$index] -ne $migrations[$index]) {
+                throw "Initial migration id mismatch at index $index. Expected=$($migrations[$index]) Actual=$($initialIds[$index])"
+            }
         }
 
         dotnet ef database update 0 `
@@ -94,18 +150,8 @@ try {
             throw 'Rollback to migration zero failed.'
         }
 
-        $rollbackHistorySql =
-            'SELECT CASE WHEN to_regclass(''public."__EFMigrationsHistory"'') IS NULL THEN 0 ELSE (SELECT count(*) FROM "__EFMigrationsHistory") END;'
-
-        $afterRollback = (
-            Invoke-Psql `
-                -Database $db `
-                -Sql $rollbackHistorySql `
-                -TuplesOnly |
-            Out-String
-        ).Trim()
-
-        if ($afterRollback -notmatch '^\d+$' -or [int]$afterRollback -ne 0) {
+        $afterRollback = Get-HistoryCount
+        if ($afterRollback -ne 0) {
             throw "Migration rollback verification failed. Remaining history rows=$afterRollback"
         }
 
@@ -117,6 +163,17 @@ try {
             throw "Migration re-apply to latest revision failed: $latest"
         }
 
+        $reappliedIds = @(Get-HistoryIds)
+        if ($reappliedIds.Count -ne $migrations.Count) {
+            throw "Reapplied migration count mismatch. Expected=$($migrations.Count) Actual=$($reappliedIds.Count)"
+        }
+
+        for ($index = 0; $index -lt $migrations.Count; $index++) {
+            if ($reappliedIds[$index] -ne $migrations[$index]) {
+                throw "Reapplied migration id mismatch at index $index. Expected=$($migrations[$index]) Actual=$($reappliedIds[$index])"
+            }
+        }
+
         dotnet ef database update `
             --project src/Dip.Infrastructure `
             --startup-project src/Dip.Api
@@ -125,16 +182,15 @@ try {
             throw 'Idempotent migration reapply failed.'
         }
 
-        $applied = (
-            Invoke-Psql `
-                -Database $db `
-                -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' `
-                -TuplesOnly |
-            Out-String
-        ).Trim()
+        $afterIdempotent = @(Get-HistoryIds)
+        if ($afterIdempotent.Count -ne $migrations.Count) {
+            throw "Idempotent migration count changed. Expected=$($migrations.Count) Actual=$($afterIdempotent.Count)"
+        }
 
-        if ($applied -notmatch '^\d+$' -or [int]$applied -lt 1) {
-            throw 'Migration history verification failed.'
+        for ($index = 0; $index -lt $migrations.Count; $index++) {
+            if ($afterIdempotent[$index] -ne $migrations[$index]) {
+                throw "Idempotent migration id changed at index $index."
+            }
         }
 
         $runtime = Get-DipPostgresRuntimeLabel -Client $pg
@@ -143,20 +199,22 @@ try {
         New-Item -ItemType Directory -Force -Path $out | Out-Null
 
         [ordered]@{
-            schema = 'dip-database-migration-verification-v1'
+            schema = 'dip-database-migration-verification-v2'
             sourceCommit = $sha
             verifiedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
             runtime = $runtime
             latestMigration = $latest
-            appliedMigrationCount = [int]$applied
+            expectedMigrationCount = $migrations.Count
+            appliedMigrationCount = $afterIdempotent.Count
+            migrationIdsExactMatch = $true
             rollbackToZero = 'PASS'
+            reapplyLatest = 'PASS'
             idempotentReapply = 'PASS'
-        } | ConvertTo-Json | Set-Content (Join-Path $out 'database-migration-verification.json') -Encoding UTF8
+        } |
+        ConvertTo-Json -Depth 6 |
+        Set-Content (Join-Path $out 'database-migration-verification.json') -Encoding UTF8
 
-        Write-Host (
-            "Database migration verification PASS: $latest " +
-            "($applied applied, client=$runtime)"
-        ) -ForegroundColor Green
+        Write-Host "Database migration verification PASS: $latest ($($migrations.Count) exact migrations, client=$runtime)" -ForegroundColor Green
     }
     finally {
         Pop-Location
@@ -169,17 +227,15 @@ finally {
         Invoke-Psql `
             -Database 'postgres' `
             -Sql "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$db';" |
-            Out-Null
+        Out-Null
     }
-    catch {
-    }
+    catch {}
 
     try {
         Invoke-Psql `
             -Database 'postgres' `
             -Sql "DROP DATABASE IF EXISTS `"$db`";" |
-            Out-Null
+        Out-Null
     }
-    catch {
-    }
+    catch {}
 }
