@@ -16,6 +16,31 @@ Remove-Item -LiteralPath $pass,$fail -Force -ErrorAction SilentlyContinue
 
 function Invoke-Dotnet([string[]]$Arguments){& $script:dotnet @Arguments;if($LASTEXITCODE -ne 0){throw "dotnet $($Arguments -join ' ') failed with exit code $LASTEXITCODE"}}
 
+function Get-FreeTcpPort {
+    $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
+    $listener.Start()
+    try{return ([Net.IPEndPoint]$listener.LocalEndpoint).Port}
+    finally{$listener.Stop()}
+}
+
+function Invoke-LiveEndToEnd {
+    $verifySolution=Join-Path $PSScriptRoot 'Verify-Solution.ps1'
+    if(-not(Test-Path -LiteralPath $verifySolution -PathType Leaf)){throw 'Verify-Solution.ps1 is missing.'}
+    $hostName=if($env:POSTGRES_HOST){$env:POSTGRES_HOST}else{'127.0.0.1'}
+    $port=if($env:POSTGRES_PORT){[int]$env:POSTGRES_PORT}else{5432}
+    $user=if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}
+    $password=if($env:POSTGRES_PASSWORD){$env:POSTGRES_PASSWORD}else{'change-me-local-only'}
+    $apiPort=Get-FreeTcpPort
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $verifySolution `
+        -Configuration Release `
+        -PostgreSqlHost $hostName `
+        -PostgreSqlPort $port `
+        -PostgreSqlUser $user `
+        -PostgreSqlPassword $password `
+        -ApiPort $apiPort
+    if($LASTEXITCODE -ne 0){throw "Live end-to-end verification failed with exit code $LASTEXITCODE."}
+}
+
 try {
     $required=@(
         'src\Dip.Domain\Features\Projects\Entities\DevelopmentGraphNode.cs',
@@ -65,7 +90,7 @@ try {
         Invoke-Dotnet @('test','.\tests\Dip.Application.Tests\Dip.Application.Tests.csproj','--configuration','Release','--no-build')
         Invoke-Dotnet @('test','.\tests\Dip.Infrastructure.Tests\Dip.Infrastructure.Tests.csproj','--configuration','Release','--no-build')
         if($RunIntegration){Invoke-Dotnet @('test','.\tests\Dip.IntegrationTests\Dip.IntegrationTests.csproj','--configuration','Release','--no-build')}
-        if($RunEndToEnd){Invoke-Dotnet @('test','.\tests\Dip.EndToEndTests\Dip.EndToEndTests.csproj','--configuration','Release','--no-build')}
+        if($RunEndToEnd){Invoke-LiveEndToEnd}
     }
     finally { Pop-Location }
 
