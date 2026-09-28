@@ -94,61 +94,18 @@ try {
             throw 'Rollback to migration zero failed.'
         }
 
+        $rollbackHistorySql =
+            'SELECT CASE WHEN to_regclass(''public."__EFMigrationsHistory"'') IS NULL THEN 0 ELSE (SELECT count(*) FROM "__EFMigrationsHistory") END;'
+
         $afterRollback = (
             Invoke-Psql `
                 -Database $db `
-                -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' `
+                -Sql $rollbackHistorySql `
                 -TuplesOnly |
             Out-String
         ).Trim()
 
-        if ($afterRollback -notmatch '^\d+
-
-        $applied = (
-            Invoke-Psql `
-                -Database $db `
-                -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' `
-                -TuplesOnly |
-            Out-String
-        ).Trim()
-
-        if ($applied -notmatch '^\d+$' -or [int]$applied -lt 1) {
-            throw 'Migration history verification failed.'
-        }
-
-        $runtime = Get-DipPostgresRuntimeLabel -Client $pg
-
-        Write-Host (
-            "Database migration verification PASS: $latest " +
-            "($applied applied, client=$runtime)"
-        ) -ForegroundColor Green
-    }
-    finally {
-        Pop-Location
-    }
-}
-finally {
-    $env:ConnectionStrings__PostgreSql = $oldConnection
-
-    try {
-        Invoke-Psql `
-            -Database 'postgres' `
-            -Sql "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$db';" |
-            Out-Null
-    }
-    catch {
-    }
-
-    try {
-        Invoke-Psql `
-            -Database 'postgres' `
-            -Sql "DROP DATABASE IF EXISTS `"$db`";" |
-            Out-Null
-    }
-    catch {
-    }
-}
- -or [int]$afterRollback -ne 0) {
+        if ($afterRollback -notmatch '^\d+$' -or [int]$afterRollback -ne 0) {
             throw "Migration rollback verification failed. Remaining history rows=$afterRollback"
         }
 
@@ -181,6 +138,20 @@ finally {
         }
 
         $runtime = Get-DipPostgresRuntimeLabel -Client $pg
+        $sha = (& git -C $root rev-parse HEAD | Out-String).Trim()
+        $out = Join-Path $root 'artifacts\database-migration-verification'
+        New-Item -ItemType Directory -Force -Path $out | Out-Null
+
+        [ordered]@{
+            schema = 'dip-database-migration-verification-v1'
+            sourceCommit = $sha
+            verifiedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+            runtime = $runtime
+            latestMigration = $latest
+            appliedMigrationCount = [int]$applied
+            rollbackToZero = 'PASS'
+            idempotentReapply = 'PASS'
+        } | ConvertTo-Json | Set-Content (Join-Path $out 'database-migration-verification.json') -Encoding UTF8
 
         Write-Host (
             "Database migration verification PASS: $latest " +
