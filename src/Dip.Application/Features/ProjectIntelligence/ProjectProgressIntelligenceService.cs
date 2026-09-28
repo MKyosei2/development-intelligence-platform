@@ -253,67 +253,67 @@ public sealed class ProjectProgressIntelligenceService
     }
 
     private static IEnumerable<SourceProvenanceDto> BuildSources(DevelopmentGraphNode plan, IReadOnlyList<DevelopmentGraphNode> obs)
+    {
+        var pm = Meta(plan);
+        yield return new("Excel/WBS", Str(pm, "SourceReference") ?? Strip(plan.Key), Str(pm, "SourceSha256") ?? "", plan.ExternalReference, plan.LastObservedAtUtc, "High", Str(pm, "SourceSha256") ?? "");
+        foreach (var o in obs)
         {
-            var pm = Meta(plan);
-            yield return new("Excel/WBS", Str(pm, "SourceReference") ?? Strip(plan.Key), Str(pm, "SourceSha256") ?? "", plan.ExternalReference, plan.LastObservedAtUtc, "High", Str(pm, "SourceSha256") ?? "");
-            foreach (var o in obs)
-            {
-                var m = Meta(o);
-                yield return new(o.Provider ?? "Unknown", Str(m, "ExternalId") ?? Strip(o.Key), Str(m, "Revision") ?? "", o.ExternalReference, o.LastObservedAtUtc, o.Provider?.Equals("Redmine", StringComparison.OrdinalIgnoreCase) == true ? "Medium" : "Low", Str(m, "RawSha256") ?? "", Field(m, "Fields", "Channel"), Field(m, "Fields", "Author"));
-            }
+            var m = Meta(o);
+            yield return new(o.Provider ?? "Unknown", Str(m, "ExternalId") ?? Strip(o.Key), Str(m, "Revision") ?? "", o.ExternalReference, o.LastObservedAtUtc, o.Provider?.Equals("Redmine", StringComparison.OrdinalIgnoreCase) == true ? "Medium" : "Low", Str(m, "RawSha256") ?? "", Field(m, "Fields", "Channel"), Field(m, "Fields", "Author"));
         }
-
-        private static string ReadinessConfidence(decimal? machine, IReadOnlyList<DevelopmentGraphNode> related, IReadOnlyList<EvidenceRecord> evidence)
-        {
-            if (machine is null) return related.Any(x => x.Type == DevelopmentGraphNodeType.ExternalObservation) ? "Low" : "Unverified";
-            if (evidence.Any(x => IsMachine(x) && x.Confidence == EvidenceConfidence.Verified)) return "Verified";
-            if (evidence.Any(x => IsMachine(x) && (int)x.Confidence >= (int)EvidenceConfidence.High) || related.Any(x => x.Type == DevelopmentGraphNodeType.PullRequest)) return "High";
-            return "Medium";
-        }
-
-        private static string Status(IReadOnlyList<string> contradictions, IReadOnlyList<string> stale, DateTimeOffset? due, decimal? machine, decimal? plan, decimal? operational)
-        {
-            if (stale.Any(x => x.Contains("due date", StringComparison.OrdinalIgnoreCase)) || contradictions.Count >= 2 || contradictions.Any(x => x.Contains("failing CI", StringComparison.OrdinalIgnoreCase))) return "AtRisk";
-            if (contradictions.Count > 0 || stale.Count > 0 || (plan.HasValue && machine.HasValue && plan.Value - machine.Value >= 20m)) return "Watch";
-            return "OnTrack";
-        }
-
-        private static bool IsComplete(decimal? plan, decimal? operational, decimal? machine, string? status) => (machine >= 90m && (operational >= 90m || plan >= 100m)) || (status is not null && IsClaimedComplete(status) && machine >= 80m);
-
-        private static bool IsClaimedComplete(string status) => ClaimStatusNormalizer.Classify(status) is ClaimSemanticState.Complete or ClaimSemanticState.Ready;
-
-        private static bool IsMachine(EvidenceRecord e) => e.SourceType is EvidenceSourceType.GitHub or EvidenceSourceType.Build or EvidenceSourceType.Test or EvidenceSourceType.Quality or EvidenceSourceType.Runtime or EvidenceSourceType.Performance or EvidenceSourceType.Unity or EvidenceSourceType.Collector;
-
-        private static bool IsSuccess(string s) => s.Contains("success", StringComparison.OrdinalIgnoreCase) || s.Contains("passed", StringComparison.OrdinalIgnoreCase) || s.Contains("green", StringComparison.OrdinalIgnoreCase) || s.Contains("completed", StringComparison.OrdinalIgnoreCase);
-        private static bool IsFailure(string s) => s.Contains("fail", StringComparison.OrdinalIgnoreCase) || s.Contains("error", StringComparison.OrdinalIgnoreCase) || s.Contains("cancel", StringComparison.OrdinalIgnoreCase);
-
-        private static int Rank(string status) => status == "AtRisk" ? 3 : status == "Watch" ? 2 : 1;
-        private static string Strip(string value)
-        {
-            var i = value.LastIndexOf(':');
-            return i >= 0 ? value[(i + 1)..] : value;
-        }
-
-        private static JsonElement Meta(DevelopmentGraphNode n)
-        {
-            try
-            {
-                using var document = JsonDocument.Parse(n.MetadataJson);
-                return document.RootElement.Clone();
-            }
-            catch (JsonException ex)
-            {
-                throw new InvalidDataException(
-                    $"Development Graph node '{n.Key}' contains invalid metadata JSON.",
-                    ex);
-            }
-        }
-
-        private static string? Str(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : null;
-        private static decimal? Dec(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.TryGetDecimal(out var d) ? d : null;
-        private static DateTimeOffset? Date(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(x.GetString(), out var d) ? d : null;
-        private static bool Bool(JsonElement m, string name) => m.TryGetProperty(name, out var x) && (x.ValueKind is JsonValueKind.True or JsonValueKind.False) && x.GetBoolean();
-        private static IReadOnlyList<string> Strings(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.Array ? x.EnumerateArray().Where(v => v.ValueKind == JsonValueKind.String).Select(v => v.GetString() ?? "").Where(v => v.Length > 0).ToArray() : [];
-        private static string? Field(JsonElement m, string obj, string name) => m.TryGetProperty(obj, out var o) && o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : null;
-
     }
+
+    private static string ReadinessConfidence(decimal? machine, IReadOnlyList<DevelopmentGraphNode> related, IReadOnlyList<EvidenceRecord> evidence)
+    {
+        if (machine is null) return related.Any(x => x.Type == DevelopmentGraphNodeType.ExternalObservation) ? "Low" : "Unverified";
+        if (evidence.Any(x => IsMachine(x) && x.Confidence == EvidenceConfidence.Verified)) return "Verified";
+        if (evidence.Any(x => IsMachine(x) && (int)x.Confidence >= (int)EvidenceConfidence.High) || related.Any(x => x.Type == DevelopmentGraphNodeType.PullRequest)) return "High";
+        return "Medium";
+    }
+
+    private static string Status(IReadOnlyList<string> contradictions, IReadOnlyList<string> stale, DateTimeOffset? due, decimal? machine, decimal? plan, decimal? operational)
+    {
+        if (stale.Any(x => x.Contains("due date", StringComparison.OrdinalIgnoreCase)) || contradictions.Count >= 2 || contradictions.Any(x => x.Contains("failing CI", StringComparison.OrdinalIgnoreCase))) return "AtRisk";
+        if (contradictions.Count > 0 || stale.Count > 0 || (plan.HasValue && machine.HasValue && plan.Value - machine.Value >= 20m)) return "Watch";
+        return "OnTrack";
+    }
+
+    private static bool IsComplete(decimal? plan, decimal? operational, decimal? machine, string? status) => (machine >= 90m && (operational >= 90m || plan >= 100m)) || (status is not null && IsClaimedComplete(status) && machine >= 80m);
+
+    private static bool IsClaimedComplete(string status) => ClaimStatusNormalizer.Classify(status) is ClaimSemanticState.Complete or ClaimSemanticState.Ready;
+
+    private static bool IsMachine(EvidenceRecord e) => e.SourceType is EvidenceSourceType.GitHub or EvidenceSourceType.Build or EvidenceSourceType.Test or EvidenceSourceType.Quality or EvidenceSourceType.Runtime or EvidenceSourceType.Performance or EvidenceSourceType.Unity or EvidenceSourceType.Collector;
+
+    private static bool IsSuccess(string s) => s.Contains("success", StringComparison.OrdinalIgnoreCase) || s.Contains("passed", StringComparison.OrdinalIgnoreCase) || s.Contains("green", StringComparison.OrdinalIgnoreCase) || s.Contains("completed", StringComparison.OrdinalIgnoreCase);
+    private static bool IsFailure(string s) => s.Contains("fail", StringComparison.OrdinalIgnoreCase) || s.Contains("error", StringComparison.OrdinalIgnoreCase) || s.Contains("cancel", StringComparison.OrdinalIgnoreCase);
+
+    private static int Rank(string status) => status == "AtRisk" ? 3 : status == "Watch" ? 2 : 1;
+    private static string Strip(string value)
+    {
+        var i = value.LastIndexOf(':');
+        return i >= 0 ? value[(i + 1)..] : value;
+    }
+
+    private static JsonElement Meta(DevelopmentGraphNode n)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(n.MetadataJson);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException(
+                $"Development Graph node '{n.Key}' contains invalid metadata JSON.",
+                ex);
+        }
+    }
+
+    private static string? Str(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : null;
+    private static decimal? Dec(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.TryGetDecimal(out var d) ? d : null;
+    private static DateTimeOffset? Date(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(x.GetString(), out var d) ? d : null;
+    private static bool Bool(JsonElement m, string name) => m.TryGetProperty(name, out var x) && (x.ValueKind is JsonValueKind.True or JsonValueKind.False) && x.GetBoolean();
+    private static IReadOnlyList<string> Strings(JsonElement m, string name) => m.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.Array ? x.EnumerateArray().Where(v => v.ValueKind == JsonValueKind.String).Select(v => v.GetString() ?? "").Where(v => v.Length > 0).ToArray() : [];
+    private static string? Field(JsonElement m, string obj, string name) => m.TryGetProperty(obj, out var o) && o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : null;
+
+}

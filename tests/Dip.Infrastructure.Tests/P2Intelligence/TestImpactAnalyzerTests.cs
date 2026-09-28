@@ -37,7 +37,9 @@ public sealed class TestImpactAnalyzerTests
         }
         finally
         {
-            try { Directory.Delete(temp, true); } catch {
+            try { Directory.Delete(temp, true); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

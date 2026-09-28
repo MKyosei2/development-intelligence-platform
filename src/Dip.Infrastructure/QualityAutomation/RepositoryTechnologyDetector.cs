@@ -140,8 +140,8 @@ public sealed class RepositoryTechnologyDetector : IRepositoryTechnologyDetector
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
             if (doc.RootElement.TryGetProperty("languages", out var arr) && arr.ValueKind == JsonValueKind.Array)
-            foreach (var item in arr.EnumerateArray())
-            if (item.TryGetProperty("id", out var id) && LanguageId.TryParse(id.GetString(), out var language))
+                foreach (var item in arr.EnumerateArray())
+                    if (item.TryGetProperty("id", out var id) && LanguageId.TryParse(id.GetString(), out var language))
                     {
                         counts[language] = Math.Max(1, counts.GetValueOrDefault(language));
                         evidence.Add($"QA manifest language: {language.Value}");

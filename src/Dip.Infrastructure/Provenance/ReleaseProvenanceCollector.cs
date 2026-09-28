@@ -65,7 +65,8 @@ public sealed class ReleaseProvenanceCollector(IOptions<ReleaseProvenanceOptions
             {
                 evidenceFiles[Relative(root, file)] = Hash(file);
             }
-            catch (IOException) {
+            catch (IOException)
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

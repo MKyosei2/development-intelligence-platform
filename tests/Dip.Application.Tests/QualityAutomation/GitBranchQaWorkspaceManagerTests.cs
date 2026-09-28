@@ -47,7 +47,9 @@ public sealed class GitBranchQaWorkspaceManagerTests
         }
         finally
         {
-            try { Directory.Delete(root, true); } catch {
+            try { Directory.Delete(root, true); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }
@@ -86,9 +88,14 @@ public sealed class GitBranchQaWorkspaceManagerTests
             Directory.Exists(isolated).Should().BeFalse();
             (await File.ReadAllTextAsync(Path.Combine(source, "value.txt"))).Should().Be("main");
         }
-        finally { try { Directory.Delete(root, true); } catch {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-        } }
+        finally
+        {
+            try { Directory.Delete(root, true); }
+            catch
+            {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+        }
     }
 
     private sealed class FakeGitHubCatalog(string workspaceRoot) : IGitHubRepositoryCatalog
@@ -116,12 +123,16 @@ public sealed class GitBranchQaWorkspaceManagerTests
 
     private static bool GitAvailable()
     {
-        try { using var p = Process.Start(new ProcessStartInfo("git", "--version") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true });
-         p?.WaitForExit(3000);
-         return p?.ExitCode == 0;
-         }
-        catch { return false;
-         }
+        try
+        {
+            using var p = Process.Start(new ProcessStartInfo("git", "--version") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true });
+            p?.WaitForExit(3000);
+            return p?.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string Run(string cwd, params string[] args)

@@ -32,41 +32,41 @@ public sealed class HardwareBacktestRepository(DipDbContext db) : IHardwareBackt
 public sealed class ChangeRiskRepository(DipDbContext db) : IChangeRiskRepository
 {
     public Task AddAsync(ChangeRiskAssessment x, CancellationToken ct) => db.ChangeRiskAssessments.AddAsync(x, ct).AsTask();
-     public Task<ChangeRiskAssessment?> GetLatestAsync(Guid projectId, string? commitSha, CancellationToken ct) => db.ChangeRiskAssessments.AsNoTracking().Where(x => x.ProjectId == projectId && (commitSha == null || x.CommitSha == commitSha)).OrderByDescending(x => x.AssessedAtUtc).FirstOrDefaultAsync(ct);
-     public async Task<IReadOnlyList<ChangeRiskAssessment>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.ChangeRiskAssessments.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.AssessedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
+    public Task<ChangeRiskAssessment?> GetLatestAsync(Guid projectId, string? commitSha, CancellationToken ct) => db.ChangeRiskAssessments.AsNoTracking().Where(x => x.ProjectId == projectId && (commitSha == null || x.CommitSha == commitSha)).OrderByDescending(x => x.AssessedAtUtc).FirstOrDefaultAsync(ct);
+    public async Task<IReadOnlyList<ChangeRiskAssessment>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.ChangeRiskAssessments.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.AssessedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
 }
 public sealed class RegressionTriageRepository(DipDbContext db) : IRegressionTriageRepository
 {
     public Task AddAsync(RegressionTriage x, CancellationToken ct) => db.RegressionTriages.AddAsync(x, ct).AsTask();
-     public Task<RegressionTriage?> GetLatestForIncidentAsync(Guid incidentId, CancellationToken ct) => db.RegressionTriages.AsNoTracking().Where(x => x.IncidentId == incidentId).OrderByDescending(x => x.CreatedAtUtc).FirstOrDefaultAsync(ct);
-     public async Task<IReadOnlyList<RegressionTriage>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.RegressionTriages.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
+    public Task<RegressionTriage?> GetLatestForIncidentAsync(Guid incidentId, CancellationToken ct) => db.RegressionTriages.AsNoTracking().Where(x => x.IncidentId == incidentId).OrderByDescending(x => x.CreatedAtUtc).FirstOrDefaultAsync(ct);
+    public async Task<IReadOnlyList<RegressionTriage>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.RegressionTriages.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
 }
 public sealed class ReleaseReadinessRepository(DipDbContext db) : IReleaseReadinessRepository
 {
     public Task AddAsync(ReleaseReadinessSnapshot x, CancellationToken ct) => db.ReleaseReadinessSnapshots.AddAsync(x, ct).AsTask();
-     public Task<ReleaseReadinessSnapshot?> GetLatestAsync(Guid projectId, CancellationToken ct) => db.ReleaseReadinessSnapshots.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.EvaluatedAtUtc).FirstOrDefaultAsync(ct);
-     public async Task<IReadOnlyList<ReleaseReadinessSnapshot>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.ReleaseReadinessSnapshots.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.EvaluatedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
+    public Task<ReleaseReadinessSnapshot?> GetLatestAsync(Guid projectId, CancellationToken ct) => db.ReleaseReadinessSnapshots.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.EvaluatedAtUtc).FirstOrDefaultAsync(ct);
+    public async Task<IReadOnlyList<ReleaseReadinessSnapshot>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.ReleaseReadinessSnapshots.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.EvaluatedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
 }
 public sealed class ExternalWorkItemRepository(DipDbContext db) : IExternalWorkItemRepository
 {
     public Task AddAsync(ExternalWorkItemLink x, CancellationToken ct) => db.ExternalWorkItemLinks.AddAsync(x, ct).AsTask();
-     public Task<ExternalWorkItemLink?> FindByIncidentAsync(Guid incidentId, ExternalWorkItemProvider provider, CancellationToken ct) => db.ExternalWorkItemLinks.AsNoTracking().FirstOrDefaultAsync(x => x.IncidentId == incidentId && x.Provider == provider, ct);
-     public async Task<IReadOnlyList<ExternalWorkItemLink>> ListAsync(Guid projectId, CancellationToken ct) => await db.ExternalWorkItemLinks.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct);
+    public Task<ExternalWorkItemLink?> FindByIncidentAsync(Guid incidentId, ExternalWorkItemProvider provider, CancellationToken ct) => db.ExternalWorkItemLinks.AsNoTracking().FirstOrDefaultAsync(x => x.IncidentId == incidentId && x.Provider == provider, ct);
+    public async Task<IReadOnlyList<ExternalWorkItemLink>> ListAsync(Guid projectId, CancellationToken ct) => await db.ExternalWorkItemLinks.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct);
 }
 public sealed class ReleaseEvidenceRepository(DipDbContext db) : IReleaseEvidenceRepository
 {
     public Task AddAsync(ReleaseEvidenceBundle x, CancellationToken ct) => db.ReleaseEvidenceBundles.AddAsync(x, ct).AsTask();
-     public Task<ReleaseEvidenceBundle?> GetLatestAsync(Guid projectId, CancellationToken ct) => db.ReleaseEvidenceBundles.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).FirstOrDefaultAsync(ct);
-     public async Task<IReadOnlyList<ReleaseEvidenceBundle>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.ReleaseEvidenceBundles.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
+    public Task<ReleaseEvidenceBundle?> GetLatestAsync(Guid projectId, CancellationToken ct) => db.ReleaseEvidenceBundles.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).FirstOrDefaultAsync(ct);
+    public async Task<IReadOnlyList<ReleaseEvidenceBundle>> ListAsync(Guid projectId, int take, CancellationToken ct) => await db.ReleaseEvidenceBundles.AsNoTracking().Where(x => x.ProjectId == projectId).OrderByDescending(x => x.CreatedAtUtc).Take(Math.Clamp(take, 1, 500)).ToListAsync(ct);
 }
 public sealed class RepositoryGraphRepository(DipDbContext db) : IRepositoryGraphRepository
 {
     public Task AddNodeAsync(RepositoryNode x, CancellationToken ct) => db.RepositoryNodes.AddAsync(x, ct).AsTask();
-     public Task<RepositoryNode?> GetNodeAsync(Guid id, CancellationToken ct) => db.RepositoryNodes.SingleOrDefaultAsync(x => x.Id == id, ct);
-     public Task<RepositoryNode?> GetNodeByKeyAsync(Guid projectId, string key, CancellationToken ct) => db.RepositoryNodes.SingleOrDefaultAsync(x => x.ProjectId == projectId && x.Key == key, ct);
-     public async Task<IReadOnlyList<RepositoryNode>> ListNodesAsync(Guid projectId, CancellationToken ct) => await db.RepositoryNodes.AsNoTracking().Where(x => x.ProjectId == projectId).OrderBy(x => x.Key).ToListAsync(ct);
+    public Task<RepositoryNode?> GetNodeAsync(Guid id, CancellationToken ct) => db.RepositoryNodes.SingleOrDefaultAsync(x => x.Id == id, ct);
+    public Task<RepositoryNode?> GetNodeByKeyAsync(Guid projectId, string key, CancellationToken ct) => db.RepositoryNodes.SingleOrDefaultAsync(x => x.ProjectId == projectId && x.Key == key, ct);
+    public async Task<IReadOnlyList<RepositoryNode>> ListNodesAsync(Guid projectId, CancellationToken ct) => await db.RepositoryNodes.AsNoTracking().Where(x => x.ProjectId == projectId).OrderBy(x => x.Key).ToListAsync(ct);
     public Task AddDependencyAsync(RepositoryDependency x, CancellationToken ct) => db.RepositoryDependencies.AddAsync(x, ct).AsTask();
-     public async Task<IReadOnlyList<RepositoryDependency>> ListDependenciesAsync(Guid projectId, CancellationToken ct) => await db.RepositoryDependencies.AsNoTracking().Where(x => x.ProjectId == projectId).ToListAsync(ct);
-     public Task AddImpactAsync(CrossRepositoryImpact x, CancellationToken ct) => db.CrossRepositoryImpacts.AddAsync(x, ct).AsTask();
-     public Task<CrossRepositoryImpact?> GetLatestImpactAsync(Guid projectId, string commitSha, CancellationToken ct) => db.CrossRepositoryImpacts.AsNoTracking().Where(x => x.ProjectId == projectId && x.CommitSha == commitSha).OrderByDescending(x => x.AnalyzedAtUtc).FirstOrDefaultAsync(ct);
+    public async Task<IReadOnlyList<RepositoryDependency>> ListDependenciesAsync(Guid projectId, CancellationToken ct) => await db.RepositoryDependencies.AsNoTracking().Where(x => x.ProjectId == projectId).ToListAsync(ct);
+    public Task AddImpactAsync(CrossRepositoryImpact x, CancellationToken ct) => db.CrossRepositoryImpacts.AddAsync(x, ct).AsTask();
+    public Task<CrossRepositoryImpact?> GetLatestImpactAsync(Guid projectId, string commitSha, CancellationToken ct) => db.CrossRepositoryImpacts.AsNoTracking().Where(x => x.ProjectId == projectId && x.CommitSha == commitSha).OrderByDescending(x => x.AnalyzedAtUtc).FirstOrDefaultAsync(ct);
 }

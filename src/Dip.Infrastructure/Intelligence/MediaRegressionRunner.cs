@@ -88,11 +88,17 @@ public sealed class MediaRegressionRunner : IMediaRegressionRunner
     {
         foreach (var name in OperatingSystem.IsWindows() ? new[] { "python", "py" } : new[] { "python3", "python" })
         {
-            try { using var p = Process.Start(new ProcessStartInfo(name, "--version") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true });
-            if (p is not null) { p.WaitForExit(1500);
-            if (p.ExitCode == 0) return name;
-             } }
-            catch {
+            try
+            {
+                using var p = Process.Start(new ProcessStartInfo(name, "--version") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true });
+                if (p is not null)
+                {
+                    p.WaitForExit(1500);
+                    if (p.ExitCode == 0) return name;
+                }
+            }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

@@ -181,7 +181,8 @@ public sealed class CommercialQualityOperationsService
                     else if (production.TryGetProperty("Domain", out d) && d.ValueKind == JsonValueKind.String) domain = d.GetString() ?? "Unknown";
                 }
             }
-            catch (JsonException) {
+            catch (JsonException)
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

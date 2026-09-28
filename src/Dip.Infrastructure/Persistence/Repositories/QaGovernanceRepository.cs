@@ -10,10 +10,12 @@ public sealed class QaGovernanceRepository(DipDbContext db) : IQaGovernanceRepos
     public Task<QaFindingState?> FindFindingStateAsync(Guid p, string f, CancellationToken ct) => db.QaFindingStates.SingleOrDefaultAsync(x => x.ProjectId == p && x.Fingerprint == f, ct);
     public Task AddFindingStateAsync(QaFindingState x, CancellationToken ct) => db.QaFindingStates.AddAsync(x, ct).AsTask();
     public async Task<IReadOnlyList<QaFindingState>> ListFindingStatesAsync(Guid p, int take, CancellationToken ct) => await db.QaFindingStates.Where(x => x.ProjectId == p).OrderByDescending(x => x.LastSeenAtUtc).ThenByDescending(x => x.Id).Take(Math.Clamp(take, 1, 10000)).ToListAsync(ct);
-    public async Task<IReadOnlyList<QaFindingState>> ListFindingStatesPageAsync(Guid p, DateTimeOffset? before, string? beforeFingerprint, int take, CancellationToken ct) { var q = db.QaFindingStates.AsNoTracking().Where(x => x.ProjectId == p);
-    if (before.HasValue && !string.IsNullOrWhiteSpace(beforeFingerprint)) q = q.Where(x => x.LastSeenAtUtc < before.Value || (x.LastSeenAtUtc == before.Value && string.Compare(x.Fingerprint, beforeFingerprint) < 0));
-     return await q.OrderByDescending(x => x.LastSeenAtUtc).ThenByDescending(x => x.Fingerprint).Take(Math.Clamp(take, 1, 501)).ToListAsync(ct);
-     }
+    public async Task<IReadOnlyList<QaFindingState>> ListFindingStatesPageAsync(Guid p, DateTimeOffset? before, string? beforeFingerprint, int take, CancellationToken ct)
+    {
+        var q = db.QaFindingStates.AsNoTracking().Where(x => x.ProjectId == p);
+        if (before.HasValue && !string.IsNullOrWhiteSpace(beforeFingerprint)) q = q.Where(x => x.LastSeenAtUtc < before.Value || (x.LastSeenAtUtc == before.Value && string.Compare(x.Fingerprint, beforeFingerprint) < 0));
+        return await q.OrderByDescending(x => x.LastSeenAtUtc).ThenByDescending(x => x.Fingerprint).Take(Math.Clamp(take, 1, 501)).ToListAsync(ct);
+    }
     public Task<QaWaiver?> GetWaiverAsync(Guid id, CancellationToken ct) => db.QaWaivers.SingleOrDefaultAsync(x => x.Id == id, ct);
     public Task AddWaiverAsync(QaWaiver x, CancellationToken ct) => db.QaWaivers.AddAsync(x, ct).AsTask();
     public async Task<IReadOnlyList<QaWaiver>> ListWaiversAsync(Guid p, CancellationToken ct) => await db.QaWaivers.Where(x => x.ProjectId == p).OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct);

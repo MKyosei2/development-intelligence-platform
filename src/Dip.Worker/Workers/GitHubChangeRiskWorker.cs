@@ -66,9 +66,9 @@ public sealed class GitHubChangeRiskWorker(IServiceScopeFactory scopes, IQueueCl
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase); if (!root.TryGetProperty("commits", out var commits) || commits.ValueKind != JsonValueKind.Array) return [];
         foreach (var commit in commits.EnumerateArray())
-        foreach (var property in new[] { "added", "modified", "removed" })
-        if (commit.TryGetProperty(property, out var values) && values.ValueKind == JsonValueKind.Array)
-        foreach (var value in values.EnumerateArray())
+            foreach (var property in new[] { "added", "modified", "removed" })
+                if (commit.TryGetProperty(property, out var values) && values.ValueKind == JsonValueKind.Array)
+                    foreach (var value in values.EnumerateArray())
                     {
                         var path = value.GetString()?.Replace('\\', '/').Trim();
                         if (!string.IsNullOrWhiteSpace(path)) set.Add(path);

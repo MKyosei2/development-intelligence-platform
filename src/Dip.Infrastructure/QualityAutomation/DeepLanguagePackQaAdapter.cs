@@ -36,9 +36,11 @@ public sealed class DeepLanguagePackQaAdapter(
         async Task Run(string name, string exe, IEnumerable<string> args, string category = "compile", Severity severity = Severity.Critical, IReadOnlyDictionary<string, string>? env = null)
         {
             var resolved = ResolveExecutable(workspace, exe);
-            if (resolved is null) { tools.Add(new(name, false, false, null, 0, "", "", $"{exe} is unavailable; capability skipped."));
-             return;
-             }
+            if (resolved is null)
+            {
+                tools.Add(new(name, false, false, null, 0, "", "", $"{exe} is unavailable; capability skipped."));
+                return;
+            }
             var result = await QaToolSupport.ExecuteAsync(executor, normalizer, name, resolved, args, workspace, artifactRoot, env, timeout, command.Language, severity, category, ct);
             tools.Add(result.Tool);
             findings.AddRange(result.Findings);

@@ -11,11 +11,13 @@ public sealed class DurableJobService
 {
     public const string RequestedMessageType = "durable-job.requested.v1";
     private readonly IDurableJobRepository _jobs; private readonly IOutboxRepository _outbox; private readonly IUnitOfWork _uow; private readonly ISystemClock _clock;
-    public DurableJobService(IDurableJobRepository jobs, IOutboxRepository outbox, IUnitOfWork uow, ISystemClock clock) { _jobs = jobs;
-     _outbox = outbox;
-     _uow = uow;
-     _clock = clock;
-     }
+    public DurableJobService(IDurableJobRepository jobs, IOutboxRepository outbox, IUnitOfWork uow, ISystemClock clock)
+    {
+        _jobs = jobs;
+        _outbox = outbox;
+        _uow = uow;
+        _clock = clock;
+    }
 
     public async Task<EnqueuedJobDto> EnqueueAsync<T>(Guid projectId, DurableJobType type, string subjectKey, T payload, int maxAttempts, CancellationToken ct)
     {

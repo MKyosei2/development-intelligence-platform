@@ -72,7 +72,9 @@ public sealed partial class PerformanceSimulationService(
             await IgnoreCancellationAsync(memoryPressure);
             await IgnoreCancellationAsync(storagePressure);
 
-            try { await File.WriteAllTextAsync(stopGpu, "stop", CancellationToken.None); } catch {
+            try { await File.WriteAllTextAsync(stopGpu, "stop", CancellationToken.None); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
             if (gpuStress is not null)
@@ -84,7 +86,9 @@ public sealed partial class PerformanceSimulationService(
                 }
                 catch
                 {
-                    try { gpuStress.Kill(true); } catch {
+                    try { gpuStress.Kill(true); }
+                    catch
+                    {
                         // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                     }
                 }
@@ -294,7 +298,9 @@ public sealed partial class PerformanceSimulationService(
         }
         finally
         {
-            try { File.Delete(path); } catch {
+            try { File.Delete(path); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }
@@ -304,10 +310,12 @@ public sealed partial class PerformanceSimulationService(
     {
         if (task is null) return;
         try { await task; }
-        catch (OperationCanceledException) {
+        catch (OperationCanceledException)
+        {
             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
-        catch {
+        catch
+        {
             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
     }

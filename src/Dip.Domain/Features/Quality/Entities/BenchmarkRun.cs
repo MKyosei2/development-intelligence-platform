@@ -83,10 +83,12 @@ public sealed class BenchmarkRun
         get;
         private set;
     }
-    public void Start(DateTimeOffset at) { if (Status != BenchmarkRunStatus.Queued) throw new InvalidOperationException();
-     Status = BenchmarkRunStatus.Running;
-     StartedAtUtc = at;
-     }
+    public void Start(DateTimeOffset at)
+    {
+        if (Status != BenchmarkRunStatus.Queued) throw new InvalidOperationException();
+        Status = BenchmarkRunStatus.Running;
+        StartedAtUtc = at;
+    }
     public void Complete(BenchmarkRunStatus status, string summary, DateTimeOffset at)
     {
         if (Status != BenchmarkRunStatus.Running) throw new InvalidOperationException();

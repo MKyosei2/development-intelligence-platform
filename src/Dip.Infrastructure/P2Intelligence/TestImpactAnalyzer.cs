@@ -158,7 +158,8 @@ public sealed class TestImpactAnalyzer(IQaWorkspaceResolver workspaceResolver) :
                     }
                 }
             }
-            catch {
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }
@@ -199,7 +200,8 @@ public sealed class TestImpactAnalyzer(IQaWorkspaceResolver workspaceResolver) :
                 var text = File.ReadAllText(full);
                 foreach (var token in Tokenize(text).Take(500)) tokens.Add(token);
             }
-            catch {
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

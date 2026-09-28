@@ -24,8 +24,8 @@ internal static class QaToolSupport
         var succeeded = !process.TimedOut && process.ExitCode == 0;
         var summary = unavailable ? $"{toolName} is unavailable; the tool-specific check was skipped." : succeeded ? $"{toolName} completed successfully." : $"{toolName} failed with exit code {(process.ExitCode?.ToString() ?? "timeout/start failure")}.";
         var resolved = ResolveExecutable(executable);
-         var version = ResolveVersion(resolved);
-         var sandboxJson = process.Sandbox is null ? null : JsonSerializer.Serialize(process.Sandbox);
+        var version = ResolveVersion(resolved);
+        var sandboxJson = process.Sandbox is null ? null : JsonSerializer.Serialize(process.Sandbox);
         return (new(toolName, !unavailable, succeeded, process.ExitCode, process.DurationMs, stdout, stderr, summary, resolved ?? executable, version, sandboxJson, process.CpuTimeMs), findings, process);
     }
     public static string JsonSummary(LanguageId language, IReadOnlyList<QaToolExecution> tools, IReadOnlyList<QaFindingCandidate> findings) => JsonSerializer.Serialize(new { language = language.Value, tools = tools.Select(x => new { x.Tool, x.WasAvailable, x.Succeeded, x.ExitCode, x.DurationMs, x.Summary, x.Executable, x.Version, x.SandboxJson, x.CpuTimeMs }), findingCount = findings.Count, critical = findings.Count(x => x.Severity == Severity.Critical), warning = findings.Count(x => x.Severity == Severity.Warning) });

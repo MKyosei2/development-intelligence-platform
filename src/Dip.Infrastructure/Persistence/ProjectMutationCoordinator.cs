@@ -25,9 +25,11 @@ public sealed class ProjectMutationCoordinator(DipDbContext db) : IProjectMutati
         return hasResult ? result! : throw new InvalidOperationException("Project mutation did not produce a result.");
     }
 
-    public Task ExecuteAsync(Guid projectId, Func<CancellationToken, Task> action, CancellationToken ct) => ExecuteAsync(projectId, async token => { await action(token);
-     return true;
-     }, ct);
+    public Task ExecuteAsync(Guid projectId, Func<CancellationToken, Task> action, CancellationToken ct) => ExecuteAsync(projectId, async token =>
+    {
+        await action(token);
+        return true;
+    }, ct);
 
     private static async Task<T> ExecuteLocalAsync<T>(Guid projectId, Func<CancellationToken, Task<T>> action, CancellationToken ct)
     {

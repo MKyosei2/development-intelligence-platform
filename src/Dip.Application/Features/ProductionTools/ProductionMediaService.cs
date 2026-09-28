@@ -222,7 +222,9 @@ public sealed class ProductionMediaService
         }
         finally
         {
-            try { if (File.Exists(temp)) File.Delete(temp); } catch {
+            try { if (File.Exists(temp)) File.Delete(temp); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

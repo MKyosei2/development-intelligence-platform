@@ -15,10 +15,12 @@ public sealed class OrganizationTenant
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset UpdatedAtUtc { get; private set; }
     public void SetEnabled(bool enabled, DateTimeOffset now) { IsEnabled = enabled; UpdatedAtUtc = now; }
-    private static string Req(string? v, int max) { var x = v?.Trim() ?? "";
-    if (x.Length is < 1 || x.Length > max) throw new ArgumentException($"Value must be 1-{max} characters.");
-     return x;
-     }
+    private static string Req(string? v, int max)
+    {
+        var x = v?.Trim() ?? "";
+        if (x.Length is < 1 || x.Length > max) throw new ArgumentException($"Value must be 1-{max} characters.");
+        return x;
+    }
 }
 
 public sealed class ProjectTenantBinding

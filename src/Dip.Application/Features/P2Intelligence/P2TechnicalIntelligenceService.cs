@@ -54,10 +54,12 @@ public sealed class P2TechnicalIntelligenceService
             runtime ? EvidenceSourceType.Runtime : EvidenceSourceType.Test,
             runtime ? "runtime.reliability" : "test.flakiness", ct);
         var reliabilityKey = (runtime ? "runtime:" : "test:") + command.Target.SubjectKey;
-         var reliability = await _qaGovernance.FindReliabilityAsync(command.Target.ProjectId, reliabilityKey, ct);
-        if (reliability is null) { reliability = new QaTestReliability(Guid.NewGuid(), command.Target.ProjectId, reliabilityKey, _clock.UtcNow);
-         await _qaGovernance.AddReliabilityAsync(reliability, ct);
-         }
+        var reliability = await _qaGovernance.FindReliabilityAsync(command.Target.ProjectId, reliabilityKey, ct);
+        if (reliability is null)
+        {
+            reliability = new QaTestReliability(Guid.NewGuid(), command.Target.ProjectId, reliabilityKey, _clock.UtcNow);
+            await _qaGovernance.AddReliabilityAsync(reliability, ct);
+        }
         foreach (var attempt in result.Runs) reliability.Observe(attempt.Passed, false, null, _clock.UtcNow); await _uow.SaveChangesAsync(ct);
         return result;
     }
@@ -110,9 +112,11 @@ public sealed class P2TechnicalIntelligenceService
         {
             await _incidents.AttachRegressionAsync(command.Target.ProjectId, command.Target.SubjectKey, result.FirstBadCommit, result.ArtifactReference, ct);
             var baseline = await _qaGovernance.FindBaselineAsync(command.Target.ProjectId, command.Target.SubjectKey, "git-bisect", ct);
-            if (baseline is null) { baseline = new QaRegressionBaseline(Guid.NewGuid(), command.Target.ProjectId, command.Target.SubjectKey, "git-bisect", result.LastGoodCommit ?? result.FirstBadCommit, 0m, _clock.UtcNow);
-             await _qaGovernance.AddBaselineAsync(baseline, ct);
-             }
+            if (baseline is null)
+            {
+                baseline = new QaRegressionBaseline(Guid.NewGuid(), command.Target.ProjectId, command.Target.SubjectKey, "git-bisect", result.LastGoodCommit ?? result.FirstBadCommit, 0m, _clock.UtcNow);
+                await _qaGovernance.AddBaselineAsync(baseline, ct);
+            }
             baseline.Observe(result.FirstBadCommit, 1m, false, _clock.UtcNow); await _uow.SaveChangesAsync(ct);
         }
         return result;

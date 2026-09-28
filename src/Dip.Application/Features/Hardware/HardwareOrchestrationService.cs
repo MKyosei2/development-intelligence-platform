@@ -13,29 +13,30 @@ public sealed class HardwareOrchestrationService
 {
     private readonly IProjectRepository _projects; private readonly IHardwareProfileRepository _profiles; private readonly IHardwareCalibrationRepository _calibrations;
     private readonly IPerformanceSimulationRepository _simulations;
-     private readonly IEvidenceRepository _evidence;
-     private readonly IP2IntelligenceRepository _p2;
-     private readonly IUnitOfWork _uow;
-     private readonly ISystemClock _clock;
+    private readonly IEvidenceRepository _evidence;
+    private readonly IP2IntelligenceRepository _p2;
+    private readonly IUnitOfWork _uow;
+    private readonly ISystemClock _clock;
     private readonly IHardwareCalibrationRunner _calibrator;
-     private readonly IPerformanceSimulationRunner _runner;
-     private readonly IQaWorkspaceResolver _workspace;
-     private readonly ProjectTruthService _truth;
+    private readonly IPerformanceSimulationRunner _runner;
+    private readonly IQaWorkspaceResolver _workspace;
+    private readonly ProjectTruthService _truth;
     public HardwareOrchestrationService(IProjectRepository projects, IHardwareProfileRepository profiles, IHardwareCalibrationRepository calibrations, IPerformanceSimulationRepository simulations,
         IEvidenceRepository evidence, IP2IntelligenceRepository p2, IUnitOfWork uow, ISystemClock clock, IHardwareCalibrationRunner calibrator, IPerformanceSimulationRunner runner, IQaWorkspaceResolver workspace, ProjectTruthService truth)
-    { _projects = projects;
-     _profiles = profiles;
-     _calibrations = calibrations;
-     _simulations = simulations;
-     _evidence = evidence;
-     _p2 = p2;
-     _uow = uow;
-     _clock = clock;
-     _calibrator = calibrator;
-     _runner = runner;
-     _workspace = workspace;
-     _truth = truth;
-     }
+    {
+        _projects = projects;
+        _profiles = profiles;
+        _calibrations = calibrations;
+        _simulations = simulations;
+        _evidence = evidence;
+        _p2 = p2;
+        _uow = uow;
+        _clock = clock;
+        _calibrator = calibrator;
+        _runner = runner;
+        _workspace = workspace;
+        _truth = truth;
+    }
 
     public async Task<HardwareCalibrationMeasurement> CalibrateAsync(Guid projectId, CancellationToken ct)
     {

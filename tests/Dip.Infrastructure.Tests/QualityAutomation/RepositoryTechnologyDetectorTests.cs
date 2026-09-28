@@ -24,8 +24,13 @@ public sealed class RepositoryTechnologyDetectorTests
             result.GameEngines.Should().Contain("Unity");
             result.Frameworks.Should().Contain("react");
         }
-        finally { try { Directory.Delete(root, true); } catch {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-        } }
+        finally
+        {
+            try { Directory.Delete(root, true); }
+            catch
+            {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+        }
     }
 }

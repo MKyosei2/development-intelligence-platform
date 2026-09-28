@@ -26,7 +26,7 @@ public sealed class SystemIntegrationQaPack : ICrossCuttingQaPack, IDisposable
         var root = doc.RootElement;
         var allowed = ReadStrings(root, "allowRemoteHosts").ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (root.TryGetProperty("http", out var http) && http.ValueKind == JsonValueKind.Array)
-        foreach (var item in http.EnumerateArray().Take(100)) await CheckHttp(item, allowed, false);
+            foreach (var item in http.EnumerateArray().Take(100)) await CheckHttp(item, allowed, false);
         if (root.TryGetProperty("distributed",
             out var dist) && dist.ValueKind == JsonValueKind.Array) foreach (var item in dist.EnumerateArray().Take(50)) await CheckHttp(item,
             allowed,

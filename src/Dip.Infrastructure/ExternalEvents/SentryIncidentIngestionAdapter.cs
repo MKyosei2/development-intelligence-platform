@@ -12,9 +12,9 @@ public sealed class SentryIncidentIngestionAdapter : IExternalIncidentIngestionA
     {
         var eventId = String(p, "event_id") ?? String(p, "id") ?? Guid.NewGuid().ToString("N");
         var title = String(p, "title") ?? String(p, "message") ?? "Sentry runtime event";
-         var message = String(p, "message") ?? title;
-         string? type = null, stack = null, file = null;
-         int? line = null;
+        var message = String(p, "message") ?? title;
+        string? type = null, stack = null, file = null;
+        int? line = null;
         if (p.TryGetProperty("exception", out var ex) && ex.TryGetProperty("values", out var values) && values.ValueKind == JsonValueKind.Array && values.GetArrayLength() > 0)
         {
             var last = values[values.GetArrayLength() - 1]; type = String(last, "type"); message = String(last, "value") ?? message;
@@ -34,8 +34,8 @@ public sealed class SentryIncidentIngestionAdapter : IExternalIncidentIngestionA
         {
             if (t.ValueKind == JsonValueKind.Object) foreach (var x in t.EnumerateObject()) tags[x.Name] = x.Value.ToString();
             else if (t.ValueKind == JsonValueKind.Array)
-            foreach (var x in t.EnumerateArray())
-            if (x.ValueKind == JsonValueKind.Array && x.GetArrayLength() >= 2) tags[x[0].ToString()] = x[1].ToString();
+                foreach (var x in t.EnumerateArray())
+                    if (x.ValueKind == JsonValueKind.Array && x.GetArrayLength() >= 2) tags[x[0].ToString()] = x[1].ToString();
         }
         var route = String(p, "transaction") ?? tags.GetValueOrDefault("scene") ?? tags.GetValueOrDefault("route");
         var observed = DateTimeOffset.UtcNow;

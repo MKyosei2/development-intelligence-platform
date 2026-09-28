@@ -93,7 +93,8 @@ public sealed class RealtimeUpdateService(
         if (_subscribedProjectId is { } previous)
         {
             try { await _connection.InvokeAsync("UnsubscribeProject", previous, cancellationToken); }
-            catch {
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

@@ -71,10 +71,12 @@ public sealed class IntelligenceRun
         get;
         private set;
     }
-    public void Start(DateTimeOffset at) { if (Status != IntelligenceRunStatus.Queued) throw new InvalidOperationException();
-     Status = IntelligenceRunStatus.Running;
-     StartedAtUtc = at;
-     }
+    public void Start(DateTimeOffset at)
+    {
+        if (Status != IntelligenceRunStatus.Queued) throw new InvalidOperationException();
+        Status = IntelligenceRunStatus.Running;
+        StartedAtUtc = at;
+    }
     public void Complete(IntelligenceRunStatus status, string resultJson, DateTimeOffset at)
     {
         if (Status != IntelligenceRunStatus.Running) throw new InvalidOperationException();
