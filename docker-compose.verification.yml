@@ -46,7 +46,6 @@ services:
       AnalysisService__BaseUrl: http://python-analysis:8100
       AnalysisService__ApiKey: verification-analysis-key
       GitHub__WebhookSecret: ${DIP_VERIFY_GITHUB_WEBHOOK_SECRET:-integration-test-secret}
-      DIP_VERIFY_GITHUB_WEBHOOK_SECRET: ${DIP_VERIFY_GITHUB_WEBHOOK_SECRET:-integration-test-secret}
       GitHub__Token: verification-token
       Authentication__RequireAuthenticatedUser: "false"
       Qa__WorkspaceRoot: /data/dip-workspaces
@@ -138,6 +137,7 @@ services:
       DOTNET_ENVIRONMENT: Testing
       Authentication__RequireAuthenticatedUser: "false"
       GitHub__WebhookSecret: ${DIP_VERIFY_GITHUB_WEBHOOK_SECRET:-integration-test-secret}
+      DIP_VERIFY_GITHUB_WEBHOOK_SECRET: ${DIP_VERIFY_GITHUB_WEBHOOK_SECRET:-integration-test-secret}
       GitHub__Token: verification-token
       Qa__WorkspaceRoot: /work
       Qa__ArtifactRoot: /work/artifacts/qa
