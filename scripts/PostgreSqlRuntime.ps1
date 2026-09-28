@@ -134,7 +134,7 @@ function Resolve-DipPostgresClient {
     return [pscustomobject]@{
         Mode = 'Docker'
         Container = $container
-        Host = $Host
+        Host = $HostName
         Port = $Port
         User = $User
         Password = $Password
