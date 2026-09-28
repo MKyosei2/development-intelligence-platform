@@ -116,10 +116,14 @@ public sealed partial class ReliabilityRunner : IReliabilityRunner
                             timedOut = true;
                         }
 
-                        try { process.Kill(true); } catch {
+                        try { process.Kill(true); }
+                        catch
+                        {
                             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                         }
-                        try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+                        try { await process.WaitForExitAsync(CancellationToken.None); }
+                        catch
+                        {
                             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                         }
                         break;
@@ -130,10 +134,14 @@ public sealed partial class ReliabilityRunner : IReliabilityRunner
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                try { process.Kill(true); } catch {
+                try { process.Kill(true); }
+                catch
+                {
                     // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                 }
-                try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+                try { await process.WaitForExitAsync(CancellationToken.None); }
+                catch
+                {
                     // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                 }
                 throw;

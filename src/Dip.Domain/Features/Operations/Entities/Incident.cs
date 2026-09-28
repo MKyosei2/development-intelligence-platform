@@ -10,9 +10,9 @@ public sealed class Incident
     {
         if (projectId == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(projectId));
         Id = id == Guid.Empty ? Guid.NewGuid() : id;
-         ProjectId = projectId;
-         Fingerprint = Required(fingerprint, 128, nameof(fingerprint));
-         SubjectKey = Required(subjectKey, 200, nameof(subjectKey));
+        ProjectId = projectId;
+        Fingerprint = Required(fingerprint, 128, nameof(fingerprint));
+        SubjectKey = Required(subjectKey, 200, nameof(subjectKey));
         Title = Required(title, 240, nameof(title)); Severity = severity; Status = IncidentStatus.Open; FirstSeenAtUtc = LastSeenAtUtc = firstSeenAtUtc; OccurrenceCount = 0;
     }
     public Guid Id
@@ -92,8 +92,10 @@ public sealed class Incident
         if (text.Length is < 1 || text.Length > max) throw new ArgumentException($"{name} must be 1-{max} characters.", name);
         return text;
     }
-    private static string? Optional(string? value, int max) { if (string.IsNullOrWhiteSpace(value)) return null;
-     var text = value.Trim();
-     return text.Length <= max ? text : text[..max];
-     }
+    private static string? Optional(string? value, int max)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var text = value.Trim();
+        return text.Length <= max ? text : text[..max];
+    }
 }

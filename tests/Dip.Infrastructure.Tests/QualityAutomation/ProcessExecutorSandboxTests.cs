@@ -23,11 +23,19 @@ public sealed class ProcessExecutorSandboxTests
             };
             await act.Should().ThrowAsync<InvalidOperationException>();
         }
-        finally { try { File.Delete(fake); } catch {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-        } try { Directory.Delete(root, true); } catch {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-        } }
+        finally
+        {
+            try { File.Delete(fake); }
+            catch
+            {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+            try { Directory.Delete(root, true); }
+            catch
+            {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+        }
     }
 
     [Fact]
@@ -46,8 +54,13 @@ public sealed class ProcessExecutorSandboxTests
             result.Sandbox.CpuLimitApplied.Should().BeTrue();
             result.Sandbox.MemoryLimitApplied.Should().BeTrue();
         }
-        finally { try { Directory.Delete(root, true); } catch {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-        } }
+        finally
+        {
+            try { Directory.Delete(root, true); }
+            catch
+            {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+        }
     }
 }

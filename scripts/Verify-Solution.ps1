@@ -1,4 +1,4 @@
-# Purpose: Runs Verify Solution as part of repository development and verification workflows.
+# Purpose: Runs native host verification. It is fail-closed and never treats zero executed tests as PASS.
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release')][string]$Configuration='Release',
@@ -12,34 +12,50 @@ param(
 
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'PostgreSqlRuntime.ps1')
+. (Join-Path $PSScriptRoot 'Invoke-DotNetTestStrict.ps1')
+
 $pg=Resolve-DipPostgresClient `
     -HostName $PostgreSqlHost `
     -Port $PostgreSqlPort `
     -User $PostgreSqlUser `
     -Password $PostgreSqlPassword
+
 $out=Join-Path $root 'artifacts\final-verification'
+$testOut=Join-Path $out 'TestResults'
 $completion=Join-Path $out 'PROJECT_COMPLETION.txt'
 $failure=Join-Path $out 'PROJECT_COMPLETION_FAILED.txt'
-New-Item -ItemType Directory -Force -Path $out|Out-Null
+
+New-Item -ItemType Directory -Force -Path $out,$testOut|Out-Null
 Remove-Item $completion,$failure -Force -ErrorAction SilentlyContinue
 
 function Invoke-Checked([string]$exe,[string[]]$Arguments){
     & $exe @Arguments
-    if($LASTEXITCODE -ne 0){throw "$exe $($Arguments -join ' ') failed with exit code $LASTEXITCODE"}
+    if($LASTEXITCODE -ne 0){
+        throw "$exe $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+    }
 }
 
 function Wait-Http([string]$uri,[System.Diagnostics.Process]$process){
     $deadline=[DateTimeOffset]::UtcNow.AddSeconds(120)
+
     while([DateTimeOffset]::UtcNow -lt $deadline){
-        if($process.HasExited){throw 'API exited before health check.'}
+        if($process.HasExited){
+            throw 'API exited before health check.'
+        }
+
         try{
             $r=Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec 3
-            if($r.StatusCode -lt 400){return}
+            if($r.StatusCode -lt 400){
+                return
+            }
         }catch{}
+
         Start-Sleep -Milliseconds 500
     }
+
     throw "Timed out waiting for $uri"
 }
 
@@ -52,15 +68,21 @@ function Invoke-Psql([string]$Database,[string]$Sql,[switch]$TuplesOnly){
 }
 
 foreach($cmd in @('dotnet','git')){
-    if(-not(Get-Command $cmd -ErrorAction SilentlyContinue)){throw "Required command '$cmd' was not found in PATH."}
+    if(-not(Get-Command $cmd -ErrorAction SilentlyContinue)){
+        throw "Required command '$cmd' was not found in PATH."
+    }
 }
+
 $sdk=(& dotnet --version|Out-String).Trim()
-if(-not $sdk.StartsWith('8.')){throw ".NET SDK 8.x is required; active SDK is '$sdk'."}
+if(-not $sdk.StartsWith('8.')){
+    throw ".NET SDK 8.x is required; active SDK is '$sdk'."
+}
 
 $database='dip_verification_'+[guid]::NewGuid().ToString('N').Substring(0,12)
 $api=$null
 $worker=$null
 $databaseCreated=$false
+
 $oldEnv=@{
     POSTGRES_DB=$env:POSTGRES_DB
     POSTGRES_USER=$env:POSTGRES_USER
@@ -82,7 +104,9 @@ $oldEnv=@{
 Push-Location $root
 try{
     $probe=(Invoke-Psql 'postgres' 'SELECT 1;' -TuplesOnly | Out-String).Trim()
-    if($probe-ne'1'){throw "PostgreSQL is not reachable at ${PostgreSqlHost}:${PostgreSqlPort}."}
+    if($probe-ne'1'){
+        throw "PostgreSQL is not reachable at ${PostgreSqlHost}:${PostgreSqlPort}."
+    }
 
     Invoke-Psql 'postgres' "CREATE DATABASE `"$database`" OWNER `"$PostgreSqlUser`";" | Out-Null
     $databaseCreated=$true
@@ -104,36 +128,57 @@ try{
 
     Invoke-Checked 'dotnet' @('restore','DevelopmentIntelligencePlatform.sln')
     Invoke-Checked 'dotnet' @('build','DevelopmentIntelligencePlatform.sln','-c',$Configuration,'--no-restore')
-    foreach($project in @(
-        'tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj',
-        'tests/Dip.Application.Tests/Dip.Application.Tests.csproj',
-        'tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj'
-    )){
-        Invoke-Checked 'dotnet' @('test',$project,'-c',$Configuration,'--no-build')
-    }
 
-    Invoke-Checked 'dotnet' @('test','tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj','-c',$Configuration,'--no-build')
+    foreach($entry in @(
+        @('tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj','solution-domain'),
+        @('tests/Dip.Application.Tests/Dip.Application.Tests.csproj','solution-application'),
+        @('tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj','solution-infrastructure'),
+        @('tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj','solution-integration')
+    )){
+        Invoke-DipDotNetTestStrict `
+            -Project $entry[0] `
+            -Configuration $Configuration `
+            -ResultsDirectory $testOut `
+            -Name $entry[1] `
+            -NoBuild `
+            -MinimumExecuted 1 |
+        Out-Null
+    }
 
     $apiOut=Join-Path $out 'api.stdout.log'
     $apiErr=Join-Path $out 'api.stderr.log'
     $workerOut=Join-Path $out 'worker.stdout.log'
     $workerErr=Join-Path $out 'worker.stderr.log'
+
     $apiDll=Join-Path $root "src\Dip.Api\bin\$Configuration\net8.0\Dip.Api.dll"
     $workerDll=Join-Path $root "src\Dip.Worker\bin\$Configuration\net8.0\Dip.Worker.dll"
-    if(-not(Test-Path -LiteralPath $apiDll -PathType Leaf)){throw "API DLL was not found: $apiDll"}
-    if(-not(Test-Path -LiteralPath $workerDll -PathType Leaf)){throw "Worker DLL was not found: $workerDll"}
 
-    # Launch managed DLLs through the trusted dotnet host rather than generated apphost EXEs.
+    if(-not(Test-Path -LiteralPath $apiDll -PathType Leaf)){
+        throw "API DLL was not found: $apiDll"
+    }
+    if(-not(Test-Path -LiteralPath $workerDll -PathType Leaf)){
+        throw "Worker DLL was not found: $workerDll"
+    }
+
     $api=Start-Process dotnet -ArgumentList @(
         $apiDll,'--urls',"http://127.0.0.1:$ApiPort"
     ) -RedirectStandardOutput $apiOut -RedirectStandardError $apiErr -PassThru
+
     $worker=Start-Process dotnet -ArgumentList @(
         $workerDll
     ) -RedirectStandardOutput $workerOut -RedirectStandardError $workerErr -PassThru
 
     Wait-Http "http://127.0.0.1:$ApiPort/health" $api
     $env:DIP_API_URL="http://127.0.0.1:$ApiPort"
-    Invoke-Checked 'dotnet' @('test','tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj','-c',$Configuration,'--no-build')
+
+    Invoke-DipDotNetTestStrict `
+        -Project 'tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj' `
+        -Configuration $Configuration `
+        -ResultsDirectory $testOut `
+        -Name 'solution-e2e' `
+        -NoBuild `
+        -MinimumExecuted 1 |
+    Out-Null
 
     @(
         'PROJECT COMPLETION VERIFIED',
@@ -141,29 +186,45 @@ try{
         "Configuration=$Configuration",
         'Runtime=NativePostgreSQL',
         'RuntimeLaunch=dotnet-managed-dll',
+        'StrictTestGate=PASS',
         'UnitTests=PASS',
         'IntegrationTests=PASS',
         'LiveE2E=PASS'
     )|Set-Content $completion -Encoding UTF8
-    Write-Host "Full solution verification PASS: $completion" -ForegroundColor Green
-}catch{
+
+    Write-Host "Full native solution verification PASS: $completion" -ForegroundColor Green
+}
+catch{
     $_|Out-String|Set-Content $failure -Encoding UTF8
     throw
-}finally{
+}
+finally{
     foreach($p in @($worker,$api)){
         if($null-ne$p){
-            try{if(-not$p.HasExited){Stop-Process -Id $p.Id -Force}}catch{}
+            try{
+                if(-not$p.HasExited){
+                    Stop-Process -Id $p.Id -Force
+                }
+            }catch{}
         }
     }
 
     if($databaseCreated -and -not $KeepServicesRunning){
-        try{Invoke-Psql 'postgres' "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$database';" | Out-Null}catch{}
-        try{Invoke-Psql 'postgres' "DROP DATABASE IF EXISTS `"$database`";" | Out-Null}catch{}
+        try{
+            Invoke-Psql 'postgres' "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$database';" | Out-Null
+        }catch{}
+
+        try{
+            Invoke-Psql 'postgres' "DROP DATABASE IF EXISTS `"$database`";" | Out-Null
+        }catch{}
     }
 
     foreach($entry in $oldEnv.GetEnumerator()){
         Set-Item -Path ("Env:"+$entry.Key) -Value $entry.Value -ErrorAction SilentlyContinue
-        if($null-eq$entry.Value){Remove-Item -Path ("Env:"+$entry.Key) -ErrorAction SilentlyContinue}
+        if($null-eq$entry.Value){
+            Remove-Item -Path ("Env:"+$entry.Key) -ErrorAction SilentlyContinue
+        }
     }
+
     Pop-Location
 }

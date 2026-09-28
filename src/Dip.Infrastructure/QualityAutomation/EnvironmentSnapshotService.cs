@@ -43,18 +43,24 @@ public sealed class EnvironmentSnapshotService(ProcessExecutor executor)
         var powershell = ProcessExecutor.FindExecutable("powershell") ?? ProcessExecutor.FindExecutable("pwsh"); if (powershell is null) return null;
         var tmp = Path.Combine(Path.GetTempPath(), $"dip-gpu-{Guid.NewGuid():N}"); Directory.CreateDirectory(tmp);
         var result = await executor.RunAsync(powershell, ["-NoProfile", "-Command", "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"], workspace, null, TimeSpan.FromSeconds(10), Path.Combine(tmp, "out.log"), Path.Combine(tmp, "err.log"), ct);
-        try { Directory.Delete(tmp, true); } catch {
+        try { Directory.Delete(tmp, true); }
+        catch
+        {
             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
         return result.ExitCode == 0 ? string.Join("; ", result.StandardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Distinct()) : null;
     }
     private static string? HashFile(string executable)
     {
-        try { if (!File.Exists(executable)) return null;
-         using var stream = File.OpenRead(executable);
-         return Convert.ToHexString(SHA256.HashData(stream));
-         }
-        catch { return null;
-         }
+        try
+        {
+            if (!File.Exists(executable)) return null;
+            using var stream = File.OpenRead(executable);
+            return Convert.ToHexString(SHA256.HashData(stream));
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

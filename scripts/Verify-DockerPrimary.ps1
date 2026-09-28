@@ -1,0 +1,825 @@
+# Purpose: Primary exact-revision verification on Linux Docker, isolated from Windows Application Control.
+[CmdletBinding()]
+param(
+    [string]$RepositoryRoot = '',
+    [string]$ExpectedSha = '',
+    [int]$SoakSeconds = 900,
+    [int]$SoakRequestsPerSecond = 25,
+    [switch]$SkipPlaywright,
+    [switch]$KeepContainers
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+} else {
+    $RepositoryRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
+}
+
+$composeFile = Join-Path $RepositoryRoot 'docker-compose.verification.yml'
+if (-not (Test-Path -LiteralPath $composeFile -PathType Leaf)) {
+    throw "Verification compose file is missing: $composeFile"
+}
+
+foreach ($command in @('git','docker')) {
+    if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
+        throw "$command is required."
+    }
+}
+
+& docker info *> $null
+if ($LASTEXITCODE -ne 0) {
+    throw 'Docker Engine is not running.'
+}
+
+function Get-FreeTcpPort {
+    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
+    $listener.Start()
+    try {
+        return ([Net.IPEndPoint]$listener.LocalEndpoint).Port
+    }
+    finally {
+        $listener.Stop()
+    }
+}
+
+function Invoke-DockerChecked {
+    param([string[]]$Arguments)
+
+    & docker @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "docker $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+    }
+}
+
+function Invoke-ComposeChecked {
+    param([string[]]$Arguments)
+
+    $prefix = @(
+        'compose',
+        '-p', $script:ComposeProject,
+        '-f', $script:ComposeFile
+    )
+
+    Invoke-DockerChecked -Arguments ($prefix + $Arguments)
+}
+
+function Invoke-Verifier {
+    param([Parameter(Mandatory=$true)][string]$Command)
+
+    Invoke-ComposeChecked @(
+        'run',
+        '--rm',
+        '--no-deps',
+        'verifier',
+        $Command
+    )
+}
+
+function Wait-Http {
+    param(
+        [Parameter(Mandatory=$true)][string]$Name,
+        [Parameter(Mandatory=$true)][string]$Url,
+        [int]$TimeoutSeconds = 180
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $last = ''
+
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 5
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+                Write-Host "HTTP PASS: $Name $Url" -ForegroundColor Green
+                return
+            }
+            $last = "HTTP $($response.StatusCode)"
+        }
+        catch {
+            $last = $_.Exception.Message
+        }
+
+        Start-Sleep -Seconds 1
+    }
+
+    throw "$Name did not become healthy: $Url. Last=$last"
+}
+
+function Get-TrxCounter {
+    param($Counters,[string]$Name)
+
+    $attribute = $Counters.Attributes[$Name]
+    if ($null -eq $attribute -or [string]::IsNullOrWhiteSpace($attribute.Value)) {
+        return 0
+    }
+
+    return [int]$attribute.Value
+}
+
+function Assert-Trx {
+    param(
+        [Parameter(Mandatory=$true)][string]$Path,
+        [int]$MinimumExecuted = 1
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "TRX does not exist: $Path"
+    }
+
+    [xml]$trx = Get-Content -LiteralPath $Path -Raw
+    $counters = $trx.SelectSingleNode("//*[local-name()='Counters']")
+
+    if ($null -eq $counters) {
+        throw "TRX has no Counters node: $Path"
+    }
+
+    $executed = Get-TrxCounter $counters 'executed'
+    $passed = Get-TrxCounter $counters 'passed'
+    $failed = Get-TrxCounter $counters 'failed'
+    $error = Get-TrxCounter $counters 'error'
+    $timeout = Get-TrxCounter $counters 'timeout'
+    $aborted = Get-TrxCounter $counters 'aborted'
+
+    if ($executed -lt $MinimumExecuted) {
+        throw "Zero/insufficient test execution is forbidden. TRX=$Path executed=$executed minimum=$MinimumExecuted"
+    }
+
+    if ($failed -gt 0 -or $error -gt 0 -or $timeout -gt 0 -or $aborted -gt 0) {
+        throw "TRX is not clean. failed=$failed error=$error timeout=$timeout aborted=$aborted"
+    }
+
+    Write-Host "TRX PASS: $Path executed=$executed passed=$passed" -ForegroundColor Green
+}
+
+function Invoke-StrictDockerTest {
+    param(
+        [Parameter(Mandatory=$true)][string]$Project,
+        [Parameter(Mandatory=$true)][string]$Name,
+        [string]$Filter = ''
+    )
+
+    $trx = "/work/artifacts/docker-primary/TestResults/$Name.trx"
+    $filterPart = ''
+
+    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+        $escaped = $Filter.Replace("'", "'\"'\"'")
+        $filterPart = " --filter '$escaped'"
+    }
+
+    $command =
+        "dotnet test '$Project' -c Release --no-build" +
+        $filterPart +
+        " --logger 'trx;LogFileName=$Name.trx'" +
+        " --results-directory /work/artifacts/docker-primary/TestResults"
+
+    Invoke-Verifier $command
+
+    Assert-Trx `
+        -Path (Join-Path $RepositoryRoot "artifacts\docker-primary\TestResults\$Name.trx") `
+        -MinimumExecuted 1
+}
+
+function Invoke-ComposePsql {
+    param(
+        [string]$Database = 'dip_verify',
+        [Parameter(Mandatory=$true)][string]$Sql,
+        [switch]$TuplesOnly
+    )
+
+    $args = @(
+        'compose',
+        '-p', $script:ComposeProject,
+        '-f', $script:ComposeFile,
+        'exec',
+        '-T',
+        '-e', "PGPASSWORD=$($script:PostgresPassword)",
+        'postgres',
+        'psql',
+        '-U','dip',
+        '-d',$Database,
+        '-v','ON_ERROR_STOP=1',
+        '-w'
+    )
+
+    if ($TuplesOnly) {
+        $args += @('-A','-t')
+    }
+
+    $args += @('-c',$Sql)
+
+    $output = & docker @args
+    if ($LASTEXITCODE -ne 0) {
+        throw "psql failed for database '$Database'."
+    }
+
+    return $output
+}
+
+function Get-P95([double[]]$Values) {
+    if ($Values.Count -eq 0) { return 0 }
+    $sorted = @($Values | Sort-Object)
+    $index = [Math]::Max(0,[Math]::Ceiling($sorted.Count * .95) - 1)
+    return [Math]::Round($sorted[$index],3)
+}
+
+function Get-Percentile([double[]]$Values,[double]$P) {
+    if ($Values.Count -eq 0) { return 0 }
+    $sorted = @($Values | Sort-Object)
+    $index = [Math]::Max(0,[Math]::Ceiling($sorted.Count * $P) - 1)
+    return [Math]::Round($sorted[$index],3)
+}
+
+function Invoke-PacedSoak {
+    param([string]$Url,[int]$Seconds,[int]$Rps)
+
+    $count = $Seconds * $Rps
+    $latencies = [Collections.Generic.List[double]]::new()
+    $errors = 0
+    $wall = [Diagnostics.Stopwatch]::StartNew()
+
+    for ($index = 0; $index -lt $count; $index++) {
+        $targetMs = $index * (1000.0 / $Rps)
+
+        while ($wall.Elapsed.TotalMilliseconds -lt $targetMs) {
+            $remaining = $targetMs - $wall.Elapsed.TotalMilliseconds
+            if ($remaining -gt 2) {
+                Start-Sleep -Milliseconds ([Math]::Min(10,[int]$remaining))
+            }
+        }
+
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        try {
+            $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 10
+            if ($response.StatusCode -ne 200) { $errors++ }
+        }
+        catch {
+            $errors++
+        }
+        finally {
+            $watch.Stop()
+            $latencies.Add($watch.Elapsed.TotalMilliseconds)
+        }
+    }
+
+    $wall.Stop()
+
+    return [ordered]@{
+        requests = $count
+        targetRequestsPerSecond = $Rps
+        elapsedSeconds = [Math]::Round($wall.Elapsed.TotalSeconds,3)
+        actualRequestsPerSecond = [Math]::Round($count / [Math]::Max(.001,$wall.Elapsed.TotalSeconds),3)
+        errors = $errors
+        errorRatePercent = [Math]::Round($errors * 100.0 / [Math]::Max(1,$count),4)
+        p50Ms = Get-Percentile -Values $latencies.ToArray() -P 0.50
+        p95Ms = Get-Percentile -Values $latencies.ToArray() -P 0.95
+        p99Ms = Get-Percentile -Values $latencies.ToArray() -P 0.99
+    }
+}
+
+
+function Wait-HttpBatch {
+    param(
+        [System.Collections.ArrayList]$Pending,
+        [System.Collections.Generic.List[double]]$Latencies,
+        [System.Collections.Generic.List[string]]$Errors
+    )
+
+    while ($Pending.Count -gt 0) {
+        for ($index = $Pending.Count - 1; $index -ge 0; $index--) {
+            $entry = $Pending[$index]
+            if (-not $entry.Task.IsCompleted) { continue }
+
+            $entry.Stopwatch.Stop()
+            $Latencies.Add($entry.Stopwatch.Elapsed.TotalMilliseconds)
+
+            try {
+                $response = $entry.Task.GetAwaiter().GetResult()
+                if (-not $response.IsSuccessStatusCode) {
+                    $Errors.Add("$($entry.Kind):$([int]$response.StatusCode)")
+                }
+                $response.Dispose()
+            }
+            catch {
+                $Errors.Add("$($entry.Kind)-ex:$($_.Exception.Message)")
+            }
+
+            if ($entry.Content) { $entry.Content.Dispose() }
+            $Pending.RemoveAt($index)
+        }
+
+        if ($Pending.Count -gt 0) { Start-Sleep -Milliseconds 2 }
+    }
+}
+
+function Get-ApiContainerMemoryMb {
+    $containerId = (& docker compose -p $script:ComposeProject -f $script:ComposeFile ps -q api | Out-String).Trim()
+    if ([string]::IsNullOrWhiteSpace($containerId)) {
+        throw 'Could not resolve API container for memory measurement.'
+    }
+
+    $usage = (& docker stats --no-stream --format '{{.MemUsage}}' $containerId | Out-String).Trim()
+    if ([string]::IsNullOrWhiteSpace($usage)) {
+        throw 'docker stats returned no memory usage.'
+    }
+
+    $left = ($usage -split '/')[0].Trim()
+    if ($left -match '^([0-9.]+)GiB$') { return [double]$Matches[1] * 1024.0 }
+    if ($left -match '^([0-9.]+)MiB$') { return [double]$Matches[1] }
+    if ($left -match '^([0-9.]+)KiB$') { return [double]$Matches[1] / 1024.0 }
+    if ($left -match '^([0-9.]+)B$') { return [double]$Matches[1] / 1MB }
+    throw "Unsupported docker memory format: $left"
+}
+
+function Invoke-PortfolioBenchmarkExternal {
+    param(
+        [Parameter(Mandatory=$true)][string]$ApiBase,
+        [int]$ProjectCount = 250,
+        [int]$ProjectListIterations = 50,
+        [int]$CollectorIterations = 30,
+        [int]$MetricQueryIterations = 10,
+        [int]$MetricRows = 1000000,
+        [int]$BurstRequests = 100,
+        [int]$BurstTargetRequestsPerSecond = 100,
+        [double]$MaxSoakErrorRatePercent = 0.1,
+        [double]$MaxSoakMemoryGrowthMb = 256
+    )
+
+    $project = $null
+    for ($index = 0; $index -lt $ProjectCount; $index++) {
+        $body = @{
+            name = "Docker Portfolio Benchmark $index"
+            repositoryUrl = "https://github.com/example/dip-docker-benchmark-$index"
+            defaultBranch = 'main'
+            releaseDateUtc = $null
+        } | ConvertTo-Json
+
+        $created = Invoke-RestMethod -Method Post -Uri "$ApiBase/api/projects" -ContentType 'application/json' -Body $body
+        if ($index -eq 0) { $project = $created }
+    }
+
+    1..10 | ForEach-Object { Invoke-WebRequest -UseBasicParsing "$ApiBase/api/projects" | Out-Null }
+
+    $projectMs = [Collections.Generic.List[double]]::new()
+    1..$ProjectListIterations | ForEach-Object {
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        $response = Invoke-WebRequest -UseBasicParsing "$ApiBase/api/projects"
+        $watch.Stop()
+        if ($response.StatusCode -ne 200) { throw 'Project list benchmark failed.' }
+        $projectMs.Add($watch.Elapsed.TotalMilliseconds)
+    }
+
+    $collectorMs = [Collections.Generic.List[double]]::new()
+    $lastPipeline = $null
+    1..$CollectorIterations | ForEach-Object {
+        $now = [DateTimeOffset]::UtcNow
+        $payload = @{
+            schemaVersion = '1.0'
+            reportId = "docker-bench-$($_)-$([guid]::NewGuid().ToString('N'))"
+            externalRunId = "docker-bench-run-$($_)-$([guid]::NewGuid().ToString('N'))"
+            attemptNumber = 1
+            collectorType = 'portfolio-benchmark'
+            collectorVersion = '1.0.0'
+            projectId = $project.id
+            repository = [string]$project.repositoryUrl
+            commitSha = $script:SourceSha
+            branch = 'main'
+            startedAt = $now.AddSeconds(-1).ToString('o')
+            finishedAt = $now.ToString('o')
+            status = 'Succeeded'
+            metrics = @(@{
+                name='frame_time'; value=16.0; unit='ms'; baselineValue=16.6;
+                environmentId='docker-primary'; scenarioId='benchmark'; platform='linux';
+                buildConfiguration='Release'; benchmarkVersion='1'
+            })
+            issues = @()
+        } | ConvertTo-Json -Depth 8
+
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        $response = Invoke-RestMethod -Method Post -Uri "$ApiBase/api/v1/collector-reports" -ContentType 'application/json' -Body $payload
+        $watch.Stop()
+        $collectorMs.Add($watch.Elapsed.TotalMilliseconds)
+        $lastPipeline = $response.pipelineRunId
+    }
+
+    if (-not $lastPipeline) { throw 'Collector benchmark returned no pipeline id.' }
+
+    Add-Type -AssemblyName System.Net.Http
+    $client = [Net.Http.HttpClient]::new()
+    $tasks = New-Object System.Collections.ArrayList
+    $burst = [Diagnostics.Stopwatch]::StartNew()
+
+    for ($index = 0; $index -lt $BurstRequests; $index++) {
+        $targetMs = $index * (1000.0 / $BurstTargetRequestsPerSecond)
+        while ($burst.Elapsed.TotalMilliseconds -lt $targetMs) { Start-Sleep -Milliseconds 1 }
+        [void]$tasks.Add($client.GetAsync("$ApiBase/api/projects",[Net.Http.HttpCompletionOption]::ResponseHeadersRead))
+    }
+
+    [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]$tasks.ToArray([Threading.Tasks.Task]))
+    $burst.Stop()
+    $burstErrors = 0
+    foreach ($task in $tasks) {
+        if (-not $task.Result.IsSuccessStatusCode) { $burstErrors++ }
+        $task.Result.Dispose()
+    }
+    $client.Dispose()
+
+    $burstErrorRate = [Math]::Round($burstErrors * 100.0 / [Math]::Max(1,$BurstRequests),4)
+
+    $seedSql = 'INSERT INTO "Metrics" ("Id","PipelineRunId","BaselinePipelineRunId","Name","Value","Unit","BaselineValue","Difference","DifferencePercent","Severity","ComparisonStatus","EnvironmentId","ScenarioId","Platform","BuildConfiguration","BenchmarkVersion") SELECT gen_random_uuid(),''{0}''::uuid,NULL,''portfolio.metric.''||(g%100),(g%1000)::numeric,''ms'',NULL,NULL,NULL,0,0,''docker-primary'',''scale-query'',''linux'',''Release'',''1'' FROM generate_series(1,{1}) g;' -f $lastPipeline,$MetricRows
+    Invoke-ComposePsql -Sql $seedSql | Out-Null
+
+    $querySql = 'SELECT "Name",AVG("Value") FROM "Metrics" WHERE "PipelineRunId"=''{0}''::uuid GROUP BY "Name" ORDER BY "Name";' -f $lastPipeline
+    $metricMs = [Collections.Generic.List[double]]::new()
+    1..$MetricQueryIterations | ForEach-Object {
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        Invoke-ComposePsql -Sql $querySql | Out-Null
+        $watch.Stop()
+        $metricMs.Add($watch.Elapsed.TotalMilliseconds)
+    }
+
+    $memoryBefore = [Math]::Round((Get-ApiContainerMemoryMb),3)
+    $soak = Invoke-PacedSoak -Url "$ApiBase/api/projects" -Seconds $SoakSeconds -Rps $SoakRequestsPerSecond
+    $memoryAfter = [Math]::Round((Get-ApiContainerMemoryMb),3)
+    $memoryGrowth = [Math]::Round($memoryAfter - $memoryBefore,3)
+
+    $projectP50 = Get-Percentile -Values $projectMs.ToArray() -P 0.50
+    $projectP95 = Get-Percentile -Values $projectMs.ToArray() -P 0.95
+    $projectP99 = Get-Percentile -Values $projectMs.ToArray() -P 0.99
+    $collectorP95 = Get-Percentile -Values $collectorMs.ToArray() -P 0.95
+    $metricP95 = Get-Percentile -Values $metricMs.ToArray() -P 0.95
+
+    $passed = $projectP95 -lt 500 -and $collectorP95 -lt 250 -and $burstErrorRate -eq 0 -and $metricP95 -lt 1000 -and $soak.errorRatePercent -le $MaxSoakErrorRatePercent -and $memoryGrowth -le $MaxSoakMemoryGrowthMb
+
+    $result = [ordered]@{
+        schema='dip-portfolio-benchmark-v6-docker'
+        runtime='linux-docker'
+        sourceCommit=$script:SourceSha
+        measuredAtUtc=[DateTimeOffset]::UtcNow.ToString('o')
+        scenarios=[ordered]@{
+            projectList=[ordered]@{population=$ProjectCount;iterations=$ProjectListIterations;p50Ms=$projectP50;p95Ms=$projectP95;p99Ms=$projectP99;targetP95Ms=500;passed=$projectP95 -lt 500}
+            collector=[ordered]@{iterations=$CollectorIterations;p95Ms=$collectorP95;targetP95Ms=250;passed=$collectorP95 -lt 250}
+            burst=[ordered]@{requests=$BurstRequests;targetRequestsPerSecond=$BurstTargetRequestsPerSecond;elapsedSeconds=[Math]::Round($burst.Elapsed.TotalSeconds,3);errorRatePercent=$burstErrorRate;targetErrorRatePercent=0;passed=$burstErrorRate -eq 0}
+            metricScale=[ordered]@{rows=$MetricRows;iterations=$MetricQueryIterations;p95Ms=$metricP95;targetP95Ms=1000;passed=$metricP95 -lt 1000}
+            soak=$soak
+            memory=[ordered]@{beforeMb=$memoryBefore;afterMb=$memoryAfter;growthMb=$memoryGrowth;maxGrowthMb=$MaxSoakMemoryGrowthMb;passed=$memoryGrowth -le $MaxSoakMemoryGrowthMb}
+        }
+        passed=$passed
+    }
+
+    $result | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $script:OutDir 'portfolio-benchmark-results.json') -Encoding UTF8
+    if (-not $passed) { throw 'One or more Docker primary benchmark/soak gates failed.' }
+}
+
+function Invoke-GovernanceLoadExternal {
+    param(
+        [Parameter(Mandatory=$true)][string]$ApiBase,
+        [int]$ProjectCount = 10,
+        [int]$FindingsPerProject = 5000,
+        [int]$ConcurrentReaders = 64,
+        [int]$ConcurrentWriters = 32,
+        [int]$ReadRequests = 500,
+        [int]$WriteRequests = 200
+    )
+
+    $projectIds = @()
+    for ($index=0;$index -lt $ProjectCount;$index++) {
+        $body = @{name="Docker Governance Load $index";repositoryUrl="https://example.invalid/docker-load-$index";defaultBranch='main';releaseDateUtc=$null} | ConvertTo-Json
+        $project = Invoke-RestMethod -Method Post -Uri "$ApiBase/api/projects" -ContentType 'application/json' -Body $body
+        $projectIds += [Guid]$project.id
+    }
+
+    foreach ($projectId in $projectIds) {
+        $sql = @"
+INSERT INTO qa_finding_states(id,project_id,fingerprint,last_finding_id,subject_key,last_commit_sha,status,occurrences,team,workstream,ownership_source,disposition_reason,updated_by,first_seen_at_utc,last_seen_at_utc,updated_at_utc,version)
+SELECT gen_random_uuid(),'$projectId'::uuid,md5('${projectId}:'||g::text)||md5('${projectId}:x:'||g::text),gen_random_uuid(),'load:'||g,'0123456789abcdef0123456789abcdef01234567','Confirmed',1,'Load Team','Load','Rule',NULL,NULL,clock_timestamp()+(g||' microseconds')::interval,clock_timestamp()+(g||' microseconds')::interval,now(),1 FROM generate_series(1,$FindingsPerProject) g;
+"@
+        Invoke-ComposePsql -Sql $sql | Out-Null
+    }
+
+    Add-Type -AssemblyName System.Net.Http
+    $handler = [Net.Http.HttpClientHandler]::new()
+    $client = [Net.Http.HttpClient]::new($handler)
+    $client.Timeout = [TimeSpan]::FromSeconds(30)
+    $readLat = [Collections.Generic.List[double]]::new()
+    $writeLat = [Collections.Generic.List[double]]::new()
+    $errors = [Collections.Generic.List[string]]::new()
+
+    for($base=0;$base -lt $ReadRequests;$base += $ConcurrentReaders){
+        $pending = [Collections.ArrayList]::new()
+        $count = [Math]::Min($ConcurrentReaders,$ReadRequests-$base)
+        for($offset=0;$offset -lt $count;$offset++){
+            $requestIndex=$base+$offset
+            $projectId=$projectIds[$requestIndex % $projectIds.Count]
+            $watch=[Diagnostics.Stopwatch]::StartNew()
+            $task=$client.GetAsync("$ApiBase/api/v1/qa-governance/projects/$projectId/findings?pageSize=100")
+            [void]$pending.Add([pscustomobject]@{Task=$task;Stopwatch=$watch;Kind='read';Content=$null})
+        }
+        Wait-HttpBatch -Pending $pending -Latencies $readLat -Errors $errors
+    }
+
+    $targets=@()
+    foreach($projectId in $projectIds){
+        $page=Invoke-RestMethod "$ApiBase/api/v1/qa-governance/projects/$projectId/findings?pageSize=$([Math]::Min(100,$WriteRequests))"
+        foreach($item in $page.items){
+            $targets += @{projectId=$projectId;fingerprint=$item.fingerprint;version=$item.version}
+            if($targets.Count -ge $WriteRequests){break}
+        }
+        if($targets.Count -ge $WriteRequests){break}
+    }
+
+    for($base=0;$base -lt $targets.Count;$base += $ConcurrentWriters){
+        $pending=[Collections.ArrayList]::new()
+        $count=[Math]::Min($ConcurrentWriters,$targets.Count-$base)
+        for($offset=0;$offset -lt $count;$offset++){
+            $target=$targets[$base+$offset]
+            $payload=@{projectId=$target.projectId;fingerprint=$target.fingerprint;status='Assigned';reason='Docker primary governance load';expectedVersion=$target.version}|ConvertTo-Json
+            $content=[Net.Http.StringContent]::new($payload,[Text.Encoding]::UTF8,'application/json')
+            $watch=[Diagnostics.Stopwatch]::StartNew()
+            $task=$client.PostAsync("$ApiBase/api/v1/qa-governance/findings/transition",$content)
+            [void]$pending.Add([pscustomobject]@{Task=$task;Stopwatch=$watch;Kind='write';Content=$content})
+        }
+        Wait-HttpBatch -Pending $pending -Latencies $writeLat -Errors $errors
+    }
+
+    $client.Dispose()
+    $readP95=Get-P95 $readLat.ToArray()
+    $writeP95=Get-P95 $writeLat.ToArray()
+    $errorRate=[Math]::Round(100.0*$errors.Count/[Math]::Max(1,$ReadRequests+$targets.Count),3)
+    $passed=$readP95 -lt 750 -and $writeP95 -lt 1000 -and $errorRate -lt 1
+
+    [ordered]@{
+        schema='dip-governance-load-v5-docker';runtime='linux-docker';sourceCommit=$script:SourceSha;measuredAtUtc=[DateTimeOffset]::UtcNow.ToString('o');
+        projects=$ProjectCount;findingStates=$ProjectCount*$FindingsPerProject;readRequests=$ReadRequests;writeRequests=$targets.Count;
+        concurrentReaders=$ConcurrentReaders;concurrentWriters=$ConcurrentWriters;readP95Ms=$readP95;writeP95Ms=$writeP95;errorRatePercent=$errorRate;
+        targets=[ordered]@{readP95Ms=750;writeP95Ms=1000;errorRatePercent=1};passed=$passed;errors=@($errors|Select-Object -First 20)
+    } | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $script:OutDir 'governance-load-results.json') -Encoding UTF8
+
+    if(-not $passed){ throw "Governance load failed. readP95=$readP95 writeP95=$writeP95 errorRate=$errorRate" }
+}
+
+$sourceSha = (& git -C $RepositoryRoot rev-parse HEAD | Out-String).Trim()
+$script:SourceSha = $sourceSha
+
+if ($sourceSha -notmatch '^[0-9a-fA-F]{40}$') {
+    throw 'Could not resolve exact repository SHA.'
+}
+
+if (-not [string]::IsNullOrWhiteSpace($ExpectedSha) -and $ExpectedSha -ne $sourceSha) {
+    throw "Exact SHA mismatch. Expected=$ExpectedSha Actual=$sourceSha"
+}
+
+$dirty = (& git -C $RepositoryRoot status --porcelain | Out-String).Trim()
+if ($dirty) {
+    throw "Primary verification requires a clean working tree.`n$dirty"
+}
+
+$script:ComposeFile = $composeFile
+$script:ComposeProject = 'dipverify' + $sourceSha.Substring(0,8) + (Get-Date -Format 'HHmmss')
+$script:PostgresPassword = 'dip-verify-' + [guid]::NewGuid().ToString('N')
+
+$env:DIP_VERIFY_POSTGRES_PASSWORD = $script:PostgresPassword
+$env:DIP_VERIFY_POSTGRES_PORT = [string](Get-FreeTcpPort)
+$env:DIP_VERIFY_API_PORT = [string](Get-FreeTcpPort)
+$env:DIP_VERIFY_WEB_PORT = [string](Get-FreeTcpPort)
+$env:DIP_VERIFY_ANALYSIS_PORT = [string](Get-FreeTcpPort)
+$env:DIP_VERIFY_WORKER_PORT = [string](Get-FreeTcpPort)
+
+$out = Join-Path $RepositoryRoot 'artifacts\docker-primary'
+$script:OutDir = $out
+$testOut = Join-Path $out 'TestResults'
+New-Item -ItemType Directory -Force -Path $out,$testOut | Out-Null
+
+$summary = [ordered]@{
+    schema = 'dip.docker-primary-verification.v1'
+    sourceCommit = $sourceSha
+    startedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+    runtime = 'linux-docker'
+    windowsApplicationControlAffectsPrimaryResult = $false
+    stages = [Collections.Generic.List[object]]::new()
+}
+
+function Invoke-Stage {
+    param([string]$Name,[scriptblock]$Action)
+
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        Write-Host "`n=== $Name ===" -ForegroundColor Cyan
+        & $Action
+        $sw.Stop()
+        $summary.stages.Add([pscustomobject]@{name=$Name;status='PASS';seconds=[Math]::Round($sw.Elapsed.TotalSeconds,3);message=''}) | Out-Null
+        Write-Host "PASS: $Name" -ForegroundColor Green
+    }
+    catch {
+        $sw.Stop()
+        $summary.stages.Add([pscustomobject]@{name=$Name;status='FAIL';seconds=[Math]::Round($sw.Elapsed.TotalSeconds,3);message=$_.Exception.Message}) | Out-Null
+        throw
+    }
+}
+
+try {
+    Set-Location -LiteralPath $RepositoryRoot
+
+    Invoke-Stage 'Build verification images' {
+        Invoke-ComposeChecked @('build','verifier','python-analysis','api','worker','web')
+    }
+
+    Invoke-Stage 'Start PostgreSQL' {
+        Invoke-ComposeChecked @('up','-d','postgres')
+        for($i=0;$i -lt 90;$i++){
+            try {
+                $probe = (Invoke-ComposePsql -Sql 'SELECT 1;' -TuplesOnly | Out-String).Trim()
+                if($probe -eq '1'){ return }
+            } catch {}
+            Start-Sleep -Seconds 1
+        }
+        throw 'PostgreSQL did not become ready.'
+    }
+
+    Invoke-Stage 'Restore Build Format' {
+        Invoke-Verifier "dotnet restore DevelopmentIntelligencePlatform.sln"
+        Invoke-Verifier "dotnet build DevelopmentIntelligencePlatform.sln -c Release --no-restore --nologo"
+        Invoke-Verifier "dotnet format DevelopmentIntelligencePlatform.sln --verify-no-changes --no-restore"
+    }
+
+    Invoke-Stage 'Domain tests strict' {
+        Invoke-StrictDockerTest 'tests/Dip.Domain.Tests/Dip.Domain.Tests.csproj' 'domain'
+    }
+
+    Invoke-Stage 'Application tests strict' {
+        Invoke-StrictDockerTest 'tests/Dip.Application.Tests/Dip.Application.Tests.csproj' 'application'
+    }
+
+    Invoke-Stage 'Infrastructure tests strict' {
+        Invoke-StrictDockerTest 'tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj' 'infrastructure'
+    }
+
+    Invoke-Stage 'Generative AI QA strict' {
+        $filter = 'FullyQualifiedName~P2Intelligence.GenerativeQaRedactorTests|FullyQualifiedName~P2Intelligence.GenerativeQaResponseParserTests|FullyQualifiedName~P2Intelligence.OpenAiCompatibleFixProposalAgentTests|FullyQualifiedName~P2Intelligence.DeterministicLocalDebugAgentTests'
+        Invoke-StrictDockerTest 'tests/Dip.Infrastructure.Tests/Dip.Infrastructure.Tests.csproj' 'generative-ai-qa' $filter
+    }
+
+    Invoke-Stage 'Integration tests strict' {
+        Invoke-StrictDockerTest 'tests/Dip.IntegrationTests/Dip.IntegrationTests.csproj' 'integration'
+    }
+
+    Invoke-Stage 'Universal QA Bug Zoo' {
+        Invoke-Verifier "dotnet run --project tools/Dip.QaBugZooVerifier/Dip.QaBugZooVerifier.csproj -c Release -- --root /work --output /work/artifacts/docker-primary/qa-bug-zoo --require-languages python,csharp,cpp,javascript,customlang"
+    }
+
+    Invoke-Stage 'Migration exact apply rollback reapply' {
+        Invoke-Verifier "dotnet tool restore"
+        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+
+        $expected = @(
+            Invoke-Verifier "dotnet ef migrations list --project src/Dip.Infrastructure --startup-project src/Dip.Api --no-connect"
+        ) | Where-Object { $_ -match '^\d{8,}_.+' } | ForEach-Object { $_.ToString().Trim() }
+
+        if($expected.Count -lt 1){ throw 'No EF migrations were discovered inside verifier container.' }
+
+        $initialIds = @(
+            Invoke-ComposePsql -Sql 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";' -TuplesOnly |
+            ForEach-Object { $_.ToString().Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if($initialIds.Count -ne $expected.Count){ throw "Initial migration count mismatch. Expected=$($expected.Count) Actual=$($initialIds.Count)" }
+        for($i=0;$i -lt $expected.Count;$i++){ if($initialIds[$i] -ne $expected[$i]){ throw "Initial migration id mismatch at $i. Expected=$($expected[$i]) Actual=$($initialIds[$i])" } }
+
+        Invoke-Verifier "dotnet ef database update 0 --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+
+        $exists = (Invoke-ComposePsql -Sql "SELECT CASE WHEN to_regclass('public.`"__EFMigrationsHistory`"') IS NULL THEN 0 ELSE 1 END;" -TuplesOnly | Out-String).Trim()
+        if($exists -ne '0'){
+            $count = (Invoke-ComposePsql -Sql 'SELECT count(*) FROM "__EFMigrationsHistory";' -TuplesOnly | Out-String).Trim()
+            if($count -ne '0'){ throw "Rollback to zero left migration history rows: $count" }
+        }
+
+        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+
+        $reappliedIds = @(
+            Invoke-ComposePsql -Sql 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";' -TuplesOnly |
+            ForEach-Object { $_.ToString().Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if($reappliedIds.Count -ne $expected.Count){ throw "Reapplied migration count mismatch. Expected=$($expected.Count) Actual=$($reappliedIds.Count)" }
+        for($i=0;$i -lt $expected.Count;$i++){ if($reappliedIds[$i] -ne $expected[$i]){ throw "Reapplied migration id mismatch at $i." } }
+    }
+
+    Invoke-Stage 'Start API Worker Web Analysis' {
+        Invoke-ComposeChecked @('up','-d','python-analysis','api','worker','web')
+        Wait-Http 'Analysis' "http://127.0.0.1:$($env:DIP_VERIFY_ANALYSIS_PORT)/health"
+        Wait-Http 'API' "http://127.0.0.1:$($env:DIP_VERIFY_API_PORT)/health"
+        Wait-Http 'Web' "http://127.0.0.1:$($env:DIP_VERIFY_WEB_PORT)/"
+        Wait-Http 'Worker metrics' "http://127.0.0.1:$($env:DIP_VERIFY_WORKER_PORT)/metrics"
+    }
+
+    Invoke-Stage 'E2E tests strict' {
+        Invoke-StrictDockerTest 'tests/Dip.EndToEndTests/Dip.EndToEndTests.csproj' 'e2e'
+    }
+
+    if(-not $SkipPlaywright){
+        Invoke-Stage 'Playwright GUI' {
+            Invoke-ComposeChecked @(
+                'run','--rm','--no-deps','playwright',
+                "if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --package-lock=false --no-audit --no-fund; fi && npx playwright test tests/gui-onboarding.spec.mjs --retries=0"
+            )
+        }
+    }
+
+    Invoke-Stage 'Disaster Recovery' {
+        $postgresId = (& docker compose -p $script:ComposeProject -f $script:ComposeFile ps -q postgres | Out-String).Trim()
+        if([string]::IsNullOrWhiteSpace($postgresId)){ throw 'Could not resolve verification PostgreSQL container.' }
+        $name = (& docker inspect --format '{{.Name}}' $postgresId | Out-String).Trim().TrimStart('/')
+        $oldContainer = $env:DIP_POSTGRES_CONTAINER
+        try {
+            $env:DIP_POSTGRES_CONTAINER = $name
+            & (Join-Path $PSScriptRoot 'Verify-DisasterRecovery.ps1') `
+                -DatabaseHost '127.0.0.1' `
+                -DatabasePort ([int]$env:DIP_VERIFY_POSTGRES_PORT) `
+                -DatabaseUser 'dip' `
+                -DatabasePassword $script:PostgresPassword
+
+            if($LASTEXITCODE -ne 0){ throw 'Disaster Recovery verification failed.' }
+        }
+        finally {
+            $env:DIP_POSTGRES_CONTAINER = $oldContainer
+        }
+    }
+
+    Invoke-Stage 'Reset runtime database for performance evidence' {
+        Invoke-ComposeChecked @('down','-v','--remove-orphans')
+        Invoke-ComposeChecked @('up','-d','postgres')
+        for($i=0;$i -lt 90;$i++){
+            try {
+                $probe = (Invoke-ComposePsql -Sql 'SELECT 1;' -TuplesOnly | Out-String).Trim()
+                if($probe -eq '1'){ break }
+            } catch {}
+            Start-Sleep -Seconds 1
+        }
+        Invoke-Verifier "dotnet tool restore"
+        Invoke-Verifier "dotnet ef database update --project src/Dip.Infrastructure --startup-project src/Dip.Api"
+        Invoke-ComposeChecked @('up','-d','python-analysis','api','worker','web')
+        Wait-Http 'Benchmark API' "http://127.0.0.1:$($env:DIP_VERIFY_API_PORT)/health"
+    }
+
+    Invoke-Stage 'Portfolio benchmark and soak' {
+        Invoke-PortfolioBenchmarkExternal -ApiBase "http://127.0.0.1:$($env:DIP_VERIFY_API_PORT)"
+    }
+
+    Invoke-Stage 'Governance load' {
+        Invoke-GovernanceLoadExternal -ApiBase "http://127.0.0.1:$($env:DIP_VERIFY_API_PORT)"
+    }
+
+    Invoke-Stage 'Publication safety' {
+        Invoke-Verifier "python3 tools/verify_publication_safety.py --root . --output artifacts/docker-primary/publication-safety.json"
+        Invoke-Verifier "python3 tools/validate_portfolio_readiness.py --root . --output artifacts/docker-primary/portfolio-readiness.json"
+    }
+
+    Invoke-Stage 'Dependency audit' {
+        Invoke-Verifier "dotnet list DevelopmentIntelligencePlatform.sln package --vulnerable --include-transitive"
+        Invoke-Verifier "python3 -m pip_audit -r services/python-analysis/requirements.txt"
+    }
+
+    $dirtyFinal = (& git -C $RepositoryRoot status --porcelain | Out-String).Trim()
+    if($dirtyFinal){
+        throw "Verification mutated the source tree.`n$dirtyFinal"
+    }
+
+    $summary.finishedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+    $summary.status = 'PASS'
+    $summary |
+        ConvertTo-Json -Depth 10 |
+        Set-Content (Join-Path $out 'docker-primary-verification.json') -Encoding UTF8
+
+    @(
+        'DOCKER PRIMARY VERIFICATION PASS',
+        "Commit=$sourceSha",
+        'Runtime=linux-docker',
+        'WindowsApplicationControlImpactOnPrimaryResult=false',
+        'StrictZeroTestPolicy=enabled'
+    ) | Set-Content (Join-Path $out 'DOCKER_PRIMARY_VERIFICATION_PASS.txt') -Encoding UTF8
+
+    Write-Host "`nDOCKER PRIMARY VERIFICATION PASS: $sourceSha" -ForegroundColor Green
+}
+catch {
+    $summary.finishedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+    $summary.status = 'FAIL'
+    $summary.failure = $_.Exception.Message
+    $summary |
+        ConvertTo-Json -Depth 10 |
+        Set-Content (Join-Path $out 'docker-primary-verification.json') -Encoding UTF8
+    throw
+}
+finally {
+    try {
+        & docker compose -p $script:ComposeProject -f $script:ComposeFile logs --no-color *>&1 |
+            Set-Content (Join-Path $out 'docker-compose.log') -Encoding UTF8
+    } catch {}
+
+    if(-not $KeepContainers){
+        try {
+            & docker compose -p $script:ComposeProject -f $script:ComposeFile down -v --remove-orphans *> $null
+        } catch {}
+    }
+}

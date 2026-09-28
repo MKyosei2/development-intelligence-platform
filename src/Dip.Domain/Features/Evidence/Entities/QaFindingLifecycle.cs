@@ -103,74 +103,74 @@ public sealed class QaFindingState
     private static bool CanTransition(
         FindingLifecycleStatus from,
         FindingLifecycleStatus to) => from switch
-    {
-        FindingLifecycleStatus.New => to is
-            FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.Assigned
-            or FindingLifecycleStatus.InProgress
-            or FindingLifecycleStatus.Fixed
-            or FindingLifecycleStatus.Suppressed
-            or FindingLifecycleStatus.AcceptedRisk
-            or FindingLifecycleStatus.Duplicate
-            or FindingLifecycleStatus.WontFix,
+        {
+            FindingLifecycleStatus.New => to is
+                FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.Assigned
+                or FindingLifecycleStatus.InProgress
+                or FindingLifecycleStatus.Fixed
+                or FindingLifecycleStatus.Suppressed
+                or FindingLifecycleStatus.AcceptedRisk
+                or FindingLifecycleStatus.Duplicate
+                or FindingLifecycleStatus.WontFix,
 
-        FindingLifecycleStatus.Confirmed => to is
-            FindingLifecycleStatus.Assigned
-            or FindingLifecycleStatus.InProgress
-            or FindingLifecycleStatus.Fixed
-            or FindingLifecycleStatus.Suppressed
-            or FindingLifecycleStatus.AcceptedRisk
-            or FindingLifecycleStatus.Duplicate
-            or FindingLifecycleStatus.WontFix
-            or FindingLifecycleStatus.Closed,
+            FindingLifecycleStatus.Confirmed => to is
+                FindingLifecycleStatus.Assigned
+                or FindingLifecycleStatus.InProgress
+                or FindingLifecycleStatus.Fixed
+                or FindingLifecycleStatus.Suppressed
+                or FindingLifecycleStatus.AcceptedRisk
+                or FindingLifecycleStatus.Duplicate
+                or FindingLifecycleStatus.WontFix
+                or FindingLifecycleStatus.Closed,
 
-        FindingLifecycleStatus.Assigned => to is
-            FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.InProgress
-            or FindingLifecycleStatus.Fixed
-            or FindingLifecycleStatus.Suppressed
-            or FindingLifecycleStatus.AcceptedRisk
-            or FindingLifecycleStatus.Duplicate
-            or FindingLifecycleStatus.WontFix
-            or FindingLifecycleStatus.Closed,
+            FindingLifecycleStatus.Assigned => to is
+                FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.InProgress
+                or FindingLifecycleStatus.Fixed
+                or FindingLifecycleStatus.Suppressed
+                or FindingLifecycleStatus.AcceptedRisk
+                or FindingLifecycleStatus.Duplicate
+                or FindingLifecycleStatus.WontFix
+                or FindingLifecycleStatus.Closed,
 
-        FindingLifecycleStatus.InProgress => to is
-            FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.Fixed
-            or FindingLifecycleStatus.Suppressed
-            or FindingLifecycleStatus.AcceptedRisk
-            or FindingLifecycleStatus.WontFix,
+            FindingLifecycleStatus.InProgress => to is
+                FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.Fixed
+                or FindingLifecycleStatus.Suppressed
+                or FindingLifecycleStatus.AcceptedRisk
+                or FindingLifecycleStatus.WontFix,
 
-        FindingLifecycleStatus.Fixed => to is
-            FindingLifecycleStatus.Verified
-            or FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.InProgress,
+            FindingLifecycleStatus.Fixed => to is
+                FindingLifecycleStatus.Verified
+                or FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.InProgress,
 
-        FindingLifecycleStatus.Verified => to is
-            FindingLifecycleStatus.Closed
-            or FindingLifecycleStatus.Confirmed,
+            FindingLifecycleStatus.Verified => to is
+                FindingLifecycleStatus.Closed
+                or FindingLifecycleStatus.Confirmed,
 
-        FindingLifecycleStatus.Closed => to is FindingLifecycleStatus.Confirmed,
+            FindingLifecycleStatus.Closed => to is FindingLifecycleStatus.Confirmed,
 
-        FindingLifecycleStatus.Suppressed => to is
-            FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.Fixed
-            or FindingLifecycleStatus.Closed,
+            FindingLifecycleStatus.Suppressed => to is
+                FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.Fixed
+                or FindingLifecycleStatus.Closed,
 
-        FindingLifecycleStatus.AcceptedRisk => to is
-            FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.Closed,
+            FindingLifecycleStatus.AcceptedRisk => to is
+                FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.Closed,
 
-        FindingLifecycleStatus.Duplicate => to is
-            FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.Closed,
+            FindingLifecycleStatus.Duplicate => to is
+                FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.Closed,
 
-        FindingLifecycleStatus.WontFix => to is
-            FindingLifecycleStatus.Confirmed
-            or FindingLifecycleStatus.Closed,
+            FindingLifecycleStatus.WontFix => to is
+                FindingLifecycleStatus.Confirmed
+                or FindingLifecycleStatus.Closed,
 
-        _ => false
-    };
+            _ => false
+        };
 
     private static Guid Req(Guid value) =>
         value == Guid.Empty

@@ -218,13 +218,16 @@ public sealed class ProcessExecutor
                         && peakMb > _options.SandboxMemoryLimitMb)
                     {
                         resourceExceeded = true;
-                        try { process.Kill(true); } catch {
+                        try { process.Kill(true); }
+                        catch
+                        {
                             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                         }
                         break;
                     }
                 }
-                catch {
+                catch
+                {
                     // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                 }
                 await Task.Delay(100, timeoutCts.Token);
@@ -236,22 +239,32 @@ public sealed class ProcessExecutor
         {
             timedOut = true;
             if (beforeTimeoutKill is not null)
-                try { await beforeTimeoutKill(process, CancellationToken.None); } catch {
+                try { await beforeTimeoutKill(process, CancellationToken.None); }
+                catch
+                {
                     // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                 }
-            try { process.Kill(true); } catch {
+            try { process.Kill(true); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
-            try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+            try { await process.WaitForExitAsync(CancellationToken.None); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }
         catch (OperationCanceledException)
         {
-            try { process.Kill(true); } catch {
+            try { process.Kill(true); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
-            try { await process.WaitForExitAsync(CancellationToken.None); } catch {
+            try { await process.WaitForExitAsync(CancellationToken.None); }
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
             throw;
@@ -264,11 +277,15 @@ public sealed class ProcessExecutor
         await File.WriteAllTextAsync(stdoutPath, outResult.Text, CancellationToken.None);
         await File.WriteAllTextAsync(stderrPath, errResult.Text, CancellationToken.None);
         int? exit = null;
-        try { exit = timedOut || resourceExceeded ? null : process.ExitCode; } catch {
+        try { exit = timedOut || resourceExceeded ? null : process.ExitCode; }
+        catch
+        {
             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
         long cpuTimeMs = 0;
-        try { cpuTimeMs = Math.Max(0L, (long)process.TotalProcessorTime.TotalMilliseconds); } catch {
+        try { cpuTimeMs = Math.Max(0L, (long)process.TotalProcessorTime.TotalMilliseconds); }
+        catch
+        {
             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
         if (job != IntPtr.Zero)

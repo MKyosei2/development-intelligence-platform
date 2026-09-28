@@ -206,7 +206,8 @@ public sealed class PostgresQueueClient(IServiceScopeFactory scopeFactory) : IQu
                 };
             }
         }
-        catch (JsonException) {
+        catch (JsonException)
+        {
             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
         return null;

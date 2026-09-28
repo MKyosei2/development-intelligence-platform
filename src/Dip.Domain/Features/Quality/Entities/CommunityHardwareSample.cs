@@ -10,20 +10,26 @@ public sealed class CommunityHardwareSample
         GpuVendor = Req(gpuVendor, 80); OsFamily = Req(osFamily, 80); DriverFamily = Opt(driverFamily, 160);
         CpuSingleScore = NN(cpuSingle); CpuMultiScore = NN(cpuMulti); GpuScore = NN(gpu); MemoryScore = NN(memory); StorageScore = NN(storage); ThermalScore = NN(thermal);
         MemoryMb = memoryMb < 128 ? throw new ArgumentOutOfRangeException(nameof(memoryMb)) : memoryMb;
-         SourceFingerprint = Req(sourceFingerprint, 64);
-         MeasuredAtUtc = measuredAtUtc;
+        SourceFingerprint = Req(sourceFingerprint, 64);
+        MeasuredAtUtc = measuredAtUtc;
     }
     public Guid Id { get; private set; }
     public string HardwareKey { get; private set; } = string.Empty; public string Platform { get; private set; } = string.Empty;
-    public string CpuArch { get;
-     private set;
-     } = string.Empty;
-     public string GpuVendor { get;
-     private set;
-     } = string.Empty;
-     public string OsFamily { get;
-     private set;
-     } = string.Empty;
+    public string CpuArch
+    {
+        get;
+        private set;
+    } = string.Empty;
+    public string GpuVendor
+    {
+        get;
+        private set;
+    } = string.Empty;
+    public string OsFamily
+    {
+        get;
+        private set;
+    } = string.Empty;
     public string? DriverFamily
     {
         get;

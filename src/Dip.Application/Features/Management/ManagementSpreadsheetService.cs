@@ -16,38 +16,40 @@ public sealed class ManagementSpreadsheetService
 {
     public static readonly string[] EditableSheets = ["Teams", "Workstreams", "Tasks", "Milestones", "Blockers", "Requirements", "Dependencies", "ScopeBaselines", "Risks", "Decisions", "Actions", "ChangeRequests", "ResourceAllocations"];
     private readonly IDevelopmentGraphRepository _repo;
-     private readonly WorkManagementService _work;
-     private readonly ManagementAnalyticsService _analytics;
-     private readonly MilestoneIntelligenceService _milestones;
-     private readonly IGoogleSheetsConnector _google;
-     private readonly ISystemClock _clock;
-     private readonly DevelopmentGraphService _graph;
-     private readonly ManagementOperationsService _operations;
-    public ManagementSpreadsheetService(IDevelopmentGraphRepository repo, WorkManagementService work, ManagementAnalyticsService analytics, MilestoneIntelligenceService milestones, IGoogleSheetsConnector google, ISystemClock clock, DevelopmentGraphService graph, ManagementOperationsService operations) { _repo = repo;
-     _work = work;
-     _analytics = analytics;
-     _milestones = milestones;
-     _google = google;
-     _clock = clock;
-     _graph = graph;
-     _operations = operations;
-     }
+    private readonly WorkManagementService _work;
+    private readonly ManagementAnalyticsService _analytics;
+    private readonly MilestoneIntelligenceService _milestones;
+    private readonly IGoogleSheetsConnector _google;
+    private readonly ISystemClock _clock;
+    private readonly DevelopmentGraphService _graph;
+    private readonly ManagementOperationsService _operations;
+    public ManagementSpreadsheetService(IDevelopmentGraphRepository repo, WorkManagementService work, ManagementAnalyticsService analytics, MilestoneIntelligenceService milestones, IGoogleSheetsConnector google, ISystemClock clock, DevelopmentGraphService graph, ManagementOperationsService operations)
+    {
+        _repo = repo;
+        _work = work;
+        _analytics = analytics;
+        _milestones = milestones;
+        _google = google;
+        _clock = clock;
+        _graph = graph;
+        _operations = operations;
+    }
 
     public async Task<ManagementWorkbookDto> BuildWorkbookAsync(Guid projectId, CancellationToken ct)
     {
         var nodes = await _repo.ListNodesAsync(projectId, null, ct);
-         var capacity = await _analytics.GetCapacityAsync(projectId, 8, ct);
-         var schedule = await _analytics.GetScheduleAsync(projectId, ct);
-         var blockers = await _analytics.GetBlockersAsync(projectId, ct);
-         var deps = await _analytics.GetDependenciesAsync(projectId, ct);
-         var milestoneSummary = await _analytics.GetMilestonesAsync(projectId, ct);
-         var scope = await _analytics.GetScopeAsync(projectId, ct);
-         var risks = await _analytics.GetRisksAsync(projectId, ct);
-         var decisions = await _analytics.GetDecisionsAsync(projectId, ct);
-         var resources = await _analytics.GetResourceAllocationsAsync(projectId, 8, ct);
-         var scopeChanges = await _analytics.GetScopeChangesAsync(projectId, ct);
-         var alerts = await _analytics.GetAlertsAsync(projectId, 8, ct);
-         var sheets = new List<SpreadsheetSheetDto>();
+        var capacity = await _analytics.GetCapacityAsync(projectId, 8, ct);
+        var schedule = await _analytics.GetScheduleAsync(projectId, ct);
+        var blockers = await _analytics.GetBlockersAsync(projectId, ct);
+        var deps = await _analytics.GetDependenciesAsync(projectId, ct);
+        var milestoneSummary = await _analytics.GetMilestonesAsync(projectId, ct);
+        var scope = await _analytics.GetScopeAsync(projectId, ct);
+        var risks = await _analytics.GetRisksAsync(projectId, ct);
+        var decisions = await _analytics.GetDecisionsAsync(projectId, ct);
+        var resources = await _analytics.GetResourceAllocationsAsync(projectId, 8, ct);
+        var scopeChanges = await _analytics.GetScopeChangesAsync(projectId, ct);
+        var alerts = await _analytics.GetAlertsAsync(projectId, 8, ct);
+        var sheets = new List<SpreadsheetSheetDto>();
         var maxUtil = capacity.Teams.Count == 0 ? 0m : capacity.Teams.Max(x => x.UtilizationPercent); var health = alerts.Critical > 0 || schedule.Status == "Blocked" || blockers.Critical > 0 ? "Critical" : alerts.High > 0 || schedule.Status == "AtRisk" || maxUtil > 100m || scope.ScopeGrowthPercent > 10m || risks.Critical > 0 ? "AtRisk" : "Healthy";
         sheets.Add(Sheet("Executive", ["Metric", "Value", "Management meaning"], [
             ["Project health",health,"Overall management status derived from schedule, blockers, capacity and scope."],
@@ -74,14 +76,16 @@ public sealed class ManagementSpreadsheetService
         sheets.Add(BuildGanttSheet(schedule));
         sheets.Add(Sheet("Milestones", ["Key", "Name", "PlannedStart", "Due", "DurationDays", "CompletionPercent", "State", "ExternalReference"], nodes.Where(x => x.Type == DevelopmentGraphNodeType.Milestone).OrderBy(x => WorkManagementService.MetaDate(x, "DueAtUtc", DateTimeOffset.MaxValue)).Select(x => (IReadOnlyList<string>)[WorkManagementService.Strip(x.Key), x.Name, D(WorkManagementService.MetaDate(x, "PlannedStartUtc", x.FirstObservedAtUtc)), D(WorkManagementService.MetaDate(x, "DueAtUtc", x.LastObservedAtUtc)), ((int)WorkManagementService.MetaDecimal(x, "DurationDays", 1m)).ToString(CultureInfo.InvariantCulture), F(WorkManagementService.MetaDecimal(x, "CompletionPercent")), x.Status, x.ExternalReference ?? ""]).ToArray(), true));
         var blockerImpact = blockers.Items.ToDictionary(x => x.Key, StringComparer.OrdinalIgnoreCase);
-        sheets.Add(Sheet("Blockers", ["Key", "Title", "Reason", "Severity", "OpenedAt", "Status", "BlockedTasks", "BlockedWorkstreams", "BlockedMilestones", "AgeDays", "DownstreamAffected", "ManagementAction"], nodes.Where(x => x.Type == DevelopmentGraphNodeType.Blocker).OrderBy(x => x.Name).Select(x => { var key = WorkManagementService.Strip(x.Key);
-         blockerImpact.TryGetValue(key, out var impact);
-         return (IReadOnlyList<string>)[key, x.Name, WorkManagementService.MetaString(x, "Reason"), WorkManagementService.MetaString(x, "Severity", "Medium"),
+        sheets.Add(Sheet("Blockers", ["Key", "Title", "Reason", "Severity", "OpenedAt", "Status", "BlockedTasks", "BlockedWorkstreams", "BlockedMilestones", "AgeDays", "DownstreamAffected", "ManagementAction"], nodes.Where(x => x.Type == DevelopmentGraphNodeType.Blocker).OrderBy(x => x.Name).Select(x =>
+        {
+            var key = WorkManagementService.Strip(x.Key);
+            blockerImpact.TryGetValue(key, out var impact);
+            return (IReadOnlyList<string>)[key, x.Name, WorkManagementService.MetaString(x, "Reason"), WorkManagementService.MetaString(x, "Severity", "Medium"),
          D(WorkManagementService.MetaDate(x, "OpenedAtUtc", x.FirstObservedAtUtc)), x.Status, string.Join(";", WorkManagementService.MetaStringArray(x,
          "BlockedTaskKeys")), string.Join(";", WorkManagementService.MetaStringArray(x, "BlockedWorkstreamKeys")), string.Join(";",
          WorkManagementService.MetaStringArray(x, "BlockedMilestoneKeys")), (impact?.AgeDays ?? 0).ToString(CultureInfo.InvariantCulture), (impact?.DownstreamAffected ??
          0).ToString(CultureInfo.InvariantCulture), impact?.ManagementAction ?? ""];
-         }).ToArray(), true));
+        }).ToArray(), true));
         sheets.Add(Sheet("Dependencies", ["SourceType", "SourceKey", "SourceName", "TargetType", "TargetKey", "TargetName", "Relation", "Critical", "CrossWorkstream"], deps.Dependencies.Select(x => (IReadOnlyList<string>)[x.SourceType, x.SourceKey, x.SourceName, x.TargetType, x.TargetKey, x.TargetName, x.Relation, x.Critical ? "Yes" : "No", x.CrossWorkstream ? "Yes" : "No"]).ToArray(), true));
         sheets.Add(Sheet("Requirements", ["Key", "Title", "Priority", "Status", "ScopeState", "CompletionPercent", "AcceptanceSummary", "ExternalReference"], scope.Requirements.Select(x => (IReadOnlyList<string>)[x.Key, x.Title, x.Priority, x.Status, x.ScopeState, F(x.CompletionPercent), x.AcceptanceSummary ?? "", x.ExternalReference ?? ""]).ToArray(), true));
         sheets.Add(Sheet("Scope", ["Metric", "Value"], [
@@ -91,11 +95,13 @@ public sealed class ManagementSpreadsheetService
         sheets.Add(BuildWorkloadSheet(capacity));
         sheets.Add(Sheet("Risks", ["Key", "Title", "Description", "ProbabilityPercent", "ImpactPercent", "Status", "Category", "OwnerRole", "ReviewDue", "Trigger", "Mitigation", "AffectedItems", "ExposureScore", "ExposureLevel", "ReviewOverdue", "ManagementAction"], risks.Items.Select(x => (IReadOnlyList<string>)[x.Key, x.Title, x.Description, F(x.ProbabilityPercent), F(x.ImpactPercent), x.Status, x.Category, x.OwnerRole ?? "", x.ReviewDueUtc.HasValue ? D(x.ReviewDueUtc.Value) : "", x.Trigger ?? "", x.Mitigation ?? "", string.Join(";", x.AffectedItems), F(x.ExposureScore), x.ExposureLevel, x.ReviewOverdue ? "Yes" : "No", x.ManagementAction]).ToArray(), true));
         sheets.Add(Sheet("Decisions", ["Key", "Title", "Decision", "Rationale", "Status", "DecisionOwnerRole", "DecisionDue", "DecidedAt", "RelatedItems", "OpenActions"], decisions.Decisions.Select(x => (IReadOnlyList<string>)[x.Key, x.Title, x.Decision, x.Rationale, x.Status, x.DecisionOwnerRole ?? "", x.DecisionDueUtc.HasValue ? D(x.DecisionDueUtc.Value) : "", x.DecidedAtUtc.HasValue ? D(x.DecidedAtUtc.Value) : "", string.Join(";", x.RelatedItems), x.OpenActions.ToString(CultureInfo.InvariantCulture)]).ToArray(), true));
-        sheets.Add(Sheet("Actions", ["Key", "Title", "Status", "Priority", "OwnerRole", "Due", "CompletionPercent", "DecisionKey", "TargetType", "TargetKey", "Overdue"], nodes.Where(x => x.Type == DevelopmentGraphNodeType.ActionItem).OrderBy(x => x.Name).Select(x => { var target = ReadReference(x, "Target");
-         var due = WorkManagementService.MetaDate(x, "DueAtUtc", DateTimeOffset.MaxValue);
-         var dto = decisions.Actions.FirstOrDefault(a => a.Key.Equals(WorkManagementService.Strip(x.Key), StringComparison.OrdinalIgnoreCase));
-         return (IReadOnlyList<string>)[WorkManagementService.Strip(x.Key), x.Name, x.Status, WorkManagementService.MetaString(x, "Priority", "Medium"), WorkManagementService.MetaString(x, "OwnerRole"), due == DateTimeOffset.MaxValue ? "" : D(due), F(WorkManagementService.MetaDecimal(x, "CompletionPercent")), WorkManagementService.MetaString(x, "DecisionKey"), target?.Type ?? "", target?.Key ?? "", dto?.Overdue == true ? "Yes" : "No"];
-         }).ToArray(), true));
+        sheets.Add(Sheet("Actions", ["Key", "Title", "Status", "Priority", "OwnerRole", "Due", "CompletionPercent", "DecisionKey", "TargetType", "TargetKey", "Overdue"], nodes.Where(x => x.Type == DevelopmentGraphNodeType.ActionItem).OrderBy(x => x.Name).Select(x =>
+        {
+            var target = ReadReference(x, "Target");
+            var due = WorkManagementService.MetaDate(x, "DueAtUtc", DateTimeOffset.MaxValue);
+            var dto = decisions.Actions.FirstOrDefault(a => a.Key.Equals(WorkManagementService.Strip(x.Key), StringComparison.OrdinalIgnoreCase));
+            return (IReadOnlyList<string>)[WorkManagementService.Strip(x.Key), x.Name, x.Status, WorkManagementService.MetaString(x, "Priority", "Medium"), WorkManagementService.MetaString(x, "OwnerRole"), due == DateTimeOffset.MaxValue ? "" : D(due), F(WorkManagementService.MetaDecimal(x, "CompletionPercent")), WorkManagementService.MetaString(x, "DecisionKey"), target?.Type ?? "", target?.Key ?? "", dto?.Overdue == true ? "Yes" : "No"];
+        }).ToArray(), true));
         sheets.Add(Sheet("ChangeRequests", ["Key", "Title", "Description", "Status", "Priority", "RequestedByRole", "RequestedAt", "EngineeringHoursDelta",
         "ArtHoursDelta", "QaHoursDelta", "ScheduleDaysDelta", "RiskDeltaPercent", "RequirementKeys", "WorkstreamKeys", "DecisionKey", "ManagementImpact"],
         scopeChanges.Changes.Select(x => (IReadOnlyList<string>)[x.Key, x.Title, x.Description, x.Status, x.Priority, x.RequestedByRole ?? "", D(x.RequestedAtUtc),
@@ -157,8 +163,8 @@ public sealed class ManagementSpreadsheetService
             var localHash = GridHash(localRows); var externalHash = GridHash(extRows); var snapshot = await ReadSheetSnapshotAsync(c.ProjectId, c.SpreadsheetId, sheet.Name, ct);
             var rule = await _operations.AuthorityForAsync(c.ProjectId, $"GoogleSheets:{sheet.Name}", ct) ?? await _operations.AuthorityForAsync(c.ProjectId, sheet.Name, ct);
             var authority = rule?.Authority ?? "Manual";
-             var preferAuthority = rule?.ConflictPolicy.Equals("PreferAuthority", StringComparison.OrdinalIgnoreCase) == true;
-             var itemKey = $"{c.SpreadsheetId}:{sheet.Name}";
+            var preferAuthority = rule?.ConflictPolicy.Equals("PreferAuthority", StringComparison.OrdinalIgnoreCase) == true;
+            var itemKey = $"{c.SpreadsheetId}:{sheet.Name}";
             var resolved = syncState.Conflicts.Where(x => x.Provider.Equals("GoogleSheets", StringComparison.OrdinalIgnoreCase) && x.DataType.Equals(sheet.Name, StringComparison.OrdinalIgnoreCase) && x.ItemKey.Equals(itemKey, StringComparison.OrdinalIgnoreCase) && x.Status.Equals("Resolved", StringComparison.OrdinalIgnoreCase) && x.ResolvedAtUtc.HasValue && (snapshot is null || x.ResolvedAtUtc.Value > snapshot.Value.SyncedAtUtc) && (x.Resolution is "DIP" or "External")).OrderByDescending(x => x.ResolvedAtUtc).FirstOrDefault();
             var effectiveAuthority = resolved?.Resolution == "DIP" ? "DIP" : resolved?.Resolution == "External" ? "GoogleSheets" : preferAuthority ? authority : "Manual";
             var localChanged = snapshot is null || !localHash.Equals(snapshot.Value.LocalHash, StringComparison.Ordinal); var externalChanged = snapshot is null || !externalHash.Equals(snapshot.Value.ExternalHash, StringComparison.Ordinal);
@@ -189,51 +195,62 @@ public sealed class ManagementSpreadsheetService
                 continue;
             }
             if (operation == "Pull")
-            { pullTables[sheet.Name] = extRows;
-             pulled++;
-             snapshots.Add((sheet.Name, externalHash, externalHash));
-            if (resolved is not null) resolvedApplications.Add((resolved.Key, "Pull", sheet.Name));
-             }
+            {
+                pullTables[sheet.Name] = extRows;
+                pulled++;
+                snapshots.Add((sheet.Name, externalHash, externalHash));
+                if (resolved is not null) resolvedApplications.Add((resolved.Key, "Pull", sheet.Name));
+            }
             else if (operation == "Push")
-            { pushGrids.Add(new(sheet.Name, localRows));
-             pushed++;
-             snapshots.Add((sheet.Name, localHash, localHash));
-            if (resolved is not null) resolvedApplications.Add((resolved.Key, "Push", sheet.Name));
-             }
+            {
+                pushGrids.Add(new(sheet.Name, localRows));
+                pushed++;
+                snapshots.Add((sheet.Name, localHash, localHash));
+                if (resolved is not null) resolvedApplications.Add((resolved.Key, "Push", sheet.Name));
+            }
             else snapshots.Add((sheet.Name, localHash, externalHash));
         }
         var pullVerified = true;
-        if (!c.DryRun && pullTables.Count > 0) { imported = await ApplyRowsAsync(c.ProjectId, pullTables, ct);
-         warnings.AddRange(imported.Warnings);
-         pullVerified = imported.Warnings.Count == 0;
-        if (!pullVerified) { snapshots.RemoveAll(x => pullTables.ContainsKey(x.Sheet));
-         warnings.Add("Google Sheets pull completed with import warnings; affected sheet snapshots and resolved-conflict states were not advanced so the operation can be reviewed and retried.");
-         } }
+        if (!c.DryRun && pullTables.Count > 0)
+        {
+            imported = await ApplyRowsAsync(c.ProjectId, pullTables, ct);
+            warnings.AddRange(imported.Warnings);
+            pullVerified = imported.Warnings.Count == 0;
+            if (!pullVerified)
+            {
+                snapshots.RemoveAll(x => pullTables.ContainsKey(x.Sheet));
+                warnings.Add("Google Sheets pull completed with import warnings; affected sheet snapshots and resolved-conflict states were not advanced so the operation can be reviewed and retried.");
+            }
+        }
         if (!c.DryRun && pushGrids.Count > 0) await _google.PushAsync(c.SpreadsheetId, c.AccessToken, pushGrids, ct);
         if (!c.DryRun)
-        foreach (var resolved in resolvedApplications.Where(x => x.Operation == "Push" || (x.Operation == "Pull" && pullVerified))) await _operations.MarkConflictAppliedAsync(c.ProjectId, resolved.ConflictKey, ct);
+            foreach (var resolved in resolvedApplications.Where(x => x.Operation == "Push" || (x.Operation == "Pull" && pullVerified))) await _operations.MarkConflictAppliedAsync(c.ProjectId, resolved.ConflictKey, ct);
         if (c.PushCalculatedSheets)
         {
             var calculated = workbook.Sheets.Where(x => !x.Editable).Select(x => new GoogleSheetGrid(x.Name, new List<IReadOnlyList<string>> { x.Headers }.Concat(x.Rows).ToArray())).ToArray();
             if (!c.DryRun && calculated.Length > 0) await _google.PushAsync(c.SpreadsheetId, c.AccessToken, calculated, ct); pushed += calculated.Length;
         }
         if (!c.DryRun)
-        foreach (var snapshot in snapshots) await WriteSheetSnapshotAsync(c.ProjectId, c.SpreadsheetId, snapshot.Sheet, snapshot.LocalHash, snapshot.ExternalHash, ct);
+            foreach (var snapshot in snapshots) await WriteSheetSnapshotAsync(c.ProjectId, c.SpreadsheetId, snapshot.Sheet, snapshot.LocalHash, snapshot.ExternalHash, ct);
         return new(pulled, pushed, imported, warnings.Distinct().Take(100).ToArray(), _clock.UtcNow, conflicts, c.DryRun);
     }
 
     private async Task<(string LocalHash, string ExternalHash, DateTimeOffset SyncedAtUtc)?> ReadSheetSnapshotAsync(Guid projectId, string spreadsheetId, string sheet, CancellationToken ct)
     {
         var node = await _repo.FindNodeAsync(projectId, DevelopmentGraphNodeType.ExternalSyncState, SheetSnapshotKey(spreadsheetId, sheet), ct); if (node is null) return null;
-        try { using var doc = JsonDocument.Parse(node.MetadataJson);
-         var root = doc.RootElement;
-         var local = root.TryGetProperty("LocalHash", out var l) ? l.GetString() : null;
-         var external = root.TryGetProperty("ExternalHash", out var e) ? e.GetString() : null;
-         var synced = root.TryGetProperty("SyncedAtUtc", out var at) && at.TryGetDateTimeOffset(out var parsed) ? parsed : node.LastObservedAtUtc;
-         return string.IsNullOrWhiteSpace(local) || string.IsNullOrWhiteSpace(external) ? null : (local, external, synced);
-         }
-        catch { return null;
-         }
+        try
+        {
+            using var doc = JsonDocument.Parse(node.MetadataJson);
+            var root = doc.RootElement;
+            var local = root.TryGetProperty("LocalHash", out var l) ? l.GetString() : null;
+            var external = root.TryGetProperty("ExternalHash", out var e) ? e.GetString() : null;
+            var synced = root.TryGetProperty("SyncedAtUtc", out var at) && at.TryGetDateTimeOffset(out var parsed) ? parsed : node.LastObservedAtUtc;
+            return string.IsNullOrWhiteSpace(local) || string.IsNullOrWhiteSpace(external) ? null : (local, external, synced);
+        }
+        catch
+        {
+            return null;
+        }
     }
     private async Task WriteSheetSnapshotAsync(Guid projectId, string spreadsheetId, string sheet, string localHash, string externalHash, CancellationToken ct)
     {
@@ -252,109 +269,204 @@ public sealed class ManagementSpreadsheetService
     public async Task<SpreadsheetImportResult> ApplyRowsAsync(Guid projectId, IReadOnlyDictionary<string, IReadOnlyList<IReadOnlyList<string>>> tables, CancellationToken ct)
     {
         var warnings = new List<string>();
-         var teamCount = 0;
-         var wsCount = 0;
-         var taskCount = 0;
-         var milestoneCount = 0;
-         var blockerCount = 0;
-         var reqCount = 0;
-         var riskCount = 0;
-         var decisionCount = 0;
-         var actionCount = 0;
-         var changeCount = 0;
-         var allocationCount = 0;
-        foreach (var row in Data(tables, "Teams")) { try { var poolCap = Dec(row, "SharedPoolCapacityHoursPerWeek", 0m);
-         await _work.UpsertTeamAsync(new(projectId, V(row, "Key"), V(row, "Name"), Dec(row, "CapacityHoursPerWeek"), Dec(row, "BufferPercent", 10m), V(row, "Status", "Active"), null, Null(V(row, "SharedResourceKey")), poolCap > 0m ? poolCap : null), ct);
-         teamCount++;
-         }
-        catch (Exception ex) { warnings.Add("Teams: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Workstreams")) { try { await _work.UpsertWorkstreamAsync(new(projectId, V(row, "Key"), V(row, "Name"), V(row, "TeamKey"), Dec(row, "PlannedCapacityHoursPerWeek"), Date(row, "PlannedStart"), Date(row, "Due"), Dec(row, "CompletionPercent"), V(row, "Status", "Active")), ct);
-         wsCount++;
-         }
-        catch (Exception ex) { warnings.Add("Workstreams: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Tasks")) { try { await _work.UpsertTaskAsync(new(projectId, V(row, "Key"), V(row, "Name"), V(row, "WorkstreamKey"), Dec(row, "EstimateHours"), Dec(row, "RemainingHours"), Date(row, "PlannedStart"), Date(row, "Due"), Dec(row, "CompletionPercent"), V(row, "Status", "Planned"), V(row, "Priority", "Medium"), Null(V(row, "OwnerLabel")), Null(V(row, "ExternalReference"))), ct);
-         taskCount++;
-         }
-        catch (Exception ex) { warnings.Add("Tasks: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Milestones")) { try { var state = Enum.TryParse<MilestoneState>(V(row, "State", "Planned"), true, out var parsed) ? parsed : MilestoneState.Planned;
-         await _milestones.UpsertAsync(new(projectId, V(row, "Key"), V(row, "Name"), Date(row, "PlannedStart"), Date(row, "Due"), (int)Dec(row, "DurationDays", 1m), Dec(row, "CompletionPercent"), state, Null(V(row, "ExternalReference"))), ct);
-         milestoneCount++;
-         }
-        catch (Exception ex) { warnings.Add("Milestones: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Blockers")) { try { await _work.UpsertBlockerAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Reason"), V(row, "Severity", "Medium"), Date(row, "OpenedAt", _clock.UtcNow), V(row, "Status", "Open"), Split(row, "BlockedTasks"), Split(row, "BlockedWorkstreams"), Split(row, "BlockedMilestones")), ct);
-         blockerCount++;
-         }
-        catch (Exception ex) { warnings.Add("Blockers: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Requirements")) { try { await _work.UpsertRequirementAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Priority", "Medium"), V(row, "Status", "Planned"), V(row, "ScopeState", "Included"), Dec(row, "CompletionPercent"), Null(V(row, "AcceptanceSummary")), Null(V(row, "ExternalReference"))), ct);
-         reqCount++;
-         }
-        catch (Exception ex) { warnings.Add("Requirements: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Dependencies")) { try { var relation = V(row, "Relation", "Blocks");
-         var sourceType = V(row, "SourceType");
-         var targetType = V(row, "TargetType");
-        if (relation.Equals("ScheduledFor", StringComparison.OrdinalIgnoreCase) && sourceType.Equals("Task", StringComparison.OrdinalIgnoreCase) && targetType.Equals("Milestone", StringComparison.OrdinalIgnoreCase)) await _work.LinkTaskToMilestoneAsync(new(projectId, V(row, "SourceKey"), V(row, "TargetKey")), ct);
-         else if (relation.Equals("Satisfies", StringComparison.OrdinalIgnoreCase) && targetType.Equals("Requirement", StringComparison.OrdinalIgnoreCase)) await _work.LinkRequirementAsync(new(projectId, V(row, "TargetKey"), sourceType, V(row, "SourceKey")), ct);
-         else await _work.LinkDependencyAsync(new(projectId, sourceType, V(row, "SourceKey"), targetType, V(row, "TargetKey"), V(row, "Critical", "No").Equals("Yes", StringComparison.OrdinalIgnoreCase)), ct);
-         }
-        catch (Exception ex) { warnings.Add("Dependencies: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "ScopeBaselines")) { try { var key = V(row, "Key");
-        if (!string.IsNullOrWhiteSpace(key)) await _work.CreateScopeBaselineAsync(new(projectId, key, V(row, "Name", key), Date(row, "CapturedAt", _clock.UtcNow)), ct);
-         }
-        catch (Exception ex) { warnings.Add("ScopeBaselines: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Risks")) { try { await _work.UpsertRiskAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Description"), Dec(row, "ProbabilityPercent"), Dec(row, "ImpactPercent"), V(row, "Status", "Open"), V(row, "Category", "Delivery"), Null(V(row, "OwnerRole")), NullableDate(row, "ReviewDue"), Null(V(row, "Trigger")), Null(V(row, "Mitigation")), ParseReferences(V(row, "AffectedItems"))), ct);
-         riskCount++;
-         }
-        catch (Exception ex) { warnings.Add("Risks: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Decisions")) { try { await _work.UpsertManagementDecisionAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Decision"), V(row, "Rationale"), V(row, "Status", "Proposed"), Null(V(row, "DecisionOwnerRole")), NullableDate(row, "DecisionDue"), NullableDate(row, "DecidedAt"), ParseReferences(V(row, "RelatedItems"))), ct);
-         decisionCount++;
-         }
-        catch (Exception ex) { warnings.Add("Decisions: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "Actions")) { try { ManagementReference? target = null;
-         var targetType = V(row, "TargetType");
-         var targetKey = V(row, "TargetKey");
-        if (!string.IsNullOrWhiteSpace(targetType) && !string.IsNullOrWhiteSpace(targetKey)) target = new(targetType, targetKey);
-         await _work.UpsertActionItemAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Status", "Open"), V(row, "Priority", "Medium"), Null(V(row, "OwnerRole")), NullableDate(row, "Due"), Dec(row, "CompletionPercent"), Null(V(row, "DecisionKey")), target), ct);
-         actionCount++;
-         }
-        catch (Exception ex) { warnings.Add("Actions: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "ChangeRequests")) { try { await _work.UpsertChangeRequestAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Description"), V(row, "Status", "Proposed"), V(row, "Priority", "Medium"), Null(V(row, "RequestedByRole")), NullableDate(row, "RequestedAt"), Dec(row, "EngineeringHoursDelta"), Dec(row, "ArtHoursDelta"), Dec(row, "QaHoursDelta"), (int)Dec(row, "ScheduleDaysDelta"), Dec(row, "RiskDeltaPercent"), Split(row, "RequirementKeys"), Split(row, "WorkstreamKeys"), Null(V(row, "DecisionKey"))), ct);
-         changeCount++;
-         }
-        catch (Exception ex) { warnings.Add("ChangeRequests: " + ex.Message);
-         } }
-        foreach (var row in Data(tables, "ResourceAllocations")) { try { await _work.UpsertResourceAllocationAsync(new(projectId, V(row, "Key"), V(row, "ToWorkstreamKey"), Dec(row, "CapacityHoursPerWeek"), Date(row, "Start"), Date(row, "End"), V(row, "Status", "Proposed"), Null(V(row, "FromWorkstreamKey")), Null(V(row, "Rationale")), Null(V(row, "DecisionKey"))), ct);
-         allocationCount++;
-         }
-        catch (Exception ex) { warnings.Add("ResourceAllocations: " + ex.Message);
-         } }
+        var teamCount = 0;
+        var wsCount = 0;
+        var taskCount = 0;
+        var milestoneCount = 0;
+        var blockerCount = 0;
+        var reqCount = 0;
+        var riskCount = 0;
+        var decisionCount = 0;
+        var actionCount = 0;
+        var changeCount = 0;
+        var allocationCount = 0;
+        foreach (var row in Data(tables, "Teams"))
+        {
+            try
+            {
+                var poolCap = Dec(row, "SharedPoolCapacityHoursPerWeek", 0m);
+                await _work.UpsertTeamAsync(new(projectId, V(row, "Key"), V(row, "Name"), Dec(row, "CapacityHoursPerWeek"), Dec(row, "BufferPercent", 10m), V(row, "Status", "Active"), null, Null(V(row, "SharedResourceKey")), poolCap > 0m ? poolCap : null), ct);
+                teamCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Teams: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Workstreams"))
+        {
+            try
+            {
+                await _work.UpsertWorkstreamAsync(new(projectId, V(row, "Key"), V(row, "Name"), V(row, "TeamKey"), Dec(row, "PlannedCapacityHoursPerWeek"), Date(row, "PlannedStart"), Date(row, "Due"), Dec(row, "CompletionPercent"), V(row, "Status", "Active")), ct);
+                wsCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Workstreams: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Tasks"))
+        {
+            try
+            {
+                await _work.UpsertTaskAsync(new(projectId, V(row, "Key"), V(row, "Name"), V(row, "WorkstreamKey"), Dec(row, "EstimateHours"), Dec(row, "RemainingHours"), Date(row, "PlannedStart"), Date(row, "Due"), Dec(row, "CompletionPercent"), V(row, "Status", "Planned"), V(row, "Priority", "Medium"), Null(V(row, "OwnerLabel")), Null(V(row, "ExternalReference"))), ct);
+                taskCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Tasks: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Milestones"))
+        {
+            try
+            {
+                var state = Enum.TryParse<MilestoneState>(V(row, "State", "Planned"), true, out var parsed) ? parsed : MilestoneState.Planned;
+                await _milestones.UpsertAsync(new(projectId, V(row, "Key"), V(row, "Name"), Date(row, "PlannedStart"), Date(row, "Due"), (int)Dec(row, "DurationDays", 1m), Dec(row, "CompletionPercent"), state, Null(V(row, "ExternalReference"))), ct);
+                milestoneCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Milestones: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Blockers"))
+        {
+            try
+            {
+                await _work.UpsertBlockerAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Reason"), V(row, "Severity", "Medium"), Date(row, "OpenedAt", _clock.UtcNow), V(row, "Status", "Open"), Split(row, "BlockedTasks"), Split(row, "BlockedWorkstreams"), Split(row, "BlockedMilestones")), ct);
+                blockerCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Blockers: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Requirements"))
+        {
+            try
+            {
+                await _work.UpsertRequirementAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Priority", "Medium"), V(row, "Status", "Planned"), V(row, "ScopeState", "Included"), Dec(row, "CompletionPercent"), Null(V(row, "AcceptanceSummary")), Null(V(row, "ExternalReference"))), ct);
+                reqCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Requirements: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Dependencies"))
+        {
+            try
+            {
+                var relation = V(row, "Relation", "Blocks");
+                var sourceType = V(row, "SourceType");
+                var targetType = V(row, "TargetType");
+                if (relation.Equals("ScheduledFor", StringComparison.OrdinalIgnoreCase) && sourceType.Equals("Task", StringComparison.OrdinalIgnoreCase) && targetType.Equals("Milestone", StringComparison.OrdinalIgnoreCase)) await _work.LinkTaskToMilestoneAsync(new(projectId, V(row, "SourceKey"), V(row, "TargetKey")), ct);
+                else if (relation.Equals("Satisfies", StringComparison.OrdinalIgnoreCase) && targetType.Equals("Requirement", StringComparison.OrdinalIgnoreCase)) await _work.LinkRequirementAsync(new(projectId, V(row, "TargetKey"), sourceType, V(row, "SourceKey")), ct);
+                else await _work.LinkDependencyAsync(new(projectId, sourceType, V(row, "SourceKey"), targetType, V(row, "TargetKey"), V(row, "Critical", "No").Equals("Yes", StringComparison.OrdinalIgnoreCase)), ct);
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Dependencies: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "ScopeBaselines"))
+        {
+            try
+            {
+                var key = V(row, "Key");
+                if (!string.IsNullOrWhiteSpace(key)) await _work.CreateScopeBaselineAsync(new(projectId, key, V(row, "Name", key), Date(row, "CapturedAt", _clock.UtcNow)), ct);
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("ScopeBaselines: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Risks"))
+        {
+            try
+            {
+                await _work.UpsertRiskAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Description"), Dec(row, "ProbabilityPercent"), Dec(row, "ImpactPercent"), V(row, "Status", "Open"), V(row, "Category", "Delivery"), Null(V(row, "OwnerRole")), NullableDate(row, "ReviewDue"), Null(V(row, "Trigger")), Null(V(row, "Mitigation")), ParseReferences(V(row, "AffectedItems"))), ct);
+                riskCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Risks: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Decisions"))
+        {
+            try
+            {
+                await _work.UpsertManagementDecisionAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Decision"), V(row, "Rationale"), V(row, "Status", "Proposed"), Null(V(row, "DecisionOwnerRole")), NullableDate(row, "DecisionDue"), NullableDate(row, "DecidedAt"), ParseReferences(V(row, "RelatedItems"))), ct);
+                decisionCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Decisions: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "Actions"))
+        {
+            try
+            {
+                ManagementReference? target = null;
+                var targetType = V(row, "TargetType");
+                var targetKey = V(row, "TargetKey");
+                if (!string.IsNullOrWhiteSpace(targetType) && !string.IsNullOrWhiteSpace(targetKey)) target = new(targetType, targetKey);
+                await _work.UpsertActionItemAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Status", "Open"), V(row, "Priority", "Medium"), Null(V(row, "OwnerRole")), NullableDate(row, "Due"), Dec(row, "CompletionPercent"), Null(V(row, "DecisionKey")), target), ct);
+                actionCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("Actions: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "ChangeRequests"))
+        {
+            try
+            {
+                await _work.UpsertChangeRequestAsync(new(projectId, V(row, "Key"), V(row, "Title"), V(row, "Description"), V(row, "Status", "Proposed"), V(row, "Priority", "Medium"), Null(V(row, "RequestedByRole")), NullableDate(row, "RequestedAt"), Dec(row, "EngineeringHoursDelta"), Dec(row, "ArtHoursDelta"), Dec(row, "QaHoursDelta"), (int)Dec(row, "ScheduleDaysDelta"), Dec(row, "RiskDeltaPercent"), Split(row, "RequirementKeys"), Split(row, "WorkstreamKeys"), Null(V(row, "DecisionKey"))), ct);
+                changeCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("ChangeRequests: " + ex.Message);
+            }
+        }
+        foreach (var row in Data(tables, "ResourceAllocations"))
+        {
+            try
+            {
+                await _work.UpsertResourceAllocationAsync(new(projectId, V(row, "Key"), V(row, "ToWorkstreamKey"), Dec(row, "CapacityHoursPerWeek"), Date(row, "Start"), Date(row, "End"), V(row, "Status", "Proposed"), Null(V(row, "FromWorkstreamKey")), Null(V(row, "Rationale")), Null(V(row, "DecisionKey"))), ct);
+                allocationCount++;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add("ResourceAllocations: " + ex.Message);
+            }
+        }
         return new(teamCount, wsCount, taskCount, milestoneCount, blockerCount, reqCount, riskCount, decisionCount, actionCount, changeCount, allocationCount, warnings.Take(100).ToArray());
     }
 
     private static SpreadsheetSheetDto BuildWorkloadSheet(CapacityOverviewDto capacity)
     {
         var starts = capacity.Teams.SelectMany(x => x.Weekly).Select(x => x.WeekStartUtc).Concat(capacity.Workstreams.SelectMany(x => x.Weekly).Select(x => x.WeekStartUtc)).Distinct().OrderBy(x => x).ToArray();
-         var headers = new List<string> { "Level", "Key", "Name" };
-         headers.AddRange(starts.Select(x => x.ToString("MM-dd", CultureInfo.InvariantCulture)));
-         var rows = new List<IReadOnlyList<string>>();
-        foreach (var t in capacity.Teams) { var row = new List<string> { "Team", t.Key, t.Name };
-         row.AddRange(starts.Select(s => F(t.Weekly.FirstOrDefault(w => w.WeekStartUtc == s)?.UtilizationPercent ?? 0m)));
-         rows.Add(row);
-         }
-        foreach (var w in capacity.Workstreams) { var row = new List<string> { "Workstream", w.Key, w.Name };
-         row.AddRange(starts.Select(s => F(w.Weekly.FirstOrDefault(b => b.WeekStartUtc == s)?.UtilizationPercent ?? 0m)));
-         rows.Add(row);
-         }
+        var headers = new List<string> { "Level", "Key", "Name" };
+        headers.AddRange(starts.Select(x => x.ToString("MM-dd", CultureInfo.InvariantCulture)));
+        var rows = new List<IReadOnlyList<string>>();
+        foreach (var t in capacity.Teams)
+        {
+            var row = new List<string> { "Team", t.Key, t.Name };
+            row.AddRange(starts.Select(s => F(t.Weekly.FirstOrDefault(w => w.WeekStartUtc == s)?.UtilizationPercent ?? 0m)));
+            rows.Add(row);
+        }
+        foreach (var w in capacity.Workstreams)
+        {
+            var row = new List<string> { "Workstream", w.Key, w.Name };
+            row.AddRange(starts.Select(s => F(w.Weekly.FirstOrDefault(b => b.WeekStartUtc == s)?.UtilizationPercent ?? 0m)));
+            rows.Add(row);
+        }
         return Sheet("Workload", headers, rows);
     }
 
@@ -362,47 +474,63 @@ public sealed class ManagementSpreadsheetService
     {
         if (schedule.Items.Count == 0) return Sheet("Gantt", ["Type", "Key", "Name"], []);
         var start = StartOfWeek(schedule.Items.Min(x => x.PlannedStartUtc));
-         var end = schedule.Items.Max(x => x.ForecastFinishUtc);
-         var weeks = Math.Clamp((int)Math.Ceiling(Math.Max(1d, (end - start).TotalDays) / 7d), 1, 26);
-         var headers = new List<string> { "Type", "Key", "Name" };
+        var end = schedule.Items.Max(x => x.ForecastFinishUtc);
+        var weeks = Math.Clamp((int)Math.Ceiling(Math.Max(1d, (end - start).TotalDays) / 7d), 1, 26);
+        var headers = new List<string> { "Type", "Key", "Name" };
         for (var i = 0;
          i < weeks;
          i++) headers.Add(start.AddDays(i * 7).ToString("MM-dd", CultureInfo.InvariantCulture));
-         var rows = new List<IReadOnlyList<string>>();
-        foreach (var item in schedule.Items.OrderBy(x => x.PlannedStartUtc).ThenBy(x => x.Name)) { var row = new List<string> { item.Type, item.Key, item.Name };
-        for (var i = 0;
-         i < weeks;
-         i++) { var ws = start.AddDays(i * 7);
-         var we = ws.AddDays(7);
-         row.Add(item.PlannedStartUtc < we && item.ForecastFinishUtc >= ws ? (item.IsCritical ? "CRITICAL" : "■") : "");
-         } rows.Add(row);
-         }
+        var rows = new List<IReadOnlyList<string>>();
+        foreach (var item in schedule.Items.OrderBy(x => x.PlannedStartUtc).ThenBy(x => x.Name))
+        {
+            var row = new List<string> { item.Type, item.Key, item.Name };
+            for (var i = 0;
+             i < weeks;
+             i++)
+            {
+                var ws = start.AddDays(i * 7);
+                var we = ws.AddDays(7);
+                row.Add(item.PlannedStartUtc < we && item.ForecastFinishUtc >= ws ? (item.IsCritical ? "CRITICAL" : "■") : "");
+            }
+            rows.Add(row);
+        }
         return Sheet("Gantt", headers, rows);
     }
-    private static DateTimeOffset StartOfWeek(DateTimeOffset value) { var d = value.UtcDateTime.Date;
-     var offset = ((int)d.DayOfWeek + 6) % 7;
-     return new DateTimeOffset(d.AddDays(-offset), TimeSpan.Zero);
-     }
+    private static DateTimeOffset StartOfWeek(DateTimeOffset value)
+    {
+        var d = value.UtcDateTime.Date;
+        var offset = ((int)d.DayOfWeek + 6) % 7;
+        return new DateTimeOffset(d.AddDays(-offset), TimeSpan.Zero);
+    }
     private static SpreadsheetSheetDto Sheet(string name, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows, bool editable = false) => new(name, headers, rows, editable);
-    private static IEnumerable<IReadOnlyDictionary<string, string>> Data(IReadOnlyDictionary<string, IReadOnlyList<IReadOnlyList<string>>> tables, string name) { if (!tables.TryGetValue(name, out var rows) || rows.Count < 2) return [];
-     var headers = rows[0].Select(x => x.Trim()).ToArray();
-     return rows.Skip(1).Where(r => r.Any(x => !string.IsNullOrWhiteSpace(x))).Select(r => (IReadOnlyDictionary<string, string>)headers.Select((h, i) => (h, v: i < r.Count ? r[i] : "")).Where(x => !string.IsNullOrWhiteSpace(x.h)).ToDictionary(x => x.h, x => x.v, StringComparer.OrdinalIgnoreCase)).ToArray();
-     }
+    private static IEnumerable<IReadOnlyDictionary<string, string>> Data(IReadOnlyDictionary<string, IReadOnlyList<IReadOnlyList<string>>> tables, string name)
+    {
+        if (!tables.TryGetValue(name, out var rows) || rows.Count < 2) return [];
+        var headers = rows[0].Select(x => x.Trim()).ToArray();
+        return rows.Skip(1).Where(r => r.Any(x => !string.IsNullOrWhiteSpace(x))).Select(r => (IReadOnlyDictionary<string, string>)headers.Select((h, i) => (h, v: i < r.Count ? r[i] : "")).Where(x => !string.IsNullOrWhiteSpace(x.h)).ToDictionary(x => x.h, x => x.v, StringComparer.OrdinalIgnoreCase)).ToArray();
+    }
     private static string V(IReadOnlyDictionary<string, string> row, string key, string fallback = "") => row.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : fallback;
     private static decimal Dec(IReadOnlyDictionary<string, string> row, string key, decimal fallback = 0m) => decimal.TryParse(V(row, key), NumberStyles.Any, CultureInfo.InvariantCulture, out var x) ? x : decimal.TryParse(V(row, key), NumberStyles.Any, CultureInfo.CurrentCulture, out x) ? x : fallback;
     private static DateTimeOffset Date(IReadOnlyDictionary<string, string> row, string key) => Date(row, key, DateTimeOffset.UtcNow);
     private static DateTimeOffset Date(IReadOnlyDictionary<string, string> row, string key, DateTimeOffset fallback) => DateTimeOffset.TryParse(V(row, key), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var x) ? x : DateTimeOffset.TryParse(V(row, key), out x) ? x : fallback;
     private static DateTimeOffset? NullableDate(IReadOnlyDictionary<string, string> row, string key) => DateTimeOffset.TryParse(V(row, key), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var x) ? x : DateTimeOffset.TryParse(V(row, key), out x) ? x : null;
     private static IReadOnlyList<ManagementReference> ParseReferences(string value) => value.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => x.Split(':', 2, StringSplitOptions.TrimEntries)).Where(x => x.Length == 2 && !string.IsNullOrWhiteSpace(x[0]) && !string.IsNullOrWhiteSpace(x[1])).Select(x => new ManagementReference(x[0], x[1])).ToArray();
-    private static ManagementReference? ReadReference(Dip.Domain.Entities.DevelopmentGraphNode node, string name) { try { using var d = System.Text.Json.JsonDocument.Parse(node.MetadataJson);
-    if (!d.RootElement.TryGetProperty(name, out var v) || v.ValueKind != System.Text.Json.JsonValueKind.Object) return null;
-    if (!v.TryGetProperty("Type", out var t) || !v.TryGetProperty("Key", out var k)) return null;
-     var type = t.GetString();
-     var key = k.GetString();
-     return string.IsNullOrWhiteSpace(type) || string.IsNullOrWhiteSpace(key) ? null : new(type, key);
-     }
-    catch { return null;
-     } }
+    private static ManagementReference? ReadReference(Dip.Domain.Entities.DevelopmentGraphNode node, string name)
+    {
+        try
+        {
+            using var d = System.Text.Json.JsonDocument.Parse(node.MetadataJson);
+            if (!d.RootElement.TryGetProperty(name, out var v) || v.ValueKind != System.Text.Json.JsonValueKind.Object) return null;
+            if (!v.TryGetProperty("Type", out var t) || !v.TryGetProperty("Key", out var k)) return null;
+            var type = t.GetString();
+            var key = k.GetString();
+            return string.IsNullOrWhiteSpace(type) || string.IsNullOrWhiteSpace(key) ? null : new(type, key);
+        }
+        catch
+        {
+            return null;
+        }
+    }
     private static string[] Split(IReadOnlyDictionary<string, string> row, string key) => V(row, key).Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     private static string? Null(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
     private static string F(decimal x) => x.ToString("0.##", CultureInfo.InvariantCulture);

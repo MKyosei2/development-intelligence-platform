@@ -59,7 +59,8 @@ public sealed class DevelopmentGraphNode
                 if (pair.Key.Equals(name, StringComparison.OrdinalIgnoreCase))
                     return pair.Value?.GetValue<string>();
         }
-        catch {
+        catch
+        {
             // Intentionally ignored to preserve the existing best-effort or fallback behavior.
         }
         return null;

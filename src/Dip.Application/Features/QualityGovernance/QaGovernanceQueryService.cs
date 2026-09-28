@@ -13,19 +13,19 @@ public sealed class QaGovernanceQueryService(QaGovernanceCoreEngine core, IQaGov
     public async Task<QaGovernanceOverviewDto> GetOverviewAsync(Guid projectId, CancellationToken ct)
     {
         var value = await core.GetOverviewAsync(projectId, ct);
-         var overrides = await repo.ListReleaseOverridesAsync(projectId, 50, ct);
-         var now = clock.UtcNow;
-         var active = overrides.FirstOrDefault(x => x.IsEffective(now));
+        var overrides = await repo.ListReleaseOverridesAsync(projectId, 50, ct);
+        var now = clock.UtcNow;
+        var active = overrides.FirstOrDefault(x => x.IsEffective(now));
         return active is null ? value : value with { GateVerdict = "OverrideApproved", GateSummary = $"TEMPORARY GO override approved by {active.ApprovedBy}; expires {active.ExpiresAtUtc:O}. Original gate: {value.GateVerdict}. {value.GateSummary}" };
     }
     public async Task<PageResult<QaFindingStateDto>> FindFindingsAsync(Guid projectId, string? cursor, int pageSize, CancellationToken ct)
     {
         pageSize = Math.Clamp(pageSize, 1, 500);
-         var decoded = DecodeCursor(cursor);
-         var rows = await repo.ListFindingStatesPageAsync(projectId, decoded?.At, decoded?.Fingerprint, pageSize + 1, ct);
-         var page = rows.Take(pageSize).Select(Map).ToArray();
-         var next = rows.Count > pageSize ? EncodeCursor(rows[pageSize - 1].LastSeenAtUtc, rows[pageSize - 1].Fingerprint) : null;
-         return new(page, next, pageSize);
+        var decoded = DecodeCursor(cursor);
+        var rows = await repo.ListFindingStatesPageAsync(projectId, decoded?.At, decoded?.Fingerprint, pageSize + 1, ct);
+        var page = rows.Take(pageSize).Select(Map).ToArray();
+        var next = rows.Count > pageSize ? EncodeCursor(rows[pageSize - 1].LastSeenAtUtc, rows[pageSize - 1].Fingerprint) : null;
+        return new(page, next, pageSize);
     }
     public async Task<IReadOnlyList<QaWaiverDto>> ListWaiversAsync(Guid p, CancellationToken ct) { var now = clock.UtcNow; return (await repo.ListWaiversAsync(p, ct)).Select(x => Map(x, now)).ToArray(); }
     public async Task<IReadOnlyList<QaReliabilityDto>> ListReliabilityAsync(Guid p, int take, CancellationToken ct) => (await repo.ListReliabilityAsync(p, take, ct)).Select(x => new QaReliabilityDto(x.Id, x.ProjectId, x.TestKey, x.PassCount, x.FailCount, x.ConsecutivePasses, x.ConsecutiveFailures, x.Classification, x.LastCommitSha, x.FirstObservedAtUtc, x.LastObservedAtUtc, x.FailureRatePercent)).ToArray();
@@ -53,14 +53,21 @@ public sealed class QaGovernanceQueryService(QaGovernanceCoreEngine core, IQaGov
     private static QaPolicyDto Map(QaPolicy x) => new(x.Id, x.ProjectId, x.Name, x.Version, x.RulesJson, x.LifecycleStatus, x.Revision, x.SupersedesPolicyId, x.ApprovedBy, x.ActivatedBy, x.CreatedAtUtc, x.UpdatedAtUtc, x.ApprovedAtUtc, x.ActivatedAtUtc, x.ConcurrencyVersion);
     private static QaReleaseGateOverrideDto Map(QaReleaseGateOverride x, DateTimeOffset now) => new(x.Id, x.ProjectId, x.PolicyEvaluationId, x.QaRunId, x.CommitSha, x.Reason, x.RequestedBy, x.Status == QaReleaseOverrideStatus.Approved && x.ExpiresAtUtc <= now ? QaReleaseOverrideStatus.Expired : x.Status, x.ApprovedBy, x.DecisionReason, x.CreatedAtUtc, x.UpdatedAtUtc, x.ExpiresAtUtc, x.DecidedAtUtc, x.Version);
     private static string EncodeCursor(DateTimeOffset at, string fingerprint) => Convert.ToBase64String(Encoding.UTF8.GetBytes($"{at.UtcDateTime.Ticks}|{Convert.ToBase64String(Encoding.UTF8.GetBytes(fingerprint))}"));
-    private static (DateTimeOffset At, string Fingerprint)? DecodeCursor(string? cursor) { if (string.IsNullOrWhiteSpace(cursor)) return null;
-     try { var raw = Encoding.UTF8.GetString(Convert.FromBase64String(cursor));
-     var split = raw.IndexOf('|');
-    if (split <= 0 || !long.TryParse(raw[..split], out var ticks)) throw new FormatException();
-     var fingerprint = Encoding.UTF8.GetString(Convert.FromBase64String(raw[(split + 1)..]));
-    if (string.IsNullOrWhiteSpace(fingerprint)) throw new FormatException();
-     return (new DateTimeOffset(ticks, TimeSpan.Zero), fingerprint);
-     }
-    catch (Exception ex) when (ex is FormatException or ArgumentException) { throw new ArgumentException("Invalid pagination cursor.", nameof(cursor));
-     } }
+    private static (DateTimeOffset At, string Fingerprint)? DecodeCursor(string? cursor)
+    {
+        if (string.IsNullOrWhiteSpace(cursor)) return null;
+        try
+        {
+            var raw = Encoding.UTF8.GetString(Convert.FromBase64String(cursor));
+            var split = raw.IndexOf('|');
+            if (split <= 0 || !long.TryParse(raw[..split], out var ticks)) throw new FormatException();
+            var fingerprint = Encoding.UTF8.GetString(Convert.FromBase64String(raw[(split + 1)..]));
+            if (string.IsNullOrWhiteSpace(fingerprint)) throw new FormatException();
+            return (new DateTimeOffset(ticks, TimeSpan.Zero), fingerprint);
+        }
+        catch (Exception ex) when (ex is FormatException or ArgumentException)
+        {
+            throw new ArgumentException("Invalid pagination cursor.", nameof(cursor));
+        }
+    }
 }

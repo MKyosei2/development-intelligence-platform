@@ -47,9 +47,14 @@ public sealed class QaBugMinimizer(ProcessExecutor executor, UniversalDiagnostic
         }
         catch (OperationCanceledException) { return await StoreAsync(QaMinimizationStatus.Cancelled, original, current, "Minimization was cancelled; no source file was modified.", command, finding, CancellationToken.None); }
         catch (Exception ex) { return await StoreAsync(QaMinimizationStatus.InfrastructureFailure, original, current, $"Minimizer infrastructure failure: {ex.Message}", command, finding, CancellationToken.None); }
-        finally { try { Directory.Delete(temp, true); } catch {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-        } }
+        finally
+        {
+            try { Directory.Delete(temp, true); }
+            catch
+            {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+        }
     }
     private async Task<bool> ReproducesAsync(string exe, IReadOnlyList<string> args, string workspace, string temp, QaFinding target, int timeout, CancellationToken ct)
     {

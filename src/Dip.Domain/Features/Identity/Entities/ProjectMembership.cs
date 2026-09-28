@@ -27,8 +27,10 @@ public sealed class ProjectMembership
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset UpdatedAtUtc { get; private set; }
     public void ChangeRole(ProjectMembershipRole role, string actor, DateTimeOffset now) { Role = role; GrantedBy = Required(actor, 200); UpdatedAtUtc = now; }
-    private static string Required(string? value, int max) { var v = value?.Trim() ?? string.Empty;
-    if (v.Length is < 1 || v.Length > max) throw new ArgumentException($"Text must be 1-{max} characters.");
-     return v;
-     }
+    private static string Required(string? value, int max)
+    {
+        var v = value?.Trim() ?? string.Empty;
+        if (v.Length is < 1 || v.Length > max) throw new ArgumentException($"Text must be 1-{max} characters.");
+        return v;
+    }
 }

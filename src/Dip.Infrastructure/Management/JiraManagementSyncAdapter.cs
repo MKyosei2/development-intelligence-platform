@@ -175,11 +175,13 @@ public sealed class JiraManagementSyncAdapter : IManagementSyncAdapter, IDisposa
 
     private static string ProjectLabel(Guid projectId) => $"dip-project-{projectId:N}";
     private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) || value.Equals("Unassigned", StringComparison.OrdinalIgnoreCase) ? null : value.Trim();
-    private static (string Key, string Title) ParseSummary(string summary, string fallback) { if (!summary.StartsWith("[DIP:", StringComparison.OrdinalIgnoreCase)) return ($"jira-{fallback}", summary);
-     var end = summary.IndexOf(']');
-    if (end < 6) return ($"jira-{fallback}", summary);
-     return (summary[5..end], summary[(end + 1)..].Trim());
-     }
+    private static (string Key, string Title) ParseSummary(string summary, string fallback)
+    {
+        if (!summary.StartsWith("[DIP:", StringComparison.OrdinalIgnoreCase)) return ($"jira-{fallback}", summary);
+        var end = summary.IndexOf(']');
+        if (end < 6) return ($"jira-{fallback}", summary);
+        return (summary[5..end], summary[(end + 1)..].Trim());
+    }
     private static string SafeKey(string value)
     {
         var safe = SafeField(value).Replace("]", "", StringComparison.Ordinal).Replace("[", "", StringComparison.Ordinal);

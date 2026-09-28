@@ -82,7 +82,8 @@ public sealed class GameReplayExecutor(ProcessExecutor process, IOptions<GameRep
                     var unit = root.GetProperty("unit").GetString();
                     if (name is not null && unit is not null && root.GetProperty("value").TryGetDecimal(out var value)) result.Add(new(name, value, unit));
                 }
-                catch (JsonException) {
+                catch (JsonException)
+                {
                     // Intentionally ignored to preserve the existing best-effort or fallback behavior.
                 }
             }

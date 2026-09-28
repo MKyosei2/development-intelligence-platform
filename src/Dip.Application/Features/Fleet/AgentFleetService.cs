@@ -33,28 +33,33 @@ public sealed class AgentFleetService(IEnterpriseFleetRepository repo, IUnitOfWo
     {
         var agent = await repo.FindAgentAsync(c.AgentId, ct) ?? throw new KeyNotFoundException("Agent not registered.");
         if (agent.Status == AgentFleetStatus.Revoked) throw new UnauthorizedAccessException("Agent revoked.");
-         agent.Heartbeat(c.Version, c.PolicyVersion, c.HealthJson, clock.UtcNow);
-         await uow.SaveChangesAsync(ct);
+        agent.Heartbeat(c.Version, c.PolicyVersion, c.HealthJson, clock.UtcNow);
+        await uow.SaveChangesAsync(ct);
     }
     public Task<IReadOnlyList<AgentRegistration>> ListAsync(Guid organizationId, CancellationToken ct) => repo.ListAgentsAsync(organizationId, ct);
     public async Task<AgentRelease> CreateReleaseAsync(Guid organizationId, string version, AgentReleaseChannel channel, string packageUri, string sha256, string signature, string minimumServerVersion, int rolloutPercent, CancellationToken ct)
-    { var item = new AgentRelease(Guid.NewGuid(), organizationId, version, channel, packageUri, sha256, signature, minimumServerVersion, rolloutPercent, clock.UtcNow);
-     await repo.AddReleaseAsync(item, ct);
-     await uow.SaveChangesAsync(ct);
-     return item;
-     }
-    public async Task ActivateReleaseAsync(Guid releaseId, int rolloutPercent, CancellationToken ct) { var item = await repo.GetReleaseAsync(releaseId, ct) ?? throw new KeyNotFoundException("Release not found.");
-     item.Activate(rolloutPercent, clock.UtcNow);
-     await uow.SaveChangesAsync(ct);
-     }
+    {
+        var item = new AgentRelease(Guid.NewGuid(), organizationId, version, channel, packageUri, sha256, signature, minimumServerVersion, rolloutPercent, clock.UtcNow);
+        await repo.AddReleaseAsync(item, ct);
+        await uow.SaveChangesAsync(ct);
+        return item;
+    }
+    public async Task ActivateReleaseAsync(Guid releaseId, int rolloutPercent, CancellationToken ct)
+    {
+        var item = await repo.GetReleaseAsync(releaseId, ct) ?? throw new KeyNotFoundException("Release not found.");
+        item.Activate(rolloutPercent, clock.UtcNow);
+        await uow.SaveChangesAsync(ct);
+    }
     public async Task<AgentUpdateDecision> GetUpdateAsync(string agentId, AgentReleaseChannel channel, CancellationToken ct)
     {
         var agent = await repo.FindAgentAsync(agentId, ct) ?? throw new KeyNotFoundException("Agent not found."); var releases = (await repo.ListReleasesAsync(agent.OrganizationId, ct)).Where(x => x.Channel == channel && x.State == AgentRolloutState.Active).OrderByDescending(x => x.CreatedAtUtc).ToArray();
-        foreach (var release in releases) { var bucket = StableBucket(agent.AgentId, release.Id);
-        if (bucket >= release.RolloutPercent) continue;
-        if (string.Equals(agent.Version, release.Version, StringComparison.OrdinalIgnoreCase)) continue;
-         return new(true, release.Version, release.PackageUri, release.Sha256, release.Signature, release.MinimumServerVersion);
-         }
+        foreach (var release in releases)
+        {
+            var bucket = StableBucket(agent.AgentId, release.Id);
+            if (bucket >= release.RolloutPercent) continue;
+            if (string.Equals(agent.Version, release.Version, StringComparison.OrdinalIgnoreCase)) continue;
+            return new(true, release.Version, release.PackageUri, release.Sha256, release.Signature, release.MinimumServerVersion);
+        }
         return new(false, null, null, null, null, null);
     }
     private static int StableBucket(string agentId, Guid releaseId) { var b = SHA256.HashData(Encoding.UTF8.GetBytes(agentId + releaseId.ToString("N"))); return BitConverter.ToUInt16(b, 0) % 100; }

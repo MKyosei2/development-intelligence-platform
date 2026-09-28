@@ -44,9 +44,14 @@ public sealed class MinioArtifactStore : IArtifactStore, IDisposable
             }
             return new(key, hash, size, string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType.Trim());
         }
-        finally { try { File.Delete(temp); } catch (IOException) {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-        } }
+        finally
+        {
+            try { File.Delete(temp); }
+            catch (IOException)
+            {
+                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            }
+        }
     }
     public async Task<Stream> OpenReadAsync(string storageKey, CancellationToken ct)
     {
@@ -85,8 +90,8 @@ public sealed class MinioArtifactStore : IArtifactStore, IDisposable
     private async Task<HttpResponseMessage> SendRawAsync(HttpMethod method, string? key, Stream? body, string payloadHash, string contentType, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
-         var amzDate = now.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
-         var date = now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        var amzDate = now.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+        var date = now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var endpoint = new Uri(_o.Endpoint.TrimEnd('/') + "/"); var path = "/" + Escape(_o.Bucket) + (string.IsNullOrEmpty(key) ? string.Empty : "/" + string.Join('/', key.Split('/').Select(Escape)));
         var uri = new Uri(endpoint, path);
         var host = uri.IsDefaultPort ? uri.Host : $"{uri.Host}:{uri.Port}";

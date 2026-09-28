@@ -13,25 +13,31 @@ public sealed class ArtifactRecord
         Id = id == Guid.Empty ? Guid.NewGuid() : id; ProjectId = projectId; ArtifactBlobId = artifactBlobId;
         Kind = Required(kind, 120, nameof(kind)); FileName = Required(fileName, 500, nameof(fileName)); RetentionClass = Required(retentionClass, 40, nameof(retentionClass));
         JobId = jobId;
-         QaRunId = qaRunId;
-         IncidentId = incidentId;
-         BenchmarkRunId = benchmarkRunId;
-         GameReplayRunId = gameReplayRunId;
-         CreatedAtUtc = createdAtUtc;
-         ExpiresAtUtc = expiresAtUtc;
+        QaRunId = qaRunId;
+        IncidentId = incidentId;
+        BenchmarkRunId = benchmarkRunId;
+        GameReplayRunId = gameReplayRunId;
+        CreatedAtUtc = createdAtUtc;
+        ExpiresAtUtc = expiresAtUtc;
     }
     public Guid Id { get; private set; }
     public Guid ProjectId { get; private set; }
     public Guid ArtifactBlobId { get; private set; }
-    public string Kind { get;
-     private set;
-     } = string.Empty;
-     public string FileName { get;
-     private set;
-     } = string.Empty;
-     public string RetentionClass { get;
-     private set;
-     } = string.Empty;
+    public string Kind
+    {
+        get;
+        private set;
+    } = string.Empty;
+    public string FileName
+    {
+        get;
+        private set;
+    } = string.Empty;
+    public string RetentionClass
+    {
+        get;
+        private set;
+    } = string.Empty;
     public Guid? JobId
     {
         get;

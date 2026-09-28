@@ -46,7 +46,7 @@ public sealed class JenkinsCiConnector : IExternalCiConnector
         {
             if (!action.TryGetProperty("parameters", out var ps) || ps.ValueKind != JsonValueKind.Array) continue;
             foreach (var p in ps.EnumerateArray())
-            if (string.Equals(GetString(p, "name"), name, StringComparison.OrdinalIgnoreCase) && p.TryGetProperty("value", out var value)) return value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
+                if (string.Equals(GetString(p, "name"), name, StringComparison.OrdinalIgnoreCase) && p.TryGetProperty("value", out var value)) return value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
         }
         return null;
     }

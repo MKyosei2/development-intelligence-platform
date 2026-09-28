@@ -1,4 +1,4 @@
-# Purpose: Verifies Project Control source wiring and its .NET test surface after domain feature reorganization.
+# Purpose: Verifies Project Control source wiring and its .NET test surface with fail-closed test evidence.
 [CmdletBinding()]
 param(
     [switch]$RunIntegration,
@@ -7,14 +7,24 @@ param(
 
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'Invoke-DotNetTestStrict.ps1')
+
 $out=Join-Path $root 'artifacts\project-control-verification'
-New-Item -ItemType Directory -Force -Path $out | Out-Null
+$testOut=Join-Path $out 'TestResults'
+New-Item -ItemType Directory -Force -Path $out,$testOut | Out-Null
+
 $pass=Join-Path $out 'PROJECT_CONTROL_SOURCE_VERIFICATION_PASS.txt'
 $fail=Join-Path $out 'PROJECT_CONTROL_SOURCE_VERIFICATION_FAIL.txt'
 Remove-Item -LiteralPath $pass,$fail -Force -ErrorAction SilentlyContinue
 
-function Invoke-Dotnet([string[]]$Arguments){& $script:dotnet @Arguments;if($LASTEXITCODE -ne 0){throw "dotnet $($Arguments -join ' ') failed with exit code $LASTEXITCODE"}}
+function Invoke-Dotnet([string[]]$Arguments){
+    & $script:dotnet @Arguments
+    if($LASTEXITCODE -ne 0){
+        throw "dotnet $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+    }
+}
 
 function Get-FreeTcpPort {
     $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
@@ -25,20 +35,35 @@ function Get-FreeTcpPort {
 
 function Invoke-LiveEndToEnd {
     $verifySolution=Join-Path $PSScriptRoot 'Verify-Solution.ps1'
-    if(-not(Test-Path -LiteralPath $verifySolution -PathType Leaf)){throw 'Verify-Solution.ps1 is missing.'}
+    if(-not(Test-Path -LiteralPath $verifySolution -PathType Leaf)){
+        throw 'Verify-Solution.ps1 is missing.'
+    }
+
     $hostName=if($env:POSTGRES_HOST){$env:POSTGRES_HOST}else{'127.0.0.1'}
     $port=if($env:POSTGRES_PORT){[int]$env:POSTGRES_PORT}else{5432}
     $user=if($env:POSTGRES_USER){$env:POSTGRES_USER}else{'dip'}
     $password=if($env:POSTGRES_PASSWORD){$env:POSTGRES_PASSWORD}else{'change-me-local-only'}
     $apiPort=Get-FreeTcpPort
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $verifySolution `
+
+    $engine = if (Get-Command powershell.exe -ErrorAction SilentlyContinue) {
+        'powershell.exe'
+    } elseif (Get-Command pwsh -ErrorAction SilentlyContinue) {
+        'pwsh'
+    } else {
+        throw 'PowerShell runtime is unavailable.'
+    }
+
+    & $engine -NoProfile -ExecutionPolicy Bypass -File $verifySolution `
         -Configuration Release `
         -PostgreSqlHost $hostName `
         -PostgreSqlPort $port `
         -PostgreSqlUser $user `
         -PostgreSqlPassword $password `
         -ApiPort $apiPort
-    if($LASTEXITCODE -ne 0){throw "Live end-to-end verification failed with exit code $LASTEXITCODE."}
+
+    if($LASTEXITCODE -ne 0){
+        throw "Live end-to-end verification failed with exit code $LASTEXITCODE."
+    }
 }
 
 try {
@@ -76,50 +101,77 @@ try {
         'src\Dip.Infrastructure\Spreadsheets\GoogleSheetsRestConnector.cs',
         'docs\03-operations\COMMERCIAL_PROJECT_MANAGEMENT_AND_BRANCH_QA.md'
     )
-    foreach($relative in $required){if(-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)){throw "Missing Project Control source file: $relative"}}
+
+    foreach($relative in $required){
+        if(-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)){
+            throw "Missing Project Control source file: $relative"
+        }
+    }
 
     $script:dotnet=(Get-Command dotnet -ErrorAction Stop).Source
     $version=& $script:dotnet --version
-    if($LASTEXITCODE -ne 0 -or -not $version.StartsWith('8.')){throw ".NET 8 SDK is required. Detected: $version"}
+
+    if($LASTEXITCODE -ne 0 -or -not $version.StartsWith('8.')){
+        throw ".NET 8 SDK is required. Detected: $version"
+    }
 
     Push-Location $root
     try {
         Invoke-Dotnet @('restore','.\DevelopmentIntelligencePlatform.sln')
         Invoke-Dotnet @('build','.\DevelopmentIntelligencePlatform.sln','--configuration','Release','--no-restore')
-        Invoke-Dotnet @('test','.\tests\Dip.Domain.Tests\Dip.Domain.Tests.csproj','--configuration','Release','--no-build')
-        Invoke-Dotnet @('test','.\tests\Dip.Application.Tests\Dip.Application.Tests.csproj','--configuration','Release','--no-build')
-        Invoke-Dotnet @('test','.\tests\Dip.Infrastructure.Tests\Dip.Infrastructure.Tests.csproj','--configuration','Release','--no-build')
-        if($RunIntegration){Invoke-Dotnet @('test','.\tests\Dip.IntegrationTests\Dip.IntegrationTests.csproj','--configuration','Release','--no-build')}
-        if($RunEndToEnd){Invoke-LiveEndToEnd}
+
+        foreach($entry in @(
+            @('.\tests\Dip.Domain.Tests\Dip.Domain.Tests.csproj','project-control-domain'),
+            @('.\tests\Dip.Application.Tests\Dip.Application.Tests.csproj','project-control-application'),
+            @('.\tests\Dip.Infrastructure.Tests\Dip.Infrastructure.Tests.csproj','project-control-infrastructure')
+        )){
+            Invoke-DipDotNetTestStrict `
+                -Project $entry[0] `
+                -Configuration Release `
+                -ResultsDirectory $testOut `
+                -Name $entry[1] `
+                -NoBuild `
+                -MinimumExecuted 1 |
+            Out-Null
+        }
+
+        if($RunIntegration){
+            Invoke-DipDotNetTestStrict `
+                -Project '.\tests\Dip.IntegrationTests\Dip.IntegrationTests.csproj' `
+                -Configuration Release `
+                -ResultsDirectory $testOut `
+                -Name 'project-control-integration' `
+                -NoBuild `
+                -MinimumExecuted 1 |
+            Out-Null
+        }
+
+        if($RunEndToEnd){
+            Invoke-LiveEndToEnd
+        }
     }
-    finally { Pop-Location }
+    finally {
+        Pop-Location
+    }
 
     @(
         'PROJECT_CONTROL_SOURCE_VERIFICATION=PASS',
         "DOTNET_SDK=$version",
+        'STRICT_TEST_GATE=PASS',
         'MIGRATION=202608120004_AddProjectControlGraph',
-        'QA_LANGUAGE_SCOPE=Universal LanguageId adapters; deep=Python,C++,C#',
-        'DEVELOPMENT_GRAPH=PASS',
-        'CHANGE_IMPACT=PASS',
-        'RELEASE_READINESS_INTEGRATION=PASS',
-        'MILESTONE_CRITICAL_PATH=PASS',
-        'TEST_IMPACT_GRAPH_BRIDGE=PASS',
-        'REVIEW_INTELLIGENCE=PASS',
-        'FEATURE_ACCEPTANCE_EVIDENCE=PASS',
-        'ASSET_INTELLIGENCE=PASS',
-        'CROSS_REPOSITORY_GRAPH_BRIDGE=PASS',
-        'DECISION_LOG_BRIEF=PASS',
-        'PERFORCE_CONNECTOR_SOURCE=PASS',
-        'WHAT_IF_SIMULATION=PASS',
-        'JENKINS_EXTERNAL_CI_SOURCE=PASS',
-        'MANAGEMENT_INTELLIGENCE=PASS',
         "INTEGRATION_EXECUTED=$([bool]$RunIntegration)",
         "E2E_EXECUTED=$([bool]$RunEndToEnd)",
         "UTC=$([DateTimeOffset]::UtcNow.ToString('O'))"
     ) | Set-Content -LiteralPath $pass -Encoding UTF8
+
     Write-Host "PASS: $pass" -ForegroundColor Green
 }
 catch {
-    @('PROJECT_CONTROL_SOURCE_VERIFICATION=FAIL',"ERROR=$($_.Exception.Message)","UTC=$([DateTimeOffset]::UtcNow.ToString('O'))") | Set-Content -LiteralPath $fail -Encoding UTF8
+    @(
+        'PROJECT_CONTROL_SOURCE_VERIFICATION=FAIL',
+        "ERROR=$($_.Exception.Message)",
+        "UTC=$([DateTimeOffset]::UtcNow.ToString('O'))"
+    ) | Set-Content -LiteralPath $fail -Encoding UTF8
+
     throw
 }

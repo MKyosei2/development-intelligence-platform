@@ -26,9 +26,11 @@ public sealed class ManifestQaAdapter(ProcessExecutor executor, UniversalDiagnos
             foreach (var file in files)
             {
                 var exe = ResolveExecutable(workspace, c.Executable);
-                if (exe is null) { tools.Add(new(c.Name, false, false, null, 0, "", "", $"{c.Executable} is unavailable."));
-                 continue;
-                 }
+                if (exe is null)
+                {
+                    tools.Add(new(c.Name, false, false, null, 0, "", "", $"{c.Executable} is unavailable."));
+                    continue;
+                }
                 var args = (c.Arguments ?? Array.Empty<string>()).Select(x => Expand(x, workspace, artifactRoot, file)).ToArray();
                 var result = await QaToolSupport.ExecuteAsync(executor, normalizer, c.Name, exe, args, workspace, artifactRoot, null, timeout, command.Language, SeverityFrom(c.Severity), string.IsNullOrWhiteSpace(c.Category) ? "diagnostic" : c.Category!, ct);
                 tools.Add(result.Tool);

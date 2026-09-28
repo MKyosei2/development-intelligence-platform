@@ -120,7 +120,8 @@ public sealed class MutationRunner : IMutationRunner
             {
                 await File.WriteAllTextAsync(source, original, CancellationToken.None);
             }
-            catch {
+            catch
+            {
                 // Intentionally ignored to preserve the existing best-effort or fallback behavior.
             }
         }

@@ -1,0 +1,172 @@
+name: development-intelligence-platform-verification
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dip_verify
+      POSTGRES_USER: dip
+      POSTGRES_PASSWORD: ${DIP_VERIFY_POSTGRES_PASSWORD:-dip-verification-password}
+    ports:
+      - "${DIP_VERIFY_POSTGRES_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dip -d dip_verify"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 5s
+    networks: [verification]
+
+  python-analysis:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/analysis.Dockerfile
+    environment:
+      APP_ENV: testing
+      LOG_LEVEL: INFO
+      API_KEY: verification-analysis-key
+    ports:
+      - "${DIP_VERIFY_ANALYSIS_PORT:-58100}:8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=3).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks: [verification]
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=dip_verify;Username=dip;Password=${DIP_VERIFY_POSTGRES_PASSWORD:-dip-verification-password}
+      AnalysisService__BaseUrl: http://python-analysis:8100
+      AnalysisService__ApiKey: verification-analysis-key
+      GitHub__WebhookSecret: verification-webhook-secret
+      GitHub__Token: verification-token
+      Authentication__RequireAuthenticatedUser: "false"
+      Qa__WorkspaceRoot: /data/dip-workspaces
+      Qa__ArtifactRoot: /data/dip-artifacts/qa
+      Artifacts__Provider: Local
+      Artifacts__LocalRoot: /data/dip-artifacts
+      SystemStatus__WorkerMetricsUrl: http://worker:9091/metrics
+      OpenTelemetry__OtlpEndpoint: ""
+    volumes:
+      - verify-artifacts:/data/dip-artifacts
+      - verify-workspaces:/data/dip-workspaces
+    ports:
+      - "${DIP_VERIFY_API_PORT:-55080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      python-analysis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 10s
+    networks: [verification]
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/worker.Dockerfile
+    environment:
+      DOTNET_ENVIRONMENT: Testing
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=dip_verify;Username=dip;Password=${DIP_VERIFY_POSTGRES_PASSWORD:-dip-verification-password}
+      AnalysisService__BaseUrl: http://python-analysis:8100
+      AnalysisService__ApiKey: verification-analysis-key
+      Qa__WorkspaceRoot: /data/dip-workspaces
+      Qa__ArtifactRoot: /data/dip-artifacts/qa
+      Artifacts__Provider: Local
+      Artifacts__LocalRoot: /data/dip-artifacts
+      OperationalMetrics__Port: 9091
+      OpenTelemetry__OtlpEndpoint: ""
+    volumes:
+      - verify-artifacts:/data/dip-artifacts
+      - verify-workspaces:/data/dip-workspaces
+    ports:
+      - "${DIP_VERIFY_WORKER_PORT:-59091}:9091"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [verification]
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://+:8080
+      Api__BaseUrl: http://api:8080/
+      Api__PublicBaseUrl: http://127.0.0.1:${DIP_VERIFY_API_PORT:-55080}/
+      Ui__PublicWebUrl: http://127.0.0.1:${DIP_VERIFY_WEB_PORT:-55081}
+      Ui__PublicApiUrl: http://127.0.0.1:${DIP_VERIFY_API_PORT:-55080}
+      Authentication__RequireAuthenticatedUser: "false"
+    ports:
+      - "${DIP_VERIFY_WEB_PORT:-55081}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [verification]
+
+  verifier:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/verification.Dockerfile
+    working_dir: /work
+    volumes:
+      - .:/work
+      - verify-nuget:/root/.nuget/packages
+    environment:
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=dip_verify;Username=dip;Password=${DIP_VERIFY_POSTGRES_PASSWORD:-dip-verification-password}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: dip_verify
+      POSTGRES_USER: dip
+      POSTGRES_PASSWORD: ${DIP_VERIFY_POSTGRES_PASSWORD:-dip-verification-password}
+      DIP_API_URL: http://api:8080
+      ASPNETCORE_ENVIRONMENT: Testing
+      DOTNET_ENVIRONMENT: Testing
+      Authentication__RequireAuthenticatedUser: "false"
+      GitHub__WebhookSecret: verification-webhook-secret
+      GitHub__Token: verification-token
+      Qa__WorkspaceRoot: /work
+      Qa__ArtifactRoot: /work/artifacts/qa
+      Artifacts__Provider: Local
+      Artifacts__LocalRoot: /work/artifacts/durable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [verification]
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.55.0-noble
+    working_dir: /work/tests/Dip.UiE2E
+    volumes:
+      - .:/work
+    environment:
+      DIP_WEB_BASE_URL: http://web:8080
+      DIP_API_BASE_URL: http://api:8080
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+    entrypoint: ["bash", "-lc"]
+    networks: [verification]
+
+volumes:
+  verify-artifacts:
+  verify-workspaces:
+  verify-nuget:
+
+networks:
+  verification:
+    driver: bridge
