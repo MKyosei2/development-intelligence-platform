@@ -50,8 +50,19 @@ public sealed partial class UniversalDiagnosticNormalizer
             list.Add(new("syntax", Severity.Critical, tool, $"{language} syntax error", match.Groups[1].Value.Trim(), match.Groups[2].Value, Int(match.Groups[3].Value), RuleId: tool));
         if (list.Count == 0 && text.Contains("SyntaxError", StringComparison.OrdinalIgnoreCase))
             list.Add(new("syntax", Severity.Critical, tool, $"{language} syntax error", Last(text), ExceptionType: "SyntaxError", StackTrace: Trim(text), RuleId: tool));
-        if (list.Count == 0 && text.Contains("syntax error", StringComparison.OrdinalIgnoreCase))
-            list.Add(new("syntax", Severity.Critical, tool, $"{language} syntax error", LastContaining(text, "syntax error"), StackTrace: Trim(text), RuleId: tool));
+
+        if (list.Count == 0)
+        {
+            var syntaxErrorLine = text
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                .LastOrDefault(line =>
+                    line.Contains("syntax error", StringComparison.OrdinalIgnoreCase)
+                    && !line.Contains("No syntax errors detected", StringComparison.OrdinalIgnoreCase));
+
+            if (syntaxErrorLine is not null)
+                list.Add(new("syntax", Severity.Critical, tool, $"{language} syntax error", syntaxErrorLine.Trim(), StackTrace: Trim(text), RuleId: tool));
+        }
+
         return Annotate(Dedup(list), "text", "unstructured-v1");
     }
 

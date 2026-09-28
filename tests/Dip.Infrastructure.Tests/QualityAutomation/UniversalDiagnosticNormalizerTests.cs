@@ -60,6 +60,36 @@ public sealed class UniversalDiagnosticNormalizerTests
             File.Delete(path);
         }
     }
+    [Fact]
+    public void PhpLintSuccessMessage_DoesNotCreateSyntaxFinding()
+    {
+        var normalizer = new UniversalDiagnosticNormalizer();
+
+        var findings = normalizer.NormalizeText(
+            LanguageId.Php,
+            "php-lint",
+            "No syntax errors detected in /work/app.php",
+            string.Empty);
+
+        findings.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PhpParseError_RemainsSyntaxFinding()
+    {
+        var normalizer = new UniversalDiagnosticNormalizer();
+
+        var findings = normalizer.NormalizeText(
+            LanguageId.Php,
+            "php-lint",
+            string.Empty,
+            "PHP Parse error: syntax error, unexpected token \"}\" in /work/app.php on line 3");
+
+        findings.Should().ContainSingle(x =>
+            x.Category == "syntax"
+            && x.Severity == Severity.Critical);
+    }
+
     [Theory]
     [InlineData("System.DivideByZeroException", "DivideByZeroException")]
     [InlineData("System.NullReferenceException", "NullReferenceException")]

@@ -44,14 +44,20 @@ public sealed class GenericCommandQaAdapter(ProcessExecutor executor, UniversalD
             var files = SourceFiles(workspace, [".java"]).Take(500).ToArray();
             if (files.Length > 0)
             {
-                Directory.CreateDirectory(Path.Combine(artifactRoot, "javac-classes"));
-                await Run("javac", "javac", new[] { "-Xlint", "-d", Path.Combine(artifactRoot, "javac-classes") }.Concat(files));
+                var output = Path.Combine(workspace, ".dipqa", "javac");
+                Directory.CreateDirectory(output);
+                await Run("javac", "javac", new[] { "-Xlint", "-d", output }.Concat(files));
             }
         }
         else if (l == LanguageId.Kotlin)
         {
             var files = SourceFiles(workspace, [".kt", ".kts"]).Take(300).ToArray();
-            if (files.Length > 0) await Run("kotlinc", "kotlinc", files.Concat(["-d", Path.Combine(artifactRoot, "kotlin.jar")]));
+            if (files.Length > 0)
+            {
+                var output = Path.Combine(workspace, ".dipqa", "kotlin.jar");
+                Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+                await Run("kotlinc", "kotlinc", files.Concat(["-d", output]));
+            }
         }
         else if (l == LanguageId.Ruby) await PerFile("ruby-syntax", "ruby", [".rb"], f => ["-c", f]);
         else if (l == LanguageId.Php) await PerFile("php-lint", "php", [".php"], f => ["-l", f]);

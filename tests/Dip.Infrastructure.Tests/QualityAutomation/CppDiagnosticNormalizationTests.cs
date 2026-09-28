@@ -1,4 +1,5 @@
 // Purpose: Locks C++ diagnostic normalization against the Bug Zoo regressions found in final verification.
+using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;
@@ -68,6 +69,25 @@ public sealed class CppDiagnosticNormalizationTests
             x.Category == "memory-safety"
             && x.Severity.ToString() == "Critical"
             && x.RuleId == "-Warray-bounds");
+    }
+
+    [Fact]
+    public void Direct_runtime_fallback_is_skipped_when_ctest_returns_an_exit_code()
+    {
+        var passed = new QaToolExecution("ctest", true, true, 0, 1, "", "", "pass");
+        var failed = new QaToolExecution("ctest", true, false, 8, 1, "", "", "failed");
+
+        CppQaEngine.ShouldRunDirectRuntimeFallback(passed).Should().BeFalse();
+        CppQaEngine.ShouldRunDirectRuntimeFallback(failed).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Direct_runtime_fallback_is_used_when_ctest_cannot_return_an_exit_code()
+    {
+        var timedOut = new QaToolExecution("ctest", true, false, null, 15000, "", "", "timeout");
+
+        CppQaEngine.ShouldRunDirectRuntimeFallback(null).Should().BeTrue();
+        CppQaEngine.ShouldRunDirectRuntimeFallback(timedOut).Should().BeTrue();
     }
 
     [Fact]

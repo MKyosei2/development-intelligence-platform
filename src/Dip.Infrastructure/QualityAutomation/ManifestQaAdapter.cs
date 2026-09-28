@@ -68,7 +68,17 @@ public sealed class ManifestQaAdapter(ProcessExecutor executor, UniversalDiagnos
         // Names containing a path separator are never reinterpreted relative to PATH;
         // this prevents a manifest from escaping the workspace through ../ segments.
         if (value.Contains(Path.DirectorySeparatorChar) || value.Contains(Path.AltDirectorySeparatorChar)) return null;
-        return ProcessExecutor.FindExecutable(value);
+
+        var resolved = ProcessExecutor.FindExecutable(value);
+        if (resolved is not null) return resolved;
+
+        // Verification/runtime images are not required to expose the optional
+        // `python` alias. A manifest that requests Python may safely fall back
+        // to the trusted, allowlisted `python3` executable.
+        if (value.Equals("python", StringComparison.OrdinalIgnoreCase))
+            return ProcessExecutor.FindExecutable("python3");
+
+        return null;
     }
     private static IEnumerable<string> FilesFor(string workspace, string[]? ext)
     {

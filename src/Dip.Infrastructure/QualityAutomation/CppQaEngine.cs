@@ -76,16 +76,22 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         await Run("cmake-build", cmake, ["--build", build, "--config", "RelWithDebInfo", "--parallel"], Severity.Critical, "compile");
 
         var ctest = ProcessExecutor.FindExecutable("ctest");
+        QaToolExecution? ctestTool = null;
         if (ctest is not null)
-            await Run("ctest", ctest, ["--test-dir", build, "-C", "RelWithDebInfo", "--output-on-failure"], Severity.Warning, "test", sanitizerEnvironment, shortNativeTimeout);
+            ctestTool = await Run("ctest", ctest, ["--test-dir", build, "-C", "RelWithDebInfo", "--output-on-failure"], Severity.Warning, "test", sanitizerEnvironment, shortNativeTimeout);
         else
             AddUnavailable("ctest");
 
-        // CTest can occasionally stall around sanitizer process teardown. Execute the
-        // single CMake target directly as a second runtime probe so ASan/UBSan evidence
-        // is still captured and reproduction remains fail-closed.
-        if (TryResolvePrimaryExecutable(workspace, build) is { } runtimeExecutable)
+        // CTest already executes the sanitizer-instrumented target and emits failing
+        // test output with --output-on-failure. Running the same target a second time
+        // caused clean binaries to enter an ASan DEADLYSIGNAL/timeout loop in the
+        // sandbox. Use the direct runtime only as a fallback when CTest was unavailable
+        // or failed to produce an exit code (start failure / timeout).
+        if (ShouldRunDirectRuntimeFallback(ctestTool)
+            && TryResolvePrimaryExecutable(workspace, build) is { } runtimeExecutable)
+        {
             await Run("cpp-runtime-asan-auto", runtimeExecutable, Array.Empty<string>(), Severity.Critical, "runtime", sanitizerEnvironment, shortNativeTimeout);
+        }
 
         var clangTidy = ProcessExecutor.FindExecutable("clang-tidy");
         if (clangTidy is not null)
@@ -134,7 +140,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
 
         return new(LanguageId.Cpp, tools, findings, QaToolSupport.JsonSummary(LanguageId.Cpp, tools, findings));
 
-        async Task Run(
+        async Task<QaToolExecution> Run(
             string name,
             string executable,
             IEnumerable<string> args,
@@ -160,6 +166,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
 
             tools.Add(result.Tool);
             findings.AddRange(result.Findings);
+            return result.Tool;
         }
 
         void AddUnavailable(string name) =>
@@ -212,6 +219,9 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             }
         }
     }
+
+    internal static bool ShouldRunDirectRuntimeFallback(QaToolExecution? ctestTool)
+        => ctestTool is null || ctestTool.ExitCode is null;
 
     private static string? TryResolvePrimaryExecutable(string workspace, string build)
     {
