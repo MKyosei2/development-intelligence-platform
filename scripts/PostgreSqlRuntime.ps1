@@ -42,6 +42,87 @@ function Invoke-DipNativeCapture {
     }
 }
 
+function Invoke-DipNativeInputCapture {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$File,
+
+        [string[]]$Arguments = @(),
+
+        [Parameter(Mandatory = $true)]
+        [string]$InputText
+    )
+
+    # Windows PowerShell 5.1 can rewrite quote-sensitive native arguments.
+    # Send SQL and similar payloads through stdin instead of command-line -c.
+    $oldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        $lines = @(
+            $InputText |
+                & $File @Arguments 2>&1 |
+                ForEach-Object { $_.ToString() }
+        )
+
+        $exitCode = $LASTEXITCODE
+        if ($null -eq $exitCode) {
+            $exitCode = 0
+        }
+    }
+    catch {
+        $lines = @($_ | Out-String)
+        $exitCode = -999
+    }
+    finally {
+        $ErrorActionPreference = $oldPreference
+    }
+
+    return [pscustomobject]@{
+        ExitCode = [int]$exitCode
+        Lines = @($lines)
+        Text = ($lines -join [Environment]::NewLine)
+    }
+}
+
+function Invoke-DipNativeInputChecked {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$File,
+
+        [string[]]$Arguments = @(),
+
+        [Parameter(Mandatory = $true)]
+        [string]$InputText,
+
+        [switch]$DiscardOutput,
+
+        [string]$FailureMessage = ''
+    )
+
+    $result = Invoke-DipNativeInputCapture -File $File -Arguments $Arguments -InputText $InputText
+
+    if ($result.ExitCode -ne 0) {
+        $message = if ([string]::IsNullOrWhiteSpace($FailureMessage)) {
+            "$File $($Arguments -join ' ') failed with exit code $($result.ExitCode)."
+        }
+        else {
+            $FailureMessage
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($result.Text)) {
+            $message += "`n$($result.Text)"
+        }
+
+        throw $message
+    }
+
+    if (-not $DiscardOutput) {
+        return @($result.Lines)
+    }
+}
 function Invoke-DipNativeChecked {
     [CmdletBinding()]
     param(
@@ -256,11 +337,12 @@ function Invoke-DipPsql {
                 $arguments += @('-A', '-t')
             }
 
-            $arguments += @('-c', $Sql)
+            $arguments += @('-f', '-')
 
-            $output = Invoke-DipNativeChecked `
+            $output = Invoke-DipNativeInputChecked `
                 -File 'psql' `
                 -Arguments $arguments `
+                -InputText $Sql `
                 -DiscardOutput:$DiscardOutput `
                 -FailureMessage "psql failed for database '$Database'."
 
@@ -276,6 +358,7 @@ function Invoke-DipPsql {
 
     $arguments = @(
         'exec',
+        '-i',
         '-e', "PGPASSWORD=$($Client.Password)",
         $Client.Container,
         'psql',
@@ -289,11 +372,12 @@ function Invoke-DipPsql {
         $arguments += @('-A', '-t')
     }
 
-    $arguments += @('-c', $Sql)
+    $arguments += @('-f', '-')
 
-    $output = Invoke-DipNativeChecked `
+    $output = Invoke-DipNativeInputChecked `
         -File 'docker' `
         -Arguments $arguments `
+        -InputText $Sql `
         -DiscardOutput:$DiscardOutput `
         -FailureMessage "docker psql failed for database '$Database' in container '$($Client.Container)'."
 
