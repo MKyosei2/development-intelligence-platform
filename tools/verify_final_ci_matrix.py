@@ -45,7 +45,7 @@ def load_runs(repo: str, sha: str) -> list[dict]:
 
 
 def latest_for_name(runs: list[dict], name: str, sha: str) -> dict | None:
-    matches = [run for run in runs if run.get("name") == name and run.get("head_sha") == sha]
+    matches = [item for item in runs if item.get("name") == name and item.get("head_sha") == sha]
     if not matches:
         return None
     matches.sort(
@@ -57,6 +57,23 @@ def latest_for_name(runs: list[dict], name: str, sha: str) -> dict | None:
         reverse=True,
     )
     return matches[0]
+
+
+def write_snapshot(output: Path, sha: str, matrix: dict[str, dict], missing: list[str], pending: list[str], failed: list[str]) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema": "dip.final-ci-matrix.v2",
+        "sourceCommit": sha,
+        "requiredCount": len(REQUIRED),
+        "greenCount": sum(1 for item in matrix.values() if item.get("conclusion") == "success"),
+        "allGreen": not missing and not pending and not failed and len(matrix) == len(REQUIRED),
+        "verifiedAtUtc": datetime.now(timezone.utc).isoformat(),
+        "missing": missing,
+        "pending": pending,
+        "failed": failed,
+        "workflows": [matrix[name] for name in REQUIRED if name in matrix],
+    }
+    output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -74,20 +91,21 @@ def main() -> int:
         raise RuntimeError(f"Invalid SHA: {sha!r}")
 
     deadline = time.time() + max(0, args.wait_minutes) * 60
-    final_matrix: dict[str, dict] = {}
+    output = Path(args.output)
 
     while True:
         runs = load_runs(args.repo, sha)
         missing: list[str] = []
         pending: list[str] = []
         failed: list[str] = []
-        final_matrix = {}
+        matrix: dict[str, dict] = {}
 
         for name in REQUIRED:
             item = latest_for_name(runs, name, sha)
             if item is None:
                 missing.append(name)
                 continue
+
             record = {
                 "workflow": name,
                 "runId": item.get("id"),
@@ -101,20 +119,24 @@ def main() -> int:
                 "createdAt": item.get("created_at"),
                 "updatedAt": item.get("updated_at"),
             }
-            final_matrix[name] = record
+            matrix[name] = record
+
             if item.get("status") != "completed":
                 pending.append(name)
             elif item.get("conclusion") != "success":
                 failed.append(f"{name}={item.get('conclusion')}")
 
+        write_snapshot(output, sha, matrix, missing, pending, failed)
+
         print(f"Exact SHA: {sha}")
-        print(f"Green: {sum(1 for item in final_matrix.values() if item.get('conclusion') == 'success')}/{len(REQUIRED)}")
+        print(f"Green: {sum(1 for item in matrix.values() if item.get('conclusion') == 'success')}/{len(REQUIRED)}")
         if missing:
             print("Missing:", ", ".join(missing))
         if pending:
             print("Pending:", ", ".join(pending))
         if failed:
             print("Failed:", ", ".join(failed))
+        print(f"Evidence snapshot: {output}")
 
         if failed:
             raise RuntimeError(
@@ -122,30 +144,16 @@ def main() -> int:
                 + ", ".join(failed)
             )
         if not missing and not pending:
-            break
+            print(f"PASS: all {len(REQUIRED)} required workflows are Green for {sha}.")
+            return 0
         if time.time() >= deadline:
             raise RuntimeError(
                 "Exact-SHA CI matrix is incomplete. "
                 + ("Missing: " + ", ".join(missing) + ". " if missing else "")
                 + ("Pending: " + ", ".join(pending) + "." if pending else "")
             )
-        time.sleep(max(5, args.poll_seconds))
 
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "schema": "dip.final-ci-matrix.v1",
-        "sourceCommit": sha,
-        "requiredCount": len(REQUIRED),
-        "greenCount": len(REQUIRED),
-        "allGreen": True,
-        "verifiedAtUtc": datetime.now(timezone.utc).isoformat(),
-        "workflows": [final_matrix[name] for name in REQUIRED],
-    }
-    output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"PASS: all {len(REQUIRED)} required workflows are Green for {sha}.")
-    print(f"Evidence: {output}")
-    return 0
+        time.sleep(max(5, args.poll_seconds))
 
 
 if __name__ == "__main__":
