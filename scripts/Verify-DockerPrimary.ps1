@@ -965,10 +965,9 @@ try {
     }
 
     Invoke-Stage 'Seed E2E QA workspace' {
-        # The API resolves QA workspaces inside the shared named volume. Seed only
-        # the deterministic E2E fixture from the repository checkout so QA tools
-        # can create transient files without mutating the source tree.
-        Invoke-Verifier 'set -eu; target=/data/dip-workspaces/samples/qa-bug-zoo/python/runtime_type_error; rm -rf "$target"; mkdir -p "$(dirname "$target")"; cp -a /work/samples/qa-bug-zoo/python/runtime_type_error "$target"; chown -R 10001:10001 /data/dip-workspaces/samples; test -f "$target/app.py"'
+        # Seed the deterministic E2E fixture into the shared QA workspace.
+        # Keep this command transport-safe across Windows PowerShell -> Docker -> bash.
+        Invoke-Verifier 'set -eu; rm -rf /data/dip-workspaces/samples/qa-bug-zoo/python/runtime_type_error; mkdir -p /data/dip-workspaces/samples/qa-bug-zoo/python; cp -a /work/samples/qa-bug-zoo/python/runtime_type_error /data/dip-workspaces/samples/qa-bug-zoo/python/runtime_type_error; chown -R 10001:10001 /data/dip-workspaces/samples; test -f /data/dip-workspaces/samples/qa-bug-zoo/python/runtime_type_error/app.py'
     }
 
     Invoke-Stage 'Start API Worker Web Analysis' {
