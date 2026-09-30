@@ -76,6 +76,7 @@ foreach (var testCase in cases)
         outputRoot,
         registry,
         detector,
+        normalizer,
         CancellationToken.None));
 }
 
@@ -166,6 +167,7 @@ static async Task<CaseResult> RunCaseAsync(
     string outputRoot,
     QaAdapterRegistry registry,
     RepositoryTechnologyDetector detector,
+    UniversalDiagnosticNormalizer normalizer,
     CancellationToken ct)
 {
     var artifactRoot = Path.Combine(outputRoot, "cases", testCase.Language.Value, testCase.Name);

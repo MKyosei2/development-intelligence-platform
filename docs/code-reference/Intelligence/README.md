@@ -6,7 +6,8 @@
 
 ## ソース位置
 
-- Application: `src/Dip.Application/Features/Intelligence/`
+- Intelligence: `src/Dip.Application/Features/Intelligence/`
+- Canonical Adaptive QA: `src/Dip.Application/Features/P2Intelligence/`
 
 ## 主な読み始め
 
@@ -14,7 +15,7 @@
 - `src/Dip.Application/Features/Intelligence/P2AnalysisService.cs`
 - `src/Dip.Application/Features/Intelligence/ForecastAndDecisionService.cs`
 - `src/Dip.Application/Features/Intelligence/RootCauseIntelligenceService.cs`
-- `src/Dip.Application/Features/Intelligence/AdaptiveQaPlanner.cs`
+- `src/Dip.Application/Features/P2Intelligence/AdaptiveQaPlanner.cs`
 
 ## 読み順
 
