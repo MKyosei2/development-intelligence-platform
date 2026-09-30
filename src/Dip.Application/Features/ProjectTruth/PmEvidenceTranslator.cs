@@ -99,7 +99,7 @@ public sealed class PmEvidenceTranslator
         if (kind.Contains("build") || kind.Contains("quality") || kind.Contains("test") || kind.Contains("qa"))
             return evidence.Outcome == EvidenceOutcome.Succeeded
                 ? new("Development verification passed", "Current build/QA evidence supports the reported project state.", "Keep the evidence attached to the same revision and scenario.")
-                : new("Development verification needs attention", "Current build/QA evidence does not support a fully verified state.", "Resolve the failed verification and capture a newer run for the same revision boundary.");
+                : new("Development verification needs attention", "Current build/QA evidence does not support a fully verified state.", "Resolve the failed evidence by fixing the verification issue, then capture a newer run for the same revision boundary.");
         return new("Project evidence update", evidence.Summary, evidence.Outcome == EvidenceOutcome.Failed ? "Review the failed evidence before relying on the reported project state." : "Use this evidence together with independent sources when making a project decision.");
     }
 }

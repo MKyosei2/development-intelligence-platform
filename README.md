@@ -1,19 +1,19 @@
 # Development Intelligence Platform (DIP)
 
-DIPは、ゲーム・メディア・ソフトウェア開発チーム向けのDevelopment Intelligence基盤です。Git / CI / QA / Runtime / Performance / Project Dataを共通のProject Contextへ集約し、出所とrevisionを追跡できるEvidenceとして扱います。
+DIPは、ゲーム・メディア・ソフトウェア開発チーム向けのDevelopment Intelligence基盤です。Git / CI / QA / Runtime / Performance / Project Dataを共通のProject Contextへ集約し、出所・revision・freshnessを追跡できるEvidenceとして扱います。
 
-**Portfolio focus:** C# / .NET 8、PostgreSQL、Python、C++ / native collector、Unity / Unreal、GitHub Actionsを、別々のデモではなく**Evidenceとexact-revision verificationを中心に接続した開発基盤**として示します。
+**Portfolio focus:** C# / .NET 8、PostgreSQL、Python、C++ / native QA、Unity / Unreal integration、GitHub Actionsを、別々のデモではなく**Evidenceとexact-revision verificationを中心に接続した開発基盤**として示します。
 
 ![DIP portfolio demo](docs/09-portfolio/demo/dip-portfolio-demo.gif)
 
-> このGIFはsample-data previewです。Runtime Verifiedの根拠には使いません。実Projectの検証結果はcommit-bound Evidenceとして別に扱います。
+> このGIFはsample-data previewです。Runtime Verifiedの根拠には使いません。Current revisionの検証状態はGitHub Actions / benchmark / QA Bug Zoo / Project Truth / final Evidence artifactを優先します。
 
 ## 60秒レビュー
 
-1. 「まず見てほしい3領域」で主軸を確認する。
-2. 「実Project Case Study」で実Unity ProjectからDIPへEvidenceが流れる経路を見る。
-3. 「Verification status」と「Final exact-revision gate」でImplemented / Tested / Runtime Verifiedの分離を確認する。
-4. 設計判断の変化は [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md) を参照する。
+1. 「まず見てほしい3領域」でProjectの主軸を確認する。
+2. [`QA_EVIDENCE_CASE_STUDY.md`](docs/09-portfolio/QA_EVIDENCE_CASE_STUDY.md) で、Critical QA EvidenceがProject Truthのunsupported Complete claimを否定する流れを見る。
+3. 「Verification status」と「Final exact-revision gate」でImplemented / Tested / Runtime Verifiedを分離していることを確認する。
+4. 開発方針の変化は [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md) を参照する。
 
 ## まず見てほしい3領域
 
@@ -25,17 +25,17 @@ ClaimとEvidenceを分離し、source、revision、freshness、contradictionを�
 
 **Evidence-Grounded Autonomous Debugging** は、Hypothesis → Candidate → Isolated Verification → Human Review の順に進み、AI出力そのものを検証結果として扱いません。
 
-Unity / Unreal / C++ / toolchain integrationから得たEvidenceを、QA Finding、再現性、regression、performance、quality gateへ接続します。Engine固有payloadを保持しつつ、意思決定に必要な情報をprovider-neutral Evidenceへ昇格します。
+Universal QA / C++ / runtime / CI / engine integrationから得たEvidenceを、QA Finding、再現性、regression、performance、quality gateへ接続します。Engine固有payloadを保持しつつ、意思決定に必要な情報をprovider-neutral Evidenceへ昇格します。
 
 ### 3. Verification / Release Operations
 
-Unit / Integration / E2E、GUI、security、benchmark、migration、backup/restore、release readinessをexact revisionへ結び付けます。古いPASSや実行できなかった状態を、現在revisionの成功として扱いません。
+Unit / Integration / E2E、GUI、security、benchmark、migration、backup/restore、release readinessをexact revisionへ結び付けます。古いPASS、未実行、environment-blockedを現在revisionの成功として扱いません。
 
 その他の機能は、この3領域を支える周辺機能です。
 
 ## Verification status
 
-READMEの説明そのものを検証結果とは扱いません。**最終提出revisionは、同一SHAに紐付いたCI / benchmark / engine runtime / Project Truth / Release Evidenceが揃うまで `Current Revision PASS` を主張しません。**
+READMEの説明そのものを検証結果とは扱いません。**最終提出revisionは、同一SHAに紐付いたCI / benchmark / QA Bug Zoo / Project Truth / final Evidenceが揃うまで `Current Revision PASS` を主張しません。**
 
 | Claim | Verifiedと扱う条件 |
 |---|---|
@@ -43,48 +43,43 @@ READMEの説明そのものを検証結果とは扱いません。**最終提出
 | Tested | 対象revisionのtest / workflowが成功 |
 | Runtime Verified | 対象revisionを実runtimeで検証したEvidenceがある |
 | Performance Verified | clean tree + exact SHAのbenchmark artifactがある |
-| Final Portfolio Revision | required CI、runtime Evidence、final binding、Releaseが同一SHA |
+| Final Portfolio Revision | required CI、benchmark、QA Bug Zoo、Project Truth、final bindingが同一SHA |
 
 最終Source of TruthはGitHub Actions / Release artifact / `artifacts/final-evidence/` です。
 
-## 実Project Case Study
+## QA Evidence Case Study
 
-デフォルトの実Project Case Studyには、別repositoryのUnity Project **MAYAtoUnity** を使用します。
+Final portfolioの中心scenarioは、実在するproduction defectを装うものではありません。**意図的にCritical QA findingを投入するdeterministic verification fixture**です。
 
 ```text
-MAYAtoUnity
-    ↓ actual Unity Editor batchmode
-DIP Unity exact-revision collector
-    ↓
-Collector Evidence
-    ↓
-DIP API ingestion
-    ↓
-Project Truth + Quality Gate
-    ↓
-Release decision / PM・Lead review
+Intentional Critical QA finding
+        ↓
+DIP Collector/API ingestion
+        ↓
+Quality Gate = Failed
+        ↓
+Claim: Complete / 100%
+        ↓
+Project Truth
+        ↓
+Claim = Contradicted
+Verified progress < Reported progress
+Contradiction recorded
 ```
 
-Case Studyでは次を分離します。
+VerifierがPASSする条件は、「製品品質GateがPASSすること」ではありません。**Critical Evidenceが存在する状態でDIPがunsupported completion claimを正しく拒否すること**です。
 
-- `dipSourceCommit`: 検証しているDIP自身のSHA
-- `targetCommit`: Collectorが解析したMAYAtoUnity側のSHA
-
-これは**実Projectとのend-to-end integration**を示すもので、第三者チームへのproduction導入実績を意味しません。
-
-- 実行方法: [`REAL_PROJECT_CASE_STUDY.md`](docs/09-portfolio/REAL_PROJECT_CASE_STUDY.md)
-- 2〜3分デモ構成: [`REAL_PROJECT_DEMO.md`](docs/09-portfolio/REAL_PROJECT_DEMO.md)
+- 実行・設計: [`QA_EVIDENCE_CASE_STUDY.md`](docs/09-portfolio/QA_EVIDENCE_CASE_STUDY.md)
+- 2〜3分デモ構成: [`QA_EVIDENCE_DEMO.md`](docs/09-portfolio/QA_EVIDENCE_DEMO.md)
 
 ## エンジニアリング原則
 
 - **Implemented ≠ Tested ≠ Runtime Verified**
 - **ClaimとEvidenceを分離**
-- **AIを真実の根拠にしない** — Autonomous Debuggingは `Hypothesis → Candidate → Isolated Verification → Human Review`
+- **AIを真実の根拠にしない**
 - **Historical PASS ≠ Current Revision PASS**
-- **Production Operationsはfail-closed**
-- Flexible Spreadsheet IntelligenceもEvidence Modelへ参加するが、主軸はProject Truth / Game Development QA / Verification
-
-開発方針の変化は [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md) に残しています。
+- **Production / Publication Gateはfail-closed**
+- **Infrastructure FailureをProduct FailureにもPASSにも読み替えない**
 
 ## CI実行方針
 
@@ -113,7 +108,7 @@ Hosted runner quotaを通常pushで消費しないため、3段階で運用し�
 
 ## Final exact-revision gate
 
-Final source freezeは`.portfolio-ci-trigger`だけを変更するPRとして行います。merge後のmain SHAについて、次のrequired workflowをすべてGreenにします。
+Final source freeze後のmain SHAについて、次のrequired workflowをすべてGreenにします。
 
 1. Commit Message
 2. .NET CI
@@ -124,22 +119,29 @@ Final source freezeは`.portfolio-ci-trigger`だけを変更するPRとして行
 7. Native Package Build
 8. Security Scan
 9. Universal QA Benchmark
-10. Unreal Collector CI
+10. Unreal Collector Contract CI
 11. Portfolio Publication Readiness
 
 `missing / cancelled / skipped / infrastructure-blocked`をPASSへ読み替えません。
 
 ```powershell
-.\scripts\Request-FinalVerification.ps1 -Commit -CreatePullRequest
+$sha = (git rev-parse HEAD).Trim()
+python tools/verify_final_ci_matrix.py --sha $sha --wait-minutes 60
 ```
 
-最終SHAでは次のhelperが、CI、performance、Unity、Unreal、Project Truth、Evidence bundle、Releaseを同一SHAへ束ねます。
+その後、同じSHAでbenchmark、QA Bug Zoo、Project Truth scenarioを生成し、finalizerで束ねます。
+
+```powershell
+.\scripts\Complete-PortfolioRelease.ps1 -Version <x.y.z>
+```
+
+Release assetまで進める場合:
 
 ```powershell
 .\scripts\Complete-PortfolioRelease.ps1 -Version <x.y.z> -PublishRelease
 ```
 
-## Benchmark
+## Benchmark / Soak
 
 Current revisionのperformance値として使用できるのは、clean working treeかつexact SHAで生成されたartifactだけです。
 
@@ -157,21 +159,32 @@ artifacts/portfolio-benchmark/portfolio-benchmark-results.sha256
 
 未測定SHAは`NOT YET MEASURED`として扱います。
 
-## Unity / Unreal Runtime Evidence
+## Engine integrationの検証境界
 
-UnityはMAYAtoUnityを実Projectとして検証し、実Unity Editor process、DIP SHA、target SHA、Collector reportをEvidenceへ保存します。
+Unity / Unreal collectorやintegration sourceはProjectの一部ですが、**実target projectがない状態ではengine-specific runtimeをFinal Publicationの必須条件にしません**。
 
-```powershell
-python tools/verify_unity_real_project.py --expected-dip-sha <DIP_SHA>
+Final Evidenceでは、実target projectを供給していない場合は次のように明示します。
+
+```text
+Unity engine runtime  = NOT_EVALUATED
+Unreal engine runtime = NOT_EVALUATED
 ```
 
-Unrealは実`UnrealEditor-Cmd`とGit-backed `.uproject`を要求します。
+実target projectが後から用意できた場合だけ、optional verifierを個別に実行し、final mandatory gateとは別Evidenceとして提示します。
 
 ```powershell
-python tools/verify_unreal_real_project.py --expected-dip-sha <DIP_SHA> --project <UnrealProject>
+python tools/verify_unity_real_project.py `
+  --expected-dip-sha <DIP_SHA> `
+  --project <UnityProject> `
+  --unity <UnityEditor.exe>
+
+python tools/verify_unreal_real_project.py `
+  --expected-dip-sha <DIP_SHA> `
+  --project <UnrealProject> `
+  --unreal-editor-cmd <UnrealEditor-Cmd.exe>
 ```
 
-`tools/finalize_portfolio_evidence.py` が最終Evidenceを同一DIP SHAへfail-closedで束ねます。
+GitHub-hosted Unreal workflowはcontract / unit behaviorを検証し、actual Editor runtimeの代替とは扱いません。
 
 ## Native-first architecture
 
@@ -186,7 +199,7 @@ Browser
 Dip.Worker (.NET Worker)     :9091 metrics
   ├─ PostgreSQL-backed jobs / queue
   ├─ native QA processes
-  └─ Unity / Unreal / C++ / toolchain integrations
+  └─ engine / native / toolchain integrations
 ```
 
 PostgreSQLをdurable Source of Truthとqueue / coordination boundaryとして使い、.NET / Python serviceはhost上で実行します。Dockerは正式なNative-first runtimeの必須依存ではありません。
@@ -201,6 +214,7 @@ PostgreSQLをdurable Source of Truthとqueue / coordination boundaryとして使
 | Tested | 対象testが成功 |
 | Runtime Verified | 対象revisionを実runtimeで検証 |
 | Infrastructure Blocked | runner / tool / environment都合で未完了 |
+| NOT_EVALUATED | claim対象外として明示的に未評価 |
 
 - Historical baseline: [`docs/09-portfolio/evidence/verified-baseline/`](docs/09-portfolio/evidence/verified-baseline/)
 - Exact-revision policy: [`docs/09-portfolio/evidence/latest-revision.md`](docs/09-portfolio/evidence/latest-revision.md)
@@ -212,22 +226,22 @@ PostgreSQLをdurable Source of Truthとqueue / coordination boundaryとして使
 - C# / .NET 8: Domain / Application / API / Worker / Blazor
 - PostgreSQL: durable truth / queue / migration / DR
 - Python 3.12+: analysis / QA / Evidence tooling
-- C++ / native collector
-- Unity / Unreal / DCC / toolchain integrations
+- C++ / native QA / collector
+- Unity / Unreal / DCC / toolchain integration
 - GitHub Actions / Playwright
 
 ## ローカルRuntime
 
-通常は.NET 8、PostgreSQL 16-compatible server + client tools、Python 3.12+、Gitを使用します。Browser E2EではNode.js 22+、Unity / Unreal / CMakeは対応integrationのruntime検証時だけ必要です。
+通常は.NET 8、PostgreSQL 16-compatible server + client tools、Python 3.12+、Gitを使用します。Browser E2EではNode.js 22+、C++ QAではCMake + compiler toolchainを使用します。Unity / Unrealはoptional engine-specific verificationを実行する場合だけ必要です。
 
 `Start-DIP.ps1` はPostgreSQLを確認し、Python Analysis / API / Worker / Webを起動します。`Stop-DIP.ps1` はDIP processを停止します。
 
 ## Reviewer向け読み順
 
 1. このREADME
-2. [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md)
-3. [`GAME_DEVELOPMENT_SCENARIO.md`](docs/09-portfolio/GAME_DEVELOPMENT_SCENARIO.md)
-4. [`REAL_PROJECT_DEMO.md`](docs/09-portfolio/REAL_PROJECT_DEMO.md)
+2. [`QA_EVIDENCE_CASE_STUDY.md`](docs/09-portfolio/QA_EVIDENCE_CASE_STUDY.md)
+3. [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md)
+4. [`GAME_DEVELOPMENT_SCENARIO.md`](docs/09-portfolio/GAME_DEVELOPMENT_SCENARIO.md)
 5. [`reviewer-brief.md`](docs/09-portfolio/reviewer-brief.md)
 6. Architecture / Evidence / CI artifacts
 

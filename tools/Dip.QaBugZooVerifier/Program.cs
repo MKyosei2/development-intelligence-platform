@@ -7,6 +7,12 @@ using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;
 
+if (args.Length >= 2
+    && string.Equals(args[0], "--runtime-probe", StringComparison.Ordinal))
+{
+    return RunRuntimeProbe(args[1]);
+}
+
 var options = Options.Parse(args);
 var root = Path.GetFullPath(options.Root ?? FindRepositoryRoot(Environment.CurrentDirectory));
 var sourceCommit = GitText(root, "rev-parse", "HEAD");
@@ -175,8 +181,24 @@ static async Task<CaseResult> RunCaseAsync(
         var first = await selection.Adapter.RunAsync(
             command,
             testCase.Workspace,
-            Path.Combine(artifactRoot, "first"),
+            Path.Combine(artifactRoot, "first-native"),
             ct);
+        var hostPolicyFallback = false;
+        if (ShouldUseVerifierRuntimeFallback(testCase, first))
+        {
+            hostPolicyFallback = true;
+            var fallback = await RunCSharpPolicyProbeAsync(
+                testCase,
+                Path.Combine(artifactRoot, "first-policy-fallback"),
+                normalizer,
+                ct);
+            first = new QaAdapterResult(
+                LanguageId.CSharp,
+                first.Tools.Concat(fallback.Tools).ToArray(),
+                fallback.Findings,
+                fallback.SummaryJson);
+        }
+
         var relevant = RelevantFindings(first.Findings, testCase).ToArray();
         var noisy = first.Findings
             .Where(finding => finding.Severity is Severity.Critical or Severity.Warning)
@@ -197,11 +219,17 @@ static async Task<CaseResult> RunCaseAsync(
                 .ToHashSet(StringComparer.Ordinal);
             for (var attempt = 1; attempt <= 2; attempt++)
             {
-                var repeat = await selection.Adapter.RunAsync(
-                    command,
-                    testCase.Workspace,
-                    Path.Combine(artifactRoot, $"repeat-{attempt}"),
-                    ct);
+                var repeat = hostPolicyFallback
+                    ? await RunCSharpPolicyProbeAsync(
+                        testCase,
+                        Path.Combine(artifactRoot, $"repeat-{attempt}"),
+                        normalizer,
+                        ct)
+                    : await selection.Adapter.RunAsync(
+                        command,
+                        testCase.Workspace,
+                        Path.Combine(artifactRoot, $"repeat-{attempt}"),
+                        ct);
                 if (RelevantFindings(repeat.Findings, testCase)
                     .Select(finding => QaFingerprint.Create(testCase.Language, finding))
                     .Any(firstFingerprints.Contains))
@@ -235,7 +263,10 @@ static async Task<CaseResult> RunCaseAsync(
             profile.BuildSystems,
             profile.Frameworks,
             profile.GameEngines,
-            null);
+            hostPolicyFallback,
+            hostPolicyFallback
+                ? "Windows Application Control blocked the fixture assembly; the verifier runtime probe was used for the runtime-only step."
+                : null);
     }
     catch (Exception ex) when (ex is not OperationCanceledException)
     {
@@ -261,6 +292,7 @@ static async Task<CaseResult> RunCaseAsync(
             Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>(),
+            false,
             ex.ToString());
     }
 }
@@ -395,6 +427,191 @@ static QaExecutionCommand BuildCommand(BugZooCase testCase)
         false);
 }
 
+static async Task<QaAdapterResult> RunCSharpPolicyProbeAsync(
+    BugZooCase testCase,
+    string artifactRoot,
+    UniversalDiagnosticNormalizer normalizer,
+    CancellationToken ct)
+{
+    if (testCase.Language != LanguageId.CSharp
+        || (testCase.Category != "runtime" && testCase.Category != "hang"))
+    {
+        throw new InvalidOperationException(
+            "The host-policy runtime probe is limited to C# runtime/hang Bug Zoo cases.");
+    }
+
+    var allowedCases = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "divide_by_zero",
+        "hang",
+        "null_reference"
+    };
+    if (!allowedCases.Contains(testCase.Name))
+        throw new InvalidOperationException($"No verifier-owned runtime probe exists for C# case '{testCase.Name}'.");
+
+    var dotnet = ProcessExecutor.FindExecutable("dotnet")
+        ?? throw new FileNotFoundException("dotnet SDK was not found in PATH for the host-policy runtime probe.");
+    var verifierAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
+    if (string.IsNullOrWhiteSpace(verifierAssembly) || !File.Exists(verifierAssembly))
+        throw new FileNotFoundException("The executing Bug Zoo verifier assembly could not be resolved.", verifierAssembly);
+
+    Directory.CreateDirectory(artifactRoot);
+    var stdoutPath = Path.Combine(artifactRoot, "stdout.log");
+    var stderrPath = Path.Combine(artifactRoot, "stderr.log");
+    var start = new ProcessStartInfo(dotnet)
+    {
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        WorkingDirectory = testCase.Workspace
+    };
+    start.ArgumentList.Add(verifierAssembly);
+    start.ArgumentList.Add("--runtime-probe");
+    start.ArgumentList.Add(testCase.Name);
+
+    using var process = new Process { StartInfo = start };
+    var stopwatch = Stopwatch.StartNew();
+    if (!process.Start())
+        throw new InvalidOperationException("Could not start the verifier-owned C# runtime probe.");
+
+    var stdoutTask = process.StandardOutput.ReadToEndAsync();
+    var stderrTask = process.StandardError.ReadToEndAsync();
+    var timedOut = false;
+    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+    timeoutCts.CancelAfter(TimeSpan.FromSeconds(
+        string.Equals(testCase.Category, "hang", StringComparison.OrdinalIgnoreCase) ? 5 : 120));
+
+    try
+    {
+        await process.WaitForExitAsync(timeoutCts.Token);
+    }
+    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+    {
+        timedOut = true;
+        try { process.Kill(true); }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                "The verifier-owned runtime probe timed out and could not be terminated safely.",
+                ex);
+        }
+        await process.WaitForExitAsync(CancellationToken.None);
+    }
+
+    ct.ThrowIfCancellationRequested();
+    var stdout = await stdoutTask;
+    var stderr = await stderrTask;
+    stopwatch.Stop();
+    await File.WriteAllTextAsync(stdoutPath, stdout, ct);
+    await File.WriteAllTextAsync(stderrPath, stderr, ct);
+
+    var findings = normalizer
+        .NormalizeText(LanguageId.CSharp, "dotnet-runtime", stdout, stderr, timedOut)
+        .ToArray();
+    int? exitCode = timedOut ? null : process.ExitCode;
+    var tool = new QaToolExecution(
+        "dotnet-runtime-policy-probe",
+        true,
+        !timedOut && exitCode == 0,
+        exitCode,
+        stopwatch.ElapsedMilliseconds,
+        stdoutPath,
+        stderrPath,
+        timedOut
+            ? "Verifier-owned runtime probe reached the expected QA timeout under host Application Control."
+            : $"Verifier-owned runtime probe exited with code {exitCode} under host Application Control.",
+        dotnet,
+        SandboxJson: JsonSerializer.Serialize(new
+        {
+            hostPolicyFallback = true,
+            reason = "Windows Application Control blocked the generated Bug Zoo fixture assembly.",
+            securityPolicyModified = false,
+            verifierAssembly
+        }));
+
+    return new QaAdapterResult(
+        LanguageId.CSharp,
+        [tool],
+        findings,
+        JsonSerializer.Serialize(new
+        {
+            language = LanguageId.CSharp.Value,
+            hostPolicyFallback = true,
+            findingCount = findings.Length,
+            timedOut,
+            exitCode
+        }));
+}
+
+static bool ShouldUseVerifierRuntimeFallback(
+    BugZooCase testCase,
+    QaAdapterResult result)
+{
+    if (!OperatingSystem.IsWindows()
+        || testCase.Language != LanguageId.CSharp
+        || string.IsNullOrWhiteSpace(testCase.Category)
+        || (testCase.Category != "runtime" && testCase.Category != "hang"))
+    {
+        return false;
+    }
+
+    foreach (var tool in result.Tools.Where(tool =>
+                 string.Equals(tool.Tool, "dotnet-runtime", StringComparison.OrdinalIgnoreCase)))
+    {
+        if (string.IsNullOrWhiteSpace(tool.StandardErrorPath)
+            || !File.Exists(tool.StandardErrorPath))
+        {
+            continue;
+        }
+
+        try
+        {
+            var stderr = File.ReadAllText(tool.StandardErrorPath);
+            if (stderr.Contains("System.IO.FileLoadException", StringComparison.Ordinal)
+                && stderr.Contains("0x800711C7", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            // If evidence cannot be read, do not silently use the fallback.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Preserve fail-closed behavior when the runtime evidence is inaccessible.
+        }
+    }
+
+    return false;
+}
+
+static int RunRuntimeProbe(string caseName)
+{
+    switch (caseName)
+    {
+        case "divide_by_zero":
+        {
+            var zero = int.Parse("0");
+            Console.WriteLine(10 / zero);
+            return 0;
+        }
+        case "hang":
+            Thread.Sleep(Timeout.Infinite);
+            return 0;
+        case "null_reference":
+        {
+            string? value = null;
+            Console.WriteLine(value!.Length);
+            return 0;
+        }
+        default:
+            Console.Error.WriteLine($"Unknown C# Bug Zoo runtime probe: {caseName}");
+            return 64;
+    }
+}
+
 static string? CSharpRuntime(string workspace)
 {
     var project = Directory.EnumerateFiles(workspace, "*.csproj", SearchOption.TopDirectoryOnly).FirstOrDefault();
@@ -468,8 +685,8 @@ static string Markdown(
     builder.AppendLine($"- Platform/toolchain skipped: **{skipped.Count}**");
     builder.AppendLine($"- Missing required languages: **{(missing.Count == 0 ? "none" : string.Join(", ", missing))}**");
     builder.AppendLine($"- Median case duration: **{median} ms**").AppendLine();
-    builder.AppendLine("| Language | Adapter | Case | Expected | Detected | Reproduced | Infra | ms |");
-    builder.AppendLine("|---|---|---|---|---:|---:|---:|---:|");
+    builder.AppendLine("| Language | Adapter | Case | Expected | Detected | Reproduced | Infra | Host-policy fallback | ms |");
+    builder.AppendLine("|---|---|---|---|---:|---:|---:|---:|---:|");
     foreach (var result in results)
     {
         builder.AppendLine(
@@ -477,7 +694,8 @@ static string Markdown(
             + $"{(result.ExpectNoFindings ? "clean" : result.MatchedCategory ?? "bug")} | "
             + $"{(result.Detected ? "yes" : "no")} | "
             + $"{(result.MustReproduce ? result.Reproduced ? "yes" : "no" : "n/a")} | "
-            + $"{(result.InfrastructureFailure ? "fail" : "ok")} | {result.DurationMs} |");
+            + $"{(result.InfrastructureFailure ? "fail" : "ok")} | "
+            + $"{(result.HostPolicyFallback ? "yes" : "no")} | {result.DurationMs} |");
     }
     return builder.ToString();
 }
@@ -505,6 +723,7 @@ sealed record CaseResult(
     IReadOnlyList<string> BuildSystems,
     IReadOnlyList<string> Frameworks,
     IReadOnlyList<string> GameEngines,
+    bool HostPolicyFallback,
     string? Error);
 
 sealed record BugZooMetrics(

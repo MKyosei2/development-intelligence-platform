@@ -1,12 +1,12 @@
 # Engineering Journey
 
-DIPの成長は、機能数を増やしたことよりも、**何をVerifiedと呼べるかを厳密化したこと**にあります。初期commitには「改善」「整理」のような粗い履歴も残っていますが、履歴を書き換えて見栄えを整えるのではなく、現在の設計・検証プロセスがどう変わったかを明示します。
+DIPの成長は、機能数を増やしたことよりも、**何をVerifiedと呼べるかを厳密化したこと**にあります。初期commitには広い機能追加も残っていますが、履歴を書き換えて見栄えを整えるのではなく、現在の設計・検証プロセスがどう変わったかを明示します。
 
 ## 1. 機能実装中心からEvidence設計へ
 
-初期段階ではDashboard、QA、analysis、management、collectorなど広い機能を実装しました。その後、Sourceが存在することと、testが通ることと、実runtimeでcurrent revisionが検証されたことは別だと整理しました。
+初期段階ではDashboard、QA、analysis、management、collectorなど広い機能を実装しました。その後、Sourceが存在すること、testが通ること、実runtimeでcurrent revisionが検証されたことは別だと整理しました。
 
-現在の主役は次の3領域に固定しています。
+現在の主役は次の3領域です。
 
 1. **Project Truth / Evidence**
 2. **Game Development QA**
@@ -18,23 +18,45 @@ DIPの成長は、機能数を増やしたことよりも、**何をVerifiedと�
 
 過去のCI、benchmark、runtime Evidenceはbaselineとして保持しますが、後続commitの成功へ自動昇格させません。
 
-そのため最終提出では、source freeze後の1つのSHAに対して次を束ねます。
+最終提出では、source freeze後の1つのSHAに対して次を束ねます。
 
 - required CI 11/11 Green
-- exact-revision performance benchmark
-- real Unity Project runtime evidence
-- real Unreal Project runtime evidence
-- Project Truth / Quality Gate evidence
+- exact-revision performance / soak
+- exact-revision QA Bug Zoo
+- Project Truth expected-failure scenario
+- final Evidence binding
 
-## 3. Sample previewとRuntime Evidenceを分離
+## 3. Engine integrationのclaimを狭めた
 
-READMEのGIFはUIと製品範囲を短時間で理解するためのsample-data previewです。実Projectで動いた証拠としては使用しません。
+Unity / Unreal integrationを実装したことと、実target projectでruntime検証したことを分離しました。
 
-実Project EvidenceはEngine process、target project revision、DIP source revision、collector report、Project Truth結果を別artifactとして保存します。
+実target projectを供給していない提出revisionでは、engine-specific runtimeをFinal mandatory gateに含めず、`NOT_EVALUATED`として明示します。Hosted CIはcontract/unit behaviorを検証し、actual Editor runtimeの代替にはしません。
 
-## 4. CIを「毎push」から「Evidenceを作る時」へ
+この変更により、「実装済み」を「runtime verified」と言い換えない境界が明確になりました。
 
-GitHub-hosted runner quotaを消費するだけの自動実行を避け、CIを3段階に分けました。
+## 4. QA EvidenceをProject Truthへ接続した
+
+Final portfolioの中心scenarioを、再現性のあるQA -> Project Truth flowへ集約しました。
+
+```text
+Critical QA Evidence
+  -> Quality Gate Failed
+  -> Complete / 100% claim
+  -> Contradicted
+  -> Verified progress < Reported progress
+```
+
+Critical findingはdeterministic fixtureとして意図的に投入します。Scenario PASSはproduct-side failureを隠す意味ではなく、DIPがunsupported claimを正しく拒否したことを意味します。
+
+## 5. Infrastructure FailureとProduct Failureを分離
+
+C++ toolchain、Windows runtime、GUI、databaseなどの検証で、環境都合の失敗をproduct defectにもPASSにも変換しない方針へ揃えました。
+
+例としてC++ QAではVisual Studio/MSVCを明示解決し、CMake generator instanceはresolverが返したexact installationだけをQA sandboxの例外として許可します。C# Bug ZooではWindows Application Controlにfixture assemblyが拒否された場合も、その事実をEvidenceへ残した上でdeterministic runtime probeへ限定fallbackし、expected failureを再現できなければPASSにしません。
+
+## 6. CIを「毎push」から「Evidenceを作る時」へ
+
+GitHub-hosted runner quotaを通常iterationで消費しないよう、CIを3段階に分けました。
 
 ```text
 work/*
@@ -49,18 +71,8 @@ main + .portfolio-ci-trigger
 
 通常開発はlocal verificationを基本とし、Hosted CIは明示的に必要な時とfinal publicationへ集中させます。
 
-## 5. Production policyと実Deployを分離
+## 7. ReleaseをEvidence lineageとして扱う
 
-`workflow success`を`production deployed`と同義にしません。
+`workflow success`を`production deployed`と同義にしません。Source SHA、CI、benchmark、QA Bug Zoo、Project Truth、checksumsを別artifactとして残し、finalizerでsame-SHA bindingを要求します。
 
-- **Policy Verified**: deploy条件・設定の検査が成功した。
-- **Production Deployed**: production mutationを実際に実行した。
-- **Production Mutation Disabled**: production変更を意図的に実行していない。
-
-Live Native Deploymentはmanual-onlyで、`deploy=false`を既定にしています。
-
-## 6. PRを設計上のEvidenceにする
-
-Actions quota-controlを導入するbootstrapだけは、旧PR triggerを踏まないためmainへfast-forwardする例外としました。それ以降の主要変更は`work/*`からPRを作り、final freezeも`.portfolio-ci-trigger`だけのPRとして実施します。
-
-この履歴を残すことで、初期の試行錯誤から、revision・evidence・release lineageを意識した開発へ変化したことを説明します。
+この履歴により、初期の試行錯誤から、revision・evidence・fail-closed verificationを意識した開発へ変化したことを説明します。

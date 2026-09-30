@@ -1,4 +1,4 @@
-@* Purpose: Renders the New Project UI and coordinates its interactions. *@
+@* Purpose: Renders manual project creation and prevents pre-hydration edits from being overwritten when Blazor becomes interactive. *@
 @page "/projects/new"
 @using System.ComponentModel.DataAnnotations
 @using Dip.Application.Features.Projects
@@ -28,30 +28,49 @@
 
                 <div class="form-group">
                     <label class="form-label" for="project-name">Project name</label>
-                    <InputText id="project-name" class="form-control" @bind-Value="_model.Name" placeholder="Example: Character Pipeline" />
+                    <InputText id="project-name"
+                               class="form-control"
+                               @bind-Value="_model.Name"
+                               disabled="@(!_interactiveReady || _saving)"
+                               placeholder="Example: Character Pipeline" />
                     <div class="form-text">Displayed in the portfolio and management dashboard.</div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="repository-url">Repository URL</label>
-                    <InputText id="repository-url" class="form-control" @bind-Value="_model.RepositoryUrl" placeholder="https://github.com/owner/repository" />
+                    <InputText id="repository-url"
+                               class="form-control"
+                               @bind-Value="_model.RepositoryUrl"
+                               disabled="@(!_interactiveReady || _saving)"
+                               placeholder="https://github.com/owner/repository" />
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label" for="default-branch">Default branch</label>
-                        <InputText id="default-branch" class="form-control" @bind-Value="_model.DefaultBranch" />
+                        <InputText id="default-branch"
+                                   class="form-control"
+                                   @bind-Value="_model.DefaultBranch"
+                                   disabled="@(!_interactiveReady || _saving)" />
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="release-date">Target release date</label>
-                        <InputDate id="release-date" class="form-control" @bind-Value="_model.ReleaseDate" />
+                        <InputDate id="release-date"
+                                   class="form-control"
+                                   @bind-Value="_model.ReleaseDate"
+                                   disabled="@(!_interactiveReady || _saving)" />
                         <div class="form-text">Optional.</div>
                     </div>
                 </div>
 
                 <div class="form-actions">
                     <a class="btn btn-outline-secondary" href="/">Cancel</a>
-                    <button class="btn btn-primary" data-testid="create-project-submit" type="submit" disabled="@(_saving || !_interactiveReady)">@(_saving ? "Creating…" : "Create project")</button>
+                    <button class="btn btn-primary"
+                            data-testid="create-project-submit"
+                            type="submit"
+                            disabled="@(_saving || !_interactiveReady)">
+                        @(_saving ? "Creating…" : "Create project")
+                    </button>
                 </div>
             </EditForm>
         </div>

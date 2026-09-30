@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Purpose: Audits first-party source readability with shared Purpose fragmentation rules and no source mutation.
 [CmdletBinding()]
 param(
@@ -18,7 +18,11 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 $Repo=[System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([char[]]@(92,47))
 if (-not $ReportPath) { $ReportPath=Join-Path $Repo 'artifacts\source-readability\report.md' }
+elseif (-not [System.IO.Path]::IsPathRooted($ReportPath)) { $ReportPath=Join-Path $Repo $ReportPath }
 if (-not $InventoryPath) { $InventoryPath=Join-Path $Repo 'artifacts\source-readability\inventory.csv' }
+elseif (-not [System.IO.Path]::IsPathRooted($InventoryPath)) { $InventoryPath=Join-Path $Repo $InventoryPath }
+$ReportPath=[System.IO.Path]::GetFullPath($ReportPath)
+$InventoryPath=[System.IO.Path]::GetFullPath($InventoryPath)
 $Issues=New-Object 'System.Collections.Generic.List[object]'
 $Inventory=New-Object 'System.Collections.Generic.List[object]'
 . (Join-Path $PSScriptRoot 'SourcePurposeRules.ps1')

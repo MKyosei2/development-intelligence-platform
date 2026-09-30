@@ -1,4 +1,4 @@
-// Purpose: Locks the QA process path-boundary policy while allowing CMake compiler flag assignments.
+// Purpose: Locks QA process path boundaries while allowing only canonical CMake toolchain paths that were independently resolved as trusted.
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;
 
@@ -77,6 +77,46 @@ public sealed class ProcessCommandValidatorTests
                 // Best-effort test cleanup only.
             }
         }
+    }
+
+    [Fact]
+    public void VisualStudioGeneratorInstance_MustExactlyMatchTrustedInstallation()
+    {
+        using var root = TemporaryDirectory.Create();
+        var expected = System.IO.Path.Combine(
+            root.Path,
+            "Microsoft Visual Studio",
+            "18",
+            "Community");
+        var vcvars = System.IO.Path.Combine(
+            expected,
+            "VC",
+            "Auxiliary",
+            "Build",
+            "vcvars64.bat");
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(vcvars)!);
+        File.WriteAllText(vcvars, "@echo off");
+
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        ProcessCommandValidator.IsTrustedVisualStudioInstance(
+                expected,
+                expected,
+                comparison)
+            .Should()
+            .BeTrue();
+
+        var sibling = System.IO.Path.Combine(root.Path, "untrusted");
+        Directory.CreateDirectory(sibling);
+
+        ProcessCommandValidator.IsTrustedVisualStudioInstance(
+                sibling,
+                expected,
+                comparison)
+            .Should()
+            .BeFalse();
     }
 
     private sealed class TemporaryDirectory : IDisposable

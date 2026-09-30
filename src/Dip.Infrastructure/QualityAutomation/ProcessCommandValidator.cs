@@ -1,4 +1,4 @@
-// Purpose: Validates executable trust and canonical workspace boundaries for QA process launches.
+// Purpose: Validates executable trust, workspace boundaries, and narrowly scoped external toolchain paths for QA process launches.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -81,8 +81,13 @@ internal static class ProcessCommandValidator
                 ? Path.GetFullPath(candidate)
                 : Path.GetFullPath(Path.Combine(workspace, candidate));
             var canonical = CanonicalCandidate(full);
-            if (!IsInside(canonicalWorkspace, canonical, comparison))
-                throw new InvalidOperationException($"QA argument path escapes the workspace: {candidate}");
+            if (IsInside(canonicalWorkspace, canonical, comparison))
+                continue;
+
+            if (IsTrustedExternalToolchainArgument(argument, canonical, comparison))
+                continue;
+
+            throw new InvalidOperationException($"QA argument path escapes the workspace: {candidate}");
         }
     }
 
@@ -211,6 +216,100 @@ internal static class ProcessCommandValidator
             }
         }
         return null;
+    }
+
+    internal static bool IsTrustedVisualStudioInstance(
+        string candidate,
+        string expectedInstallationPath,
+        StringComparison comparison)
+    {
+        if (string.IsNullOrWhiteSpace(candidate)
+            || string.IsNullOrWhiteSpace(expectedInstallationPath)
+            || !Directory.Exists(candidate)
+            || !Directory.Exists(expectedInstallationPath))
+        {
+            return false;
+        }
+
+        var canonicalCandidate = CanonicalDirectory(candidate);
+        var canonicalExpected = CanonicalDirectory(expectedInstallationPath);
+        if (!string.Equals(canonicalCandidate, canonicalExpected, comparison))
+            return false;
+
+        var vcvars = Path.Combine(
+            canonicalCandidate,
+            "VC",
+            "Auxiliary",
+            "Build",
+            "vcvars64.bat");
+
+        return File.Exists(vcvars);
+    }
+
+    private static bool IsTrustedExternalToolchainArgument(
+        string argument,
+        string canonicalCandidate,
+        StringComparison comparison)
+    {
+        var variable = CMakeAssignmentName(argument);
+        if (variable is null)
+            return false;
+
+        if (variable.Equals("CMAKE_GENERATOR_INSTANCE", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!OperatingSystem.IsWindows())
+                return false;
+
+            var resolved = VisualStudioToolchainResolver.TryResolve();
+            return resolved is not null
+                   && IsTrustedVisualStudioInstance(
+                       canonicalCandidate,
+                       resolved.InstallationPath,
+                       comparison);
+        }
+
+        if (variable.Equals("CMAKE_C_COMPILER", StringComparison.OrdinalIgnoreCase)
+            || variable.Equals("CMAKE_CXX_COMPILER", StringComparison.OrdinalIgnoreCase)
+            || variable.Equals("CMAKE_MAKE_PROGRAM", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!File.Exists(canonicalCandidate))
+                return false;
+
+            var name = Path.GetFileNameWithoutExtension(canonicalCandidate);
+            if (!ExternalQaTools.Contains(name))
+                return false;
+
+            var resolved = FindExecutable(Path.GetFileName(canonicalCandidate))
+                           ?? FindExecutable(name);
+            return !string.IsNullOrWhiteSpace(resolved)
+                   && string.Equals(
+                       CanonicalFile(resolved),
+                       CanonicalFile(canonicalCandidate),
+                       comparison);
+        }
+
+        return false;
+    }
+
+    private static string? CMakeAssignmentName(string argument)
+    {
+        if (string.IsNullOrWhiteSpace(argument))
+            return null;
+
+        var trimmed = argument.Trim('"');
+        var equals = trimmed.IndexOf('=');
+        if (equals <= 0)
+            return null;
+
+        var name = trimmed[..equals].Trim();
+        if (name.StartsWith("-D", StringComparison.OrdinalIgnoreCase))
+            name = name[2..];
+        else
+            name = name.TrimStart('-', '/');
+
+        return name.StartsWith("CMAKE_", StringComparison.OrdinalIgnoreCase)
+            ? name
+            : null;
     }
 
     private static bool IsCMakeFlagsAssignment(string name)
