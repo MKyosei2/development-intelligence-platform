@@ -40,7 +40,22 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             $"DIP semantic analysis scanned {semanticResult.FilesAnalyzed} C/C++ source file(s).",
             Version: "1.0"));
 
-        var sanitizerEnvironment = new Dictionary<string, string>
+        var compilerFamily = ResolveCompilerFamily();
+        var visualStudioToolchain = OperatingSystem.IsWindows() && compilerFamily == "msvc"
+            ? VisualStudioToolchainResolver.TryResolve()
+            : null;
+
+        if (OperatingSystem.IsWindows() && compilerFamily == "msvc")
+            WriteMsvcToolchainEvidence(artifactRoot, visualStudioToolchain);
+
+        var nativeEnvironment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (visualStudioToolchain is not null)
+        {
+            foreach (var pair in visualStudioToolchain.Environment)
+                nativeEnvironment[pair.Key] = pair.Value;
+        }
+
+        var sanitizerEnvironment = new Dictionary<string, string>(nativeEnvironment, StringComparer.OrdinalIgnoreCase)
         {
             ["ASAN_OPTIONS"] = OperatingSystem.IsWindows()
                 ? "halt_on_error=1:abort_on_error=1"
@@ -48,10 +63,13 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             ["UBSAN_OPTIONS"] = "print_stacktrace=1:halt_on_error=0"
         };
 
-        var build = Path.Combine(workspace, ".dipqa", "asan-build");
-        Directory.CreateDirectory(build);
+        var nativeEnvironmentOrNull = nativeEnvironment.Count == 0
+            ? null
+            : nativeEnvironment;
 
-        var compilerFamily = ResolveCompilerFamily();
+        var build = Path.Combine(workspace, ".dipqa", "asan-build");
+        ResetQaBuildDirectory(build);
+
         var flags = compilerFamily is "msvc" or "clang-cl"
             ? "/W4 /fsanitize=address /Zi"
             : "-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";
@@ -71,33 +89,101 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         {
             configureArgs.Add($"-DCMAKE_CXX_COMPILER={clangCl}");
         }
+        else if (OperatingSystem.IsWindows()
+                 && compilerFamily == "msvc"
+                 && visualStudioToolchain is not null)
+        {
+            // A normal PowerShell session often does not put cl.exe on PATH. Resolve
+            // the installed Visual Studio instance with vswhere, initialize its x64
+            // developer environment via vcvars64.bat, and pass only the required MSVC
+            // variables into the QA sandbox. This reproduces the same environment as a
+            // successful Developer Command Prompt without weakening global sanitization.
+            configureArgs.InsertRange(0,
+            [
+                "-G", visualStudioToolchain.Generator,
+                "-A", "x64",
+                $"-DCMAKE_GENERATOR_INSTANCE={visualStudioToolchain.InstallationPath}"
+            ]);
+        }
 
-        await Run("cmake-configure", cmake, configureArgs, Severity.Critical, "configure");
-        await Run("cmake-build", cmake, ["--build", build, "--config", "RelWithDebInfo", "--parallel"], Severity.Critical, "compile");
+        var configureTool = await Run(
+            "cmake-configure",
+            cmake,
+            configureArgs,
+            Severity.Critical,
+            "configure",
+            nativeEnvironmentOrNull);
+
+        QaToolExecution? buildTool = null;
+        if (configureTool.Succeeded)
+        {
+            buildTool = await Run(
+                "cmake-build",
+                cmake,
+                ["--build", build, "--config", "RelWithDebInfo", "--parallel"],
+                Severity.Critical,
+                "compile",
+                nativeEnvironmentOrNull);
+        }
+        else
+        {
+            AddBlocked("cmake-build", "cmake-build was skipped because cmake-configure failed.");
+        }
 
         var ctest = ProcessExecutor.FindExecutable("ctest");
         QaToolExecution? ctestTool = null;
-        if (ctest is not null)
-            ctestTool = await Run("ctest", ctest, ["--test-dir", build, "-C", "RelWithDebInfo", "--output-on-failure"], Severity.Warning, "test", sanitizerEnvironment, shortNativeTimeout);
-        else
+        if (ctest is null)
+        {
             AddUnavailable("ctest");
+        }
+        else if (!configureTool.Succeeded)
+        {
+            AddBlocked("ctest", "CTest was skipped because cmake-configure failed.");
+        }
+        else if (buildTool is null || !buildTool.Succeeded)
+        {
+            AddBlocked("ctest", "CTest was skipped because the C++ build did not complete successfully.");
+        }
+        else
+        {
+            ctestTool = await Run(
+                "ctest",
+                ctest,
+                ["--test-dir", build, "-C", "RelWithDebInfo", "--output-on-failure"],
+                Severity.Warning,
+                "test",
+                sanitizerEnvironment,
+                shortNativeTimeout);
+        }
 
         // CTest already executes the sanitizer-instrumented target and emits failing
         // test output with --output-on-failure. Running the same target a second time
         // caused clean binaries to enter an ASan DEADLYSIGNAL/timeout loop in the
         // sandbox. Use the direct runtime only as a fallback when CTest was unavailable
-        // or failed to produce an exit code (start failure / timeout).
-        if (ShouldRunDirectRuntimeFallback(ctestTool)
+        // or failed to produce an exit code (start failure / timeout), and only when a
+        // successful configure/build produced an executable in the first place.
+        if (configureTool.Succeeded
+            && buildTool?.Succeeded == true
+            && ShouldRunDirectRuntimeFallback(ctestTool)
             && TryResolvePrimaryExecutable(workspace, build) is { } runtimeExecutable)
         {
-            await Run("cpp-runtime-asan-auto", runtimeExecutable, Array.Empty<string>(), Severity.Critical, "runtime", sanitizerEnvironment, shortNativeTimeout);
+            await Run(
+                "cpp-runtime-asan-auto",
+                runtimeExecutable,
+                Array.Empty<string>(),
+                Severity.Critical,
+                "runtime",
+                sanitizerEnvironment,
+                shortNativeTimeout);
         }
 
         var clangTidy = ProcessExecutor.FindExecutable("clang-tidy");
-        if (clangTidy is not null)
+        if (clangTidy is not null && configureTool.Succeeded)
             await RunClangTidy(clangTidy, build);
-        else
+        else if (clangTidy is null)
             AddUnavailable("clang-tidy");
+        else
+            AddBlocked("clang-tidy", "clang-tidy was skipped because cmake-configure failed.");
 
         var cppcheck = ProcessExecutor.FindExecutable("cppcheck");
         if (cppcheck is not null)
@@ -117,25 +203,46 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             && string.Equals(Environment.GetEnvironmentVariable("DIP_QA_ENABLE_TSAN"), "1", StringComparison.Ordinal))
         {
             var tsanBuild = Path.Combine(workspace, ".dipqa", "tsan-build");
-            Directory.CreateDirectory(tsanBuild);
+            ResetQaBuildDirectory(tsanBuild);
             var tsanEnv = new Dictionary<string, string> { ["TSAN_OPTIONS"] = "halt_on_error=1:history_size=7" };
 
-            await Run(
+            var tsanConfigure = await Run(
                 "cmake-configure-tsan",
                 cmake,
                 ["-S", workspace, "-B", tsanBuild, "-DCMAKE_BUILD_TYPE=RelWithDebInfo", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_CXX_FLAGS=-Wall -Wextra -Wpedantic -fsanitize=thread -fno-omit-frame-pointer -g"],
                 Severity.Critical,
                 "configure");
 
-            await Run(
-                "cmake-build-tsan",
-                cmake,
-                ["--build", tsanBuild, "--config", "RelWithDebInfo", "--parallel"],
-                Severity.Critical,
-                "compile");
+            QaToolExecution? tsanBuildTool = null;
+            if (tsanConfigure.Succeeded)
+            {
+                tsanBuildTool = await Run(
+                    "cmake-build-tsan",
+                    cmake,
+                    ["--build", tsanBuild, "--config", "RelWithDebInfo", "--parallel"],
+                    Severity.Critical,
+                    "compile");
+            }
+            else
+            {
+                AddBlocked("cmake-build-tsan", "ThreadSanitizer build was skipped because its CMake configure step failed.");
+            }
 
-            if (ctest is not null)
-                await Run("ctest-tsan", ctest, ["--test-dir", tsanBuild, "-C", "RelWithDebInfo", "--output-on-failure"], Severity.Critical, "race", tsanEnv, shortNativeTimeout);
+            if (ctest is not null && tsanConfigure.Succeeded && tsanBuildTool?.Succeeded == true)
+            {
+                await Run(
+                    "ctest-tsan",
+                    ctest,
+                    ["--test-dir", tsanBuild, "-C", "RelWithDebInfo", "--output-on-failure"],
+                    Severity.Critical,
+                    "race",
+                    tsanEnv,
+                    shortNativeTimeout);
+            }
+            else if (ctest is not null)
+            {
+                AddBlocked("ctest-tsan", "ThreadSanitizer tests were skipped because configure/build did not complete successfully.");
+            }
         }
 
         return new(LanguageId.Cpp, tools, findings, QaToolSupport.JsonSummary(LanguageId.Cpp, tools, findings));
@@ -172,6 +279,9 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         void AddUnavailable(string name) =>
             tools.Add(new(name, false, false, null, 0, string.Empty, string.Empty, $"{name} is unavailable; optional analysis was skipped."));
 
+        void AddBlocked(string name, string summary) =>
+            tools.Add(new(name, true, false, null, 0, string.Empty, string.Empty, summary));
+
         async Task RunClangTidy(string executable, string buildDir)
         {
             var compileDb = Path.Combine(buildDir, "compile_commands.json");
@@ -207,7 +317,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                     [source, "-p", buildDir, "--quiet"],
                     workspace,
                     artifactRoot,
-                    null,
+                    nativeEnvironmentOrNull,
                     timeout,
                     LanguageId.Cpp,
                     Severity.Warning,
@@ -222,6 +332,50 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
 
     internal static bool ShouldRunDirectRuntimeFallback(QaToolExecution? ctestTool)
         => ctestTool is null || ctestTool.ExitCode is null;
+
+    private static void ResetQaBuildDirectory(string build)
+    {
+        if (Directory.Exists(build))
+            Directory.Delete(build, recursive: true);
+
+        Directory.CreateDirectory(build);
+    }
+
+
+    private static void WriteMsvcToolchainEvidence(string artifactRoot, VisualStudioToolchain? toolchain)
+    {
+        try
+        {
+            Directory.CreateDirectory(artifactRoot);
+            var path = Path.Combine(artifactRoot, "msvc-toolchain.txt");
+            var lines = toolchain is null
+                ? new[]
+                {
+                    "Resolved=False",
+                    "Reason=Visual Studio with the Desktop C++ toolset could not be resolved by vswhere."
+                }
+                : new[]
+                {
+                    "Resolved=True",
+                    $"Generator={toolchain.Generator}",
+                    $"InstallationPath={toolchain.InstallationPath}",
+                    $"DeveloperEnvironmentScript={toolchain.DeveloperEnvironmentScript}",
+                    $"DeveloperEnvironmentResolved={toolchain.DeveloperEnvironmentResolved}",
+                    $"DeveloperEnvironmentExitCode={(toolchain.DeveloperEnvironmentExitCode?.ToString() ?? "<none>")}",
+                    $"DeveloperEnvironmentDetail={toolchain.DeveloperEnvironmentDetail}",
+                    $"CompilerPath={(toolchain.CompilerPath ?? "<none>")}",
+                    $"CompilerExists={toolchain.CompilerExists}",
+                    $"ForwardedVariables={string.Join(",", toolchain.Environment.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))}"
+                };
+
+            File.WriteAllLines(path, lines);
+        }
+        catch
+        {
+            // Diagnostic evidence must never turn a compiler-discovery failure into a
+            // separate QA infrastructure failure. The CMake logs remain authoritative.
+        }
+    }
 
     private static string? TryResolvePrimaryExecutable(string workspace, string build)
     {
