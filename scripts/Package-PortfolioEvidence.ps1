@@ -18,11 +18,7 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $RepositoryRoot 'artifacts\portfolio-evidence-package'
 }
 
-foreach ($command in @('git')) {
-    if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
-        throw "$command is required."
-    }
-}
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'git is required.' }
 
 function Invoke-GitText {
     param([Parameter(Mandatory=$true)][string[]]$Arguments)
@@ -35,9 +31,7 @@ function Invoke-GitText {
 
 function Read-JsonObject {
     param([Parameter(Mandatory=$true)][string]$Path)
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        throw "Required evidence is missing: $Path"
-    }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Required evidence is missing: $Path" }
     return (Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json)
 }
 
@@ -48,34 +42,45 @@ function Assert-SourceCommit {
         [Parameter(Mandatory=$true)][string]$Property
     )
     $actual = [string]$Value.$Property
-    if ($actual -ne $ExpectedSha) {
-        throw "$Label SHA mismatch. expected=$ExpectedSha actual=$actual"
+    if ($actual -ne $ExpectedSha) { throw "$Label SHA mismatch. expected=$ExpectedSha actual=$actual" }
+}
+
+function Get-RelativePathSafe {
+    param(
+        [Parameter(Mandatory=$true)][string]$Root,
+        [Parameter(Mandatory=$true)][string]$Path
+    )
+    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd([char[]]@(92,47))
+    $pathFull = [IO.Path]::GetFullPath($Path)
+    $prefix = $rootFull + [IO.Path]::DirectorySeparatorChar
+    if (-not $pathFull.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Path is outside the staging root. root=$rootFull path=$pathFull"
     }
+    return $pathFull.Substring($prefix.Length).Replace('\','/')
 }
 
 $head = Invoke-GitText @('rev-parse','HEAD')
 if ([string]::IsNullOrWhiteSpace($ExpectedSha)) { $ExpectedSha = $head }
-if ($ExpectedSha -notmatch '^[0-9a-fA-F]{40}$') {
-    throw "ExpectedSha must be a full 40-character SHA: $ExpectedSha"
-}
-if ($head -ne $ExpectedSha) {
-    throw "HEAD mismatch. expected=$ExpectedSha actual=$head"
-}
+if ($ExpectedSha -notmatch '^[0-9a-fA-F]{40}$') { throw "ExpectedSha must be a full 40-character SHA: $ExpectedSha" }
+if ($head -ne $ExpectedSha) { throw "HEAD mismatch. expected=$ExpectedSha actual=$head" }
+
+& git -C $RepositoryRoot fetch origin main --prune
+if ($LASTEXITCODE -ne 0) { throw 'Could not fetch origin/main.' }
 $originMain = Invoke-GitText @('rev-parse','origin/main')
 if ($originMain -ne $ExpectedSha) {
     throw "Evidence packaging requires HEAD == origin/main. HEAD=$ExpectedSha origin/main=$originMain"
 }
 $dirty = Invoke-GitText @('status','--porcelain','--untracked-files=no')
-if (-not [string]::IsNullOrWhiteSpace($dirty)) {
-    throw "Evidence packaging requires a clean tracked tree:`n$dirty"
-}
+if (-not [string]::IsNullOrWhiteSpace($dirty)) { throw "Evidence packaging requires a clean tracked tree:`n$dirty" }
 
 $finalRoot = Join-Path $RepositoryRoot ("artifacts\final-evidence\" + $ExpectedSha)
 $finalSummaryPath = Join-Path $finalRoot 'FINAL_EVIDENCE_SUMMARY.json'
 $final = Read-JsonObject $finalSummaryPath
 Assert-SourceCommit 'Final evidence' $final 'sourceCommit'
-if ([string]$final.status -ne 'PASS') {
-    throw "Final evidence is not PASS: $($final.status)"
+if ([string]$final.status -ne 'PASS') { throw "Final evidence is not PASS: $($final.status)" }
+if ([string]$final.requiredCi -ne '11/11 Green') { throw "Final evidence does not bind 11/11 Green CI: $($final.requiredCi)" }
+if ($final.benchmarkPassed -ne $true -or $final.qaBugZooPassed -ne $true -or $final.projectTruthScenarioPassed -ne $true) {
+    throw 'Final evidence is missing a mandatory benchmark, QA Bug Zoo, or Project Truth PASS.'
 }
 
 $determinismPath = Join-Path $RepositoryRoot 'artifacts\qa-bug-zoo-determinism\qa-bug-zoo-determinism-summary.json'
@@ -95,18 +100,12 @@ $dockerRoot = Join-Path $RepositoryRoot 'artifacts\docker-primary'
 $dockerSummaryPath = Join-Path $dockerRoot 'docker-primary-verification.json'
 $dockerSummary = Read-JsonObject $dockerSummaryPath
 Assert-SourceCommit 'Docker Primary' $dockerSummary 'sourceCommit'
-if ([string]$dockerSummary.status -ne 'PASS') {
-    throw "Docker Primary verification is not PASS: $($dockerSummary.status)"
-}
+if ([string]$dockerSummary.status -ne 'PASS') { throw "Docker Primary verification is not PASS: $($dockerSummary.status)" }
 
 $dockerPassPath = Join-Path $dockerRoot 'DOCKER_PRIMARY_VERIFICATION_PASS.txt'
-if (-not (Test-Path -LiteralPath $dockerPassPath -PathType Leaf)) {
-    throw "Docker Primary PASS sentinel is missing: $dockerPassPath"
-}
+if (-not (Test-Path -LiteralPath $dockerPassPath -PathType Leaf)) { throw "Docker Primary PASS sentinel is missing: $dockerPassPath" }
 $dockerPass = Get-Content -LiteralPath $dockerPassPath -Raw
-if ($dockerPass -notmatch [regex]::Escape("Commit=$ExpectedSha")) {
-    throw 'Docker Primary PASS sentinel is not bound to the expected SHA.'
-}
+if ($dockerPass -notmatch [regex]::Escape("Commit=$ExpectedSha")) { throw 'Docker Primary PASS sentinel is not bound to the expected SHA.' }
 
 $dockerBenchmarkPath = Join-Path $dockerRoot 'portfolio-benchmark-results.json'
 $dockerBenchmark = Read-JsonObject $dockerBenchmarkPath
@@ -118,24 +117,19 @@ $governance = Read-JsonObject $governancePath
 Assert-SourceCommit 'Governance load' $governance 'sourceCommit'
 if ($governance.passed -ne $true) { throw 'Governance load did not pass.' }
 
-$requiredDockerFiles = @(
-    'publication-safety.json',
-    'portfolio-readiness.json'
-)
-foreach ($name in $requiredDockerFiles) {
+foreach ($name in @('publication-safety.json','portfolio-readiness.json')) {
     $path = Join-Path $dockerRoot $name
-    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        throw "Required Docker Primary evidence is missing: $path"
-    }
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required Docker Primary evidence is missing: $path" }
 }
 
-# The finalizer copies the canonical CI/benchmark/Bug Zoo/Project Truth evidence into this exact-SHA directory.
 foreach ($name in @('ci-matrix.json','portfolio-benchmark-results.json','qa-bug-zoo-results.json','project-truth-evidence.json','SHA256SUMS.txt')) {
     $path = Join-Path $finalRoot $name
-    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        throw "Final evidence bundle is incomplete: $path"
-    }
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Final evidence bundle is incomplete: $path" }
 }
+
+$currentReadinessPath = Join-Path $RepositoryRoot 'artifacts\current-revision-readiness.json'
+$currentReadiness = Read-JsonObject $currentReadinessPath
+if ([string]$currentReadiness.status -ne 'PASS') { throw 'Current revision portfolio readiness is not PASS.' }
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $staging = Join-Path $OutputDirectory ('.staging-' + $ExpectedSha)
@@ -151,9 +145,7 @@ try {
     New-Item -ItemType Directory -Force -Path $detDest | Out-Null
     Copy-Item -LiteralPath $determinismPath -Destination (Join-Path $detDest 'qa-bug-zoo-determinism-summary.json') -Force
     $detPass = Join-Path (Split-Path $determinismPath -Parent) 'DIP_QA_BUG_ZOO_DETERMINISM_PASS.txt'
-    if (-not (Test-Path -LiteralPath $detPass -PathType Leaf)) {
-        throw "Bug Zoo determinism PASS sentinel is missing: $detPass"
-    }
+    if (-not (Test-Path -LiteralPath $detPass -PathType Leaf)) { throw "Bug Zoo determinism PASS sentinel is missing: $detPass" }
     Copy-Item -LiteralPath $detPass -Destination (Join-Path $detDest 'DIP_QA_BUG_ZOO_DETERMINISM_PASS.txt') -Force
 
     $dockerDest = Join-Path $staging 'docker-primary'
@@ -169,16 +161,21 @@ try {
         Copy-Item -LiteralPath (Join-Path $dockerRoot $name) -Destination (Join-Path $dockerDest $name) -Force
     }
 
+    Copy-Item -LiteralPath $currentReadinessPath -Destination (Join-Path $staging 'CURRENT_REVISION_READINESS.json') -Force
+
     $manifestPath = Join-Path $staging 'EVIDENCE_PACKAGE_MANIFEST.json'
     $manifest = [ordered]@{
-        schema = 'dip.portfolio-evidence-package.v1'
+        schema = 'dip.portfolio-evidence-package.v2'
         status = 'PASS'
         sourceCommit = $ExpectedSha
         originMain = $originMain
         trackedTreeClean = $true
+        requiredCi = '11/11 Green'
         finalEvidenceStatus = [string]$final.status
         dockerPrimaryStatus = [string]$dockerSummary.status
+        currentRevisionReadiness = [string]$currentReadiness.status
         bugZooDeterminism = [ordered]@{
+            runtime = [string]$determinism.runtime
             runs = [int]$determinism.runCount
             passCount = [int]$determinism.passCount
             recallPercent = [decimal]$determinism.detectionRecallPercent
@@ -186,10 +183,7 @@ try {
             reproductionRatePercent = [decimal]$determinism.reproductionRatePercent
             unstableCaseCount = [int]$determinism.unstableCaseCount
         }
-        engineRuntime = [ordered]@{
-            unity = 'NOT_EVALUATED'
-            unreal = 'NOT_EVALUATED'
-        }
+        engineRuntime = [ordered]@{ unity = 'NOT_EVALUATED'; unreal = 'NOT_EVALUATED' }
         generatedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
     }
     $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
@@ -197,7 +191,7 @@ try {
     $sumPath = Join-Path $staging 'SHA256SUMS.txt'
     $lines = [Collections.Generic.List[string]]::new()
     foreach ($file in @(Get-ChildItem -LiteralPath $staging -File -Recurse | Where-Object { $_.FullName -ne $sumPath } | Sort-Object FullName)) {
-        $relative = [IO.Path]::GetRelativePath($staging, $file.FullName).Replace('\','/')
+        $relative = Get-RelativePathSafe -Root $staging -Path $file.FullName
         $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         $lines.Add("$hash  $relative")
     }
@@ -206,6 +200,7 @@ try {
     $zipPath = Join-Path $OutputDirectory ("DIP_PORTFOLIO_EVIDENCE_" + $ExpectedSha + '.zip')
     if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
     Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zipPath -CompressionLevel Optimal -Force
+    if (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) { throw "Evidence ZIP was not created: $zipPath" }
 
     $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $zipHashPath = $zipPath + '.sha256'
@@ -217,7 +212,5 @@ try {
     Write-Host "SHA256=$zipHashPath"
 }
 finally {
-    if (Test-Path -LiteralPath $staging) {
-        Remove-Item -LiteralPath $staging -Recurse -Force
-    }
+    if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
 }

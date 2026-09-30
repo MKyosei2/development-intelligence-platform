@@ -44,12 +44,13 @@ jobs:
         run: python -m pytest --junitxml=python-test-results.xml
       - name: Upload test results
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: python-test-results
           path: services/python-analysis/python-test-results.xml
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
 
   maya-collector-smoke:
     name: Maya collector dependency-free validation
@@ -105,9 +106,10 @@ jobs:
         run: python -m pytest tools/tests/test_portfolio_evidence_tools.py -q --junitxml=portfolio-evidence-tooling-tests.xml
       - name: Upload evidence-tooling tests
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: portfolio-evidence-tooling-tests
           path: portfolio-evidence-tooling-tests.xml
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3

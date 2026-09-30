@@ -59,19 +59,16 @@ jobs:
           else
             echo "No FIRST_FUNCTIONAL_EXCEPTION.json was produced."
           fi
-
           echo
           echo "Playwright error contexts:"
           find tests/Dip.UiE2E/artifacts/test-results -name error-context.md -type f -print 2>/dev/null | while read -r file; do
             echo "----- $file -----"
             cat "$file"
           done
-
           echo
           echo "Playwright result files:"
           find tests/Dip.UiE2E/artifacts/test-results -maxdepth 3 -type f -print 2>/dev/null | sort || true
           echo "::endgroup::"
-
       - name: Upload GUI evidence
         if: always()
         continue-on-error: true
@@ -83,4 +80,4 @@ jobs:
             tests/Dip.UiE2E/artifacts/playwright-report
             tests/Dip.UiE2E/artifacts/test-results
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 3

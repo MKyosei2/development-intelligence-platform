@@ -79,17 +79,27 @@ jobs:
 
   secret-scan:
     name: Secret scan
-    permissions:
-      contents: read
-      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install pinned Gitleaks CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='8.24.3'
+          archive="gitleaks_${version}_linux_x64.tar.gz"
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${version}/${archive}"
+          curl -fsSL "$url" -o "/tmp/${archive}"
+          tar -xzf "/tmp/${archive}" -C /tmp gitleaks
+          chmod +x /tmp/gitleaks
+          /tmp/gitleaks version
+      - name: Detect committed secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/gitleaks detect --source . --redact --exit-code 1 --no-banner
 
   codeql:
     name: CodeQL or static analysis (${{ matrix.language }})

@@ -75,7 +75,9 @@ jobs:
             'scripts/SourcePurposeRules.ps1',
             'scripts/Test-SourcePurposeTooling.ps1',
             'scripts/Repair-SourcePurposeComments.ps1',
-            'scripts/Verify-SourceReadability.ps1'
+            'scripts/Verify-SourceReadability.ps1',
+            'scripts/DIP_QA_BUG_ZOO_DETERMINISM.ps1',
+            'scripts/Package-PortfolioEvidence.ps1'
           )
           foreach ($file in $files) {
             if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
@@ -105,8 +107,9 @@ jobs:
               "tools/verify_final_ci_matrix.py",
               "tools/publish_qa_scenario_evidence.py",
               "tools/finalize_portfolio_evidence.py",
-              "scripts/Request-FinalVerification.ps1",
               "scripts/Complete-PortfolioRelease.ps1",
+              "scripts/DIP_QA_BUG_ZOO_DETERMINISM.ps1",
+              "scripts/Package-PortfolioEvidence.ps1",
               "docs/09-portfolio/ENGINEERING_JOURNEY.md",
               "docs/09-portfolio/CI_EXECUTION_POLICY.md",
           ]
@@ -136,7 +139,10 @@ jobs:
           missing = [value for value in required if value not in text]
           if missing:
               raise SystemExit("README capability/verification contract is incomplete: " + ", ".join(missing))
-          print("PASS: reviewer-facing three-pillar, CI, evidence and deployment boundaries are present.")
+          size = Path("README.md").stat().st_size
+          if size > 12000:
+              raise SystemExit(f"README exceeds readiness budget: {size} bytes > 12000")
+          print(f"PASS: reviewer-facing contract is complete; README={size} bytes.")
 
       - name: Generate exact-revision evidence artifact
         shell: python
@@ -188,6 +194,7 @@ jobs:
 
       - name: Upload static evidence
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: portfolio-publication-readiness-${{ github.sha }}
@@ -199,4 +206,4 @@ jobs:
             artifacts/source-readability/report.md
             artifacts/source-readability/inventory.csv
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 3

@@ -30,10 +30,30 @@ jobs:
         run: npm install --global typescript
       - name: Run measured Universal QA toolchain benchmark
         run: python tools/universal_qa_benchmark.py --output artifacts/universal-qa-benchmark
+      - name: Verify measured benchmark evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s artifacts/universal-qa-benchmark/universal-qa-benchmark-results.json
+          test -s artifacts/universal-qa-benchmark/universal-qa-benchmark-results.sha256
+          cd artifacts/universal-qa-benchmark
+          sha256sum -c universal-qa-benchmark-results.sha256
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          value = json.loads(Path('universal-qa-benchmark-results.json').read_text(encoding='utf-8'))
+          assert value['cases'] > 0
+          assert value['falsePositiveRatePercent'] == 0
+          assert value['falseNegativeRatePercent'] == 0
+          assert value['reproductionRatePercent'] == 100
+          print('PASS: measured benchmark result is complete and internally consistent.')
+          PY
       - name: Upload measured evidence
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: universal-qa-benchmark-${{ github.sha }}
           path: artifacts/universal-qa-benchmark
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 3

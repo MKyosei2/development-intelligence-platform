@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-# Purpose: Requires every publication workflow to be Green for one exact source revision.
+# Purpose: Requires every publication workflow to be Green for one exact source revision with Windows-safe UTF-8 subprocess decoding.
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -25,7 +26,18 @@ REQUIRED = [
 
 
 def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
-    cp = subprocess.run(cmd, text=True, capture_output=True, check=False)
+    env = os.environ.copy()
+    env.setdefault("PYTHONUTF8", "1")
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    cp = subprocess.run(
+        cmd,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+        env=env,
+    )
     if check and cp.returncode != 0:
         raise RuntimeError(
             f"Command failed ({cp.returncode}): {subprocess.list2cmdline(cmd)}\n{cp.stdout}\n{cp.stderr}"
@@ -95,7 +107,7 @@ def main() -> int:
 
     run(["gh", "auth", "status"])
     sha = args.sha or git_sha()
-    if len(sha) != 40:
+    if len(sha) != 40 or any(ch not in "0123456789abcdefABCDEF" for ch in sha):
         raise RuntimeError(f"Invalid SHA: {sha!r}")
 
     deadline = time.time() + max(0, args.wait_minutes) * 60

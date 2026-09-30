@@ -48,11 +48,22 @@ jobs:
           tar -czf ../dip-native-${GITHUB_SHA}.tar.gz .
           cd ..
           sha256sum dip-native-${GITHUB_SHA}.tar.gz > dip-native-${GITHUB_SHA}.sha256
-      - uses: actions/upload-artifact@v7
+      - name: Verify native package before upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "artifacts/dip-native-${GITHUB_SHA}.tar.gz"
+          test -s "artifacts/dip-native-${GITHUB_SHA}.sha256"
+          cd artifacts
+          sha256sum -c "dip-native-${GITHUB_SHA}.sha256"
+          tar -tzf "dip-native-${GITHUB_SHA}.tar.gz" >/dev/null
+      - name: Upload exact-SHA native package
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
         with:
           name: dip-native-${{ github.sha }}
           path: |
             artifacts/dip-native-${{ github.sha }}.tar.gz
             artifacts/dip-native-${{ github.sha }}.sha256
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3

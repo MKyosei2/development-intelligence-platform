@@ -40,12 +40,10 @@ jobs:
             if (-not (Test-Path -LiteralPath $relativePath)) {
               throw "Required repository build file is missing: $relativePath"
             }
-
             $text = Get-Content -LiteralPath $relativePath -Raw
             if ([string]::IsNullOrWhiteSpace($text)) {
               throw "Required repository build file is empty: $relativePath"
             }
-
             try {
               [xml]$text | Out-Null
             }
@@ -63,10 +61,20 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
+      - name: Verify executable exists
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -LiteralPath build -Recurse -File | Where-Object { $_.Name -in @('dip-native-collector','dip-native-collector.exe') })
+          if ($files.Count -lt 1) {
+            throw 'Native collector build/test completed but no dip-native-collector executable was produced.'
+          }
+          $files | ForEach-Object { Write-Host "PACKAGE INPUT: $($_.FullName)" }
+
       - name: Upload executable
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: native-collector-${{ matrix.os }}
           path: collectors/native-collector/build/**/dip-native-collector*
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3

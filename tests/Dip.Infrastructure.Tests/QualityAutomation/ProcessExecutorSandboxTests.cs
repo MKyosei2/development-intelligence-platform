@@ -14,30 +14,43 @@ public sealed class ProcessExecutorSandboxTests
         Directory.CreateDirectory(root);
         var fake = Path.Combine(Path.GetTempPath(), "not-a-trusted-dip-tool-" + Guid.NewGuid().ToString("N"));
         await File.WriteAllTextAsync(fake, "noop");
+
         try
         {
             var sut = new ProcessExecutor(Options.Create(new QaExecutionOptions { SandboxEnabled = true }));
             Func<Task> act = async () =>
             {
-                await sut.RunQaAsync(fake, Array.Empty<string>(), root, null, TimeSpan.FromSeconds(1), Path.Combine(root, "out.txt"), Path.Combine(root, "err.txt"), CancellationToken.None);
+                await sut.RunQaAsync(
+                    fake,
+                    Array.Empty<string>(),
+                    root,
+                    null,
+                    TimeSpan.FromSeconds(1),
+                    Path.Combine(root, "out.txt"),
+                    Path.Combine(root, "err.txt"),
+                    CancellationToken.None);
             };
+
             await act.Should().ThrowAsync<InvalidOperationException>();
         }
         finally
         {
-            try { File.Delete(fake); }
-            catch { }
-            try { Directory.Delete(root, true); }
-            catch { }
+            if (File.Exists(fake))
+                File.Delete(fake);
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
         }
     }
 
     [Fact]
     public async Task WindowsQaSandbox_AppliesJobObjectCpuAndMemoryLimits()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
+
         var root = Path.Combine(Path.GetTempPath(), "dip-sandbox-win-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+
         try
         {
             var sut = new ProcessExecutor(Options.Create(new QaExecutionOptions
@@ -47,6 +60,7 @@ public sealed class ProcessExecutorSandboxTests
                 SandboxMemoryLimitMb = 1024,
                 SanitizeEnvironment = true
             }));
+
             var result = await sut.RunQaAsync(
                 "dotnet",
                 new[] { "--version" },
@@ -56,7 +70,12 @@ public sealed class ProcessExecutorSandboxTests
                 Path.Combine(root, "out.txt"),
                 Path.Combine(root, "err.txt"),
                 CancellationToken.None);
-            result.ExitCode.Should().Be(0, "the trusted dotnet probe should run inside the Windows QA sandbox. stdout: {0}; stderr: {1}", result.StandardOutput, result.StandardError);
+
+            result.ExitCode.Should().Be(
+                0,
+                "the trusted dotnet probe should run inside the Windows QA sandbox. stdout: {0}; stderr: {1}",
+                result.StandardOutput,
+                result.StandardError);
             result.Sandbox.Should().NotBeNull();
             result.Sandbox!.WorkspaceBoundaryEnforced.Should().BeTrue();
             result.Sandbox.EnvironmentSanitized.Should().BeTrue();
@@ -65,8 +84,8 @@ public sealed class ProcessExecutorSandboxTests
         }
         finally
         {
-            try { Directory.Delete(root, true); }
-            catch { }
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
         }
     }
 

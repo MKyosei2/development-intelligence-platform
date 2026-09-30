@@ -1,6 +1,6 @@
 # Development Intelligence Platform (DIP)
 
-DIPは、ゲーム・メディア・ソフトウェア開発チーム向けのDevelopment Intelligence基盤です。Git / CI / QA / Runtime / Performance / Project Dataを共通のProject Contextへ集約し、出所・revision・freshnessを追跡できるEvidenceとして扱います。
+DIPは、ゲーム・メディア・ソフトウェア開発チーム向けのDevelopment Intelligence基盤です。Git / CI / QA / Runtime / Performance / Project Dataを共通のProject Contextへ集約し、source・revision・freshnessを追跡できるEvidenceとして扱います。
 
 **Portfolio focus:** C# / .NET 8、PostgreSQL、Python、C++ / native QA、Unity / Unreal integration、GitHub Actionsを、別々のデモではなく**Evidenceとexact-revision verificationを中心に接続した開発基盤**として示します。
 
@@ -11,7 +11,7 @@ DIPは、ゲーム・メディア・ソフトウェア開発チーム向けのDe
 ## 60秒レビュー
 
 1. 「まず見てほしい3領域」でProjectの主軸を確認する。
-2. [`QA_EVIDENCE_CASE_STUDY.md`](docs/09-portfolio/QA_EVIDENCE_CASE_STUDY.md) で、Critical QA EvidenceがProject Truthのunsupported Complete claimを否定する流れを見る。
+2. [`QA_EVIDENCE_CASE_STUDY.md`](docs/09-portfolio/QA_EVIDENCE_CASE_STUDY.md) で、Critical QA Evidenceがunsupported Complete claimを否定する流れを見る。
 3. 「Verification status」と「Final exact-revision gate」でImplemented / Tested / Runtime Verifiedを分離していることを確認する。
 4. 開発方針の変化は [`ENGINEERING_JOURNEY.md`](docs/09-portfolio/ENGINEERING_JOURNEY.md) を参照する。
 
@@ -23,15 +23,11 @@ ClaimとEvidenceを分離し、source、revision、freshness、contradictionを�
 
 ### 2. Game Development QA
 
-**Evidence-Grounded Autonomous Debugging** は、Hypothesis → Candidate → Isolated Verification → Human Review の順に進み、AI出力そのものを検証結果として扱いません。
-
-Universal QA / C++ / runtime / CI / engine integrationから得たEvidenceを、QA Finding、再現性、regression、performance、quality gateへ接続します。Engine固有payloadを保持しつつ、意思決定に必要な情報をprovider-neutral Evidenceへ昇格します。
+**Evidence-Grounded Autonomous Debugging** は Hypothesis → Candidate → Isolated Verification → Human Review の順に進み、AI出力そのものを検証結果として扱いません。Universal QA / C++ / runtime / CI / engine integrationから得たEvidenceを、QA Finding、再現性、regression、performance、quality gateへ接続します。
 
 ### 3. Verification / Release Operations
 
 Unit / Integration / E2E、GUI、security、benchmark、migration、backup/restore、release readinessをexact revisionへ結び付けます。古いPASS、未実行、environment-blockedを現在revisionの成功として扱いません。
-
-その他の機能は、この3領域を支える周辺機能です。
 
 ## Verification status
 
@@ -43,6 +39,8 @@ READMEの説明そのものを検証結果とは扱いません。**最終提出
 | Tested | 対象revisionのtest / workflowが成功 |
 | Runtime Verified | 対象revisionを実runtimeで検証したEvidenceがある |
 | Performance Verified | clean tree + exact SHAのbenchmark artifactがある |
+| Policy Verified | 同一revisionでpolicy evaluatorと関連Evidenceが成功 |
+| Production Deployed | 実Production deploy Evidenceが存在する場合のみ主張する |
 | Final Portfolio Revision | required CI、benchmark、QA Bug Zoo、Project Truth、final bindingが同一SHA |
 
 最終Source of TruthはGitHub Actions / Release artifact / `artifacts/final-evidence/` です。
@@ -67,7 +65,7 @@ Verified progress < Reported progress
 Contradiction recorded
 ```
 
-VerifierがPASSする条件は、「製品品質GateがPASSすること」ではありません。**Critical Evidenceが存在する状態でDIPがunsupported completion claimを正しく拒否すること**です。
+VerifierがPASSする条件は「製品品質GateがPASSすること」ではなく、Critical Evidenceが存在する状態でDIPがunsupported completion claimを正しく拒否することです。
 
 - 実行・設計: [`QA_EVIDENCE_CASE_STUDY.md`](docs/09-portfolio/QA_EVIDENCE_CASE_STUDY.md)
 - 2〜3分デモ構成: [`QA_EVIDENCE_DEMO.md`](docs/09-portfolio/QA_EVIDENCE_DEMO.md)
@@ -83,30 +81,23 @@ VerifierがPASSする条件は、「製品品質GateがPASSすること」では
 
 ### C++ QA determinism / timeout evidence boundary
 
-C++ QAでは、CTestをtest orchestrationのEvidence、sanitizer-instrumented direct runtimeをmemory-safety findingの安定した判定経路として分離します。CTest自身のinfrastructure timeoutは`Critical/hang`という製品findingへ昇格させず、同時に握り潰してPASSにもせず、stdout/stderr、timeout、exit code、CPU、peak memory、sandbox、sanitizer environment、pre-kill process treeを`execution-diagnostics.json`へ保存します。
+C++ QAでは、CTestをtest orchestrationのEvidence、sanitizer-instrumented direct runtimeをmemory-safety findingの判定経路として分離します。CTest自身のinfrastructure timeoutは製品`Critical/hang`へ昇格させず、同時にPASSにもせず、stdout/stderr、timeout、exit code、CPU、peak memory、sandbox、sanitizer environment、pre-kill process treeを`execution-diagnostics.json`へ保存します。
 
-`cpp/clean`、`memory_leak`、`buffer_overflow`、`double_free`、`use_after_free`は、同一SHAでの10-run determinism verificationにより、finding category/ruleとtool pathがrun間で変化しないことを確認してからCurrent Revisionの実績として扱います。
+`cpp/clean`、`memory_leak`、`buffer_overflow`、`double_free`、`use_after_free`は、同一SHAで10-run determinism verificationを行い、10/10 PASS、Recall 100%、False Positive 0%、Reproduction 100%、UnstableCaseCount 0を満たした場合だけCurrent Revision実績として扱います。
 
 ```powershell
 $sha = (git rev-parse HEAD).Trim()
 .\scripts\DIP_QA_BUG_ZOO_DETERMINISM.ps1 -ExpectedSha $sha -Runs 10
 ```
 
-この変更の実装だけでは10/10 PASSを主張しません。`qa-bug-zoo-determinism-summary.json`が同一SHAについてPASSになった場合にのみ、測定結果をportfolio実績へ反映します。
-
 ## CI実行方針
 
 Hosted runner quotaを通常pushで消費しないため、3段階で運用します。
 
 ```text
-1. work/* / feat/* / fix/* / chore/*
-   -> Hosted Actionsを自動起動しない
-
-2. workflow_dispatch
-   -> Fast / Targeted / Fullを明示実行
-
-3. main + .portfolio-ci-trigger
-   -> final提出 / Release時だけrequired workflowを起動
+1. work/* / feat/* / fix/* / chore/* -> automatic hosted Actions 0
+2. workflow_dispatch              -> Fast / Targeted / Full
+3. main + .portfolio-ci-trigger    -> final提出 / Releaseのrequired workflow
 ```
 
 手動CI:
@@ -121,7 +112,7 @@ Hosted runner quotaを通常pushで消費しないため、3段階で運用し�
 
 ## Final exact-revision gate
 
-Final source freeze後のmain SHAについて、次のrequired workflowをすべてGreenにします。
+Final source revisionのmain SHAについて次の11 workflowをすべてGreenにします。
 
 1. Commit Message
 2. .NET CI
@@ -135,23 +126,12 @@ Final source freeze後のmain SHAについて、次のrequired workflowをすべ
 10. Unreal Collector Contract CI
 11. Portfolio Publication Readiness
 
-`missing / cancelled / skipped / infrastructure-blocked`をPASSへ読み替えません。
+`missing / cancelled / skipped / infrastructure-blocked`をPASSへ読み替えません。Artifact upload quotaは製品検証とは分離し、検証本体が成功した後の補助uploadだけをbest-effortにします。
 
 ```powershell
 $sha = (git rev-parse HEAD).Trim()
 python tools/verify_final_ci_matrix.py --sha $sha --wait-minutes 60
-```
-
-その後、同じSHAでbenchmark、QA Bug Zoo、Project Truth scenarioを生成し、finalizerで束ねます。
-
-```powershell
-.\scripts\Complete-PortfolioRelease.ps1 -Version <x.y.z>
-```
-
-Release assetまで進める場合:
-
-```powershell
-.\scripts\Complete-PortfolioRelease.ps1 -Version <x.y.z> -PublishRelease
+.\scripts\Complete-PortfolioRelease.ps1 -Version 1.0.0
 ```
 
 ## Benchmark / Soak
@@ -170,45 +150,27 @@ artifacts/portfolio-benchmark/portfolio-benchmark-results.json
 artifacts/portfolio-benchmark/portfolio-benchmark-results.sha256
 ```
 
-未測定SHAは`NOT YET MEASURED`として扱います。
-
 ## Exact-revision Evidence package
 
-最終Evidenceが揃った後は、CI matrix、benchmark、QA Bug Zoo、10-run determinism、Project Truth、Docker Primary / governance evidenceを1つの追跡可能なZIPへまとめます。Packaging自体も`HEAD == origin/main == evidence SHA`、tracked tree clean、各artifactのPASS状態をfail-closedで確認します。
+最終Evidenceが揃った後は、CI matrix、benchmark、QA Bug Zoo、10-run determinism、Project Truth、Docker Primary / governance evidenceを1つのZIPへまとめます。Packagingも`HEAD == origin/main == evidence SHA`、tracked tree clean、各artifactのPASS状態をfail-closedで確認します。
 
 ```powershell
 $sha = (git rev-parse HEAD).Trim()
 .\scripts\Package-PortfolioEvidence.ps1 -ExpectedSha $sha
 ```
 
-ZIP内には`EVIDENCE_PACKAGE_MANIFEST.json`と`SHA256SUMS.txt`を含め、ZIP自身にも`.sha256`を生成します。Evidence未取得のrevisionではこのpackageを生成してCurrent Revision PASSを主張しません。
+ZIP内には`EVIDENCE_PACKAGE_MANIFEST.json`と`SHA256SUMS.txt`を含み、ZIP自身にも`.sha256`を生成します。
 
 ## Engine integrationの検証境界
 
-Unity / Unreal collectorやintegration sourceはProjectの一部ですが、**実target projectがない状態ではengine-specific runtimeをFinal Publicationの必須条件にしません**。
-
-Final Evidenceでは、実target projectを供給していない場合は次のように明示します。
+Unity / Unreal collectorやintegration sourceはProjectの一部ですが、実target projectがない状態ではengine-specific runtimeをFinal Publicationの必須条件にしません。
 
 ```text
 Unity engine runtime  = NOT_EVALUATED
 Unreal engine runtime = NOT_EVALUATED
 ```
 
-実target projectが後から用意できた場合だけ、optional verifierを個別に実行し、final mandatory gateとは別Evidenceとして提示します。
-
-```powershell
-python tools/verify_unity_real_project.py `
-  --expected-dip-sha <DIP_SHA> `
-  --project <UnityProject> `
-  --unity <UnityEditor.exe>
-
-python tools/verify_unreal_real_project.py `
-  --expected-dip-sha <DIP_SHA> `
-  --project <UnrealProject> `
-  --unreal-editor-cmd <UnrealEditor-Cmd.exe>
-```
-
-GitHub-hosted Unreal workflowはcontract / unit behaviorを検証し、actual Editor runtimeの代替とは扱いません。
+実target projectが用意できた場合だけoptional verifierを個別に実行します。GitHub-hosted Unreal workflowはcontract / unit behaviorを検証し、actual Editor runtimeの代替とは扱いません。
 
 ## Native-first architecture
 
@@ -256,7 +218,7 @@ PostgreSQLをdurable Source of Truthとqueue / coordination boundaryとして使
 
 ## ローカルRuntime
 
-通常は.NET 8、PostgreSQL 16-compatible server + client tools、Python 3.12+、Gitを使用します。Browser E2EではNode.js 22+、C++ QAではCMake + compiler toolchainを使用します。Unity / Unrealはoptional engine-specific verificationを実行する場合だけ必要です。
+通常は.NET 8、PostgreSQL 16-compatible server + client tools、Python 3.12+、Gitを使用します。Browser E2EではNode.js 22+、C++ QAではCMake + compiler toolchainを使用します。Unity / Unrealはoptional engine-specific verification時だけ必要です。
 
 `Start-DIP.ps1` はPostgreSQLを確認し、Python Analysis / API / Worker / Webを起動します。`Stop-DIP.ps1` はDIP processを停止します。
 

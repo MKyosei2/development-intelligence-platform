@@ -66,4 +66,4 @@ jobs:
           name: dotnet-unit-test-results
           path: TestResults
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
