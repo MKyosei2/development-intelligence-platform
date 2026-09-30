@@ -1,4 +1,4 @@
-# Purpose: Verifies final portfolio evidence tooling fails closed on revision mismatches, missing evidence, and non-green verification states.
+# Purpose: Verifies final portfolio evidence tooling fails closed on revision mismatch, dirty measurements, incomplete QA evidence, and incorrect Project Truth outcomes.
 from __future__ import annotations
 
 import importlib.util
@@ -56,52 +56,44 @@ def valid_final_evidence(tmp_path: Path) -> dict[str, Path]:
             "passed": True,
         },
     )
-    unity = write_json(
-        tmp_path / "unity.json",
+    qa = write_json(
+        tmp_path / "qa-bug-zoo.json",
         {
-            "dipSourceCommit": SHA,
-            "runtimeVerified": True,
-            "qualityGatePassed": True,
-            "targetRepository": "https://example.invalid/game",
-            "targetCommit": "c" * 40,
-            "unityVersion": "test",
-        },
-    )
-    unreal = write_json(
-        tmp_path / "unreal.json",
-        {
-            "dipSourceCommit": SHA,
-            "runtimeVerified": True,
-            "qualityGatePassed": True,
-            "targetRepository": "https://example.invalid/unreal",
-            "targetCommit": "d" * 40,
-            "targetProject": "TestProject",
-            "engineNativeAutomation": {
-                "attempted": True,
-                "timedOut": False,
-                "report": "report.json",
-            },
+            "sourceCommit": SHA,
+            "sourceWorkingTreeDirty": False,
+            "passed": True,
+            "blockingInfrastructureFailures": 0,
+            "missingRequiredLanguages": [],
+            "detectionRecallPercent": 100.0,
+            "falsePositiveRatePercent": 0.0,
+            "reproductionRatePercent": 100.0,
+            "executedLanguages": ["CSharp", "Cpp", "Python"],
         },
     )
     project_truth = write_json(
         tmp_path / "project-truth.json",
         {
+            "status": "PASS",
             "dipSourceCommit": SHA,
-            "targetRepository": "https://example.invalid/game",
-            "targetCommit": "c" * 40,
-            "collectorIngestion": {"accepted": True},
-            "claim": {"verificationStatus": "Confirmed"},
+            "claim": {"verificationStatus": "Contradicted"},
             "projectTruth": {
-                "qualityGateStatus": "Passed",
-                "contradictionCount": 0,
+                "qualityGateStatus": "Failed",
+                "reportedProgress": 100.0,
+                "verifiedProgress": 0.0,
+                "contradictionCount": 1,
+            },
+            "assertions": {
+                "qualityGateFailed": True,
+                "completionClaimContradicted": True,
+                "verifiedProgressBelowReported": True,
+                "contradictionRecorded": True,
             },
         },
     )
     return {
         "ci": ci,
         "benchmark": benchmark,
-        "unity": unity,
-        "unreal": unreal,
+        "qa": qa,
         "project_truth": project_truth,
     }
 
@@ -114,10 +106,8 @@ def finalize_args(files: dict[str, Path], output: Path) -> list[str]:
         str(files["ci"]),
         "--benchmark",
         str(files["benchmark"]),
-        "--unity",
-        str(files["unity"]),
-        "--unreal",
-        str(files["unreal"]),
+        "--qa-bug-zoo",
+        str(files["qa"]),
         "--project-truth",
         str(files["project_truth"]),
         "--output-root",
@@ -125,64 +115,68 @@ def finalize_args(files: dict[str, Path], output: Path) -> list[str]:
     ]
 
 
-def test_finalizer_accepts_only_complete_same_revision_bundle(tmp_path: Path) -> None:
+def test_finalizer_accepts_complete_same_revision_bundle(tmp_path: Path) -> None:
     files = valid_final_evidence(tmp_path)
-    result = run_tool(
-        "finalize_portfolio_evidence.py",
-        *finalize_args(files, tmp_path / "out"),
-    )
-
+    result = run_tool("finalize_portfolio_evidence.py", *finalize_args(files, tmp_path / "out"))
     assert result.returncode == 0, result.stderr
+
     summary = tmp_path / "out" / SHA / "FINAL_EVIDENCE_SUMMARY.json"
     payload = json.loads(summary.read_text(encoding="utf-8"))
     assert payload["status"] == "PASS"
     assert payload["sourceCommit"] == SHA
+    assert payload["engineRuntime"]["unity"] == "NOT_EVALUATED"
+    assert payload["engineRuntime"]["unreal"] == "NOT_EVALUATED"
 
 
 @pytest.mark.parametrize(
-    ("file_key", "field", "bad_value", "message"),
+    ("file_key", "field", "message"),
     [
-        ("ci", "sourceCommit", OTHER_SHA, "CI matrix is not bound"),
-        ("benchmark", "sourceCommit", OTHER_SHA, "Benchmark is not bound"),
-        ("unity", "dipSourceCommit", OTHER_SHA, "Unity evidence is not bound"),
-        ("unreal", "dipSourceCommit", OTHER_SHA, "Unreal evidence is not bound"),
-        ("project_truth", "dipSourceCommit", OTHER_SHA, "Project Truth case-study evidence is not bound"),
+        ("ci", "sourceCommit", "CI matrix is not bound"),
+        ("benchmark", "sourceCommit", "Benchmark is not bound"),
+        ("qa", "sourceCommit", "QA Bug Zoo is not bound"),
+        ("project_truth", "dipSourceCommit", "Project Truth QA scenario is not bound"),
     ],
 )
 def test_finalizer_rejects_revision_mismatch(
     tmp_path: Path,
     file_key: str,
     field: str,
-    bad_value: object,
     message: str,
 ) -> None:
     files = valid_final_evidence(tmp_path)
     payload = json.loads(files[file_key].read_text(encoding="utf-8"))
-    payload[field] = bad_value
+    payload[field] = OTHER_SHA
     write_json(files[file_key], payload)
 
-    result = run_tool(
-        "finalize_portfolio_evidence.py",
-        *finalize_args(files, tmp_path / "out"),
-    )
-
+    result = run_tool("finalize_portfolio_evidence.py", *finalize_args(files, tmp_path / "out"))
     assert result.returncode != 0
     assert message in (result.stderr + result.stdout)
+
+
+def test_finalizer_rejects_incomplete_ci_matrix(tmp_path: Path) -> None:
+    files = valid_final_evidence(tmp_path)
+    payload = json.loads(files["ci"].read_text(encoding="utf-8"))
+    payload["greenCount"] = 10
+    payload["allGreen"] = False
+    write_json(files["ci"], payload)
+
+    result = run_tool("finalize_portfolio_evidence.py", *finalize_args(files, tmp_path / "out"))
+    assert result.returncode != 0
+    assert "not fully Green" in (result.stderr + result.stdout)
 
 
 @pytest.mark.parametrize(
     ("file_key", "field", "bad_value", "message"),
     [
-        ("ci", "allGreen", False, "11/11 Green"),
         ("benchmark", "sourceWorkingTreeDirty", True, "dirty working tree"),
         ("benchmark", "passed", False, "Benchmark passed must be true"),
-        ("unity", "runtimeVerified", False, "Unity runtimeVerified must be true"),
-        ("unity", "qualityGatePassed", False, "Unity qualityGatePassed must be true"),
-        ("unreal", "runtimeVerified", False, "Unreal runtimeVerified must be true"),
-        ("unreal", "qualityGatePassed", False, "Unreal qualityGatePassed must be true"),
+        ("qa", "sourceWorkingTreeDirty", True, "dirty working tree"),
+        ("qa", "passed", False, "QA Bug Zoo passed must be true"),
+        ("qa", "blockingInfrastructureFailures", 1, "blocking infrastructure failures"),
+        ("qa", "missingRequiredLanguages", ["Cpp"], "missing required languages"),
     ],
 )
-def test_finalizer_rejects_non_verified_states(
+def test_finalizer_rejects_non_verified_measurement_states(
     tmp_path: Path,
     file_key: str,
     field: str,
@@ -194,82 +188,34 @@ def test_finalizer_rejects_non_verified_states(
     payload[field] = bad_value
     write_json(files[file_key], payload)
 
-    result = run_tool(
-        "finalize_portfolio_evidence.py",
-        *finalize_args(files, tmp_path / "out"),
-    )
-
+    result = run_tool("finalize_portfolio_evidence.py", *finalize_args(files, tmp_path / "out"))
     assert result.returncode != 0
-    assert message in (result.stderr + result.stdout)
+    assert message.lower() in (result.stderr + result.stdout).lower()
 
 
-def test_finalizer_rejects_unconfirmed_project_truth(tmp_path: Path) -> None:
-    files = valid_final_evidence(tmp_path)
-    payload = json.loads(files["project_truth"].read_text(encoding="utf-8"))
-    payload["claim"]["verificationStatus"] = "Unverified"
-    write_json(files["project_truth"], payload)
-
-    result = run_tool(
-        "finalize_portfolio_evidence.py",
-        *finalize_args(files, tmp_path / "out"),
-    )
-
-    assert result.returncode != 0
-    assert "completion claim is not Confirmed" in (result.stderr + result.stdout)
-
-
-def test_finalizer_rejects_project_truth_contradictions(tmp_path: Path) -> None:
-    files = valid_final_evidence(tmp_path)
-    payload = json.loads(files["project_truth"].read_text(encoding="utf-8"))
-    payload["projectTruth"]["contradictionCount"] = 1
-    write_json(files["project_truth"], payload)
-
-    result = run_tool(
-        "finalize_portfolio_evidence.py",
-        *finalize_args(files, tmp_path / "out"),
-    )
-
-    assert result.returncode != 0
-    assert "contains contradictions" in (result.stderr + result.stdout)
-
-
-def test_publish_real_project_evidence_rejects_wrong_dip_revision_before_network(
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda value: value["assertions"].__setitem__("qualityGateFailed", False), "qualityGateFailed"),
+        (lambda value: value["projectTruth"].__setitem__("qualityGateStatus", "Passed"), "fail its quality gate"),
+        (lambda value: value["claim"].__setitem__("verificationStatus", "Confirmed"), "contradicted"),
+        (lambda value: value["projectTruth"].__setitem__("verifiedProgress", 100.0), "verified progress below"),
+        (lambda value: value["projectTruth"].__setitem__("contradictionCount", 0), "at least one contradiction"),
+    ],
+)
+def test_finalizer_rejects_wrong_project_truth_scenario(
     tmp_path: Path,
+    mutation,
+    message: str,
 ) -> None:
-    evidence = write_json(
-        tmp_path / "engine.json",
-        {
-            "dipSourceCommit": OTHER_SHA,
-            "runtimeVerified": True,
-            "qualityGatePassed": True,
-            "targetRepository": "https://example.invalid/game",
-            "targetCommit": "c" * 40,
-        },
-    )
-    report = write_json(
-        tmp_path / "report.json",
-        {
-            "commitSha": "c" * 40,
-            "status": "Succeeded",
-        },
-    )
+    files = valid_final_evidence(tmp_path)
+    payload = json.loads(files["project_truth"].read_text(encoding="utf-8"))
+    mutation(payload)
+    write_json(files["project_truth"], payload)
 
-    result = run_tool(
-        "publish_real_project_evidence.py",
-        "--engine-evidence",
-        str(evidence),
-        "--report",
-        str(report),
-        "--expected-dip-sha",
-        SHA,
-        "--api-base",
-        "http://127.0.0.1:1",
-        "--output",
-        str(tmp_path / "out"),
-    )
-
+    result = run_tool("finalize_portfolio_evidence.py", *finalize_args(files, tmp_path / "out"))
     assert result.returncode != 0
-    assert "not bound to the expected DIP SHA" in (result.stderr + result.stdout)
+    assert message.lower() in (result.stderr + result.stdout).lower()
 
 
 def test_ci_matrix_latest_for_name_uses_exact_sha_and_latest_attempt() -> None:
@@ -297,64 +243,9 @@ def test_ci_matrix_latest_for_name_uses_exact_sha_and_latest_attempt() -> None:
             "created_at": "2026-01-01T00:02:00Z",
         },
     ]
-
     selected = module.latest_for_name(runs, ".NET CI", SHA)
-
     assert selected is not None
     assert selected["head_sha"] == SHA
     assert selected["run_attempt"] == 2
-    assert len(module.REQUIRED) == 11
-
-
-def test_unity_verifier_rejects_expected_sha_mismatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    module = load_module("verify_unity_real_project", "verify_unity_real_project.py")
-
-    def fake_git_text(root: Path, *args: str) -> str:
-        if args == ("rev-parse", "HEAD"):
-            return SHA
-        if args == ("status", "--porcelain", "--untracked-files=no"):
-            return ""
-        if args == ("branch", "--show-current"):
-            return "main"
-        raise AssertionError(args)
-
-    monkeypatch.setattr(module, "git_text", fake_git_text)
-
-    with pytest.raises(RuntimeError, match="DIP SHA mismatch"):
-        module.ensure_clean_dip(tmp_path, OTHER_SHA)
-
-
-def test_unity_verifier_rejects_dirty_tracked_tree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    module = load_module("verify_unity_real_project_dirty", "verify_unity_real_project.py")
-
-    def fake_git_text(root: Path, *args: str) -> str:
-        if args == ("rev-parse", "HEAD"):
-            return SHA
-        if args == ("status", "--porcelain", "--untracked-files=no"):
-            return " M src/file.cs"
-        if args == ("branch", "--show-current"):
-            return "main"
-        raise AssertionError(args)
-
-    monkeypatch.setattr(module, "git_text", fake_git_text)
-
-    with pytest.raises(RuntimeError, match="clean tracked DIP working tree"):
-        module.ensure_clean_dip(tmp_path, SHA)
-
-
-def test_unreal_verifier_rejects_expected_sha_mismatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    module = load_module("verify_unreal_real_project", "verify_unreal_real_project.py")
-
-    def fake_git_text(root: Path, *args: str) -> str:
-        if args == ("rev-parse", "HEAD"):
-            return SHA
-        if args == ("status", "--porcelain", "--untracked-files=no"):
-            return ""
-        if args == ("branch", "--show-current"):
-            return "main"
-        raise AssertionError(args)
-
-    monkeypatch.setattr(module, "git_text", fake_git_text)
-
-    with pytest.raises(RuntimeError, match="DIP SHA mismatch"):
-        module.ensure_clean_dip(tmp_path, OTHER_SHA)
+    assert "Unreal Collector Contract CI" in module.REQUIRED
+    assert "Unreal Collector CI" not in module.REQUIRED

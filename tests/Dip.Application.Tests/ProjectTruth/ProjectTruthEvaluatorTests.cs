@@ -14,14 +14,7 @@ public sealed class ProjectTruthEvaluatorTests
         var now = DateTimeOffset.UtcNow;
         var projectId = Guid.NewGuid();
         var claim = new ProjectClaim(
-            Guid.NewGuid(),
-            projectId,
-            "project",
-            "Complete",
-            100m,
-            "developer",
-            null,
-            now);
+            Guid.NewGuid(), projectId, "project", "Complete", 100m, "developer", null, now);
         var evidence = new[]
         {
             Evidence(projectId, "integration", EvidenceOutcome.Succeeded, now),
@@ -43,6 +36,28 @@ public sealed class ProjectTruthEvaluatorTests
         var now = DateTimeOffset.UtcNow;
         var projectId = Guid.NewGuid();
         var claim = new ProjectClaim(
+            Guid.NewGuid(), projectId, "project", "Complete", 100m, "developer", null, now);
+        var evidence = new[]
+        {
+            Evidence(projectId, "integration", EvidenceOutcome.Succeeded, now, EvidenceSourceType.GitHub, EvidenceConfidence.Verified),
+            Evidence(projectId, "build", EvidenceOutcome.Succeeded, now, EvidenceSourceType.Build, EvidenceConfidence.High),
+            Evidence(projectId, "test", EvidenceOutcome.Succeeded, now, EvidenceSourceType.Test, EvidenceConfidence.High)
+        };
+
+        var result = CreateEvaluator().Evaluate([claim], evidence, now);
+
+        result.Progress.ReportedProgress.Should().Be(100m);
+        result.Progress.VerifiedProgress.Should().Be(100m);
+        result.EvidenceConfidence.Should().BeOneOf(EvidenceConfidence.High, EvidenceConfidence.Verified);
+        result.TruthStatus.Should().Be(ProjectTruthStatus.Healthy);
+    }
+
+    [Fact]
+    public void Evaluate_FailedNativeQaEvidence_BecomesCriticalBlocker()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var projectId = Guid.NewGuid();
+        var claim = new ProjectClaim(
             Guid.NewGuid(),
             projectId,
             "project",
@@ -55,64 +70,18 @@ public sealed class ProjectTruthEvaluatorTests
         {
             Evidence(
                 projectId,
-                "integration",
-                EvidenceOutcome.Succeeded,
-                now,
-                EvidenceSourceType.GitHub,
-                EvidenceConfidence.Verified),
-            Evidence(
-                projectId,
-                "build",
-                EvidenceOutcome.Succeeded,
-                now,
-                EvidenceSourceType.Build,
-                EvidenceConfidence.High),
-            Evidence(
-                projectId,
-                "test",
-                EvidenceOutcome.Succeeded,
-                now,
-                EvidenceSourceType.Test,
-                EvidenceConfidence.High)
-        };
-
-        var result = CreateEvaluator().Evaluate([claim], evidence, now);
-
-        result.Progress.ReportedProgress.Should().Be(100m);
-        result.Progress.VerifiedProgress.Should().Be(100m);
-        result.EvidenceConfidence.Should().BeOneOf(EvidenceConfidence.High, EvidenceConfidence.Verified);
-        result.TruthStatus.Should().Be(ProjectTruthStatus.Healthy);
-    }
-
-    [Fact]
-    public void Evaluate_FailedConstructionInspection_BecomesCriticalBlocker()
-    {
-        var now = DateTimeOffset.UtcNow;
-        var projectId = Guid.NewGuid();
-        var claim = new ProjectClaim(
-            Guid.NewGuid(),
-            projectId,
-            "construction:floor-3",
-            "検査済",
-            100m,
-            "manager",
-            null,
-            now);
-        var evidence = new[]
-        {
-            Evidence(
-                projectId,
-                "ConstructionInspection",
+                "native-memory-safety",
                 EvidenceOutcome.Failed,
                 now,
-                EvidenceSourceType.Spreadsheet,
+                EvidenceSourceType.Quality,
                 EvidenceConfidence.High,
-                "construction:floor-3")
+                "project")
         };
 
         var result = CreateEvaluator().Evaluate([claim], evidence, now);
 
         result.RiskLevel.Should().Be(ProjectRiskLevel.Critical);
+        result.ContradictionCount.Should().BeGreaterThan(0);
         result.Blockers.Should().Contain(item => item.Severity == "Critical");
     }
 

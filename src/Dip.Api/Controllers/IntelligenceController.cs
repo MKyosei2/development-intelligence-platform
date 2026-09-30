@@ -12,7 +12,6 @@ namespace Dip.Api.Controllers;
 public sealed class IntelligenceController : ControllerBase
 {
     private readonly P2OrchestrationService _p2;
-    private readonly AdaptiveQaPlanner _planner;
     private readonly CommunityHardwareService _community;
     private readonly RootCauseIntelligenceService _root;
     private readonly ForecastAndDecisionService _forecast;
@@ -20,14 +19,12 @@ public sealed class IntelligenceController : ControllerBase
 
     public IntelligenceController(
         P2OrchestrationService p2,
-        AdaptiveQaPlanner planner,
         CommunityHardwareService community,
         RootCauseIntelligenceService root,
         ForecastAndDecisionService forecast,
         P2AnalysisService analysis)
     {
         _p2 = p2;
-        _planner = planner;
         _community = community;
         _root = root;
         _forecast = forecast;
@@ -37,9 +34,6 @@ public sealed class IntelligenceController : ControllerBase
     [Authorize(Policy = Policies.ProjectWrite)]
     [HttpPost("minimum-hardware")]
     public Task<MinimumHardwareResult> Minimum([FromBody] MinimumHardwareRequest request, CancellationToken ct) => _p2.MinimumHardwareAsync(request, ct);
-    [Authorize(Policy = Policies.ProjectWrite)]
-    [HttpPost("adaptive-qa")]
-    public Task<AdaptiveQaPlan> Plan([FromBody] AdaptiveQaRequest request, CancellationToken ct) => _planner.PlanAsync(request, ct);
     [Authorize(Policy = Policies.ProjectWrite)]
     [HttpPost("regression-origin")]
     public Task<RegressionResult> Regression([FromBody] RegressionRequest request, CancellationToken ct) => _p2.RegressionAsync(request, ct);

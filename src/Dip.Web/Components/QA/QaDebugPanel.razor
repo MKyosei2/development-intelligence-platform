@@ -60,7 +60,6 @@
                     <select class="form-select" @bind="_domain">
                         <option value="software">software</option>
                         <option value="media.production">media.production</option>
-                        <option value="construction">construction</option>
                         <option value="generic.project">generic.project</option>
                     </select>
 
@@ -321,8 +320,7 @@
         try
         {
             var selected = _session?.SessionId;
-            _sessions =
-                await Api.GetAutonomousDebugSessionsAsync(ProjectId, 20);
+            _sessions = await Api.GetAutonomousDebugSessionsAsync(ProjectId, 20);
 
             _session = selected is { } id
                 ? _sessions.FirstOrDefault(x => x.SessionId == id)
@@ -363,9 +361,7 @@
                 _question.Trim(),
                 _evidenceJson,
                 workspace.WorkspaceRelativePath,
-                string.IsNullOrWhiteSpace(_repositoryContext)
-                    ? null
-                    : _repositoryContext,
+                string.IsNullOrWhiteSpace(_repositoryContext) ? null : _repositoryContext,
                 workspace.CommitSha,
                 "auto",
                 _domain,
@@ -383,9 +379,6 @@
         }
     }
 
-    private static string ShortGuid(Guid value) =>
-        value.ToString("N")[..8];
-
-    private static string FormatDate(DateTimeOffset value) =>
-        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    private static string ShortGuid(Guid value) => value.ToString("N")[..8];
+    private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 }

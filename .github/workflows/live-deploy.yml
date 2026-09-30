@@ -74,7 +74,7 @@ jobs:
           required=(
             "Commit Message" ".NET CI" "Python CI" "Native Collector CI"
             "Integration and E2E Tests" "GUI E2E" "Native Package Build"
-            "Security Scan" "Universal QA Benchmark" "Unreal Collector CI"
+            "Security Scan" "Universal QA Benchmark" "Unreal Collector Contract CI"
             "Portfolio Publication Readiness"
           )
           deadline=$((SECONDS+1200))

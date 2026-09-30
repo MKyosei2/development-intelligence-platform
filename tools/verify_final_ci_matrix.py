@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Requires all 11 publication workflows to be Green for one exact source revision.
+# Purpose: Requires every publication workflow to be Green for one exact source revision.
 from __future__ import annotations
 
 import argparse
@@ -19,7 +19,7 @@ REQUIRED = [
     "Native Package Build",
     "Security Scan",
     "Universal QA Benchmark",
-    "Unreal Collector CI",
+    "Unreal Collector Contract CI",
     "Portfolio Publication Readiness",
 ]
 
@@ -39,8 +39,7 @@ def git_sha() -> str:
 
 def load_runs(repo: str, sha: str) -> list[dict]:
     endpoint = f"repos/{repo}/actions/runs?head_sha={sha}&per_page=100"
-    cp = run(["gh", "api", endpoint])
-    payload = json.loads(cp.stdout)
+    payload = json.loads(run(["gh", "api", endpoint]).stdout)
     return list(payload.get("workflow_runs", []))
 
 
@@ -59,10 +58,17 @@ def latest_for_name(runs: list[dict], name: str, sha: str) -> dict | None:
     return matches[0]
 
 
-def write_snapshot(output: Path, sha: str, matrix: dict[str, dict], missing: list[str], pending: list[str], failed: list[str]) -> None:
+def write_snapshot(
+    output: Path,
+    sha: str,
+    matrix: dict[str, dict],
+    missing: list[str],
+    pending: list[str],
+    failed: list[str],
+) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schema": "dip.final-ci-matrix.v2",
+        "schema": "dip.final-ci-matrix.v3",
         "sourceCommit": sha,
         "requiredCount": len(REQUIRED),
         "greenCount": sum(1 for item in matrix.values() if item.get("conclusion") == "success"),
@@ -77,7 +83,9 @@ def write_snapshot(output: Path, sha: str, matrix: dict[str, dict], missing: lis
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Require the 11 publication workflows to be Green for one exact SHA.")
+    parser = argparse.ArgumentParser(
+        description="Require every publication workflow to be Green for one exact SHA."
+    )
     parser.add_argument("--repo", default="MKyosei2/development-intelligence-platform")
     parser.add_argument("--sha", default=None)
     parser.add_argument("--wait-minutes", type=int, default=0)
@@ -105,7 +113,6 @@ def main() -> int:
             if item is None:
                 missing.append(name)
                 continue
-
             record = {
                 "workflow": name,
                 "runId": item.get("id"),
@@ -120,16 +127,15 @@ def main() -> int:
                 "updatedAt": item.get("updated_at"),
             }
             matrix[name] = record
-
             if item.get("status") != "completed":
                 pending.append(name)
             elif item.get("conclusion") != "success":
                 failed.append(f"{name}={item.get('conclusion')}")
 
         write_snapshot(output, sha, matrix, missing, pending, failed)
-
+        green = sum(1 for item in matrix.values() if item.get("conclusion") == "success")
         print(f"Exact SHA: {sha}")
-        print(f"Green: {sum(1 for item in matrix.values() if item.get('conclusion') == 'success')}/{len(REQUIRED)}")
+        print(f"Green: {green}/{len(REQUIRED)}")
         if missing:
             print("Missing:", ", ".join(missing))
         if pending:
@@ -152,7 +158,6 @@ def main() -> int:
                 + ("Missing: " + ", ".join(missing) + ". " if missing else "")
                 + ("Pending: " + ", ".join(pending) + "." if pending else "")
             )
-
         time.sleep(max(5, args.poll_seconds))
 
 

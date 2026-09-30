@@ -24,7 +24,6 @@ jobs:
         working-directory: services/python-analysis
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -33,22 +32,16 @@ jobs:
             services/python-analysis/requirements.txt
             services/python-analysis/requirements-dev.txt
             services/python-analysis/pyproject.toml
-
       - name: Install package and test dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
-
       - name: Import smoke test
-        run: |
-          python -c "import app; import app.main; print(app.__file__)"
-
+        run: python -c "import app; import app.main; print(app.__file__)"
       - name: Compile check
         run: python -m compileall app tests
-
       - name: Test
         run: python -m pytest --junitxml=python-test-results.xml
-
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -71,8 +64,7 @@ jobs:
         run: python -m compileall collectors/maya-collector/dip_maya_collector collectors/maya-collector/tests
       - name: Import Maya-independent contracts
         working-directory: collectors/maya-collector
-        run: |
-          python -c "from dip_maya_collector import models; from dip_maya_collector.reporting import report_writer; print('Maya-independent contracts import successfully')"
+        run: python -c "from dip_maya_collector import models; from dip_maya_collector.reporting import report_writer; print('Maya-independent contracts import successfully')"
       - name: Dependency-free Maya collector unit tests
         working-directory: collectors/maya-collector
         run: python -m unittest discover -s tests -p "test_*.py" -v
@@ -98,20 +90,16 @@ jobs:
           python-version: "3.12"
       - name: Install evidence-tooling test dependency
         run: python -m pip install pytest
-      - name: Compile portfolio evidence tools
+      - name: Compile final portfolio evidence tools
         run: |
           python -m py_compile \
             tools/verify_final_ci_matrix.py \
-            tools/verify_unity_real_project.py \
-            tools/verify_unreal_real_project.py \
-            tools/publish_real_project_evidence.py \
+            tools/publish_qa_scenario_evidence.py \
             tools/finalize_portfolio_evidence.py
       - name: CLI smoke
         run: |
           python tools/verify_final_ci_matrix.py --help >/dev/null
-          python tools/verify_unity_real_project.py --help >/dev/null
-          python tools/verify_unreal_real_project.py --help >/dev/null
-          python tools/publish_real_project_evidence.py --help >/dev/null
+          python tools/publish_qa_scenario_evidence.py --help >/dev/null
           python tools/finalize_portfolio_evidence.py --help >/dev/null
       - name: Fail-closed evidence regression tests
         run: python -m pytest tools/tests/test_portfolio_evidence_tools.py -q --junitxml=portfolio-evidence-tooling-tests.xml

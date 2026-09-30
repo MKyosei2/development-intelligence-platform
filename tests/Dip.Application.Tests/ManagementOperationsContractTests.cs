@@ -62,17 +62,17 @@ public sealed class ManagementOperationsContractTests
     }
 
     [Fact]
-    public void SyncContract_CanCarryCrossDomainDataTypeAndFieldAuthority()
+    public void SyncContract_CanCarrySoftwareDataTypeAndFieldAuthority()
     {
         var command = new ManagementSyncCommand(
             Guid.NewGuid(),
             "Spreadsheet",
             ManagementSyncDirection.Bidirectional,
             true,
-            "construction.task",
+            "software.task",
             [new("Progress", "Spreadsheet", "PreferAuthority"), new("Approval", "Manual", "Manual")]);
 
-        command.DataType.Should().Be("construction.task");
+        command.DataType.Should().Be("software.task");
         command.FieldRules.Should().Contain(x => x.Field == "Progress" && x.Authority == "Spreadsheet");
     }
 
@@ -82,29 +82,29 @@ public sealed class ManagementOperationsContractTests
         var item = new ManagementExternalItem(
             "Spreadsheet",
             "row-7",
-            "task-7",
-            "3F piping",
+            "bug-7",
+            "Gameplay save regression",
             "InProgress",
-            "Site",
+            "QA",
             DateTimeOffset.UtcNow.AddDays(3),
             DateTimeOffset.UtcNow,
             "rev-3",
-            "file://schedule.xlsx",
+            "file://game-qa.xlsx",
             new Dictionary<string, string>
             {
-                ["Inspection"] = "Pending",
-                ["DomainId"] = "construction"
+                ["Platform"] = "Windows",
+                ["DomainId"] = "software"
             });
 
-        item.Fields.Should().ContainKey("Inspection");
-        item.Fields!["DomainId"].Should().Be("construction");
+        item.Fields.Should().ContainKey("Platform");
+        item.Fields!["DomainId"].Should().Be("software");
     }
 
     [Theory]
     [InlineData("担当者", "Owner")]
     [InlineData("進捗率", "Progress")]
     [InlineData("ショット", "Title")]
-    [InlineData("検査結果", "Approval")]
+    [InlineData("承認状態", "Approval")]
     [InlineData("Due Date", "DueDate")]
     public void SpreadsheetSchemaInference_RecognizesJapaneseAndEnglishAliases(
         string header,
@@ -140,26 +140,25 @@ public sealed class ManagementOperationsContractTests
     }
 
     [Fact]
-    public void SpreadsheetSchemaInference_InfersConstructionInspection()
+    public void SpreadsheetSchemaInference_InfersSoftwareIssueForGameQaWorkbook()
     {
         var service = new SpreadsheetSchemaInferenceService(null!, null!, null!, null!);
         IReadOnlyDictionary<string, IReadOnlyList<IReadOnlyList<string>>> workbook =
             new Dictionary<string, IReadOnlyList<IReadOnlyList<string>>>
             {
-                ["施工検査一覧"] = new List<IReadOnlyList<string>>
+                ["Game QA Bug Tracker"] = new List<IReadOnlyList<string>>
                 {
-                    new List<string> { "管理番号", "工程名", "担当者", "検査結果", "期限" },
-                    new List<string> { "INSP-001", "3F piping", "Site Lead", "承認", "2026-09-01" }
+                    new List<string> { "管理番号", "件名", "担当者", "ステータス", "優先度", "期限" },
+                    new List<string> { "BUG-001", "Save data corruption", "QA Lead", "Open", "Critical", "2026-09-01" }
                 }
             };
 
         var analysis = service.AnalyzeWorkbook(Guid.NewGuid(), workbook);
 
-        analysis.DomainId.Should().Be("construction");
-        analysis.Sheets[0].ObjectKind.Should().Be("construction.inspection");
-        analysis.Sheets[0].Columns.Should().Contain(x => x.Field == "Approval");
+        analysis.DomainId.Should().Be("software");
+        analysis.Sheets[0].ObjectKind.Should().Be("software.issue");
+        analysis.Sheets[0].Columns.Should().Contain(x => x.Field == "Priority");
     }
-
 
     [Fact]
     public void SpreadsheetSchemaInference_PrefersSheetIdentityOverRetakeAttribute()
@@ -192,18 +191,10 @@ public sealed class ManagementOperationsContractTests
         var projectId = Guid.NewGuid();
         var graphRepository = new InMemoryGraphRepository();
         var unitOfWork = new TrackingUnitOfWork();
-        var clock = new FixedClock(
-            new DateTimeOffset(2026, 8, 28, 0, 0, 0, TimeSpan.Zero));
-        var graph = new DevelopmentGraphService(
-            graphRepository,
-            unitOfWork,
-            clock);
+        var clock = new FixedClock(new DateTimeOffset(2026, 8, 28, 0, 0, 0, TimeSpan.Zero));
+        var graph = new DevelopmentGraphService(graphRepository, unitOfWork, clock);
         var evidence = new InMemoryEvidenceRepository();
-        var service = new SpreadsheetSchemaInferenceService(
-            graph,
-            evidence,
-            unitOfWork,
-            clock);
+        var service = new SpreadsheetSchemaInferenceService(graph, evidence, unitOfWork, clock);
         var xlsx = BuildXlsx(
             "VFX Shot Schedule",
             ["管理番号", "ショット", "担当者", "ステータス", "リテイク", "備考"],
@@ -214,25 +205,16 @@ public sealed class ManagementOperationsContractTests
 
         SpreadsheetSchemaAnalysisDto analysis;
         await using (var stream = new MemoryStream(xlsx, writable: false))
-            analysis = await service.AnalyzeXlsxAsync(
-                projectId,
-                stream,
-                CancellationToken.None);
+            analysis = await service.AnalyzeXlsxAsync(projectId, stream, CancellationToken.None);
 
         analysis.DomainId.Should().Be("media.production");
         analysis.Sheets.Should().ContainSingle();
         analysis.Sheets[0].ObjectKind.Should().Be("media.shot");
         analysis.Sheets[0].DataRows.Should().Be(2);
-
-        graphRepository.Nodes.Should().BeEmpty(
-            "schema analysis must never persist graph nodes");
-        graphRepository.Edges.Should().BeEmpty(
-            "schema analysis must never persist graph edges");
-        evidence.Items.Should().BeEmpty(
-            "schema analysis must never publish evidence");
-        unitOfWork.SaveCount.Should().Be(
-            0,
-            "schema analysis is a read-only operation");
+        graphRepository.Nodes.Should().BeEmpty("schema analysis must never persist graph nodes");
+        graphRepository.Edges.Should().BeEmpty("schema analysis must never persist graph edges");
+        evidence.Items.Should().BeEmpty("schema analysis must never publish evidence");
+        unitOfWork.SaveCount.Should().Be(0, "schema analysis is a read-only operation");
     }
 
     [Fact]

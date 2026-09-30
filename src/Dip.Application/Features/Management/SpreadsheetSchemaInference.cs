@@ -1,4 +1,4 @@
-// Purpose: Infers management workbook schemas and imports normalized project objects and evidence.
+// Purpose: Infers software/media project workbook schemas and imports normalized project objects and evidence.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -43,10 +43,9 @@ public sealed record FlexibleSpreadsheetImportResult(
     IReadOnlyList<string> Warnings);
 
 /// <summary>
-/// Infers common project-management semantics from arbitrary XLSX headers and
-/// imports them as universal graph objects. This is intentionally isolated from
-/// ManagementSpreadsheetService because inference over user-controlled workbook
-/// schemas is a separate, higher-risk responsibility.
+/// Infers common software/game/media project-management semantics from arbitrary
+/// XLSX headers and imports them as universal graph objects. Unknown structures
+/// remain generic rather than being guessed into an unrelated industry domain.
 /// </summary>
 public sealed class SpreadsheetSchemaInferenceService(
     DevelopmentGraphService graph,
@@ -59,7 +58,7 @@ public sealed class SpreadsheetSchemaInferenceService(
         {
             ["Key"] = ["key", "id", "taskid", "itemid", "管理番号", "番号", "キー", "識別子", "_diprowid"],
             ["ExternalId"] = ["externalid", "external id", "外部id", "外部番号", "管理id"],
-            ["Title"] = ["title", "name", "task", "item", "work", "subject", "作業", "作業名", "タスク", "タスク名", "項目", "項目名", "件名", "名称", "工程", "工程名", "カット", "ショット"],
+            ["Title"] = ["title", "name", "task", "item", "work", "subject", "作業", "作業名", "タスク", "タスク名", "項目", "項目名", "件名", "名称", "カット", "ショット"],
             ["Description"] = ["description", "detail", "details", "summary", "説明", "詳細", "内容", "概要"],
             ["Owner"] = ["owner", "assignee", "responsible", "担当", "担当者", "責任者", "作業者", "担当部署", "ownerrole"],
             ["Status"] = ["status", "state", "状態", "ステータス", "進行状態", "状況"],
@@ -67,21 +66,18 @@ public sealed class SpreadsheetSchemaInferenceService(
             ["StartDate"] = ["start", "startdate", "plannedstart", "開始", "開始日", "着手日", "予定開始", "開始予定"],
             ["DueDate"] = ["due", "duedate", "deadline", "finish", "end", "終了", "終了日", "締切", "期限", "完了予定", "終了予定", "納期"],
             ["Priority"] = ["priority", "優先度", "重要度"],
-            ["Dependency"] = ["dependency", "dependencies", "dependson", "predecessor", "blockedby", "依存", "依存先", "先行", "前工程", "前提"],
+            ["Dependency"] = ["dependency", "dependencies", "dependson", "predecessor", "blockedby", "依存", "依存先", "先行", "前提"],
             ["Milestone"] = ["milestone", "マイルストーン", "節目"],
             ["Cost"] = ["cost", "budget", "amount", "費用", "コスト", "予算", "金額"],
             ["Risk"] = ["risk", "risklevel", "リスク", "危険度"],
-            ["Approval"] = ["approval", "approved", "review", "承認", "承認状態", "レビュー", "検査結果"],
+            ["Approval"] = ["approval", "approved", "review", "承認", "承認状態", "レビュー"],
         };
-
-    private static readonly string[] ConstructionSignals =
-        ["construction", "architecture", "bim", "ifc", "rfi", "施工", "建築", "工事", "現場", "検査", "図面", "躯体", "配管", "設備", "工程"];
 
     private static readonly string[] MediaSignals =
         ["media", "vfx", "shot", "cut", "render", "retake", "composite", "animation", "映像", "カット", "ショット", "レンダー", "リテイク", "アニメーション", "コンポ", "撮影"];
 
     private static readonly string[] SoftwareSignals =
-        ["software", "build", "commit", "branch", "pull request", "bug", "test", "ci", "コード", "ビルド", "コミット", "バグ", "テスト"];
+        ["software", "game", "build", "commit", "branch", "pull request", "bug", "issue", "test", "ci", "qa", "コード", "ゲーム", "ビルド", "コミット", "バグ", "不具合", "テスト", "品質"];
 
     public Task<SpreadsheetSchemaAnalysisDto> AnalyzeXlsxAsync(
         Guid projectId,
@@ -95,8 +91,7 @@ public sealed class SpreadsheetSchemaInferenceService(
 
         var workbook = ManagementXlsxCodec.Read(stream);
         if (workbook.Count == 0)
-            throw new InvalidDataException(
-                "Workbook contains no readable worksheets.");
+            throw new InvalidDataException("Workbook contains no readable worksheets.");
 
         return Task.FromResult(AnalyzeWorkbook(projectId, workbook));
     }
@@ -134,7 +129,7 @@ public sealed class SpreadsheetSchemaInferenceService(
             if (!columns.Any(x => x.Field is "Key" or "ExternalId"))
                 sheetWarnings.Add("No stable key column was found. DIP will derive a deterministic row identity from semantic values; add _DipRowId or an external ID for stronger round-trip stability.");
             if (columns.Count(x => x.Field is not null) == 0)
-                sheetWarnings.Add("No known management columns were recognized. The sheet can still be preserved as generic project observations.");
+                sheetWarnings.Add("No known project columns were recognized. The sheet can still be preserved as generic project observations.");
 
             var dataRows = Math.Max(0, rows.Count - headerIndex - 1);
             sheets.Add(new(pair.Key, domain, kind, headerIndex + 1, dataRows, columns, sheetWarnings));
@@ -336,10 +331,10 @@ public sealed class SpreadsheetSchemaInferenceService(
             {
                 foreach (var key in SplitDependencies(pending.Dependency))
                 {
-                    if (!importedByLogicalKey.TryGetValue(SafeKey(key), out var target) ||
-                        target.Id == Guid.Empty ||
-                        pending.Node.Id == Guid.Empty ||
-                        target.Id == pending.Node.Id)
+                    if (!importedByLogicalKey.TryGetValue(SafeKey(key), out var target)
+                        || target.Id == Guid.Empty
+                        || pending.Node.Id == Guid.Empty
+                        || target.Id == pending.Node.Id)
                         continue;
 
                     await graph.LinkUniversalAsync(
@@ -396,8 +391,8 @@ public sealed class SpreadsheetSchemaInferenceService(
                 var normalizedAlias = Normalize(alias);
                 if (normalizedAlias.Length < 2)
                     continue;
-                if (normalized.Contains(normalizedAlias, StringComparison.OrdinalIgnoreCase) ||
-                    normalizedAlias.Contains(normalized, StringComparison.OrdinalIgnoreCase))
+                if (normalized.Contains(normalizedAlias, StringComparison.OrdinalIgnoreCase)
+                    || normalizedAlias.Contains(normalized, StringComparison.OrdinalIgnoreCase))
                 {
                     const decimal score = 0.82m;
                     if (best is null || score > best.Confidence)
@@ -413,55 +408,23 @@ public sealed class SpreadsheetSchemaInferenceService(
     {
         var sheet = sheetName.ToLowerInvariant();
         var headerText = string.Join(' ', headers).ToLowerInvariant();
-
-        // The worksheet name describes the managed collection and therefore has
-        // higher authority than incidental columns such as Review or Retake.
-        var construction =
-            Score(sheet, ConstructionSignals) * 3
-            + Score(headerText, ConstructionSignals);
-        var media =
-            Score(sheet, MediaSignals) * 3
-            + Score(headerText, MediaSignals);
-        var software =
-            Score(sheet, SoftwareSignals) * 3
-            + Score(headerText, SoftwareSignals);
-
-        var max = Math.Max(construction, Math.Max(media, software));
+        var media = Score(sheet, MediaSignals) * 3 + Score(headerText, MediaSignals);
+        var software = Score(sheet, SoftwareSignals) * 3 + Score(headerText, SoftwareSignals);
+        var max = Math.Max(media, software);
         if (max == 0)
             return "generic.project";
-
         if (media == max && Score(sheet, MediaSignals) > 0)
             return "media.production";
-        if (construction == max && Score(sheet, ConstructionSignals) > 0)
-            return "construction";
         if (software == max && Score(sheet, SoftwareSignals) > 0)
             return "software";
-
-        if (construction == max)
-            return "construction";
-        if (media == max)
-            return "media.production";
-        return "software";
+        return media == max ? "media.production" : "software";
     }
 
     private static string InferObjectKind(string domain, string sheetName, IReadOnlyList<string> headers)
     {
         var text = (sheetName + " " + string.Join(' ', headers)).ToLowerInvariant();
-        if (domain == "construction")
-        {
-            if (ContainsAny(text, ["inspection", "検査"])) return "construction.inspection";
-            if (ContainsAny(text, ["drawing", "図面"])) return "construction.drawing";
-            if (ContainsAny(text, ["rfi", "質疑", "照会"])) return "construction.rfi";
-            if (ContainsAny(text, ["approval", "承認"])) return "construction.approval";
-            return "construction.task";
-        }
-
         if (domain == "media.production")
         {
-            // Prefer the sheet name when it expresses the managed object. A shot
-            // schedule often carries Review/Retake columns, but those columns are
-            // attributes of the shot and must not reclassify the whole sheet as
-            // a media.review object collection.
             var sheet = sheetName.ToLowerInvariant();
             if (ContainsAny(sheet, ["render", "レンダー"])) return "media.render-job";
             if (ContainsAny(sheet, ["review", "retake", "レビュー", "リテイク"])) return "media.review";
@@ -474,8 +437,8 @@ public sealed class SpreadsheetSchemaInferenceService(
 
         if (domain == "software")
         {
-            if (ContainsAny(text, ["build", "ビルド"])) return "software.build";
-            if (ContainsAny(text, ["bug", "issue", "バグ", "不具合"])) return "software.issue";
+            if (ContainsAny(text, ["build", "ci", "ビルド"])) return "software.build";
+            if (ContainsAny(text, ["bug", "issue", "defect", "バグ", "不具合"])) return "software.issue";
             return "software.task";
         }
 
@@ -484,20 +447,17 @@ public sealed class SpreadsheetSchemaInferenceService(
 
     private static DevelopmentGraphNodeType FallbackType(string kind) => kind switch
     {
-        "construction.inspection" or "construction.approval" => DevelopmentGraphNodeType.Evidence,
-        "construction.drawing" or "media.render-job" => DevelopmentGraphNodeType.Asset,
-        "construction.rfi" or "media.review" or "media.shot" or "software.issue" => DevelopmentGraphNodeType.WorkItem,
+        "media.render-job" => DevelopmentGraphNodeType.Asset,
+        "media.review" or "media.shot" or "software.issue" => DevelopmentGraphNodeType.WorkItem,
         "software.build" => DevelopmentGraphNodeType.Build,
         _ => DevelopmentGraphNodeType.Task
     };
 
     private static bool ShouldEmitEvidence(string kind) =>
-        kind is "construction.inspection" or "construction.approval" or "media.review" or "media.render-job" or "software.build";
+        kind is "media.review" or "media.render-job" or "software.build";
 
     private static string EvidenceKind(string kind) => kind switch
     {
-        "construction.inspection" => "ConstructionInspection",
-        "construction.approval" => "ConstructionApproval",
         "media.review" => "MediaReview",
         "media.render-job" => "MediaRender",
         "software.build" => "SoftwareBuild",
@@ -507,8 +467,7 @@ public sealed class SpreadsheetSchemaInferenceService(
     private static string SafeSubject(string value)
     {
         var result = value.Trim();
-        if (result.Length == 0)
-            result = "spreadsheet-item";
+        if (result.Length == 0) result = "spreadsheet-item";
         return result[..Math.Min(200, result.Length)];
     }
 
@@ -517,9 +476,9 @@ public sealed class SpreadsheetSchemaInferenceService(
         var text = (status + " " + (approval ?? string.Empty)).ToLowerInvariant();
         if (ContainsAny(text, ["failed", "failure", "rejected", "blocked", "error", "不合格", "否認", "差戻", "失敗", "中止"]))
             return EvidenceOutcome.Failed;
-        if (ContainsAny(text, ["warning", "pending", "in progress", "open", "not complete", "incomplete", "unapproved", "保留", "進行中", "確認中", "未完了", "未承認", "未検査"]))
+        if (ContainsAny(text, ["warning", "pending", "in progress", "open", "not complete", "incomplete", "unapproved", "保留", "進行中", "確認中", "未完了", "未承認"]))
             return EvidenceOutcome.Warning;
-        if (ContainsAny(text, ["passed", "success", "succeeded", "approved", "completed", "done", "ready", "合格", "承認済", "完了", "完成", "納品済", "検査済", "レビュー済"]))
+        if (ContainsAny(text, ["passed", "success", "succeeded", "approved", "completed", "done", "ready", "合格", "承認済", "完了", "完成", "納品済", "レビュー済"]))
             return EvidenceOutcome.Succeeded;
         return EvidenceOutcome.Informational;
     }
@@ -533,7 +492,6 @@ public sealed class SpreadsheetSchemaInferenceService(
             var row = rows[i];
             if (row.Count(x => !string.IsNullOrWhiteSpace(x)) == 0)
                 continue;
-
             var recognized = row
                 .Select((header, index) => InferColumn(index, header))
                 .Count(x => x.Field is not null);
@@ -587,16 +545,14 @@ public sealed class SpreadsheetSchemaInferenceService(
         while (normalized.Contains("--", StringComparison.Ordinal))
             normalized = normalized.Replace("--", "-", StringComparison.Ordinal);
         var trimmed = normalized.Trim('-');
-        if (trimmed.Length == 0)
-            return "item";
+        if (trimmed.Length == 0) return "item";
         return trimmed[..Math.Min(120, trimmed.Length)];
     }
 
     private static string BoundMetadata(object value)
     {
         var json = JsonSerializer.Serialize(value);
-        if (json.Length <= 60000)
-            return json;
+        if (json.Length <= 60000) return json;
         return JsonSerializer.Serialize(new
         {
             source = "spreadsheet",
@@ -623,8 +579,8 @@ public sealed class SpreadsheetSchemaInferenceService(
     private static string NormalizeDomain(string value)
     {
         var normalized = value.Trim().ToLowerInvariant();
-        if (normalized.Length is < 1 or > 120 ||
-            normalized.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '.' or '-' or '_' or ':' or '/')))
+        if (normalized.Length is < 1 or > 120
+            || normalized.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '.' or '-' or '_' or ':' or '/')))
             throw new ArgumentException("DomainId contains unsupported characters.", nameof(value));
         return normalized;
     }

@@ -1,4 +1,4 @@
-// Purpose: Implements Pm Evidence Translator responsibilities for project truth.
+// Purpose: Translates QA and project evidence into PM-facing explanations without cross-industry domain assumptions.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
@@ -34,8 +34,6 @@ public sealed class PmEvidenceTranslator
     public PmEvidenceExplanation Explain(QaFindingCandidate finding)
     {
         var category = finding.Category.ToLowerInvariant();
-        if (category.Contains("inspection") || category.Contains("construction"))
-            return new("Construction verification needs attention", "Inspection or construction evidence does not currently support a fully completed state.", "Review the inspection evidence, responsible work item and required approval before accepting completion.");
         if (category.Contains("render") || category.Contains("publish") || category.Contains("review") || category.Contains("retake") || category.Contains("frame-sequence"))
             return new("Media production verification needs attention", "Render, publish, review or frame-sequence evidence indicates that the production item is not fully verified yet.", "Open the latest publish/reference evidence and clear the remaining gate before marking the item complete.");
         if (category.Contains("approval"))
@@ -50,9 +48,9 @@ public sealed class PmEvidenceTranslator
             return new("Application failed while running", "The current build reached a runtime or network failure. The feature cannot be considered fully verified while this evidence remains current.", "Assign the failure to the responsible implementation area and verify a clean rerun under the same conditions.");
         if (category.Contains("hang"))
             return new("Application stopped responding", "The automated run exceeded its allowed time and appears to have stopped making usable progress.", "Investigate the captured dump/logs and confirm the same scenario completes within the expected time.");
-        if (category.Contains("compile") || category.Contains("syntax") || category.Contains("configure") || category.Contains("restore"))
+        if (category.Contains("compile") || category.Contains("syntax") || category.Contains("configure") || category.Contains("restore") || category.Contains("build"))
             return new("Current source cannot be produced successfully", "The automated build path did not complete, so the reported implementation is not currently reproducible from source.", "Restore a clean build before relying on completion or release claims.");
-        if (category.Contains("test"))
+        if (category.Contains("test") || category.Contains("qa"))
             return new("Expected behavior did not pass automated verification", "One or more automated checks disagree with the expected behavior. This may be a product issue or an outdated test and needs confirmation.", "Review the failed scenario and either fix the implementation or update the verified expectation with evidence.");
         if (category.Contains("static") || category.Contains("type"))
             return new("Code analysis found a maintainability or correctness risk", "Automated analysis found a code-level risk. It is not automatically a release blocker, but it reduces confidence until reviewed.", "Have the responsible engineer review the finding and record whether it is fixed or intentionally accepted.");
@@ -90,10 +88,6 @@ public sealed class PmEvidenceTranslator
     {
         ArgumentNullException.ThrowIfNull(evidence);
         var kind = evidence.EvidenceKind.ToLowerInvariant();
-        if (kind.Contains("inspection"))
-            return evidence.Outcome == EvidenceOutcome.Succeeded
-                ? new("Inspection passed", "The recorded inspection supports the current completion claim.", "Retain the inspection record and link it to the affected work item.")
-                : new("Inspection is not passing", "The current inspection evidence does not support treating the affected construction work as complete.", "Resolve the inspection finding and capture a new passing inspection before approval.");
         if (kind.Contains("approval"))
             return evidence.Outcome == EvidenceOutcome.Succeeded
                 ? new("Approval recorded", "A required approval gate has been satisfied.", "Keep the approval attached to the project item for auditability.")
@@ -102,6 +96,10 @@ public sealed class PmEvidenceTranslator
             return evidence.Outcome == EvidenceOutcome.Succeeded
                 ? new("Production gate passed", "The current media-production evidence supports the reported state.", "Keep the render/publish/review evidence linked to the shot or asset.")
                 : new("Production gate needs attention", "Render, publish, reference or review evidence does not yet support final completion.", "Resolve the failed/pending production gate and re-run the same verification.");
+        if (kind.Contains("build") || kind.Contains("quality") || kind.Contains("test") || kind.Contains("qa"))
+            return evidence.Outcome == EvidenceOutcome.Succeeded
+                ? new("Development verification passed", "Current build/QA evidence supports the reported project state.", "Keep the evidence attached to the same revision and scenario.")
+                : new("Development verification needs attention", "Current build/QA evidence does not support a fully verified state.", "Resolve the failed verification and capture a newer run for the same revision boundary.");
         return new("Project evidence update", evidence.Summary, evidence.Outcome == EvidenceOutcome.Failed ? "Review the failed evidence before relying on the reported project state." : "Use this evidence together with independent sources when making a project decision.");
     }
 }

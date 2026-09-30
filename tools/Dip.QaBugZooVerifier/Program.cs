@@ -1,4 +1,4 @@
-// Purpose: Verifies universal QA adapters against the deterministic multi-language bug zoo and writes reproducible evidence.
+// Purpose: Verifies universal QA adapters against the deterministic multi-language bug zoo and writes exact-revision evidence.
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -9,10 +9,24 @@ using Dip.Infrastructure.QualityAutomation;
 
 var options = Options.Parse(args);
 var root = Path.GetFullPath(options.Root ?? FindRepositoryRoot(Environment.CurrentDirectory));
+var sourceCommit = GitText(root, "rev-parse", "HEAD");
+if (sourceCommit.Length != 40)
+    throw new InvalidDataException($"Could not resolve a 40-character source SHA: '{sourceCommit}'.");
+
+var sourceWorkingTreeDirty = !string.IsNullOrWhiteSpace(
+    GitText(root, "status", "--porcelain", "--untracked-files=no"));
+if (!string.IsNullOrWhiteSpace(options.ExpectedSha)
+    && !sourceCommit.Equals(options.ExpectedSha, StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException(
+        $"Bug Zoo source SHA mismatch: expected={options.ExpectedSha} actual={sourceCommit}");
+}
+if (!string.IsNullOrWhiteSpace(options.ExpectedSha) && sourceWorkingTreeDirty)
+    throw new InvalidOperationException("Exact-revision Bug Zoo verification requires a clean tracked working tree.");
+
 var zooRoot = Path.Combine(root, "samples", "qa-bug-zoo");
 var outputRoot = Path.GetFullPath(options.Output ?? Path.Combine(root, "artifacts", "qa-bug-zoo"));
 Directory.CreateDirectory(outputRoot);
-
 if (!Directory.Exists(zooRoot))
     throw new DirectoryNotFoundException($"Bug Zoo was not found: {zooRoot}");
 
@@ -26,23 +40,18 @@ var allCases = Directory
 var requiredLanguageSet = options.RequiredLanguages
     .Select(language => language.Value)
     .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
 var skippedCases = allCases
     .Where(testCase =>
         !testCase.IsSupportedOnCurrentPlatform()
         || (!requiredLanguageSet.Contains(testCase.Language.Value)
             && !HasPrimaryToolchain(testCase.Language)))
     .ToArray();
-
 var skippedCaseSet = skippedCases.ToHashSet();
-
-var cases = allCases
-    .Where(testCase => !skippedCaseSet.Contains(testCase))
-    .ToArray();
+var cases = allCases.Where(testCase => !skippedCaseSet.Contains(testCase)).ToArray();
 
 var executor = new ProcessExecutor();
 var normalizer = new UniversalDiagnosticNormalizer();
-var adapters = new IQaAdapter[]
+var registry = new QaAdapterRegistry(new IQaAdapter[]
 {
     new ManifestQaAdapter(executor, normalizer),
     new UnityProjectQaAdapter(executor, normalizer),
@@ -50,8 +59,7 @@ var adapters = new IQaAdapter[]
     new CSharpQaEngine(executor, normalizer),
     new CppQaEngine(executor, normalizer),
     new GenericCommandQaAdapter(executor, normalizer)
-};
-var registry = new QaAdapterRegistry(adapters);
+});
 var detector = new RepositoryTechnologyDetector();
 
 var results = new List<CaseResult>(cases.Length);
@@ -66,26 +74,60 @@ foreach (var testCase in cases)
 }
 
 var metrics = BuildMetrics(results, skippedCases, options);
-var summary = BuildSummary(root, results, skippedCases, options, metrics);
+var passed =
+    metrics.MissingRequiredLanguages.Count == 0
+    && (options.AllowMissingTools || metrics.BlockingInfrastructureFailures == 0)
+    && metrics.BugCases.All(result => result.Detected)
+    && metrics.CleanCases.All(result => result.Detected)
+    && metrics.ReproducibleCases.All(result => !result.Detected || result.Reproduced);
+
+var summary = BuildSummary(
+    root,
+    sourceCommit,
+    sourceWorkingTreeDirty,
+    passed,
+    results,
+    skippedCases,
+    options,
+    metrics);
 await WriteEvidenceAsync(outputRoot, summary, results, skippedCases, metrics);
 
 Console.WriteLine(
     $"Bug Zoo: languages {string.Join(", ", metrics.ExecutedLanguages)}; "
     + $"recall {metrics.Recall:0.##}%; false positives {metrics.FalsePositiveRate:0.##}%; "
     + $"reproduction {metrics.ReproductionRate:0.##}%.");
+Console.WriteLine($"Source: {sourceCommit}; tracked dirty: {sourceWorkingTreeDirty}; PASS: {passed}");
 Console.WriteLine($"Evidence: {Path.Combine(outputRoot, "qa-bug-zoo-results.json")}");
 
-if (metrics.MissingRequiredLanguages.Count > 0)
-    return 6;
-if (metrics.BlockingInfrastructureFailures > 0 && !options.AllowMissingTools)
-    return 2;
-if (metrics.BugCases.Any(result => !result.Detected))
-    return 3;
-if (metrics.CleanCases.Any(result => !result.Detected))
-    return 4;
-if (metrics.ReproducibleCases.Any(result => result.Detected && !result.Reproduced))
-    return 5;
+if (metrics.MissingRequiredLanguages.Count > 0) return 6;
+if (metrics.BlockingInfrastructureFailures > 0 && !options.AllowMissingTools) return 2;
+if (metrics.BugCases.Any(result => !result.Detected)) return 3;
+if (metrics.CleanCases.Any(result => !result.Detected)) return 4;
+if (metrics.ReproducibleCases.Any(result => result.Detected && !result.Reproduced)) return 5;
 return 0;
+
+static string GitText(string root, params string[] args)
+{
+    var start = new ProcessStartInfo("git")
+    {
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+    };
+    start.ArgumentList.Add("-C");
+    start.ArgumentList.Add(root);
+    foreach (var arg in args) start.ArgumentList.Add(arg);
+
+    using var process = Process.Start(start)
+        ?? throw new InvalidOperationException("Could not start git.");
+    var stdout = process.StandardOutput.ReadToEnd();
+    var stderr = process.StandardError.ReadToEnd();
+    process.WaitForExit();
+    if (process.ExitCode != 0)
+        throw new InvalidOperationException($"git {string.Join(' ', args)} failed: {stderr.Trim()}");
+    return stdout.Trim();
+}
 
 static bool HasPrimaryToolchain(LanguageId language)
 {
@@ -109,12 +151,8 @@ static bool HasPrimaryToolchain(LanguageId language)
         "ruby" => new[] { "ruby" },
         _ => Array.Empty<string>()
     };
-
-    // Languages without an external-tool mapping can still be handled by
-    // manifest/semantic adapters, so they remain executable.
     return candidates.Length == 0
-           || candidates.Any(candidate =>
-               ProcessExecutor.FindExecutable(candidate) is not null);
+        || candidates.Any(candidate => ProcessExecutor.FindExecutable(candidate) is not null);
 }
 
 static async Task<CaseResult> RunCaseAsync(
@@ -124,20 +162,14 @@ static async Task<CaseResult> RunCaseAsync(
     RepositoryTechnologyDetector detector,
     CancellationToken ct)
 {
-    var artifactRoot = Path.Combine(
-        outputRoot,
-        "cases",
-        testCase.Language.Value,
-        testCase.Name);
+    var artifactRoot = Path.Combine(outputRoot, "cases", testCase.Language.Value, testCase.Name);
     RecreateDirectory(artifactRoot);
     var stopwatch = Stopwatch.StartNew();
 
     try
     {
         var profile = await detector.DetectAsync(testCase.Workspace, ct);
-        var selection = registry
-            .Resolve(testCase.Language, profile, testCase.Workspace)
-            .FirstOrDefault()
+        var selection = registry.Resolve(testCase.Language, profile, testCase.Workspace).FirstOrDefault()
             ?? throw new InvalidOperationException($"No adapter for {testCase.Language}.");
         var command = BuildCommand(testCase);
         var first = await selection.Adapter.RunAsync(
@@ -149,20 +181,11 @@ static async Task<CaseResult> RunCaseAsync(
         var noisy = first.Findings
             .Where(finding => finding.Severity is Severity.Critical or Severity.Warning)
             .ToArray();
-
-        // dip-semantic can run without the language's native compiler/runtime.
-        // It must not make a missing primary toolchain look "executed".
         var executableTools = first.Tools
-            .Where(tool => !string.Equals(
-                tool.Tool,
-                "dip-semantic",
-                StringComparison.OrdinalIgnoreCase))
+            .Where(tool => !string.Equals(tool.Tool, "dip-semantic", StringComparison.OrdinalIgnoreCase))
             .ToArray();
-
-        var infrastructureFailure =
-            executableTools.Length == 0
+        var infrastructureFailure = executableTools.Length == 0
             || executableTools.All(tool => !tool.WasAvailable);
-
         var detected = testCase.ExpectNoFindings ? noisy.Length == 0 : relevant.Length > 0;
         var reproduced = false;
         var reproducibleAttempts = 0;
@@ -208,11 +231,7 @@ static async Task<CaseResult> RunCaseAsync(
             relevant.FirstOrDefault()?.ExceptionType,
             relevant.FirstOrDefault()?.RuleId,
             first.Tools.Select(tool => new ToolResult(
-                tool.Tool,
-                tool.WasAvailable,
-                tool.Succeeded,
-                tool.ExitCode,
-                tool.DurationMs)).ToArray(),
+                tool.Tool, tool.WasAvailable, tool.Succeeded, tool.ExitCode, tool.DurationMs)).ToArray(),
             profile.BuildSystems,
             profile.Frameworks,
             profile.GameEngines,
@@ -287,35 +306,40 @@ static BugZooMetrics BuildMetrics(
 
 static object BuildSummary(
     string repositoryRoot,
+    string sourceCommit,
+    bool sourceWorkingTreeDirty,
+    bool passed,
     IReadOnlyList<CaseResult> results,
     IReadOnlyList<BugZooCase> skippedCases,
     Options options,
-    BugZooMetrics metrics) =>
-    new
-    {
-        schemaVersion = "2.0",
-        adapterArchitecture = "universal",
-        generatedAt = DateTimeOffset.UtcNow,
-        repositoryRoot,
-        cases = results.Count,
-        injectedBugCases = metrics.BugCases.Count,
-        detectedBugCases = metrics.BugCases.Count(result => result.Detected),
-        detectionRecallPercent = metrics.Recall,
-        cleanControlCases = metrics.CleanCases.Count,
-        falsePositiveCases = metrics.CleanCases.Count(result => !result.Detected),
-        falsePositiveRatePercent = metrics.FalsePositiveRate,
-        reproductionEligibleCases = metrics.ReproducibleCases.Count,
-        reproducedCases = metrics.ReproducibleCases.Count(result => result.Reproduced),
-        reproductionRatePercent = metrics.ReproductionRate,
-        infrastructureFailures = metrics.InfrastructureFailures,
-        blockingInfrastructureFailures = metrics.BlockingInfrastructureFailures,
-        executedLanguages = metrics.ExecutedLanguages,
-        requiredLanguages = options.RequiredLanguages.Select(language => language.Value).ToArray(),
-        missingRequiredLanguages = metrics.MissingRequiredLanguages,
-        platformSkippedCases = skippedCases.Select(testCase => $"{testCase.Language.Value}/{testCase.Name}").ToArray(),
-        medianCaseDurationMs = metrics.MedianCaseDurationMs,
-        results
-    };
+    BugZooMetrics metrics) => new
+{
+    schemaVersion = "3.0",
+    adapterArchitecture = "universal",
+    sourceCommit,
+    sourceWorkingTreeDirty,
+    passed,
+    generatedAt = DateTimeOffset.UtcNow,
+    repositoryRoot,
+    cases = results.Count,
+    injectedBugCases = metrics.BugCases.Count,
+    detectedBugCases = metrics.BugCases.Count(result => result.Detected),
+    detectionRecallPercent = metrics.Recall,
+    cleanControlCases = metrics.CleanCases.Count,
+    falsePositiveCases = metrics.CleanCases.Count(result => !result.Detected),
+    falsePositiveRatePercent = metrics.FalsePositiveRate,
+    reproductionEligibleCases = metrics.ReproducibleCases.Count,
+    reproducedCases = metrics.ReproducibleCases.Count(result => result.Reproduced),
+    reproductionRatePercent = metrics.ReproductionRate,
+    infrastructureFailures = metrics.InfrastructureFailures,
+    blockingInfrastructureFailures = metrics.BlockingInfrastructureFailures,
+    executedLanguages = metrics.ExecutedLanguages,
+    requiredLanguages = options.RequiredLanguages.Select(language => language.Value).ToArray(),
+    missingRequiredLanguages = metrics.MissingRequiredLanguages,
+    platformSkippedCases = skippedCases.Select(testCase => $"{testCase.Language.Value}/{testCase.Name}").ToArray(),
+    medianCaseDurationMs = metrics.MedianCaseDurationMs,
+    results
+};
 
 static async Task WriteEvidenceAsync(
     string outputRoot,
@@ -348,16 +372,12 @@ static QaExecutionCommand BuildCommand(BugZooCase testCase)
     if (string.IsNullOrWhiteSpace(runtime))
     {
         if (testCase.Language == LanguageId.Python && File.Exists(Path.Combine(testCase.Workspace, "app.py")))
-        {
             runtime = "app.py";
-        }
         else if (testCase.Language == LanguageId.CSharp
                  && (testCase.MustReproduce
                      || string.Equals(testCase.Category, "runtime", StringComparison.OrdinalIgnoreCase)
                      || string.Equals(testCase.Category, "hang", StringComparison.OrdinalIgnoreCase)))
-        {
             runtime = CSharpRuntime(testCase.Workspace);
-        }
     }
 
     var timeout = string.Equals(testCase.Category, "hang", StringComparison.OrdinalIgnoreCase) ? 5 : 120;
@@ -377,9 +397,7 @@ static QaExecutionCommand BuildCommand(BugZooCase testCase)
 
 static string? CSharpRuntime(string workspace)
 {
-    var project = Directory
-        .EnumerateFiles(workspace, "*.csproj", SearchOption.TopDirectoryOnly)
-        .FirstOrDefault();
+    var project = Directory.EnumerateFiles(workspace, "*.csproj", SearchOption.TopDirectoryOnly).FirstOrDefault();
     return project is null
         ? null
         : Path.Combine("bin", "Release", "net8.0", Path.GetFileNameWithoutExtension(project) + ".dll");
@@ -389,9 +407,7 @@ static IEnumerable<QaFindingCandidate> RelevantFindings(
     IEnumerable<QaFindingCandidate> findings,
     BugZooCase testCase)
 {
-    if (testCase.ExpectNoFindings)
-        return Array.Empty<QaFindingCandidate>();
-
+    if (testCase.ExpectNoFindings) return Array.Empty<QaFindingCandidate>();
     return findings.Where(finding =>
         string.Equals(finding.Category, testCase.Category, StringComparison.OrdinalIgnoreCase)
         && string.Equals(finding.Severity.ToString(), testCase.Severity, StringComparison.OrdinalIgnoreCase)
@@ -406,8 +422,7 @@ static decimal Percent(int numerator, int denominator) =>
 
 static long Median(long[] values)
 {
-    if (values.Length == 0)
-        return 0;
+    if (values.Length == 0) return 0;
     Array.Sort(values);
     return values.Length % 2 == 1
         ? values[values.Length / 2]
@@ -416,8 +431,7 @@ static long Median(long[] values)
 
 static void RecreateDirectory(string path)
 {
-    if (Directory.Exists(path))
-        Directory.Delete(path, true);
+    if (Directory.Exists(path)) Directory.Delete(path, true);
     Directory.CreateDirectory(path);
 }
 
@@ -468,12 +482,7 @@ static string Markdown(
     return builder.ToString();
 }
 
-sealed record ToolResult(
-    string Tool,
-    bool WasAvailable,
-    bool Succeeded,
-    int? ExitCode,
-    long DurationMs);
+sealed record ToolResult(string Tool, bool WasAvailable, bool Succeeded, int? ExitCode, long DurationMs);
 
 sealed record CaseResult(
     string Language,
@@ -531,13 +540,9 @@ sealed record BugZooCase(
         using var document = JsonDocument.Parse(File.ReadAllText(expectedPath));
         var json = document.RootElement;
         var workspace = Path.GetDirectoryName(expectedPath)!;
-        var relative = Path
-            .GetRelativePath(zooRoot, workspace)
-            .Replace('\\', '/')
-            .Split('/');
+        var relative = Path.GetRelativePath(zooRoot, workspace).Replace('\\', '/').Split('/');
         if (relative.Length < 2)
             throw new InvalidDataException($"Unexpected Bug Zoo path: {workspace}");
-
         return new(
             LanguageId.Parse(relative[0]),
             relative[1],
@@ -569,6 +574,7 @@ sealed record BugZooCase(
 sealed record Options(
     string? Root,
     string? Output,
+    string? ExpectedSha,
     bool AllowMissingTools,
     IReadOnlyList<LanguageId> RequiredLanguages)
 {
@@ -576,6 +582,7 @@ sealed record Options(
     {
         string? root = null;
         string? output = null;
+        string? expectedSha = null;
         var allowMissingTools = false;
         var required = new List<LanguageId>();
 
@@ -589,6 +596,9 @@ sealed record Options(
                 case "--output" when index + 1 < args.Length:
                     output = args[++index];
                     break;
+                case "--expected-sha" when index + 1 < args.Length:
+                    expectedSha = args[++index];
+                    break;
                 case "--allow-missing-tools":
                     allowMissingTools = true;
                     break;
@@ -600,7 +610,6 @@ sealed record Options(
                     break;
             }
         }
-
-        return new(root, output, allowMissingTools, required);
+        return new(root, output, expectedSha, allowMissingTools, required);
     }
 }

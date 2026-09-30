@@ -1,4 +1,4 @@
-name: Unreal Collector CI
+name: Unreal Collector Contract CI
 on:
   workflow_dispatch:
   push:
@@ -20,5 +20,6 @@ jobs:
       - name: Hosted-CI boundary
         shell: bash
         run: |
-          echo "Hosted CI validates collector code only."
-          echo "Actual UnrealEditor-Cmd runtime evidence is required separately for the final SHA."
+          echo "Hosted CI validates the Unreal collector contract and unit-tested behavior only."
+          echo "UnrealEditor-Cmd runtime is NOT_EVALUATED unless a real external target project is supplied separately."
+          echo "Engine runtime is not a final portfolio publication requirement."

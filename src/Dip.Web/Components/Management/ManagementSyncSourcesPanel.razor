@@ -17,7 +17,7 @@ else
              data-testid="management-spreadsheet-intelligence">
         <div class="card-header">
             <div>
-                <div class="eyebrow">Cross-domain evidence intake</div>
+                <div class="eyebrow">Game/software evidence intake</div>
                 <strong>Flexible Spreadsheet Intelligence</strong>
             </div>
             <span>Analyze → Dry run → Apply</span>
@@ -26,8 +26,8 @@ else
         <div class="card-body">
             <div class="alert alert-light border small">
                 XLSX data is analyzed before mutation. Japanese/English columns and
-                software, media/VFX, construction, or generic project semantics are
-                inferred, while unknown columns are preserved as custom metadata.
+                software, media/VFX, or generic project semantics are inferred,
+                while unknown columns are preserved as custom metadata.
             </div>
 
             @if (!string.IsNullOrWhiteSpace(_spreadsheetError))
@@ -421,8 +421,7 @@ External: @conflict.ExternalValue</pre>
     private FlexibleSpreadsheetImportResult? _spreadsheetPreview;
     private FlexibleSpreadsheetImportResult? _spreadsheetImport;
 
-    private bool CanUseSpreadsheet =>
-        _spreadsheetBytes is { Length: > 0 };
+    private bool CanUseSpreadsheet => _spreadsheetBytes is { Length: > 0 };
 
     protected override Task OnParametersSetAsync() => LoadAsync();
 
@@ -430,7 +429,6 @@ External: @conflict.ExternalValue</pre>
     {
         _loading = true;
         _error = null;
-
         try
         {
             _sync = await Api.GetManagementSyncStateAsync(ProjectId);
@@ -449,13 +447,7 @@ External: @conflict.ExternalValue</pre>
     {
         await Api.UpsertSourceAuthorityAsync(
             ProjectId,
-            new(
-                ProjectId,
-                _authorityKey,
-                _authorityDataType,
-                _authority,
-                _conflictPolicy));
-
+            new(ProjectId, _authorityKey, _authorityDataType, _authority, _conflictPolicy));
         await NotifyAndReloadAsync("Source authority saved.");
     }
 
@@ -463,51 +455,25 @@ External: @conflict.ExternalValue</pre>
     {
         _lastSync = await Api.RunManagementSyncAsync(
             ProjectId,
-            new(
-                ProjectId,
-                _syncProvider,
-                Enum.Parse<ManagementSyncDirection>(_syncDirection),
-                dryRun));
-
-        await NotifyAndReloadAsync(
-            dryRun
-                ? "Sync dry run completed."
-                : "Synchronization completed.");
+            new(ProjectId, _syncProvider, Enum.Parse<ManagementSyncDirection>(_syncDirection), dryRun));
+        await NotifyAndReloadAsync(dryRun ? "Sync dry run completed." : "Synchronization completed.");
     }
 
     private async Task RunSheetsAsync(bool dryRun)
     {
         _lastSheets = await Api.SyncManagementGoogleSheetsAsync(
-            new(
-                ProjectId,
-                _sheetId,
-                _sheetToken,
-                true,
-                true,
-                dryRun));
-
-        if (!dryRun)
-            _sheetToken = "";
-
+            new(ProjectId, _sheetId, _sheetToken, true, true, dryRun));
+        if (!dryRun) _sheetToken = "";
         await NotifyAndReloadAsync(
-            dryRun
-                ? "Google Sheets dry run completed."
-                : "Google Sheets synchronized with conflict protection.");
+            dryRun ? "Google Sheets dry run completed." : "Google Sheets synchronized with conflict protection.");
     }
 
-    private async Task ResolveConflictAsync(
-        string key,
-        string resolution)
+    private async Task ResolveConflictAsync(string key, string resolution)
     {
         await Api.ResolveManagementSyncConflictAsync(
             ProjectId,
             key,
-            new(
-                ProjectId,
-                key,
-                resolution,
-                "web"));
-
+            new(ProjectId, key, resolution, "web"));
         await NotifyAndReloadAsync("Sync conflict resolved.");
     }
 
@@ -520,21 +486,17 @@ External: @conflict.ExternalValue</pre>
 
         var file = args.File;
         _spreadsheetFileName = file.Name;
-
         if (file.Size <= 0 || file.Size > MaxSpreadsheetBytes)
         {
             _spreadsheetBytes = null;
-            _spreadsheetError =
-                $"Workbook must be between 1 byte and "
-                + $"{FormatBytes((int)MaxSpreadsheetBytes)}.";
+            _spreadsheetError = $"Workbook must be between 1 byte and {FormatBytes((int)MaxSpreadsheetBytes)}.";
             return;
         }
 
         try
         {
             await using var input = file.OpenReadStream(MaxSpreadsheetBytes);
-            using var memory = new MemoryStream(
-                (int)Math.Min(file.Size, MaxSpreadsheetBytes));
+            using var memory = new MemoryStream((int)Math.Min(file.Size, MaxSpreadsheetBytes));
             await input.CopyToAsync(memory);
             _spreadsheetBytes = memory.ToArray();
         }
@@ -551,18 +513,11 @@ External: @conflict.ExternalValue</pre>
             async () =>
             {
                 var bytes = RequireSpreadsheetBytes();
-
-                _spreadsheetAnalysis =
-                    await Api.AnalyzeManagementSpreadsheetAsync(
-                        ProjectId,
-                        SpreadsheetFileName(),
-                        bytes);
-
+                _spreadsheetAnalysis = await Api.AnalyzeManagementSpreadsheetAsync(
+                    ProjectId, SpreadsheetFileName(), bytes);
                 _spreadsheetPreview = null;
                 _spreadsheetImport = null;
-
-                await Changed.InvokeAsync(
-                    "Spreadsheet schema analysis completed without mutating project state.");
+                await Changed.InvokeAsync("Spreadsheet schema analysis completed without mutating project state.");
             });
 
     private Task PreviewSpreadsheetAsync() =>
@@ -571,20 +526,15 @@ External: @conflict.ExternalValue</pre>
             async () =>
             {
                 var bytes = RequireSpreadsheetBytes();
-
-                _spreadsheetPreview =
-                    await Api.ImportFlexibleManagementSpreadsheetAsync(
-                        ProjectId,
-                        SpreadsheetFileName(),
-                        bytes,
-                        dryRun: true,
-                        domainId: Null(_spreadsheetDomainOverride));
-
+                _spreadsheetPreview = await Api.ImportFlexibleManagementSpreadsheetAsync(
+                    ProjectId,
+                    SpreadsheetFileName(),
+                    bytes,
+                    dryRun: true,
+                    domainId: Null(_spreadsheetDomainOverride));
                 _spreadsheetAnalysis = _spreadsheetPreview.Analysis;
                 _spreadsheetImport = null;
-
-                await Changed.InvokeAsync(
-                    "Flexible spreadsheet dry run completed; no project state was changed.");
+                await Changed.InvokeAsync("Flexible spreadsheet dry run completed; no project state was changed.");
             });
 
     private Task ImportSpreadsheetAsync() =>
@@ -593,29 +543,21 @@ External: @conflict.ExternalValue</pre>
             async () =>
             {
                 var bytes = RequireSpreadsheetBytes();
-
-                _spreadsheetImport =
-                    await Api.ImportFlexibleManagementSpreadsheetAsync(
-                        ProjectId,
-                        SpreadsheetFileName(),
-                        bytes,
-                        dryRun: false,
-                        domainId: Null(_spreadsheetDomainOverride));
-
+                _spreadsheetImport = await Api.ImportFlexibleManagementSpreadsheetAsync(
+                    ProjectId,
+                    SpreadsheetFileName(),
+                    bytes,
+                    dryRun: false,
+                    domainId: Null(_spreadsheetDomainOverride));
                 _spreadsheetAnalysis = _spreadsheetImport.Analysis;
                 _spreadsheetPreview = null;
-
                 await LoadAsync();
-
                 await Changed.InvokeAsync(
-                    $"Flexible spreadsheet import applied: "
-                    + $"{_spreadsheetImport.Imported} row(s), "
+                    $"Flexible spreadsheet import applied: {_spreadsheetImport.Imported} row(s), "
                     + $"{_spreadsheetImport.DependencyLinks} dependency link(s).");
             });
 
-    private async Task RunSpreadsheetOperationAsync(
-        string operationName,
-        Func<Task> operation)
+    private async Task RunSpreadsheetOperationAsync(string operationName, Func<Task> operation)
     {
         if (!CanUseSpreadsheet)
         {
@@ -627,7 +569,6 @@ External: @conflict.ExternalValue</pre>
         _spreadsheetOperation = operationName;
         _spreadsheetError = null;
         await InvokeAsync(StateHasChanged);
-
         try
         {
             await operation();
@@ -648,9 +589,7 @@ External: @conflict.ExternalValue</pre>
     }
 
     private byte[] RequireSpreadsheetBytes() =>
-        _spreadsheetBytes
-        ?? throw new InvalidOperationException(
-            "Choose an XLSX workbook first.");
+        _spreadsheetBytes ?? throw new InvalidOperationException("Choose an XLSX workbook first.");
 
     private async Task NotifyAndReloadAsync(string message)
     {
@@ -659,23 +598,15 @@ External: @conflict.ExternalValue</pre>
     }
 
     private string SpreadsheetFileName() =>
-        string.IsNullOrWhiteSpace(_spreadsheetFileName)
-            ? "management.xlsx"
-            : _spreadsheetFileName;
+        string.IsNullOrWhiteSpace(_spreadsheetFileName) ? "management.xlsx" : _spreadsheetFileName;
 
     private static string? Null(string? value) =>
-        string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Trim();
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string FormatBytes(int bytes)
     {
-        if (bytes >= 1024 * 1024)
-            return $"{bytes / (1024d * 1024d):0.##} MiB";
-
-        if (bytes >= 1024)
-            return $"{bytes / 1024d:0.##} KiB";
-
+        if (bytes >= 1024 * 1024) return $"{bytes / (1024d * 1024d):0.##} MiB";
+        if (bytes >= 1024) return $"{bytes / 1024d:0.##} KiB";
         return $"{bytes} B";
     }
 }

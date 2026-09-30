@@ -7,7 +7,8 @@ namespace Dip.Application.Features.ProjectTruth;
 /// <summary>
 /// Produces two deliberately separate progress numbers: what the team reported
 /// and how much of that reported progress is currently backed by evidence.
-/// Status vocabulary is intentionally cross-domain (software/media/construction).
+/// Status vocabulary is intentionally suitable for software/game/media production
+/// without depending on unrelated industry-specific terminology or entities.
 /// Ambiguous status-only progress is resolved through ProjectTruthPolicy rather
 /// than hidden hard-coded values.
 /// </summary>
@@ -40,9 +41,6 @@ public sealed class ProgressEvaluator
             return new(0m, null);
 
         var reportedValues = latestClaims.Select(GetReportedProgress).ToArray();
-        // An unknown status is missing information, not evidence of 0% progress. If any
-        // current claim is unknown and has no explicit percentage, the aggregate reported
-        // percentage remains unknown rather than manufacturing a number.
         decimal? reported = reportedValues.Any(value => value is null)
             ? null
             : decimal.Round(reportedValues.Select(value => value!.Value).Average(), 2);

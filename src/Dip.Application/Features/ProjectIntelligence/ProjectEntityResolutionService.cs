@@ -199,8 +199,8 @@ public sealed class ProjectEntityResolutionService
         if (CanonicalTypes.Contains(node.Type))
             return true;
         var kind = MetadataString(node, "kind").ToLowerInvariant();
-        return kind is "media.shot" or "media.task" or "construction.task" or "construction.drawing"
-            or "construction.rfi" or "construction.approval" or "generic.task";
+        return kind is "media.shot" or "media.task" or "software.task" or "software.issue"
+            or "generic.task";
     }
 
     private static IEnumerable<DevelopmentGraphNode> CurrentSources(IReadOnlyList<DevelopmentGraphNode> nodes)

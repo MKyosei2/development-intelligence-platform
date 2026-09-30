@@ -112,12 +112,12 @@ public static class DependencyInjection
         services.AddScoped<DashboardQueryService>();
         services.AddScoped<Dip.Application.Features.Authorization.ProjectAccessService>();
         services.AddScoped<Dip.Application.Features.Intelligence.P2OrchestrationService>();
-        services.AddScoped<Dip.Application.Features.Intelligence.AdaptiveQaPlanner>();
         services.AddScoped<Dip.Application.Features.Intelligence.CommunityHardwareService>();
         services.AddScoped<Dip.Application.Features.Intelligence.RootCauseIntelligenceService>();
         services.AddScoped<Dip.Application.Features.Intelligence.ForecastAndDecisionService>();
         services.AddScoped<Dip.Application.Features.Intelligence.P2AnalysisService>();
         services.AddScoped<HardwareCommunityIntelligenceService>();
+        // Canonical adaptive-QA implementation. The legacy Features.Intelligence planner is removed.
         services.AddScoped<Dip.Application.Features.P2Intelligence.AdaptiveQaPlanner>();
         services.AddScoped<P2TechnicalIntelligenceService>();
         services.AddSingleton<GameRegressionEvaluator>();
