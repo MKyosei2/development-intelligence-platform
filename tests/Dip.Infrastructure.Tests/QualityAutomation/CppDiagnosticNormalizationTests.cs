@@ -71,6 +71,38 @@ public sealed class CppDiagnosticNormalizationTests
             && x.RuleId == "-Warray-bounds");
     }
 
+    [Theory]
+    [InlineData(5, 5)]
+    [InlineData(15, 15)]
+    [InlineData(120, 120)]
+    [InlineData(1800, 1800)]
+    [InlineData(2400, 1800)]
+    public void Native_execution_timeout_respects_the_requested_qa_budget(
+        int requestedSeconds,
+        int expectedSeconds)
+    {
+        CppQaEngine
+            .ResolveNativeExecutionTimeout(requestedSeconds)
+            .Should()
+            .Be(TimeSpan.FromSeconds(expectedSeconds));
+    }
+
+    [Fact]
+    public void Ctest_timeout_remains_a_critical_hang_when_the_real_budget_is_exhausted()
+    {
+        var findings = _normalizer.NormalizeText(
+            LanguageId.Cpp,
+            "ctest",
+            string.Empty,
+            string.Empty,
+            timedOut: true);
+
+        findings.Should().ContainSingle(x =>
+            x.Category == "hang"
+            && x.Severity.ToString() == "Critical"
+            && x.ExceptionType == "Timeout");
+    }
+
     [Fact]
     public void Direct_runtime_fallback_is_skipped_when_ctest_returns_an_exit_code()
     {

@@ -24,8 +24,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
 
         var tools = new List<QaToolExecution>();
         var findings = new List<QaFindingCandidate>();
-        var timeout = TimeSpan.FromSeconds(Math.Clamp(command.TimeoutSeconds, 5, 1800));
-        var shortNativeTimeout = TimeSpan.FromSeconds(Math.Clamp(command.TimeoutSeconds, 5, 15));
+        var timeout = ResolveNativeExecutionTimeout(command.TimeoutSeconds);
 
         var semanticResult = await semantic.AnalyzeAsync(new(LanguageId.Cpp, workspace), ct);
         findings.AddRange(semanticResult.Findings);
@@ -153,15 +152,17 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                 Severity.Warning,
                 "test",
                 sanitizerEnvironment,
-                shortNativeTimeout);
+                timeout);
         }
 
         // CTest already executes the sanitizer-instrumented target and emits failing
-        // test output with --output-on-failure. Running the same target a second time
-        // caused clean binaries to enter an ASan DEADLYSIGNAL/timeout loop in the
-        // sandbox. Use the direct runtime only as a fallback when CTest was unavailable
-        // or failed to produce an exit code (start failure / timeout), and only when a
-        // successful configure/build produced an executable in the first place.
+        // test output with --output-on-failure. Keep CTest and sanitizer runtime probes
+        // on the caller-provided QA timeout budget instead of imposing a separate
+        // 15-second ceiling: deterministic Bug Zoo runs showed that the artificial
+        // ceiling could expire under Docker load and turn healthy fixtures into false
+        // positives or suppress LeakSanitizer evidence. Use the direct runtime only as
+        // a fallback when CTest was unavailable or failed to produce an exit code
+        // (start failure / genuine timeout), and only after a successful build.
         if (configureTool.Succeeded
             && buildTool?.Succeeded == true
             && ShouldRunDirectRuntimeFallback(ctestTool)
@@ -174,7 +175,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                 Severity.Critical,
                 "runtime",
                 sanitizerEnvironment,
-                shortNativeTimeout);
+                timeout);
         }
 
         var clangTidy = ProcessExecutor.FindExecutable("clang-tidy");
@@ -196,7 +197,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             var executable = Path.IsPathRooted(command.RuntimeExecutable!)
                 ? command.RuntimeExecutable!
                 : Path.GetFullPath(Path.Combine(workspace, command.RuntimeExecutable!));
-            await Run("cpp-runtime-asan", executable, command.RuntimeArguments ?? Array.Empty<string>(), Severity.Critical, "runtime", sanitizerEnvironment, shortNativeTimeout);
+            await Run("cpp-runtime-asan", executable, command.RuntimeArguments ?? Array.Empty<string>(), Severity.Critical, "runtime", sanitizerEnvironment, timeout);
         }
 
         if (!OperatingSystem.IsWindows()
@@ -237,7 +238,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                     Severity.Critical,
                     "race",
                     tsanEnv,
-                    shortNativeTimeout);
+                    timeout);
             }
             else if (ctest is not null)
             {
@@ -329,6 +330,9 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             }
         }
     }
+
+    internal static TimeSpan ResolveNativeExecutionTimeout(int requestedSeconds)
+        => TimeSpan.FromSeconds(Math.Clamp(requestedSeconds, 5, 1800));
 
     internal static bool ShouldRunDirectRuntimeFallback(QaToolExecution? ctestTool)
         => ctestTool is null || ctestTool.ExitCode is null;
