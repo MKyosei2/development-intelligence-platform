@@ -347,33 +347,33 @@ static object BuildSummary(
     IReadOnlyList<BugZooCase> skippedCases,
     Options options,
     BugZooMetrics metrics) => new
-{
-    schemaVersion = "3.0",
-    adapterArchitecture = "universal",
-    sourceCommit,
-    sourceWorkingTreeDirty,
-    passed,
-    generatedAt = DateTimeOffset.UtcNow,
-    repositoryRoot,
-    cases = results.Count,
-    injectedBugCases = metrics.BugCases.Count,
-    detectedBugCases = metrics.BugCases.Count(result => result.Detected),
-    detectionRecallPercent = metrics.Recall,
-    cleanControlCases = metrics.CleanCases.Count,
-    falsePositiveCases = metrics.CleanCases.Count(result => !result.Detected),
-    falsePositiveRatePercent = metrics.FalsePositiveRate,
-    reproductionEligibleCases = metrics.ReproducibleCases.Count,
-    reproducedCases = metrics.ReproducibleCases.Count(result => result.Reproduced),
-    reproductionRatePercent = metrics.ReproductionRate,
-    infrastructureFailures = metrics.InfrastructureFailures,
-    blockingInfrastructureFailures = metrics.BlockingInfrastructureFailures,
-    executedLanguages = metrics.ExecutedLanguages,
-    requiredLanguages = options.RequiredLanguages.Select(language => language.Value).ToArray(),
-    missingRequiredLanguages = metrics.MissingRequiredLanguages,
-    platformSkippedCases = skippedCases.Select(testCase => $"{testCase.Language.Value}/{testCase.Name}").ToArray(),
-    medianCaseDurationMs = metrics.MedianCaseDurationMs,
-    results
-};
+    {
+        schemaVersion = "3.0",
+        adapterArchitecture = "universal",
+        sourceCommit,
+        sourceWorkingTreeDirty,
+        passed,
+        generatedAt = DateTimeOffset.UtcNow,
+        repositoryRoot,
+        cases = results.Count,
+        injectedBugCases = metrics.BugCases.Count,
+        detectedBugCases = metrics.BugCases.Count(result => result.Detected),
+        detectionRecallPercent = metrics.Recall,
+        cleanControlCases = metrics.CleanCases.Count,
+        falsePositiveCases = metrics.CleanCases.Count(result => !result.Detected),
+        falsePositiveRatePercent = metrics.FalsePositiveRate,
+        reproductionEligibleCases = metrics.ReproducibleCases.Count,
+        reproducedCases = metrics.ReproducibleCases.Count(result => result.Reproduced),
+        reproductionRatePercent = metrics.ReproductionRate,
+        infrastructureFailures = metrics.InfrastructureFailures,
+        blockingInfrastructureFailures = metrics.BlockingInfrastructureFailures,
+        executedLanguages = metrics.ExecutedLanguages,
+        requiredLanguages = options.RequiredLanguages.Select(language => language.Value).ToArray(),
+        missingRequiredLanguages = metrics.MissingRequiredLanguages,
+        platformSkippedCases = skippedCases.Select(testCase => $"{testCase.Language.Value}/{testCase.Name}").ToArray(),
+        medianCaseDurationMs = metrics.MedianCaseDurationMs,
+        results
+    };
 
 static async Task WriteEvidenceAsync(
     string outputRoot,
@@ -594,20 +594,20 @@ static int RunRuntimeProbe(string caseName)
     switch (caseName)
     {
         case "divide_by_zero":
-        {
-            var zero = int.Parse("0");
-            Console.WriteLine(10 / zero);
-            return 0;
-        }
+            {
+                var zero = int.Parse("0");
+                Console.WriteLine(10 / zero);
+                return 0;
+            }
         case "hang":
             Thread.Sleep(Timeout.Infinite);
             return 0;
         case "null_reference":
-        {
-            string? value = null;
-            Console.WriteLine(value!.Length);
-            return 0;
-        }
+            {
+                string? value = null;
+                Console.WriteLine(value!.Length);
+                return 0;
+            }
         default:
             Console.Error.WriteLine($"Unknown C# Bug Zoo runtime probe: {caseName}");
             return 64;
