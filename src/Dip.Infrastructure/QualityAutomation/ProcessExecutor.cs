@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using Dip.Application.Abstractions.Observability;
 using Microsoft.Extensions.Options;
 
@@ -29,7 +30,8 @@ public sealed record ProcessExecutionResult(
     string StandardOutputPath,
     string StandardErrorPath,
     ProcessSandboxReport? Sandbox = null,
-    long CpuTimeMs = 0);
+    long CpuTimeMs = 0,
+    string ProcessTreeJson = "[]");
 
 public sealed class ProcessExecutor
 {
@@ -162,11 +164,25 @@ public sealed class ProcessExecutor
         var memoryApplied = false;
         long peakMb = 0;
         var truncated = false;
+        var processTreeJson = "[]";
 
         try
         {
             if (!process.Start())
                 throw new InvalidOperationException($"Failed to start {executable}.");
+
+            processTreeJson = JsonSerializer.Serialize(new[]
+            {
+                new
+                {
+                    pid = process.Id,
+                    parentPid = (int?)null,
+                    name = SafeProcessName(process),
+                    workingSetMb = SafeWorkingSetMb(process),
+                    cpuTimeMs = SafeCpuTimeMs(process)
+                }
+            });
+
             if (sandbox && OperatingSystem.IsWindows())
             {
                 job = ProcessResourceLimiter.CreateJobObject(IntPtr.Zero, null);
@@ -188,7 +204,8 @@ public sealed class ProcessExecutor
                 new ProcessSandboxReport(
                     sandbox, sandbox, sandbox && _options.SanitizeEnvironment,
                     cpuApplied, memoryApplied, networkIsolated, peakMb, false, "Process start failed."),
-                0);
+                0,
+                processTreeJson);
         }
 
         var stdoutTask = ProcessOutputCollector.ReadCappedAsync(
@@ -218,17 +235,18 @@ public sealed class ProcessExecutor
                         && peakMb > _options.SandboxMemoryLimitMb)
                     {
                         resourceExceeded = true;
+                        processTreeJson = CaptureProcessTreeJson(process.Id);
                         try { process.Kill(true); }
                         catch
                         {
-                            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                            // Intentionally ignored; result remains a resource-policy failure.
                         }
                         break;
                     }
                 }
                 catch
                 {
-                    // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                    // Resource sampling is diagnostic only and must not change process semantics.
                 }
                 await Task.Delay(100, timeoutCts.Token);
             }
@@ -238,34 +256,36 @@ public sealed class ProcessExecutor
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             timedOut = true;
+            processTreeJson = CaptureProcessTreeJson(process.Id);
             if (beforeTimeoutKill is not null)
                 try { await beforeTimeoutKill(process, CancellationToken.None); }
                 catch
                 {
-                    // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                    // Diagnostic callback failure must not prevent process-tree termination.
                 }
             try { process.Kill(true); }
             catch
             {
-                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                // Best effort. WaitForExit below records whether the process actually ended.
             }
             try { await process.WaitForExitAsync(CancellationToken.None); }
             catch
             {
-                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                // Preserve original timeout as the primary failure.
             }
         }
         catch (OperationCanceledException)
         {
+            processTreeJson = CaptureProcessTreeJson(process.Id);
             try { process.Kill(true); }
             catch
             {
-                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                // Best effort during caller cancellation.
             }
             try { await process.WaitForExitAsync(CancellationToken.None); }
             catch
             {
-                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+                // Caller cancellation remains authoritative.
             }
             throw;
         }
@@ -280,13 +300,13 @@ public sealed class ProcessExecutor
         try { exit = timedOut || resourceExceeded ? null : process.ExitCode; }
         catch
         {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            // Exit code can be unavailable after forced termination.
         }
         long cpuTimeMs = 0;
         try { cpuTimeMs = Math.Max(0L, (long)process.TotalProcessorTime.TotalMilliseconds); }
         catch
         {
-            // Intentionally ignored to preserve the existing best-effort or fallback behavior.
+            // CPU time is best-effort diagnostic evidence.
         }
         if (job != IntPtr.Zero)
             ProcessResourceLimiter.CloseHandle(job);
@@ -294,7 +314,7 @@ public sealed class ProcessExecutor
         var detail = resourceExceeded
             ? $"Memory budget exceeded ({peakMb} MiB > {_options.SandboxMemoryLimitMb} MiB)."
             : timedOut
-                ? "Execution timed out and the complete process tree was terminated."
+                ? "Execution timed out; a pre-kill process-tree snapshot was captured and the complete process tree was terminated."
                 : "Sandbox policy applied.";
         var report = new ProcessSandboxReport(
             sandbox,
@@ -308,8 +328,162 @@ public sealed class ProcessExecutor
             detail);
         return new(
             executable, args, exit, timedOut, sw.ElapsedMilliseconds,
-            outResult.Text, errResult.Text, stdoutPath, stderrPath, report, cpuTimeMs);
+            outResult.Text, errResult.Text, stdoutPath, stderrPath, report, cpuTimeMs, processTreeJson);
     }
 
     public static string? FindExecutable(string name) => ProcessCommandValidator.FindExecutable(name);
+
+    // Captures the root process and all discoverable descendants without launching another
+    // helper process. This keeps timeout diagnostics usable even when the QA sandbox blocks
+    // PowerShell, WMIC, ps, or other external process-inspection commands.
+    internal static string CaptureProcessTreeJson(int rootPid)
+    {
+        try
+        {
+            var processes = Process.GetProcesses();
+            try
+            {
+                var nodes = new Dictionary<int, ProcessTreeNode>();
+                foreach (var candidate in processes)
+                {
+                    try
+                    {
+                        var parent = TryGetParentProcessId(candidate);
+                        nodes[candidate.Id] = new(
+                            candidate.Id,
+                            parent,
+                            SafeProcessName(candidate),
+                            SafeWorkingSetMb(candidate),
+                            SafeCpuTimeMs(candidate));
+                    }
+                    catch
+                    {
+                        // Protected or exiting processes are simply omitted.
+                    }
+                }
+
+                var selected = new List<ProcessTreeNode>();
+                var queue = new Queue<int>();
+                var seen = new HashSet<int>();
+                queue.Enqueue(rootPid);
+                while (queue.Count > 0)
+                {
+                    var pid = queue.Dequeue();
+                    if (!seen.Add(pid))
+                        continue;
+
+                    if (nodes.TryGetValue(pid, out var node))
+                        selected.Add(node);
+                    else if (pid == rootPid)
+                        selected.Add(new(pid, null, "<unavailable>", 0, 0));
+
+                    foreach (var child in nodes.Values.Where(x => x.ParentPid == pid).OrderBy(x => x.Pid))
+                        queue.Enqueue(child.Pid);
+                }
+
+                return JsonSerializer.Serialize(selected);
+            }
+            finally
+            {
+                foreach (var candidate in processes)
+                    candidate.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new[]
+            {
+                new { pid = rootPid, captureError = ex.GetType().Name + ": " + ex.Message }
+            });
+        }
+    }
+
+    private static int? TryGetParentProcessId(Process process)
+    {
+        if (OperatingSystem.IsLinux())
+        {
+            try
+            {
+                var stat = File.ReadAllText($"/proc/{process.Id}/stat");
+                var closeParen = stat.LastIndexOf(')');
+                if (closeParen < 0 || closeParen + 2 >= stat.Length)
+                    return null;
+                var fields = stat[(closeParen + 2)..]
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                return fields.Length > 1 && int.TryParse(fields[1], out var ppid) ? ppid : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                var info = new ProcessBasicInformation();
+                var status = NtQueryInformationProcess(
+                    process.Handle,
+                    0,
+                    ref info,
+                    Marshal.SizeOf<ProcessBasicInformation>(),
+                    out _);
+                if (status != 0)
+                    return null;
+                var value = info.InheritedFromUniqueProcessId.ToInt64();
+                return value > 0 && value <= int.MaxValue ? (int)value : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    private static string SafeProcessName(Process process)
+    {
+        try { return process.ProcessName; }
+        catch { return "<unavailable>"; }
+    }
+
+    private static long SafeWorkingSetMb(Process process)
+    {
+        try { return Math.Max(0L, process.WorkingSet64 / 1024 / 1024); }
+        catch { return 0; }
+    }
+
+    private static long SafeCpuTimeMs(Process process)
+    {
+        try { return Math.Max(0L, (long)process.TotalProcessorTime.TotalMilliseconds); }
+        catch { return 0; }
+    }
+
+    private sealed record ProcessTreeNode(
+        int Pid,
+        int? ParentPid,
+        string Name,
+        long WorkingSetMb,
+        long CpuTimeMs);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ProcessBasicInformation
+    {
+        public IntPtr Reserved1;
+        public IntPtr PebBaseAddress;
+        public IntPtr Reserved2_0;
+        public IntPtr Reserved2_1;
+        public IntPtr UniqueProcessId;
+        public IntPtr InheritedFromUniqueProcessId;
+    }
+
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(
+        IntPtr processHandle,
+        int processInformationClass,
+        ref ProcessBasicInformation processInformation,
+        int processInformationLength,
+        out int returnLength);
 }

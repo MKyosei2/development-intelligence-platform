@@ -57,8 +57,13 @@ internal static partial class QaParsing
     public static IReadOnlyList<QaFindingCandidate> ParseCpp(string tool, string text, bool timedOut)
     {
         var list = new List<QaFindingCandidate>();
+        var ctest = tool.Contains("ctest", StringComparison.OrdinalIgnoreCase);
+        var ctestTimeout = ctest && IsCTestTimeout(text, timedOut);
 
-        if (timedOut)
+        // CTest is an orchestration layer. A CTest timeout is preserved as infrastructure
+        // evidence by QaToolSupport and must not be rewritten as a product Critical hang.
+        // The direct sanitizer runtime probe owns product/runtime timeout detection.
+        if (timedOut && !ctest)
             list.Add(new("hang", Severity.Critical, tool, "Native process timed out", "The native command exceeded its QA timeout.", ExceptionType: "Timeout"));
 
         foreach (Match m in CppCompilerRegex().Matches(text))
@@ -141,8 +146,19 @@ internal static partial class QaParsing
                 Function: frame.Success ? frame.Groups[1].Value.Trim() : null, ExceptionType: sanitizer, StackTrace: Trim(text), RuleId: "asan"));
         }
 
-        if (text.Contains("LeakSanitizer", StringComparison.OrdinalIgnoreCase) && text.Contains("detected memory leaks", StringComparison.OrdinalIgnoreCase))
-            list.Add(new("memory-leak", Severity.Warning, tool, "LeakSanitizer detected live allocations at process exit", LastLineContaining(text, "SUMMARY"), ExceptionType: "MemoryLeak", StackTrace: Trim(text), RuleId: "lsan"));
+        if (text.Contains("LeakSanitizer", StringComparison.OrdinalIgnoreCase)
+            && text.Contains("detected memory leaks", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add(new(
+                "memory-leak",
+                Severity.Warning,
+                tool,
+                "LeakSanitizer detected live allocations at process exit",
+                LastLineContaining(text, "SUMMARY"),
+                ExceptionType: "MemoryLeak",
+                StackTrace: Trim(text),
+                RuleId: "lsan"));
+        }
 
         if (text.Contains("runtime error:", StringComparison.OrdinalIgnoreCase))
             list.Add(new("undefined-behavior", Severity.Critical, tool, "UndefinedBehaviorSanitizer reported invalid native behavior", LastLineContaining(text, "runtime error:"), ExceptionType: "UndefinedBehavior", StackTrace: Trim(text), RuleId: "ubsan"));
@@ -150,9 +166,11 @@ internal static partial class QaParsing
         if (text.Contains("Access violation", StringComparison.OrdinalIgnoreCase) || text.Contains("0xC0000005", StringComparison.OrdinalIgnoreCase))
             list.Add(new("native-crash", Severity.Critical, tool, "Native access violation", LastLine(text), ExceptionType: "AccessViolation", StackTrace: Trim(text)));
 
-        // Do not treat "0 tests failed" as a failure. Require a non-zero failed-test count
-        // or an explicit ctest failure marker.
-        if (tool.Contains("ctest", StringComparison.OrdinalIgnoreCase)
+        // A CTest internal/outer timeout is infrastructure evidence. Non-timeout CTest
+        // failures remain test findings. This prevents cpp/clean from becoming a false
+        // Critical product hang while still keeping genuine failing tests visible.
+        if (ctest
+            && !ctestTimeout
             && (CtestNonZeroFailureRegex().IsMatch(text)
                 || text.Contains("***Failed", StringComparison.OrdinalIgnoreCase)))
         {
@@ -173,6 +191,13 @@ internal static partial class QaParsing
 
     public static bool MatchesFingerprint(LanguageId language, string expected, string stdout, string stderr, bool timedOut = false)
         => ParseForLanguage(language, "reproduction", stdout, stderr, timedOut).Any(x => QaFingerprint.Create(language, x) == expected);
+
+    internal static bool IsCTestTimeout(string text, bool timedOut) =>
+        timedOut
+        || text.Contains("***Timeout", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("Test timeout computed", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("Timeout", StringComparison.OrdinalIgnoreCase)
+           && text.Contains("CTest", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsMemorySafetyRule(string rule) =>
         rule.Contains("arrayIndexOutOfBounds", StringComparison.OrdinalIgnoreCase)

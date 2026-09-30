@@ -1,4 +1,5 @@
 // Purpose: Runs C++ build, sanitizer, test, static-analysis, and runtime QA with compiler-compatible flags.
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
@@ -58,9 +59,11 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         {
             ["ASAN_OPTIONS"] = OperatingSystem.IsWindows()
                 ? "halt_on_error=1:abort_on_error=1"
-                : "detect_leaks=1:halt_on_error=1:abort_on_error=1",
+                : "detect_leaks=1:halt_on_error=1:abort_on_error=1:allocator_may_return_null=0",
             ["UBSAN_OPTIONS"] = "print_stacktrace=1:halt_on_error=0"
         };
+        if (!OperatingSystem.IsWindows())
+            sanitizerEnvironment["LSAN_OPTIONS"] = "exitcode=23:report_objects=1";
 
         var nativeEnvironmentOrNull = nativeEnvironment.Count == 0
             ? null
@@ -92,11 +95,6 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                  && compilerFamily == "msvc"
                  && visualStudioToolchain is not null)
         {
-            // A normal PowerShell session often does not put cl.exe on PATH. Resolve
-            // the installed Visual Studio instance with vswhere, initialize its x64
-            // developer environment via vcvars64.bat, and pass only the required MSVC
-            // variables into the QA sandbox. This reproduces the same environment as a
-            // successful Developer Command Prompt without weakening global sanitization.
             configureArgs.InsertRange(0,
             [
                 "-G", visualStudioToolchain.Generator,
@@ -129,6 +127,10 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             AddBlocked("cmake-build", "cmake-build was skipped because cmake-configure failed.");
         }
 
+        // CTest is retained as test-orchestration evidence, but it no longer owns native
+        // sanitizer detection. A bounded per-test timeout ensures that a child that does
+        // not terminate cannot consume the entire caller budget. The direct runtime probe
+        // below always runs after a successful build and is the authoritative sanitizer path.
         var ctest = ProcessExecutor.FindExecutable("ctest");
         QaToolExecution? ctestTool = null;
         if (ctest is null)
@@ -145,27 +147,26 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         }
         else
         {
+            var ctestCaseTimeout = ResolveCtestCaseTimeout(timeout);
+            var ctestProcessTimeout = ResolveCtestProcessTimeout(timeout, ctestCaseTimeout);
             ctestTool = await Run(
                 "ctest",
                 ctest,
-                ["--test-dir", build, "-C", "RelWithDebInfo", "--output-on-failure"],
+                [
+                    "--test-dir", build,
+                    "-C", "RelWithDebInfo",
+                    "--output-on-failure",
+                    "--timeout", ((int)ctestCaseTimeout.TotalSeconds).ToString(CultureInfo.InvariantCulture)
+                ],
                 Severity.Warning,
                 "test",
                 sanitizerEnvironment,
-                timeout);
+                ctestProcessTimeout);
         }
 
-        // CTest already executes the sanitizer-instrumented target and emits failing
-        // test output with --output-on-failure. Keep CTest and sanitizer runtime probes
-        // on the caller-provided QA timeout budget instead of imposing a separate
-        // 15-second ceiling: deterministic Bug Zoo runs showed that the artificial
-        // ceiling could expire under Docker load and turn healthy fixtures into false
-        // positives or suppress LeakSanitizer evidence. Use the direct runtime only as
-        // a fallback when CTest was unavailable or failed to produce an exit code
-        // (start failure / genuine timeout), and only after a successful build.
         if (configureTool.Succeeded
             && buildTool?.Succeeded == true
-            && ShouldRunDirectRuntimeFallback(ctestTool)
+            && ShouldRunDirectRuntimeProbe(ctestTool)
             && TryResolvePrimaryExecutable(workspace, build) is { } runtimeExecutable)
         {
             await Run(
@@ -178,6 +179,19 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                 timeout);
         }
 
+        // Keep cppcheck after the deterministic runtime probe so the primary finding path
+        // is always configure -> build -> CTest evidence -> sanitizer runtime -> cppcheck.
+        var cppcheck = ProcessExecutor.FindExecutable("cppcheck");
+        if (cppcheck is not null)
+            await Run(
+                "cppcheck",
+                cppcheck,
+                ["--enable=warning,performance,portability", "--force", "--inline-suppr", "--quiet", workspace],
+                Severity.Warning,
+                "static-analysis");
+        else
+            AddUnavailable("cppcheck");
+
         var clangTidy = ProcessExecutor.FindExecutable("clang-tidy");
         if (clangTidy is not null && configureTool.Succeeded)
             await RunClangTidy(clangTidy, build);
@@ -186,18 +200,19 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         else
             AddBlocked("clang-tidy", "clang-tidy was skipped because cmake-configure failed.");
 
-        var cppcheck = ProcessExecutor.FindExecutable("cppcheck");
-        if (cppcheck is not null)
-            await Run("cppcheck", cppcheck, ["--enable=warning,performance,portability", "--force", "--inline-suppr", "--quiet", workspace], Severity.Warning, "static-analysis");
-        else
-            AddUnavailable("cppcheck");
-
         if (!string.IsNullOrWhiteSpace(command.RuntimeExecutable))
         {
             var executable = Path.IsPathRooted(command.RuntimeExecutable!)
                 ? command.RuntimeExecutable!
                 : Path.GetFullPath(Path.Combine(workspace, command.RuntimeExecutable!));
-            await Run("cpp-runtime-asan", executable, command.RuntimeArguments ?? Array.Empty<string>(), Severity.Critical, "runtime", sanitizerEnvironment, timeout);
+            await Run(
+                "cpp-runtime-asan",
+                executable,
+                command.RuntimeArguments ?? Array.Empty<string>(),
+                Severity.Critical,
+                "runtime",
+                sanitizerEnvironment,
+                timeout);
         }
 
         if (!OperatingSystem.IsWindows()
@@ -231,14 +246,20 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
 
             if (ctest is not null && tsanConfigure.Succeeded && tsanBuildTool?.Succeeded == true)
             {
+                var ctestCaseTimeout = ResolveCtestCaseTimeout(timeout);
                 await Run(
                     "ctest-tsan",
                     ctest,
-                    ["--test-dir", tsanBuild, "-C", "RelWithDebInfo", "--output-on-failure"],
+                    [
+                        "--test-dir", tsanBuild,
+                        "-C", "RelWithDebInfo",
+                        "--output-on-failure",
+                        "--timeout", ((int)ctestCaseTimeout.TotalSeconds).ToString(CultureInfo.InvariantCulture)
+                    ],
                     Severity.Critical,
                     "race",
                     tsanEnv,
-                    timeout);
+                    ResolveCtestProcessTimeout(timeout, ctestCaseTimeout));
             }
             else if (ctest is not null)
             {
@@ -334,8 +355,18 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
     internal static TimeSpan ResolveNativeExecutionTimeout(int requestedSeconds)
         => TimeSpan.FromSeconds(Math.Clamp(requestedSeconds, 5, 1800));
 
-    internal static bool ShouldRunDirectRuntimeFallback(QaToolExecution? ctestTool)
-        => ctestTool is null || ctestTool.ExitCode is null;
+    internal static TimeSpan ResolveCtestCaseTimeout(TimeSpan requestedBudget)
+        => TimeSpan.FromSeconds(Math.Clamp((int)Math.Floor(requestedBudget.TotalSeconds / 4.0), 5, 30));
+
+    internal static TimeSpan ResolveCtestProcessTimeout(TimeSpan requestedBudget, TimeSpan ctestCaseTimeout)
+        => TimeSpan.FromSeconds(Math.Max(
+            5,
+            Math.Min(requestedBudget.TotalSeconds, ctestCaseTimeout.TotalSeconds + 10)));
+
+    // Deliberately independent from CTest outcome. A successful build always gets the same
+    // direct sanitizer runtime probe, so CTest timeout/start behavior cannot change which
+    // detector owns memory-safety and LeakSanitizer findings.
+    internal static bool ShouldRunDirectRuntimeProbe(QaToolExecution? ctestTool) => true;
 
     private static void ResetQaBuildDirectory(string build)
     {
@@ -344,7 +375,6 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
 
         Directory.CreateDirectory(build);
     }
-
 
     private static void WriteMsvcToolchainEvidence(string artifactRoot, VisualStudioToolchain? toolchain)
     {

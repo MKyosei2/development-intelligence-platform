@@ -1,4 +1,4 @@
-// Purpose: Verifies Process Executor Sandbox behavior, edge cases, and repository invariants.
+// Purpose: Verifies Process Executor Sandbox behavior, edge cases, diagnostics, and repository invariants.
 using Dip.Infrastructure.QualityAutomation;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -26,15 +26,9 @@ public sealed class ProcessExecutorSandboxTests
         finally
         {
             try { File.Delete(fake); }
-            catch
-            {
-                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-            }
+            catch { }
             try { Directory.Delete(root, true); }
-            catch
-            {
-                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-            }
+            catch { }
         }
     }
 
@@ -42,11 +36,26 @@ public sealed class ProcessExecutorSandboxTests
     public async Task WindowsQaSandbox_AppliesJobObjectCpuAndMemoryLimits()
     {
         if (!OperatingSystem.IsWindows()) return;
-        var root = Path.Combine(Path.GetTempPath(), "dip-sandbox-win-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
+        var root = Path.Combine(Path.GetTempPath(), "dip-sandbox-win-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
         try
         {
-            var sut = new ProcessExecutor(Options.Create(new QaExecutionOptions { SandboxEnabled = true, SandboxCpuPercent = 50, SandboxMemoryLimitMb = 1024, SanitizeEnvironment = true }));
-            var result = await sut.RunQaAsync("dotnet", new[] { "--version" }, root, null, TimeSpan.FromSeconds(20), Path.Combine(root, "out.txt"), Path.Combine(root, "err.txt"), CancellationToken.None);
+            var sut = new ProcessExecutor(Options.Create(new QaExecutionOptions
+            {
+                SandboxEnabled = true,
+                SandboxCpuPercent = 50,
+                SandboxMemoryLimitMb = 1024,
+                SanitizeEnvironment = true
+            }));
+            var result = await sut.RunQaAsync(
+                "dotnet",
+                new[] { "--version" },
+                root,
+                null,
+                TimeSpan.FromSeconds(20),
+                Path.Combine(root, "out.txt"),
+                Path.Combine(root, "err.txt"),
+                CancellationToken.None);
             result.ExitCode.Should().Be(0, "the trusted dotnet probe should run inside the Windows QA sandbox. stdout: {0}; stderr: {1}", result.StandardOutput, result.StandardError);
             result.Sandbox.Should().NotBeNull();
             result.Sandbox!.WorkspaceBoundaryEnforced.Should().BeTrue();
@@ -57,10 +66,16 @@ public sealed class ProcessExecutorSandboxTests
         finally
         {
             try { Directory.Delete(root, true); }
-            catch
-            {
-                // Intentionally ignored to preserve the existing best-effort or fallback behavior.
-            }
+            catch { }
         }
+    }
+
+    [Fact]
+    public void ProcessTreeCapture_ContainsTheRootProcess()
+    {
+        var json = ProcessExecutor.CaptureProcessTreeJson(Environment.ProcessId);
+
+        json.Should().NotBeNullOrWhiteSpace();
+        json.Should().Contain(Environment.ProcessId.ToString());
     }
 }

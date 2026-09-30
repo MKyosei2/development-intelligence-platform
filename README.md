@@ -81,6 +81,19 @@ VerifierがPASSする条件は、「製品品質GateがPASSすること」では
 - **Production / Publication Gateはfail-closed**
 - **Infrastructure FailureをProduct FailureにもPASSにも読み替えない**
 
+### C++ QA determinism / timeout evidence boundary
+
+C++ QAでは、CTestをtest orchestrationのEvidence、sanitizer-instrumented direct runtimeをmemory-safety findingの安定した判定経路として分離します。CTest自身のinfrastructure timeoutは`Critical/hang`という製品findingへ昇格させず、同時に握り潰してPASSにもせず、stdout/stderr、timeout、exit code、CPU、peak memory、sandbox、sanitizer environment、pre-kill process treeを`execution-diagnostics.json`へ保存します。
+
+`cpp/clean`、`memory_leak`、`buffer_overflow`、`double_free`、`use_after_free`は、同一SHAでの10-run determinism verificationにより、finding category/ruleとtool pathがrun間で変化しないことを確認してからCurrent Revisionの実績として扱います。
+
+```powershell
+$sha = (git rev-parse HEAD).Trim()
+.\scripts\DIP_QA_BUG_ZOO_DETERMINISM.ps1 -ExpectedSha $sha -Runs 10
+```
+
+この変更の実装だけでは10/10 PASSを主張しません。`qa-bug-zoo-determinism-summary.json`が同一SHAについてPASSになった場合にのみ、測定結果をportfolio実績へ反映します。
+
 ## CI実行方針
 
 Hosted runner quotaを通常pushで消費しないため、3段階で運用します。
@@ -158,6 +171,17 @@ artifacts/portfolio-benchmark/portfolio-benchmark-results.sha256
 ```
 
 未測定SHAは`NOT YET MEASURED`として扱います。
+
+## Exact-revision Evidence package
+
+最終Evidenceが揃った後は、CI matrix、benchmark、QA Bug Zoo、10-run determinism、Project Truth、Docker Primary / governance evidenceを1つの追跡可能なZIPへまとめます。Packaging自体も`HEAD == origin/main == evidence SHA`、tracked tree clean、各artifactのPASS状態をfail-closedで確認します。
+
+```powershell
+$sha = (git rev-parse HEAD).Trim()
+.\scripts\Package-PortfolioEvidence.ps1 -ExpectedSha $sha
+```
+
+ZIP内には`EVIDENCE_PACKAGE_MANIFEST.json`と`SHA256SUMS.txt`を含め、ZIP自身にも`.sha256`を生成します。Evidence未取得のrevisionではこのpackageを生成してCurrent Revision PASSを主張しません。
 
 ## Engine integrationの検証境界
 

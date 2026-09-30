@@ -1,4 +1,4 @@
-// Purpose: Locks C++ diagnostic normalization against the Bug Zoo regressions found in final verification.
+// Purpose: Locks C++ diagnostic normalization and deterministic native execution against Bug Zoo regressions.
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.QualityAutomation;
@@ -38,8 +38,7 @@ public sealed class CppDiagnosticNormalizationTests
     [Fact]
     public void Ctest_zero_failed_is_not_a_failure()
     {
-        const string stdout =
-            "100% tests passed, 0 tests failed out of 1";
+        const string stdout = "100% tests passed, 0 tests failed out of 1";
 
         var findings = _normalizer.NormalizeText(LanguageId.Cpp, "ctest", stdout, string.Empty);
 
@@ -47,14 +46,56 @@ public sealed class CppDiagnosticNormalizationTests
     }
 
     [Fact]
-    public void Ctest_non_zero_failed_is_a_failure()
+    public void Ctest_non_zero_non_timeout_failure_is_a_test_finding()
     {
-        const string stdout =
-            "50% tests passed, 1 tests failed out of 2";
+        const string stdout = "50% tests passed, 1 tests failed out of 2\n1 - unit_test (Failed)";
 
         var findings = _normalizer.NormalizeText(LanguageId.Cpp, "ctest", stdout, string.Empty);
 
         findings.Should().Contain(x => x.Category == "test" && x.RuleId == "ctest");
+    }
+
+    [Fact]
+    public void Ctest_outer_timeout_is_infrastructure_evidence_not_product_hang()
+    {
+        var findings = _normalizer.NormalizeText(
+            LanguageId.Cpp,
+            "ctest",
+            string.Empty,
+            string.Empty,
+            timedOut: true);
+
+        findings.Should().BeEmpty();
+        QaToolSupport.IsInfrastructureTimeoutEvidence("ctest", true, string.Empty).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Ctest_internal_timeout_is_infrastructure_evidence_not_product_test_failure()
+    {
+        const string stdout =
+            "1/1 Test #1: clean ...................***Timeout  15.00 sec\n"
+            + "0% tests passed, 1 tests failed out of 1";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "ctest", stdout, string.Empty);
+
+        findings.Should().BeEmpty();
+        QaToolSupport.IsInfrastructureTimeoutEvidence("ctest", false, stdout).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Direct_runtime_timeout_remains_a_critical_product_hang()
+    {
+        var findings = _normalizer.NormalizeText(
+            LanguageId.Cpp,
+            "cpp-runtime-asan-auto",
+            string.Empty,
+            string.Empty,
+            timedOut: true);
+
+        findings.Should().ContainSingle(x =>
+            x.Category == "hang"
+            && x.Severity.ToString() == "Critical"
+            && x.ExceptionType == "Timeout");
     }
 
     [Fact]
@@ -87,39 +128,47 @@ public sealed class CppDiagnosticNormalizationTests
             .Be(TimeSpan.FromSeconds(expectedSeconds));
     }
 
-    [Fact]
-    public void Ctest_timeout_remains_a_critical_hang_when_the_real_budget_is_exhausted()
+    [Theory]
+    [InlineData(5, 5)]
+    [InlineData(20, 5)]
+    [InlineData(120, 30)]
+    [InlineData(600, 30)]
+    public void Ctest_case_timeout_is_bounded_and_deterministic(int budgetSeconds, int expectedSeconds)
     {
-        var findings = _normalizer.NormalizeText(
-            LanguageId.Cpp,
-            "ctest",
-            string.Empty,
-            string.Empty,
-            timedOut: true);
+        CppQaEngine
+            .ResolveCtestCaseTimeout(TimeSpan.FromSeconds(budgetSeconds))
+            .Should()
+            .Be(TimeSpan.FromSeconds(expectedSeconds));
+    }
 
-        findings.Should().ContainSingle(x =>
-            x.Category == "hang"
-            && x.Severity.ToString() == "Critical"
-            && x.ExceptionType == "Timeout");
+    [Theory]
+    [InlineData(5, 5, 5)]
+    [InlineData(20, 5, 15)]
+    [InlineData(120, 30, 40)]
+    public void Ctest_process_timeout_leaves_a_fixed_cleanup_margin_without_exceeding_budget(
+        int budgetSeconds,
+        int caseTimeoutSeconds,
+        int expectedProcessTimeoutSeconds)
+    {
+        CppQaEngine
+            .ResolveCtestProcessTimeout(
+                TimeSpan.FromSeconds(budgetSeconds),
+                TimeSpan.FromSeconds(caseTimeoutSeconds))
+            .Should()
+            .Be(TimeSpan.FromSeconds(expectedProcessTimeoutSeconds));
     }
 
     [Fact]
-    public void Direct_runtime_fallback_is_skipped_when_ctest_returns_an_exit_code()
+    public void Direct_runtime_probe_does_not_depend_on_ctest_outcome()
     {
         var passed = new QaToolExecution("ctest", true, true, 0, 1, "", "", "pass");
         var failed = new QaToolExecution("ctest", true, false, 8, 1, "", "", "failed");
+        var timedOut = new QaToolExecution("ctest", true, false, null, 40000, "", "", "timeout");
 
-        CppQaEngine.ShouldRunDirectRuntimeFallback(passed).Should().BeFalse();
-        CppQaEngine.ShouldRunDirectRuntimeFallback(failed).Should().BeFalse();
-    }
-
-    [Fact]
-    public void Direct_runtime_fallback_is_used_when_ctest_cannot_return_an_exit_code()
-    {
-        var timedOut = new QaToolExecution("ctest", true, false, null, 15000, "", "", "timeout");
-
-        CppQaEngine.ShouldRunDirectRuntimeFallback(null).Should().BeTrue();
-        CppQaEngine.ShouldRunDirectRuntimeFallback(timedOut).Should().BeTrue();
+        CppQaEngine.ShouldRunDirectRuntimeProbe(null).Should().BeTrue();
+        CppQaEngine.ShouldRunDirectRuntimeProbe(passed).Should().BeTrue();
+        CppQaEngine.ShouldRunDirectRuntimeProbe(failed).Should().BeTrue();
+        CppQaEngine.ShouldRunDirectRuntimeProbe(timedOut).Should().BeTrue();
     }
 
     [Fact]
@@ -135,5 +184,22 @@ public sealed class CppDiagnosticNormalizationTests
             x.Category == "memory-safety"
             && x.ExceptionType == "heap-buffer-overflow"
             && x.RuleId == "asan");
+    }
+
+    [Fact]
+    public void Lsan_memory_leak_remains_exact()
+    {
+        const string stderr =
+            "==42==ERROR: LeakSanitizer: detected memory leaks\n"
+            + "Direct leak of 16384 byte(s) in 1 object(s) allocated from:\n"
+            + "SUMMARY: AddressSanitizer: 16384 byte(s) leaked in 1 allocation(s).";
+
+        var findings = _normalizer.NormalizeText(LanguageId.Cpp, "cpp-runtime-asan-auto", string.Empty, stderr);
+
+        findings.Should().ContainSingle(x =>
+            x.Category == "memory-leak"
+            && x.Severity.ToString() == "Warning"
+            && x.ExceptionType == "MemoryLeak"
+            && x.RuleId == "lsan");
     }
 }
