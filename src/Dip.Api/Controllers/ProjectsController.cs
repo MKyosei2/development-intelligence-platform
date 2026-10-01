@@ -5,6 +5,7 @@ using Dip.Application.Features.Projects;
 using Dip.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace Dip.Api.Controllers;
 
@@ -13,9 +14,13 @@ namespace Dip.Api.Controllers;
 public sealed class ProjectsController(
     ProjectService service,
     ProjectAccessService access,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    IOutputCacheStore outputCache) : ControllerBase
 {
+    public const string ProjectListOutputCachePolicy = "project-list";
+    public const string ProjectListOutputCacheTag = "project-list";
     [Authorize(Policy = Policies.ProjectRead)]
+    [OutputCache(PolicyName = ProjectListOutputCachePolicy)]
     [HttpGet]
     public async Task<IReadOnlyList<ProjectDto>> List(CancellationToken cancellationToken)
     {
@@ -59,6 +64,9 @@ public sealed class ProjectsController(
             login,
             actor,
             cancellationToken);
+        await outputCache.EvictByTagAsync(
+            ProjectListOutputCacheTag,
+            cancellationToken);
         return CreatedAtAction(nameof(Get), new { id = project.Id }, project);
     }
 
@@ -72,11 +80,15 @@ public sealed class ProjectsController(
     {
         try
         {
-            return Ok(await service.UpdateAsync(
+            var project = await service.UpdateAsync(
                 id,
                 command,
                 RequestActor.AuditIdentity(User),
-                cancellationToken));
+                cancellationToken);
+            await outputCache.EvictByTagAsync(
+                ProjectListOutputCacheTag,
+                cancellationToken);
+            return Ok(project);
         }
         catch (KeyNotFoundException)
         {
@@ -98,11 +110,15 @@ public sealed class ProjectsController(
     {
         try
         {
-            return Ok(await service.ArchiveAsync(
+            var project = await service.ArchiveAsync(
                 id,
                 RequestActor.AuditIdentity(User),
                 command.Reason,
-                cancellationToken));
+                cancellationToken);
+            await outputCache.EvictByTagAsync(
+                ProjectListOutputCacheTag,
+                cancellationToken);
+            return Ok(project);
         }
         catch (KeyNotFoundException)
         {
@@ -125,11 +141,15 @@ public sealed class ProjectsController(
     {
         try
         {
-            return Ok(await service.RestoreAsync(
+            var project = await service.RestoreAsync(
                 id,
                 RequestActor.AuditIdentity(User),
                 command.Reason,
-                cancellationToken));
+                cancellationToken);
+            await outputCache.EvictByTagAsync(
+                ProjectListOutputCacheTag,
+                cancellationToken);
+            return Ok(project);
         }
         catch (KeyNotFoundException)
         {
@@ -152,11 +172,15 @@ public sealed class ProjectsController(
     {
         try
         {
-            return Ok(await service.DeleteAsync(
+            var project = await service.DeleteAsync(
                 id,
                 RequestActor.AuditIdentity(User),
                 command.Reason,
-                cancellationToken));
+                cancellationToken);
+            await outputCache.EvictByTagAsync(
+                ProjectListOutputCacheTag,
+                cancellationToken);
+            return Ok(project);
         }
         catch (KeyNotFoundException)
         {

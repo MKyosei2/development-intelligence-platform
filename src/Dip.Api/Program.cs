@@ -25,6 +25,17 @@ builder.Services.AddGitHubApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddGitHubIntegration(builder.Configuration);
 
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy(
+        ProjectsController.ProjectListOutputCachePolicy,
+        policy =>
+        {
+            policy.Expire(TimeSpan.FromSeconds(5));
+            policy.Tag(ProjectsController.ProjectListOutputCacheTag);
+        });
+});
+
 builder.Services.AddScoped<ProjectScopeAuthorizationFilter>();
 
 builder.Services
@@ -286,6 +297,7 @@ if (useHttpsRedirection)
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseOutputCache();
 app.UseRateLimiter();
 
 app.MapControllers();

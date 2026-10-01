@@ -58,6 +58,46 @@ public sealed class ProjectsApiTests :
 
 
     [Fact]
+    public async Task WarmListCache_IsInvalidatedByProjectCreate()
+    {
+        await using var factory =
+            new CustomWebApplicationFactory(
+                _database.ConnectionString);
+
+        using var client = factory.CreateClient();
+
+        var before = await client
+            .GetFromJsonAsync<ProjectDto[]>("/api/projects");
+
+        before.Should().NotBeNull();
+
+        var suffix = Guid.NewGuid().ToString("N");
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/projects",
+            new
+            {
+                name = $"Cache Invalidation {suffix}",
+                repositoryUrl = $"https://github.com/example/cache-{suffix}",
+                defaultBranch = "main",
+                releaseDateUtc = (DateTimeOffset?)null
+            });
+
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<ProjectDto>();
+
+        created.Should().NotBeNull();
+
+        var after = await client
+            .GetFromJsonAsync<ProjectDto[]>("/api/projects");
+
+        after.Should().NotBeNull();
+        after.Should().Contain(project => project.Id == created!.Id);
+    }
+
+
+    [Fact]
     public async Task NotificationDisposition_AppendsImmutableHistoryWithServerActor()
     {
         await using var factory = new CustomWebApplicationFactory(_database.ConnectionString);
