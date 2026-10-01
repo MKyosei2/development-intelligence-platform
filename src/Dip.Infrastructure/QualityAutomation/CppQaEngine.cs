@@ -66,9 +66,9 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         var build = Path.Combine(workspace, ".dipqa", "asan-build");
         ResetQaBuildDirectory(build);
 
-        var flags = compilerFamily is "msvc" or "clang-cl"
-            ? "/W4 /fsanitize=address /Zi"
-            : "-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";
+        var flags = BuildSanitizerCompilerFlags(
+            compilerFamily,
+            OperatingSystem.IsLinux());
 
         var configureArgs = new List<string>
         {
@@ -79,6 +79,11 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             $"-DCMAKE_CXX_FLAGS={flags}"
         };
 
+        var sanitizerLinkerFlags = BuildSanitizerLinkerFlags(
+            compilerFamily,
+            OperatingSystem.IsLinux());
+        if (!string.IsNullOrWhiteSpace(sanitizerLinkerFlags))
+            configureArgs.Add($"-DCMAKE_EXE_LINKER_FLAGS={sanitizerLinkerFlags}");
         if (OperatingSystem.IsWindows()
             && compilerFamily == "clang-cl"
             && ProcessExecutor.FindExecutable("clang-cl") is { } clangCl)
@@ -347,6 +352,31 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         }
     }
 
+    internal static string BuildSanitizerCompilerFlags(
+        string compilerFamily,
+        bool isLinux)
+    {
+        if (compilerFamily is "msvc" or "clang-cl")
+            return "/W4 /fsanitize=address /Zi";
+
+        const string common =
+            "-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";
+
+        // Linux sanitizer QA builds are deliberately non-PIE. This keeps the
+        // AddressSanitizer/LeakSanitizer process layout stable across repeated
+        // isolated verifier runs without changing normal project builds.
+        return isLinux ? common + " -fno-pie" : common;
+    }
+
+    internal static string? BuildSanitizerLinkerFlags(
+        string compilerFamily,
+        bool isLinux)
+    {
+        if (!isLinux || compilerFamily is "msvc" or "clang-cl")
+            return null;
+
+        return "-no-pie";
+    }
     internal static Dictionary<string, string> BuildSanitizerEnvironment(
         IReadOnlyDictionary<string, string> nativeEnvironment,
         bool isWindows)

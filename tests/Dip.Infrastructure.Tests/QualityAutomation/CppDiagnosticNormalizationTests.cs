@@ -174,6 +174,44 @@ public sealed class CppDiagnosticNormalizationTests
     }
 
     [Fact]
+    public void Linux_sanitizer_build_uses_non_pie_flags_for_stable_runtime_layout()
+    {
+        var compilerFlags = CppQaEngine.BuildSanitizerCompilerFlags(
+            "gnu-like",
+            isLinux: true);
+        var linkerFlags = CppQaEngine.BuildSanitizerLinkerFlags(
+            "gnu-like",
+            isLinux: true);
+
+        compilerFlags.Should().Contain("-fsanitize=address,undefined");
+        compilerFlags.Should().Contain("-fno-pie");
+        linkerFlags.Should().Be("-no-pie");
+    }
+
+    [Fact]
+    public void Non_linux_or_windows_style_sanitizer_build_does_not_inject_linux_no_pie_flags()
+    {
+        CppQaEngine
+            .BuildSanitizerCompilerFlags("gnu-like", isLinux: false)
+            .Should()
+            .NotContain("-fno-pie");
+
+        CppQaEngine
+            .BuildSanitizerLinkerFlags("gnu-like", isLinux: false)
+            .Should()
+            .BeNull();
+
+        CppQaEngine
+            .BuildSanitizerCompilerFlags("msvc", isLinux: false)
+            .Should()
+            .Be("/W4 /fsanitize=address /Zi");
+
+        CppQaEngine
+            .BuildSanitizerLinkerFlags("msvc", isLinux: false)
+            .Should()
+            .BeNull();
+    }
+    [Fact]
     public void Linux_sanitizer_environment_preserves_lsan_exit_path_without_forced_abort()
     {
         var environment = CppQaEngine.BuildSanitizerEnvironment(
