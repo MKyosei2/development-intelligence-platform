@@ -174,6 +174,31 @@ public sealed class CppDiagnosticNormalizationTests
     }
 
     [Fact]
+    public void Linux_sanitizer_environment_preserves_lsan_exit_path_without_forced_abort()
+    {
+        var environment = CppQaEngine.BuildSanitizerEnvironment(
+            new Dictionary<string, string>(),
+            isWindows: false);
+
+        environment["ASAN_OPTIONS"].Should().Contain("detect_leaks=1");
+        environment["ASAN_OPTIONS"].Should().Contain("halt_on_error=1");
+        environment["ASAN_OPTIONS"].Should().Contain("allocator_may_return_null=0");
+        environment["ASAN_OPTIONS"].Should().NotContain("abort_on_error=1");
+        environment["LSAN_OPTIONS"].Should().Be("exitcode=23:report_objects=1");
+    }
+
+    [Fact]
+    public void Windows_sanitizer_environment_preserves_existing_abort_policy_without_lsan()
+    {
+        var environment = CppQaEngine.BuildSanitizerEnvironment(
+            new Dictionary<string, string>(),
+            isWindows: true);
+
+        environment["ASAN_OPTIONS"].Should().Be("halt_on_error=1:abort_on_error=1");
+        environment["UBSAN_OPTIONS"].Should().Be("print_stacktrace=1:halt_on_error=0");
+        environment.ContainsKey("LSAN_OPTIONS").Should().BeFalse();
+    }
+    [Fact]
     public void Asan_heap_buffer_overflow_remains_exact()
     {
         const string stderr =

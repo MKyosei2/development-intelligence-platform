@@ -55,15 +55,9 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                 nativeEnvironment[pair.Key] = pair.Value;
         }
 
-        var sanitizerEnvironment = new Dictionary<string, string>(nativeEnvironment, StringComparer.OrdinalIgnoreCase)
-        {
-            ["ASAN_OPTIONS"] = OperatingSystem.IsWindows()
-                ? "halt_on_error=1:abort_on_error=1"
-                : "detect_leaks=1:halt_on_error=1:abort_on_error=1:allocator_may_return_null=0",
-            ["UBSAN_OPTIONS"] = "print_stacktrace=1:halt_on_error=0"
-        };
-        if (!OperatingSystem.IsWindows())
-            sanitizerEnvironment["LSAN_OPTIONS"] = "exitcode=23:report_objects=1";
+        var sanitizerEnvironment = BuildSanitizerEnvironment(
+            nativeEnvironment,
+            OperatingSystem.IsWindows());
 
         var nativeEnvironmentOrNull = nativeEnvironment.Count == 0
             ? null
@@ -353,6 +347,25 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         }
     }
 
+    internal static Dictionary<string, string> BuildSanitizerEnvironment(
+        IReadOnlyDictionary<string, string> nativeEnvironment,
+        bool isWindows)
+    {
+        var environment = new Dictionary<string, string>(
+            nativeEnvironment,
+            StringComparer.OrdinalIgnoreCase)
+        {
+            ["ASAN_OPTIONS"] = isWindows
+                ? "halt_on_error=1:abort_on_error=1"
+                : "detect_leaks=1:halt_on_error=1:allocator_may_return_null=0",
+            ["UBSAN_OPTIONS"] = "print_stacktrace=1:halt_on_error=0"
+        };
+
+        if (!isWindows)
+            environment["LSAN_OPTIONS"] = "exitcode=23:report_objects=1";
+
+        return environment;
+    }
     internal static TimeSpan ResolveNativeExecutionTimeout(int requestedSeconds)
         => TimeSpan.FromSeconds(Math.Clamp(requestedSeconds, 5, 1800));
 
