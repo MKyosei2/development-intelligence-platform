@@ -272,11 +272,17 @@ for ($run = 1; $run -le $Runs; $run++) {
 
     $memoryLeak = @($cppCases | Where-Object { [string]$_.name -eq 'memory_leak' })
     if ($memoryLeak.Count -ne 1) { throw "Run $run did not execute exactly one cpp/memory_leak case." }
-    if (-not [bool]$memoryLeak[0].detected
-        -or [string]$memoryLeak[0].matchedCategory -ne 'memory-leak'
-        -or [string]$memoryLeak[0].matchedExceptionType -ne 'MemoryLeak'
-        -or [string]$memoryLeak[0].matchedRuleId -ne 'lsan') {
-        throw "Run $run cpp/memory_leak did not produce the required LeakSanitizer evidence."
+    if (-not [bool]$memoryLeak[0].detected) {
+        throw "Run $run cpp/memory_leak was not detected."
+    }
+    if ([string]$memoryLeak[0].matchedCategory -ne 'memory-leak') {
+        throw "Run $run cpp/memory_leak category is not memory-leak."
+    }
+    if ([string]$memoryLeak[0].matchedExceptionType -ne 'MemoryLeak') {
+        throw "Run $run cpp/memory_leak exception type is not MemoryLeak."
+    }
+    if ([string]$memoryLeak[0].matchedRuleId -ne 'lsan') {
+        throw "Run $run cpp/memory_leak rule is not lsan."
     }
 
     foreach ($case in $cppCases) {

@@ -205,15 +205,29 @@ if ($LASTEXITCODE -ne 0) { throw '10-run QA Bug Zoo determinism failed.' }
 
 $detPath = Join-Path $root 'artifacts\qa-bug-zoo-determinism\qa-bug-zoo-determinism-summary.json'
 $det = Read-JsonObject $detPath
-if ([string]$det.sourceCommit -ne $sha
-    -or [string]$det.status -ne 'PASS'
-    -or [int]$det.runCount -ne 10
-    -or [int]$det.passCount -ne 10
-    -or [decimal]$det.detectionRecallPercent -ne 100
-    -or [decimal]$det.falsePositiveRatePercent -ne 0
-    -or [decimal]$det.reproductionRatePercent -ne 100
-    -or [int]$det.unstableCaseCount -ne 0) {
-    throw '10-run QA Bug Zoo determinism acceptance criteria were not met.'
+if ([string]$det.sourceCommit -ne $sha) {
+    throw 'Bug Zoo determinism sourceCommit does not match the exact SHA.'
+}
+if ([string]$det.status -ne 'PASS') {
+    throw 'Bug Zoo determinism status is not PASS.'
+}
+if ([int]$det.runCount -ne 10) {
+    throw 'Bug Zoo determinism runCount is not 10.'
+}
+if ([int]$det.passCount -ne 10) {
+    throw 'Bug Zoo determinism passCount is not 10.'
+}
+if ([decimal]$det.detectionRecallPercent -ne 100) {
+    throw 'Bug Zoo determinism detection recall is not 100%.'
+}
+if ([decimal]$det.falsePositiveRatePercent -ne 0) {
+    throw 'Bug Zoo determinism false-positive rate is not 0%.'
+}
+if ([decimal]$det.reproductionRatePercent -ne 100) {
+    throw 'Bug Zoo determinism reproduction rate is not 100%.'
+}
+if ([int]$det.unstableCaseCount -ne 0) {
+    throw 'Bug Zoo determinism unstableCaseCount is not 0.'
 }
 
 # Reuse the measured Linux/LSan run as canonical QA Bug Zoo evidence for the finalizer.
@@ -344,9 +358,11 @@ if ([string]$final.status -ne 'PASS' -or [string]$final.sourceCommit -ne $sha -o
 if ($final.benchmarkPassed -ne $true -or $final.qaBugZooPassed -ne $true -or $final.projectTruthScenarioPassed -ne $true) {
     throw 'Final evidence summary is missing a mandatory PASS.'
 }
-if ([string]$final.projectTruthExpectedOutcome.qualityGateStatus -ne 'Failed'
-    -or [string]$final.projectTruthExpectedOutcome.claimVerificationStatus -ne 'Contradicted') {
-    throw 'Project Truth intentional expected-failure scenario did not produce the required contradiction.'
+if ([string]$final.projectTruthExpectedOutcome.qualityGateStatus -ne 'Failed') {
+    throw 'Project Truth expected quality gate status is not Failed.'
+}
+if ([string]$final.projectTruthExpectedOutcome.claimVerificationStatus -ne 'Contradicted') {
+    throw 'Project Truth expected claim verification status is not Contradicted.'
 }
 
 Write-Section 'Current revision readiness'

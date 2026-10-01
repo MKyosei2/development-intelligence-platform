@@ -86,14 +86,26 @@ if ($final.benchmarkPassed -ne $true -or $final.qaBugZooPassed -ne $true -or $fi
 $determinismPath = Join-Path $RepositoryRoot 'artifacts\qa-bug-zoo-determinism\qa-bug-zoo-determinism-summary.json'
 $determinism = Read-JsonObject $determinismPath
 Assert-SourceCommit 'Bug Zoo determinism' $determinism 'sourceCommit'
-if ([string]$determinism.status -ne 'PASS'
-    -or [int]$determinism.runCount -ne 10
-    -or [int]$determinism.passCount -ne 10
-    -or [decimal]$determinism.detectionRecallPercent -ne 100
-    -or [decimal]$determinism.falsePositiveRatePercent -ne 0
-    -or [decimal]$determinism.reproductionRatePercent -ne 100
-    -or [int]$determinism.unstableCaseCount -ne 0) {
-    throw 'Bug Zoo determinism evidence does not meet the 10/10 exact-revision acceptance criteria.'
+if ([string]$determinism.status -ne 'PASS') {
+    throw 'Bug Zoo determinism status is not PASS.'
+}
+if ([int]$determinism.runCount -ne 10) {
+    throw 'Bug Zoo determinism runCount is not 10.'
+}
+if ([int]$determinism.passCount -ne 10) {
+    throw 'Bug Zoo determinism passCount is not 10.'
+}
+if ([decimal]$determinism.detectionRecallPercent -ne 100) {
+    throw 'Bug Zoo determinism recall is not 100%.'
+}
+if ([decimal]$determinism.falsePositiveRatePercent -ne 0) {
+    throw 'Bug Zoo determinism false-positive rate is not 0%.'
+}
+if ([decimal]$determinism.reproductionRatePercent -ne 100) {
+    throw 'Bug Zoo determinism reproduction rate is not 100%.'
+}
+if ([int]$determinism.unstableCaseCount -ne 0) {
+    throw 'Bug Zoo determinism unstableCaseCount is not 0.'
 }
 
 $dockerRoot = Join-Path $RepositoryRoot 'artifacts\docker-primary'
