@@ -127,10 +127,11 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             AddBlocked("cmake-build", "cmake-build was skipped because cmake-configure failed.");
         }
 
-        // CTest is retained as test-orchestration evidence, but it no longer owns native
-        // sanitizer detection. A bounded per-test timeout ensures that a child that does
-        // not terminate cannot consume the entire caller budget. The direct runtime probe
-        // below always runs after a successful build and is the authoritative sanitizer path.
+        // CTest is retained as test-orchestration and sanitizer evidence. When CTest
+        // completes successfully, rerunning the same executable through the direct probe
+        // is redundant and can create a false product hang if the host process wrapper
+        // itself stalls. The direct runtime probe is therefore a fallback for unavailable,
+        // failed, or timed-out CTest execution after a successful build.
         var ctest = ProcessExecutor.FindExecutable("ctest");
         QaToolExecution? ctestTool = null;
         if (ctest is null)
@@ -179,8 +180,8 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                 timeout);
         }
 
-        // Keep cppcheck after the deterministic runtime probe so the primary finding path
-        // is always configure -> build -> CTest evidence -> sanitizer runtime -> cppcheck.
+        // Keep cppcheck after CTest/direct-runtime fallback so native runtime evidence is
+        // collected before static analysis while avoiding redundant execution on clean runs.
         var cppcheck = ProcessExecutor.FindExecutable("cppcheck");
         if (cppcheck is not null)
             await Run(
@@ -363,10 +364,12 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             5,
             Math.Min(requestedBudget.TotalSeconds, ctestCaseTimeout.TotalSeconds + 10)));
 
-    // Deliberately independent from CTest outcome. A successful build always gets the same
-    // direct sanitizer runtime probe, so CTest timeout/start behavior cannot change which
-    // detector owns memory-safety and LeakSanitizer findings.
-    internal static bool ShouldRunDirectRuntimeProbe(QaToolExecution? ctestTool) => true;
+    // CTest owns the normal sanitizer/test path. The direct runtime probe is a fallback
+    // only when CTest was unavailable or did not complete successfully.
+    internal static bool ShouldRunDirectRuntimeProbe(QaToolExecution? ctestTool)
+        => ctestTool is null
+           || !ctestTool.WasAvailable
+           || !ctestTool.Succeeded;
 
     private static void ResetQaBuildDirectory(string build)
     {

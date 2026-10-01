@@ -159,16 +159,18 @@ public sealed class CppDiagnosticNormalizationTests
     }
 
     [Fact]
-    public void Direct_runtime_probe_does_not_depend_on_ctest_outcome()
+    public void Direct_runtime_probe_is_skipped_after_successful_ctest_and_used_as_fallback_otherwise()
     {
         var passed = new QaToolExecution("ctest", true, true, 0, 1, "", "", "pass");
+        var unavailable = new QaToolExecution("ctest", false, false, null, 0, "", "", "unavailable");
         var failed = new QaToolExecution("ctest", true, false, 8, 1, "", "", "failed");
         var timedOut = new QaToolExecution("ctest", true, false, null, 40000, "", "", "timeout");
 
         CppQaEngine.ShouldRunDirectRuntimeProbe(null).Should().BeTrue();
-        CppQaEngine.ShouldRunDirectRuntimeProbe(passed).Should().BeTrue();
+        CppQaEngine.ShouldRunDirectRuntimeProbe(unavailable).Should().BeTrue();
         CppQaEngine.ShouldRunDirectRuntimeProbe(failed).Should().BeTrue();
         CppQaEngine.ShouldRunDirectRuntimeProbe(timedOut).Should().BeTrue();
+        CppQaEngine.ShouldRunDirectRuntimeProbe(passed).Should().BeFalse();
     }
 
     [Fact]
