@@ -249,3 +249,88 @@ def test_ci_matrix_latest_for_name_uses_exact_sha_and_latest_attempt() -> None:
     assert selected["run_attempt"] == 2
     assert "Unreal Collector Contract CI" in module.REQUIRED
     assert "Unreal Collector CI" not in module.REQUIRED
+
+def test_project_truth_dashboard_waits_for_async_quality_gate(monkeypatch) -> None:
+    module = load_module(
+        "publish_qa_scenario_evidence_wait",
+        "publish_qa_scenario_evidence.py",
+    )
+    responses = [
+        (
+            200,
+            {
+                "qualityGateStatus": None,
+                "reportedProgress": 100.0,
+                "verifiedProgress": 0.0,
+                "contradictionCount": 1,
+            },
+        ),
+        (
+            200,
+            {
+                "qualityGateStatus": "Failed",
+                "reportedProgress": 100.0,
+                "verifiedProgress": 0.0,
+                "contradictionCount": 1,
+            },
+        ),
+    ]
+    sleeps: list[float] = []
+
+    def fake_request_json(method: str, url: str, payload=None):
+        assert method == "GET"
+        assert url.endswith("/api/v1/dashboard/projects/project-1")
+        assert payload is None
+        return responses.pop(0)
+
+    monkeypatch.setattr(module, "request_json", fake_request_json)
+    monkeypatch.setattr(module.time, "sleep", sleeps.append)
+
+    dashboard, assertions, attempts = module.wait_for_project_truth_dashboard(
+        "http://127.0.0.1:5080",
+        "project-1",
+        max_attempts=3,
+        poll_interval_seconds=0.01,
+    )
+
+    assert attempts == 2
+    assert dashboard["qualityGateStatus"] == "Failed"
+    assert assertions == {
+        "qualityGateFailed": True,
+        "verifiedProgressBelowReported": True,
+        "contradictionRecorded": True,
+    }
+    assert sleeps == [0.01]
+
+
+def test_project_truth_dashboard_wait_fails_closed_when_gate_never_converges(
+    monkeypatch,
+) -> None:
+    module = load_module(
+        "publish_qa_scenario_evidence_timeout",
+        "publish_qa_scenario_evidence.py",
+    )
+
+    def fake_request_json(method: str, url: str, payload=None):
+        assert method == "GET"
+        assert payload is None
+        return (
+            200,
+            {
+                "qualityGateStatus": None,
+                "reportedProgress": 100.0,
+                "verifiedProgress": 0.0,
+                "contradictionCount": 1,
+            },
+        )
+
+    monkeypatch.setattr(module, "request_json", fake_request_json)
+    monkeypatch.setattr(module.time, "sleep", lambda _: None)
+
+    with pytest.raises(RuntimeError, match="did not converge"):
+        module.wait_for_project_truth_dashboard(
+            "http://127.0.0.1:5080",
+            "project-1",
+            max_attempts=2,
+            poll_interval_seconds=0,
+        )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,61 @@ def request_json(method: str, url: str, payload: object | None = None) -> tuple[
         raise RuntimeError(f"Could not reach DIP API at {url}: {exc}") from exc
 
 
+def dashboard_assertions(dashboard: dict) -> dict[str, bool]:
+    reported = dashboard.get("reportedProgress")
+    verified = dashboard.get("verifiedProgress")
+    return {
+        "qualityGateFailed": dashboard.get("qualityGateStatus") == "Failed",
+        "verifiedProgressBelowReported": (
+            isinstance(reported, (int, float))
+            and isinstance(verified, (int, float))
+            and verified < reported
+        ),
+        "contradictionRecorded": int(dashboard.get("contradictionCount") or 0) > 0,
+    }
+
+
+def wait_for_project_truth_dashboard(
+    api_base: str,
+    project_id: str,
+    *,
+    max_attempts: int = 120,
+    poll_interval_seconds: float = 0.5,
+) -> tuple[dict, dict[str, bool], int]:
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    if poll_interval_seconds < 0:
+        raise ValueError("poll_interval_seconds must be non-negative")
+
+    last_dashboard: dict = {}
+    last_assertions: dict[str, bool] = {}
+
+    for attempt in range(1, max_attempts + 1):
+        status, dashboard = request_json(
+            "GET",
+            f"{api_base}/api/v1/dashboard/projects/{project_id}",
+        )
+        if status == 200 and isinstance(dashboard, dict):
+            last_dashboard = dashboard
+            last_assertions = dashboard_assertions(dashboard)
+            if all(last_assertions.values()):
+                return dashboard, last_assertions, attempt
+        else:
+            last_dashboard = {
+                "unexpectedStatus": status,
+                "body": dashboard,
+            }
+            last_assertions = {}
+
+        if attempt < max_attempts:
+            time.sleep(poll_interval_seconds)
+
+    raise RuntimeError(
+        "Project Truth dashboard did not converge after asynchronous quality-gate processing: "
+        f"attempts={max_attempts} assertions={json.dumps(last_assertions)} "
+        f"dashboard={json.dumps(last_dashboard)}"
+    )
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -41,6 +97,8 @@ def main() -> int:
     parser.add_argument("--repository", default="https://github.com/MKyosei2/development-intelligence-platform")
     parser.add_argument("--branch", default="main")
     parser.add_argument("--project-name", default="DIP Native QA Project Truth Scenario")
+    parser.add_argument("--dashboard-max-attempts", type=int, default=120)
+    parser.add_argument("--dashboard-poll-interval-seconds", type=float, default=0.5)
     parser.add_argument("--output", default="artifacts/qa-project-truth")
     args = parser.parse_args()
 
@@ -127,26 +185,19 @@ def main() -> int:
     if status not in {200, 201} or not isinstance(claim, dict):
         raise RuntimeError(f"Project claim creation failed: status={status} body={claim!r}")
 
-    status, dashboard = request_json("GET", f"{api_base}/api/v1/dashboard/projects/{project_id}")
-    if status != 200 or not isinstance(dashboard, dict):
-        raise RuntimeError(f"Dashboard evidence fetch failed: status={status} body={dashboard!r}")
-
-    quality_gate_failed = dashboard.get("qualityGateStatus") == "Failed"
-    claim_contradicted = claim.get("verificationStatus") == "Contradicted"
-    reported = dashboard.get("reportedProgress")
-    verified = dashboard.get("verifiedProgress")
-    verified_below_reported = (
-        isinstance(reported, (int, float))
-        and isinstance(verified, (int, float))
-        and verified < reported
+    dashboard, dashboard_checks, convergence_attempts = wait_for_project_truth_dashboard(
+        api_base,
+        project_id,
+        max_attempts=args.dashboard_max_attempts,
+        poll_interval_seconds=args.dashboard_poll_interval_seconds,
     )
-    contradiction_recorded = int(dashboard.get("contradictionCount") or 0) > 0
 
+    claim_contradicted = claim.get("verificationStatus") == "Contradicted"
     assertions = {
-        "qualityGateFailed": quality_gate_failed,
+        "qualityGateFailed": dashboard_checks["qualityGateFailed"],
         "completionClaimContradicted": claim_contradicted,
-        "verifiedProgressBelowReported": verified_below_reported,
-        "contradictionRecorded": contradiction_recorded,
+        "verifiedProgressBelowReported": dashboard_checks["verifiedProgressBelowReported"],
+        "contradictionRecorded": dashboard_checks["contradictionRecorded"],
     }
     if not all(assertions.values()):
         raise RuntimeError("Project Truth expected-failure assertions did not all pass: " + json.dumps(assertions))
@@ -162,6 +213,7 @@ def main() -> int:
         "collectorIngestion": ingestion,
         "claim": claim,
         "projectTruth": dashboard,
+        "dashboardConvergenceAttempts": convergence_attempts,
         "assertions": assertions,
         "capturedAtUtc": datetime.now(timezone.utc).isoformat(),
     }
@@ -172,6 +224,7 @@ def main() -> int:
     print(f"DIP SHA: {expected}")
     print("Expected product gate: Failed")
     print("Expected Complete claim: Contradicted")
+    print(f"Dashboard convergence attempts: {convergence_attempts}")
     print(f"Evidence: {bundle_path}")
     return 0
 
