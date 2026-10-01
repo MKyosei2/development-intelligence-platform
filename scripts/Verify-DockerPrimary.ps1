@@ -1,4 +1,4 @@
-﻿# Purpose: Primary exact-revision verification on Linux Docker, isolated from Windows Application Control.
+# Purpose: Primary exact-revision verification on Linux Docker, isolated from Windows Application Control.
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = '',
@@ -1055,7 +1055,7 @@ try {
 
     Invoke-Stage 'Dependency audit' {
         Invoke-Verifier "dotnet list DevelopmentIntelligencePlatform.sln package --vulnerable --include-transitive"
-        Invoke-Verifier "python3 -m pip_audit -r services/python-analysis/requirements.txt"
+        Invoke-Verifier "/opt/dip-qa/bin/python -m pip_audit -r services/python-analysis/requirements.txt"
     }
 
     $dirtyFinal = (Invoke-DipNativeChecked -File 'git' -Arguments @('-C',$RepositoryRoot,'status','--porcelain') -FailureMessage 'Could not inspect final repository working tree.' | Out-String).Trim()
