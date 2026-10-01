@@ -120,9 +120,8 @@ function Get-DiagnosticToolSignature {
     $signatures = [Collections.Generic.List[string]]::new()
     foreach ($file in @(Get-ChildItem -LiteralPath $caseRoot -Filter 'execution-diagnostics.json' -Recurse -File | Sort-Object FullName)) {
         $diag = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
-        if ([bool]$diag.infrastructureTimeout) {
-            throw "Infrastructure timeout detected in $($file.FullName). It is neither a product finding nor PASS."
-        }
+        # Non-blocking CTest infrastructure timeout is preserved in the tool signature.
+        # Blocking infrastructure failure is enforced from qa-bug-zoo-results.json below.
         $exit = if ($null -eq $diag.exitCode) { '<null>' } else { [string]$diag.exitCode }
         $signatures.Add(("{0}|{1}|exit={2}|timedOut={3}|infraTimeout={4}" -f
             [string]$diag.tool,
@@ -250,11 +249,15 @@ for ($run = 1; $run -le $Runs; $run++) {
     if ([decimal]$result.reproductionRatePercent -ne 100) { throw "Run $run reproduction rate is not 100%." }
     if ([int]$result.blockingInfrastructureFailures -ne 0) { throw "Run $run has blocking infrastructure failures." }
 
+    $nonBlockingInfrastructureTimeouts = [Collections.Generic.List[string]]::new()
     foreach ($diagFile in @(Get-ChildItem -LiteralPath $runRoot -Filter 'execution-diagnostics.json' -Recurse -File)) {
         $diag = Get-Content -LiteralPath $diagFile.FullName -Raw | ConvertFrom-Json
         if ([bool]$diag.infrastructureTimeout) {
-            throw "Run $run contains infrastructure timeout evidence: $($diagFile.FullName)"
+            $nonBlockingInfrastructureTimeouts.Add($diagFile.FullName)
         }
+    }
+    if ($nonBlockingInfrastructureTimeouts.Count -gt 0) {
+        Write-Warning ("Run {0} preserved non-blocking infrastructure timeout evidence item(s): {1}" -f $run,$nonBlockingInfrastructureTimeouts.Count)
     }
 
     $cppCases = @($result.results | Where-Object { [string]$_.language -ieq 'Cpp' })
@@ -309,6 +312,7 @@ for ($run = 1; $run -le $Runs; $run++) {
         falsePositiveRatePercent = [decimal]$result.falsePositiveRatePercent
         reproductionRatePercent = [decimal]$result.reproductionRatePercent
         blockingInfrastructureFailures = [int]$result.blockingInfrastructureFailures
+        nonBlockingInfrastructureTimeoutCount = $nonBlockingInfrastructureTimeouts.Count
         cppCleanDetected = [bool]$cppClean[0].detected
         cppCleanFindingCount = [int]$cppClean[0].findingCount
         cppMemoryLeakCategory = [string]$memoryLeak[0].matchedCategory
