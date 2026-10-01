@@ -31,7 +31,7 @@ builder.Services.AddOutputCache(options =>
         ProjectsController.ProjectListOutputCachePolicy,
         policy =>
         {
-            policy.Expire(TimeSpan.FromSeconds(5));
+            policy.Expire(TimeSpan.FromMinutes(30));
             policy.Tag(ProjectsController.ProjectListOutputCacheTag);
         });
 });
