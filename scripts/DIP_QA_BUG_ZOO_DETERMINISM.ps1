@@ -266,7 +266,7 @@ for ($run = 1; $run -le $Runs; $run++) {
 
     $cppClean = @($cppCases | Where-Object { [string]$_.name -eq 'clean' })
     if ($cppClean.Count -ne 1) { throw "Run $run did not execute exactly one cpp/clean case." }
-    if (-not [bool]$cppClean[0].detected -or [int]$cppClean[0].findingCount -ne 0) {
+    if ([bool]$cppClean[0].detected -or [int]$cppClean[0].findingCount -ne 0) {
         throw "Run $run cpp/clean violated the clean control. Detected=$($cppClean[0].detected) FindingCount=$($cppClean[0].findingCount)"
     }
 
