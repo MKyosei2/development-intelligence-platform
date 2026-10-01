@@ -124,7 +124,8 @@ public sealed class QaPostRunProcessorTests
             fixture.Issues.Items.Should().ContainSingle();
             existing.OccurrenceCount.Should().Be(2);
             existing.Severity.Should().Be(Severity.Critical);
-            existing.LastSeenPipelineRunId.Should().Be(pipelineId);
+            pipelineId.Should().NotBeNull();
+            existing.LastSeenPipelineRunId.Should().Be(pipelineId!.Value);
         }
         finally
         {
