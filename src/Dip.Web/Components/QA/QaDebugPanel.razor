@@ -1,4 +1,4 @@
-@* Purpose: Owns bounded autonomous-debug configuration, execution, verification results, and durable session history. *@
+@* Purpose: Owns asynchronous autonomous-QA configuration, executable experiment plans, baseline/post-patch evidence, and durable session history. *@
 @using Dip.Application.Features.GitHubIntegration
 @using Dip.Application.Features.QualityAutomation
 @inject ApiClient Api
@@ -7,21 +7,40 @@
     <div class="card-header">
         <div>
             <div class="eyebrow">Evidence grounded</div>
-            <strong>Autonomous Debug</strong>
+            <strong>Autonomous QA / Debug</strong>
         </div>
         <span>Human review required</span>
     </div>
 
     <div class="card-body">
         <div class="alert alert-light border small">
-            The AI proposes bounded hypotheses and candidates only.
-            DIP verifies candidates in a disposable workspace; it never edits
-            or merges the source workspace automatically.
+            AI proposes hypotheses and a bounded experiment plan only. DIP executes
+            the selected QA runners, records baseline evidence, applies a candidate
+            only in a disposable worktree, and reruns the same required experiments.
+            AI output alone can never declare PASS.
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_error))
         {
             <div class="alert alert-danger">@_error</div>
+        }
+
+        @if (_queued is not null)
+        {
+            <div class="alert alert-info d-flex justify-content-between align-items-center gap-3"
+                 data-testid="qa-autonomous-debug-queued">
+                <div>
+                    <strong>Queued</strong>
+                    <div class="small">
+                        Job <code>@ShortGuid(_queued.JobId)</code> ·
+                        Session <code>@ShortGuid(_queued.SessionId)</code> ·
+                        @_queued.Status
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" type="button" @onclick="RefreshQueuedAsync">
+                    Refresh
+                </button>
+            </div>
         }
 
         <div class="row g-3">
@@ -51,6 +70,14 @@
                     <textarea class="form-control font-monospace"
                               rows="4"
                               @bind="_repositoryContext"></textarea>
+
+                    <label class="form-label mb-0">
+                        Experiment configuration JSON
+                        <span class="text-muted">(optional; otherwise .dip/autonomous-qa.json)</span>
+                    </label>
+                    <textarea class="form-control font-monospace"
+                              rows="5"
+                              @bind="_experimentConfigurationJson"></textarea>
                 </div>
             </div>
 
@@ -59,6 +86,7 @@
                     <label class="form-label mb-0">Domain</label>
                     <select class="form-select" @bind="_domain">
                         <option value="software">software</option>
+                        <option value="game">game</option>
                         <option value="media.production">media.production</option>
                         <option value="generic.project">generic.project</option>
                     </select>
@@ -73,7 +101,7 @@
                                    @bind="_maxHypotheses" />
                         </div>
                         <div class="flex-fill">
-                            <label class="form-label small">Experiments</label>
+                            <label class="form-label small">Hypothesis attempts</label>
                             <input class="form-control"
                                    type="number"
                                    min="1"
@@ -92,7 +120,7 @@
                                    @bind="_maxAiCalls" />
                         </div>
                         <div class="flex-fill">
-                            <label class="form-label small">Timeout sec</label>
+                            <label class="form-label small">Step timeout sec</label>
                             <input class="form-control"
                                    type="number"
                                    min="30"
@@ -101,9 +129,7 @@
                         </div>
                     </div>
 
-                    <label class="form-label mb-0">
-                        Wall-clock budget (minutes)
-                    </label>
+                    <label class="form-label mb-0">Wall-clock budget (minutes)</label>
                     <input class="form-control"
                            type="number"
                            min="1"
@@ -115,7 +141,7 @@
                             type="button"
                             disabled="@(!CanRun || _running)"
                             @onclick="RunAsync">
-                        @(_running ? "Running bounded experiments…" : "Run autonomous debug")
+                        @(_running ? "Queueing autonomous QA…" : "Queue autonomous QA")
                     </button>
                 </div>
             </div>
@@ -161,9 +187,7 @@
                                     <td>@hypothesis.Confidence.ToString("P0")</td>
                                     <td>
                                         <strong>@hypothesis.Title</strong>
-                                        <div class="small text-muted">
-                                            @hypothesis.Explanation
-                                        </div>
+                                        <div class="small text-muted">@hypothesis.Explanation</div>
                                     </td>
                                     <td>@hypothesis.EvidenceIds.Count</td>
                                     <td>@string.Join(", ", hypothesis.SuggestedExperiments)</td>
@@ -181,31 +205,69 @@
             }
             else
             {
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Hypothesis</th>
-                                <th>Verified</th>
-                                <th>Summary</th>
-                                <th>Artifact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var attempt in _session.Attempts)
-                            {
-                                <tr>
-                                    <td><StatusBadge Value="@attempt.Status" /></td>
-                                    <td>@attempt.HypothesisTitle</td>
-                                    <td>@(attempt.Verified ? "Yes" : "No")</td>
-                                    <td>@attempt.Summary</td>
-                                    <td><code>@(attempt.ArtifactRoot ?? "—")</code></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                @foreach (var attempt in _session.Attempts)
+                {
+                    <div class="border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between gap-3 mb-2">
+                            <div>
+                                <StatusBadge Value="@attempt.Status" />
+                                <strong class="ms-2">@attempt.HypothesisTitle</strong>
+                            </div>
+                            <span>@(attempt.Verified ? "Verified candidate" : "Not verified")</span>
+                        </div>
+                        <p class="small mb-2">@attempt.Summary</p>
+                        @if (!string.IsNullOrWhiteSpace(attempt.ArtifactRoot))
+                        {
+                            <div class="small mb-3">Artifact: <code>@attempt.ArtifactRoot</code></div>
+                        }
+
+                        @if (attempt.ExperimentPlan is not null)
+                        {
+                            <div class="eyebrow mb-1">Executable experiment plan</div>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Required</th>
+                                            <th>Experiment</th>
+                                            <th>Baseline</th>
+                                            <th>Post-patch</th>
+                                            <th>Evidence boundary</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var step in attempt.ExperimentPlan.Steps)
+                                        {
+                                            var before = ResultFor(attempt.BaselineExperiments, step.Id);
+                                            var after = ResultFor(attempt.PostPatchExperiments, step.Id);
+                                            <tr>
+                                                <td>@(step.Required ? "Yes" : "No")</td>
+                                                <td>
+                                                    <strong>@step.Kind</strong>
+                                                    <div class="small text-muted"><code>@step.Id</code></div>
+                                                    <div class="small">@step.Reason</div>
+                                                </td>
+                                                <td>
+                                                    <strong>@Status(before)</strong>
+                                                    <div class="small text-muted">@(before?.Summary ?? "Not executed")</div>
+                                                </td>
+                                                <td>
+                                                    <strong>@Status(after)</strong>
+                                                    <div class="small text-muted">@(after?.Summary ?? "Not executed")</div>
+                                                </td>
+                                                <td class="small">
+                                                    <div><strong>PASS:</strong> @step.SuccessCondition</div>
+                                                    <div><strong>Falsify:</strong> @step.FalsificationCondition</div>
+                                                    <div><strong>Evidence:</strong> @string.Join(", ", step.RequiredEvidence.Select(x => x.Kind))</div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                }
             }
         </div>
     }
@@ -214,16 +276,16 @@
         <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
                 <div class="eyebrow">Durable history</div>
-                <strong>Recent autonomous debug sessions</strong>
+                <strong>Recent autonomous QA sessions</strong>
             </div>
-            <span>@_sessions.Count session(s)</span>
+            <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="LoadHistoryAsync">
+                Refresh history
+            </button>
         </div>
 
         @if (_sessions.Count == 0)
         {
-            <p class="small text-muted mb-0">
-                No autonomous debug session has been persisted for this project.
-            </p>
+            <p class="small text-muted mb-0">No autonomous QA session has been persisted for this project.</p>
         }
         else
         {
@@ -247,9 +309,7 @@
                                 <td><StatusBadge Value="@session.Status" /></td>
                                 <td>
                                     <strong>@session.SubjectKey</strong>
-                                    <div class="small text-muted">
-                                        <code>@ShortGuid(session.SessionId)</code>
-                                    </div>
+                                    <div class="small text-muted"><code>@ShortGuid(session.SessionId)</code></div>
                                 </td>
                                 <td><code>@session.DomainId</code></td>
                                 <td>@FormatDate(session.StartedAtUtc)</td>
@@ -272,9 +332,10 @@
     private string _subject = "qa-failure";
     private string _question =
         "Explain the most likely root cause using only the supplied evidence, "
-        + "then verify the smallest safe candidate in isolation.";
+        + "select executable experiments, and verify the smallest safe candidate in isolation.";
     private string _evidenceJson = "{}";
     private string? _repositoryContext;
+    private string? _experimentConfigurationJson;
     private string _domain = "software";
     private int _maxHypotheses = 4;
     private int _maxExperiments = 3;
@@ -283,9 +344,9 @@
     private int _wallClockMinutes = 30;
     private bool _running;
     private string? _error;
+    private AutonomousDebugEnqueuedDto? _queued;
     private AutonomousDebugSessionDto? _session;
-    private IReadOnlyList<AutonomousDebugSessionDto> _sessions =
-        Array.Empty<AutonomousDebugSessionDto>();
+    private IReadOnlyList<AutonomousDebugSessionDto> _sessions = Array.Empty<AutonomousDebugSessionDto>();
 
     private bool CanRun =>
         Repository?.Workspace is not null
@@ -301,17 +362,13 @@
             _subject = string.IsNullOrWhiteSpace(SeedIssue.Fingerprint)
                 ? SeedIssue.Id.ToString("N")
                 : SeedIssue.Fingerprint;
-
             _question =
-                $"Explain the root cause of '{SeedIssue.Title}' and verify "
-                + "the smallest safe candidate without modifying the source workspace.";
-
-            _evidenceJson =
-                string.IsNullOrWhiteSpace(SeedIssue.EvidenceJson)
-                    ? "{}"
-                    : SeedIssue.EvidenceJson!;
+                $"Explain the root cause of '{SeedIssue.Title}', select the required experiments, "
+                + "and verify the smallest safe candidate without modifying the source workspace.";
+            _evidenceJson = string.IsNullOrWhiteSpace(SeedIssue.EvidenceJson)
+                ? "{}"
+                : SeedIssue.EvidenceJson!;
         }
-
         await LoadHistoryAsync();
     }
 
@@ -321,10 +378,8 @@
         {
             var selected = _session?.SessionId;
             _sessions = await Api.GetAutonomousDebugSessionsAsync(ProjectId, 20);
-
             _session = selected is { } id
-                ? _sessions.FirstOrDefault(x => x.SessionId == id)
-                  ?? _sessions.FirstOrDefault()
+                ? _sessions.FirstOrDefault(x => x.SessionId == id) ?? _sessions.FirstOrDefault()
                 : _sessions.FirstOrDefault();
         }
         catch (Exception exception)
@@ -336,16 +391,14 @@
     private async Task RunAsync()
     {
         _error = null;
-
         var workspace = Repository?.Workspace;
         if (workspace is null)
         {
-            _error = "Synchronize the repository before autonomous debugging.";
+            _error = "Synchronize the repository before autonomous QA.";
             return;
         }
 
         _running = true;
-
         try
         {
             var budget = new AutonomousDebugBudget(
@@ -355,7 +408,7 @@
                 Math.Clamp(_timeoutSeconds, 30, 1800),
                 Math.Clamp(_wallClockMinutes, 1, 120));
 
-            _session = await Api.RunAutonomousDebugAsync(
+            _queued = await Api.EnqueueAutonomousDebugAsync(
                 ProjectId,
                 _subject.Trim(),
                 _question.Trim(),
@@ -365,9 +418,10 @@
                 workspace.CommitSha,
                 "auto",
                 _domain,
-                budget);
+                budget,
+                string.IsNullOrWhiteSpace(_experimentConfigurationJson) ? null : _experimentConfigurationJson);
 
-            await LoadHistoryAsync();
+            await PollQueuedSessionAsync(_queued.SessionId);
         }
         catch (Exception exception)
         {
@@ -378,6 +432,44 @@
             _running = false;
         }
     }
+
+    private async Task RefreshQueuedAsync()
+    {
+        if (_queued is null)
+            return;
+        var session = await Api.GetAutonomousDebugSessionAsync(ProjectId, _queued.SessionId);
+        if (session is not null)
+        {
+            _session = session;
+            await LoadHistoryAsync();
+        }
+    }
+
+    private async Task PollQueuedSessionAsync(Guid sessionId)
+    {
+        // Short client-side polling only improves UX. The durable worker continues
+        // independently even when this component stops polling or the user navigates away.
+        for (var attempt = 0; attempt < 15; attempt++)
+        {
+            var session = await Api.GetAutonomousDebugSessionAsync(ProjectId, sessionId);
+            if (session is not null)
+            {
+                _session = session;
+                if (session.CompletedAtUtc is not null || session.Status is not "Running")
+                    break;
+            }
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
+        await LoadHistoryAsync();
+    }
+
+    private static AutonomousQaExperimentResult? ResultFor(
+        IReadOnlyList<AutonomousQaExperimentResult>? results,
+        string stepId) =>
+        results?.FirstOrDefault(x => x.StepId.Equals(stepId, StringComparison.OrdinalIgnoreCase));
+
+    private static string Status(AutonomousQaExperimentResult? result) =>
+        result?.Status.ToString() ?? "Not executed";
 
     private static string ShortGuid(Guid value) => value.ToString("N")[..8];
     private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("yyyy-MM-dd HH:mm");

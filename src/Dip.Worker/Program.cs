@@ -1,7 +1,9 @@
 // Purpose: Composes and starts the DIP background worker host.
 using Dip.Application;
 using Dip.Application.Features.Jobs;
+using Dip.Application.Features.QualityAutomation;
 using Dip.Infrastructure;
+using Dip.Infrastructure.QualityAutomation;
 using Dip.Worker.Options;
 using Dip.Worker.Workers;
 using OpenTelemetry.Metrics;
@@ -13,20 +15,17 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection(WorkerOptions.SectionName));
 builder.Services.Configure<DurableJobQueueOptions>(builder.Configuration.GetSection(DurableJobQueueOptions.SectionName));
-var otlpEndpointText =
-    builder.Configuration["OpenTelemetry:OtlpEndpoint"];
 
+// The autonomous dispatcher is worker-only on purpose. Long-running experiments
+// execute outside the API process and can use the worker's bounded process runner.
+builder.Services.AddSingleton<IAutonomousQaExperimentDispatcher, AutonomousQaExperimentDispatcher>();
+
+var otlpEndpointText = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
 Uri? otlpEndpoint = null;
 if (!string.IsNullOrWhiteSpace(otlpEndpointText))
 {
-    if (!Uri.TryCreate(
-            otlpEndpointText,
-            UriKind.Absolute,
-            out otlpEndpoint))
-    {
-        throw new InvalidOperationException(
-            "OpenTelemetry:OtlpEndpoint must be a valid absolute URI.");
-    }
+    if (!Uri.TryCreate(otlpEndpointText, UriKind.Absolute, out otlpEndpoint))
+        throw new InvalidOperationException("OpenTelemetry:OtlpEndpoint must be a valid absolute URI.");
 }
 
 builder.Services.AddOpenTelemetry()
@@ -35,23 +34,18 @@ builder.Services.AddOpenTelemetry()
     {
         t.AddHttpClientInstrumentation()
             .AddSource("DIP.DevelopmentIntelligence");
-
         if (otlpEndpoint is not null)
-        {
             t.AddOtlpExporter(o => o.Endpoint = otlpEndpoint);
-        }
     })
     .WithMetrics(m =>
     {
         m.AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
             .AddMeter("DIP.DevelopmentIntelligence");
-
         if (otlpEndpoint is not null)
-        {
             m.AddOtlpExporter(o => o.Endpoint = otlpEndpoint);
-        }
     });
+
 builder.Services.AddScoped<IDurableJobHandler, FuzzJobHandler>();
 builder.Services.AddScoped<IDurableJobHandler, MutationJobHandler>();
 builder.Services.AddScoped<IDurableJobHandler, SoakJobHandler>();
@@ -60,6 +54,8 @@ builder.Services.AddScoped<IDurableJobHandler, MediaRegressionJobHandler>();
 builder.Services.AddScoped<IDurableJobHandler, BenchmarkJobHandler>();
 builder.Services.AddScoped<IDurableJobHandler, GameSessionReplayJobHandler>();
 builder.Services.AddScoped<IDurableJobHandler, ReleaseEvidenceJobHandler>();
+builder.Services.AddScoped<IDurableJobHandler, AutonomousQaSessionJobHandler>();
+
 builder.Services.AddHostedService<OutboxWorker>();
 builder.Services.AddHostedService<CollectorReportProcessedWorker>();
 builder.Services.AddHostedService<DurableJobWorker>();
@@ -69,4 +65,6 @@ builder.Services.AddHostedService<WorkerMetricsEndpoint>();
 builder.Services.AddHostedService<AutomaticRegressionTriageWorker>();
 builder.Services.AddHostedService<GitHubChangeRiskWorker>();
 builder.Services.AddHostedService<ManagementNotificationWorker>();
-var host = builder.Build(); await host.RunAsync();
+
+var host = builder.Build();
+await host.RunAsync();

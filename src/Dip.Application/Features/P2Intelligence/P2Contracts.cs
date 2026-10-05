@@ -1,5 +1,7 @@
 // Purpose: Defines shared hardware, adaptive-QA, experiment-target, test-impact, root-cause, and decision-intelligence contracts.
 // Focused experiment contracts are split into SoakContracts, MutationContracts, FuzzContracts, RegressionContracts, MediaRegressionContracts, and GameRegressionContracts; GameRegressionEvaluator lives with the game-regression contracts.
+using Dip.Application.Features.QualityAutomation;
+
 namespace Dip.Application.Features.P2Intelligence;
 
 public sealed record CommunityHardwareSubmission(
@@ -97,7 +99,8 @@ public sealed record AdaptiveQaPlanDto(
     decimal RiskScore,
     decimal EstimatedMinutes,
     IReadOnlyList<AdaptiveQaStep> Steps,
-    IReadOnlyList<string> SkippedReasons);
+    IReadOnlyList<string> SkippedReasons,
+    AutonomousQaExperimentPlan? ExecutablePlan = null);
 
 public sealed record ExperimentTarget(
     Guid ProjectId,

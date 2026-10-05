@@ -5,6 +5,7 @@ using Dip.Application.Features.Benchmarks;
 using Dip.Application.Features.Incidents;
 using Dip.Application.Features.Jobs;
 using Dip.Application.Features.P2Intelligence;
+using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -26,12 +27,14 @@ public sealed class FuzzJobHandler(P2TechnicalIntelligenceService technical, Art
         var imported = await artifacts.ImportPathAsync(job.ProjectId, "fuzz", result.ArtifactReference, new ArtifactLinkContext(job.Id), ct);
         if (result.Crashes > 0 || result.Timeouts > 0)
         {
-            var fp = result.Failures?.FirstOrDefault()?.Fingerprint ?? $"fuzz:{job.SubjectKey}"; var incident = await incidents.ObserveSyntheticAsync(job.ProjectId, job.SubjectKey, $"fuzz:{fp}", $"Fuzz failure: {job.SubjectKey}", result.Crashes > 0 ? Severity.Critical : Severity.Warning, JobPayload.Json(result), job.Id, ct);
+            var fp = result.Failures?.FirstOrDefault()?.Fingerprint ?? $"fuzz:{job.SubjectKey}";
+            var incident = await incidents.ObserveSyntheticAsync(job.ProjectId, job.SubjectKey, $"fuzz:{fp}", $"Fuzz failure: {job.SubjectKey}", result.Crashes > 0 ? Severity.Critical : Severity.Warning, JobPayload.Json(result), job.Id, ct);
             foreach (var a in imported) await incidents.AttachArtifactAsync(incident.Id, a.Id, a.FileName, ct);
         }
         return new(JobPayload.Json(result), result.ArtifactReference);
     }
 }
+
 public sealed class MutationJobHandler(P2TechnicalIntelligenceService technical, ArtifactService artifacts) : IDurableJobHandler
 {
     public DurableJobType Type => DurableJobType.Mutation;
@@ -43,6 +46,7 @@ public sealed class MutationJobHandler(P2TechnicalIntelligenceService technical,
         return new(JobPayload.Json(result), result.ArtifactReference);
     }
 }
+
 public sealed class SoakJobHandler(P2TechnicalIntelligenceService technical, ArtifactService artifacts, IncidentAggregationService incidents) : IDurableJobHandler
 {
     public DurableJobType Type => DurableJobType.Soak;
@@ -59,6 +63,7 @@ public sealed class SoakJobHandler(P2TechnicalIntelligenceService technical, Art
         return new(JobPayload.Json(result), result.ArtifactReference);
     }
 }
+
 public sealed class GitBisectJobHandler(P2TechnicalIntelligenceService technical, ArtifactService artifacts) : IDurableJobHandler
 {
     public DurableJobType Type => DurableJobType.GitBisect;
@@ -70,6 +75,7 @@ public sealed class GitBisectJobHandler(P2TechnicalIntelligenceService technical
         return new(JobPayload.Json(result), result.ArtifactReference);
     }
 }
+
 public sealed class MediaRegressionJobHandler(P2TechnicalIntelligenceService technical, ArtifactService artifacts, IncidentAggregationService incidents) : IDurableJobHandler
 {
     public DurableJobType Type => DurableJobType.MediaRegression;
@@ -86,6 +92,7 @@ public sealed class MediaRegressionJobHandler(P2TechnicalIntelligenceService tec
         return new(JobPayload.Json(result), result.ArtifactReference);
     }
 }
+
 public sealed class BenchmarkJobHandler(BenchmarkOrchestrationService benchmarks) : IDurableJobHandler
 {
     public DurableJobType Type => DurableJobType.Benchmark;
@@ -116,5 +123,22 @@ public sealed class ReleaseEvidenceJobHandler(Dip.Application.Features.Release.R
         var request = JobPayload.Read<Dip.Application.Features.Release.ReleaseEvidenceJobRequest>(job);
         var result = await release.ExecuteJobAsync(job, request, ct);
         return new(JobPayload.Json(result), result.BundleArtifactId);
+    }
+}
+
+/// <summary>
+/// Runs the complete autonomous QA session outside the HTTP request lifecycle.
+/// The session itself persists hypotheses, experiment plans, baseline/post-patch
+/// evidence and the final ReadyForHumanReview/NotVerified state in the graph.
+/// </summary>
+public sealed class AutonomousQaSessionJobHandler(AutonomousDebugService autonomous) : IDurableJobHandler
+{
+    public DurableJobType Type => DurableJobType.AutonomousQaSession;
+
+    public async Task<DurableJobExecutionResult> ExecuteAsync(DurableJob job, CancellationToken ct)
+    {
+        var request = JobPayload.Read<AutonomousDebugRequest>(job);
+        var result = await autonomous.RunAsync(request, ct);
+        return new(JobPayload.Json(result));
     }
 }

@@ -1,9 +1,10 @@
-// Purpose: Implements Adaptive Qa Planner responsibilities for p2 intelligence.
+// Purpose: Builds risk-weighted QA plans and an executable autonomous-QA experiment contract for the same change set.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
+using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
@@ -26,7 +27,12 @@ public sealed class AdaptiveQaPlanner
         ISystemClock clock,
         IChangeRiskRepository? changeRisk = null)
     {
-        _evidence = evidence; _intelligence = intelligence; _plans = plans; _uow = uow; _clock = clock; _changeRisk = changeRisk;
+        _evidence = evidence;
+        _intelligence = intelligence;
+        _plans = plans;
+        _uow = uow;
+        _clock = clock;
+        _changeRisk = changeRisk;
     }
 
     public async Task<AdaptiveQaPlanDto> PlanAsync(AdaptiveQaPlanCommand command, CancellationToken ct)
@@ -37,41 +43,98 @@ public sealed class AdaptiveQaPlanner
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if (changed.Length == 0) throw new ArgumentException("At least one changed file is required.", nameof(command));
+        if (changed.Length == 0)
+            throw new ArgumentException("At least one changed file is required.", nameof(command));
 
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", changed)))).ToLowerInvariant();
-        var history = await _evidence.ListForProjectAsync(command.ProjectId, _clock.UtcNow.AddDays(-90), ct);
-        var recentFailures = history.Where(x => x.Outcome == EvidenceOutcome.Failed || x.Outcome == EvidenceOutcome.Warning).ToArray();
-        var latestChangeRisk = _changeRisk is null ? null : await _changeRisk.GetLatestAsync(command.ProjectId, null, ct);
+        var hash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", changed))))
+            .ToLowerInvariant();
+        var history = await _evidence.ListForProjectAsync(
+            command.ProjectId,
+            _clock.UtcNow.AddDays(-90),
+            ct);
+        var recentFailures = history
+            .Where(x => x.Outcome is EvidenceOutcome.Failed or EvidenceOutcome.Warning)
+            .ToArray();
+        var latestChangeRisk = _changeRisk is null
+            ? null
+            : await _changeRisk.GetLatestAsync(command.ProjectId, null, ct);
 
         var steps = new Dictionary<string, AdaptiveQaStep>(StringComparer.OrdinalIgnoreCase);
-        void Add(string id, string name, string category, string reason, decimal baseRisk, decimal minutes, bool required = false)
+        void Add(
+            string id,
+            string name,
+            string category,
+            string reason,
+            decimal baseRisk,
+            decimal minutes,
+            bool required = false)
         {
             var historical = recentFailures.Count(e =>
                 e.EvidenceKind.Contains(category, StringComparison.OrdinalIgnoreCase)
-                || (!string.IsNullOrWhiteSpace(e.SourceReference) && changed.Any(f => e.SourceReference!.Contains(Path.GetFileName(f), StringComparison.OrdinalIgnoreCase))));
+                || (!string.IsNullOrWhiteSpace(e.SourceReference)
+                    && changed.Any(f =>
+                        e.SourceReference!.Contains(
+                            Path.GetFileName(f),
+                            StringComparison.OrdinalIgnoreCase))));
             var risk = Math.Clamp(baseRisk + Math.Min(25m, historical * 4m), 0m, 100m);
             var priority = risk >= 80m ? 1 : risk >= 60m ? 2 : risk >= 40m ? 3 : 4;
-            var step = new AdaptiveQaStep(id, name, category, reason + (historical > 0 ? $" Historical evidence contains {historical} related warning/failure(s)." : ""), risk, minutes, priority, required || risk >= 75m);
-            if (!steps.TryGetValue(id, out var existing) || step.RiskScore > existing.RiskScore) steps[id] = step;
+            var step = new AdaptiveQaStep(
+                id,
+                name,
+                category,
+                reason + (historical > 0
+                    ? $" Historical evidence contains {historical} related warning/failure(s)."
+                    : string.Empty),
+                risk,
+                minutes,
+                priority,
+                required || risk >= 75m);
+            if (!steps.TryGetValue(id, out var existing) || step.RiskScore > existing.RiskScore)
+                steps[id] = step;
         }
 
         var docsOnly = changed.All(IsDocumentation);
         if (docsOnly)
         {
-            Add("repo-contract", "Repository contract checks", "repository", "Only documentation/configuration changed; full runtime QA is not justified.", 20m, 1m, true);
+            Add(
+                "repo-contract",
+                "Repository contract checks",
+                "repository",
+                "Only documentation/configuration changed; full runtime QA is not justified.",
+                20m,
+                1m,
+                true);
         }
         else
         {
             Add("build", "Build / syntax validation", "build", "Source code changed.", 60m, 3m, true);
-            Add("test-impact", "Test impact selection", "test-impact", "Select tests from changed projects, paths and symbol/name overlap before executing the targeted suite.", 68m, 2m, true);
-            Add("unit-tests", "Targeted automated tests", "test", "Source changes should be checked against automated tests selected by impact analysis.", 55m, 5m, true);
+            Add(
+                "test-impact",
+                "Test impact selection",
+                "test-impact",
+                "Select tests from changed projects, paths and symbol/name overlap before executing the targeted suite.",
+                68m,
+                2m,
+                true);
+            Add(
+                "unit-tests",
+                "Targeted automated tests",
+                "test",
+                "Source changes should be checked against automated tests selected by impact analysis.",
+                55m,
+                5m,
+                true);
 
             if (changed.Any(x => x.EndsWith(".py", StringComparison.OrdinalIgnoreCase)))
                 Add("python-qa", "Python hardcoded QA", "python", "Python files changed.", 65m, 4m, true);
-            if (changed.Any(x => x.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)))
+            if (changed.Any(x =>
+                    x.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                    || x.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)))
                 Add("csharp-qa", "C# hardcoded QA", "csharp", "C# files or project files changed.", 65m, 5m, true);
-            if (changed.Any(x => new[] { ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hlsl", ".glsl" }.Any(ext => x.EndsWith(ext, StringComparison.OrdinalIgnoreCase))))
+            if (changed.Any(x =>
+                    new[] { ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hlsl", ".glsl" }
+                        .Any(ext => x.EndsWith(ext, StringComparison.OrdinalIgnoreCase))))
                 Add("cpp-qa", "C++ hardcoded QA + memory safety", "cpp", "Native or shader-adjacent code changed.", 75m, 8m, true);
 
             if (changed.Any(ContainsRendering))
@@ -88,12 +151,13 @@ public sealed class AdaptiveQaPlanner
             }
             if (changed.Any(ContainsAudio))
                 Add("audio-regression", "Audio regression", "audio", "Audio assets or audio code changed.", 72m, 6m, true);
-            if (changed.Any(x => ContainsUiOrArt(x)))
+            if (changed.Any(ContainsUiOrArt))
                 Add("visual-ui", "UI/art visual regression", "visual", "UI or art assets changed.", 70m, 5m, true);
             if (changed.Any(ContainsNetwork))
             {
                 Add("network-fuzz", "Protocol/API fuzzing", "fuzz", "Network/serialization code changed.", 65m, 12m);
                 Add("runtime-repeat", "Runtime reliability repeats", "reliability", "Network behavior can be timing-dependent.", 62m, 10m);
+                Add("service-load", "Service/load regression", "load", "Network or service-facing code changed.", 72m, 10m);
             }
             if (latestChangeRisk?.RiskLevel is ChangeRiskLevel.High or ChangeRiskLevel.Critical)
             {
@@ -104,7 +168,11 @@ public sealed class AdaptiveQaPlanner
             }
         }
 
-        var ordered = steps.Values.OrderBy(x => x.Priority).ThenByDescending(x => x.RiskScore).ThenBy(x => x.EstimatedMinutes).ToList();
+        var ordered = steps.Values
+            .OrderBy(x => x.Priority)
+            .ThenByDescending(x => x.RiskScore)
+            .ThenBy(x => x.EstimatedMinutes)
+            .ToList();
         var selected = new List<AdaptiveQaStep>();
         var skipped = new List<string>();
         decimal total = 0m;
@@ -112,28 +180,139 @@ public sealed class AdaptiveQaPlanner
         {
             if (step.Required || total + step.EstimatedMinutes <= Math.Max(1m, command.MaxEstimatedMinutes))
             {
-                selected.Add(step); total += step.EstimatedMinutes;
+                selected.Add(step);
+                total += step.EstimatedMinutes;
             }
-            else skipped.Add($"{step.Name}: skipped by QA time budget ({step.EstimatedMinutes:0.#} min).");
+            else
+            {
+                skipped.Add($"{step.Name}: skipped by QA time budget ({step.EstimatedMinutes:0.#} min).");
+            }
         }
 
-        var risk = selected.Count == 0 ? 0m : decimal.Round(selected.Max(x => x.RiskScore) * .6m + selected.Average(x => x.RiskScore) * .4m, 2);
+        var risk = selected.Count == 0
+            ? 0m
+            : decimal.Round(
+                selected.Max(x => x.RiskScore) * .6m
+                + selected.Average(x => x.RiskScore) * .4m,
+                2);
         var id = Guid.NewGuid();
-        var dto = new AdaptiveQaPlanDto(id, hash, risk, total, selected, skipped);
+        var executableSteps = BuildExecutableSteps(selected, command);
+        var executablePlan = new AutonomousQaExperimentPlan(
+            Guid.NewGuid(),
+            $"adaptive:{hash[..Math.Min(12, hash.Length)]}",
+            command.SubjectKey,
+            null,
+            executableSteps);
+        var dto = new AdaptiveQaPlanDto(id, hash, risk, total, selected, skipped, executablePlan);
         var json = JsonSerializer.Serialize(dto);
-        await _plans.AddAsync(new AdaptiveQaPlanSnapshot(id, command.ProjectId, hash, risk, total, json, _clock.UtcNow), ct);
+
+        await _plans.AddAsync(
+            new AdaptiveQaPlanSnapshot(id, command.ProjectId, hash, risk, total, json, _clock.UtcNow),
+            ct);
         await _intelligence.AddAsync(new P2IntelligenceRecord(
-            Guid.NewGuid(), command.ProjectId, command.SubjectKey, P2IntelligenceKind.AdaptiveQaPlan, P2IntelligenceStatus.Informational,
-            risk, EvidenceConfidence.High,
-            $"Adaptive QA selected {selected.Count} step(s), estimated {total:0.#} minutes, risk score {risk:0.#}/100.",
-            json, null, _clock.UtcNow), ct);
+            Guid.NewGuid(),
+            command.ProjectId,
+            command.SubjectKey,
+            P2IntelligenceKind.AdaptiveQaPlan,
+            P2IntelligenceStatus.Informational,
+            risk,
+            EvidenceConfidence.High,
+            $"Adaptive QA selected {selected.Count} display step(s) and {executableSteps.Count} executable experiment(s), estimated {total:0.#} minutes, risk score {risk:0.#}/100.",
+            json,
+            null,
+            _clock.UtcNow), ct);
         await _intelligence.AddAsync(new P2IntelligenceRecord(
-            Guid.NewGuid(), command.ProjectId, command.SubjectKey, P2IntelligenceKind.QaCostEstimate, P2IntelligenceStatus.Informational,
-            null, EvidenceConfidence.High,
+            Guid.NewGuid(),
+            command.ProjectId,
+            command.SubjectKey,
+            P2IntelligenceKind.QaCostEstimate,
+            P2IntelligenceStatus.Informational,
+            null,
+            EvidenceConfidence.High,
             $"Estimated QA execution cost is {total:0.#} minutes for this change set.",
-            JsonSerializer.Serialize(new { estimatedMinutes = total, steps = selected.Select(x => new { x.Id, x.EstimatedMinutes, x.Priority }) }), null, _clock.UtcNow), ct);
+            JsonSerializer.Serialize(new
+            {
+                estimatedMinutes = total,
+                steps = selected.Select(x => new { x.Id, x.EstimatedMinutes, x.Priority }),
+                experiments = executableSteps.Select(x => new { x.Id, kind = x.Kind.ToString(), x.Required })
+            }),
+            null,
+            _clock.UtcNow), ct);
         await _uow.SaveChangesAsync(ct);
         return dto;
+    }
+
+    private static IReadOnlyList<AutonomousQaExperimentStep> BuildExecutableSteps(
+        IReadOnlyList<AdaptiveQaStep> selected,
+        AdaptiveQaPlanCommand command)
+    {
+        var result = new List<AutonomousQaExperimentStep>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var display in selected)
+        {
+            foreach (var kind in ExperimentKinds(display.Id))
+            {
+                var id = $"{display.Id}:{kind}";
+                if (!seen.Add(id))
+                    continue;
+                result.Add(AutonomousQaExperimentDefaults.Create(
+                    id,
+                    kind,
+                    display.Reason,
+                    display.Required,
+                    TimeoutFor(kind, display.EstimatedMinutes)));
+            }
+        }
+
+        // Every executable source-code plan must have a regression-test boundary.
+        // This does not invent tests; it requires the configured QA adapters to run them.
+        if (selected.Any(x => x.Id is not "repo-contract")
+            && result.All(x => x.Kind != DebugExperimentKind.RegressionTest))
+        {
+            result.Add(AutonomousQaExperimentDefaults.Create(
+                "required:regression-test",
+                DebugExperimentKind.RegressionTest,
+                "Any source-affecting change requires a post-change regression-test boundary.",
+                true,
+                900));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<DebugExperimentKind> ExperimentKinds(string id) => id switch
+    {
+        "repo-contract" => [DebugExperimentKind.StaticAnalysis],
+        "build" => [DebugExperimentKind.Compile],
+        "test-impact" => [DebugExperimentKind.StaticAnalysis],
+        "unit-tests" => [DebugExperimentKind.UnitTest],
+        "python-qa" => [DebugExperimentKind.StaticAnalysis],
+        "csharp-qa" => [DebugExperimentKind.StaticAnalysis],
+        "cpp-qa" => [DebugExperimentKind.StaticAnalysis, DebugExperimentKind.MemorySafety],
+        "runtime" => [DebugExperimentKind.RuntimeReplay],
+        "visual-regression" => [DebugExperimentKind.VisualRegression],
+        "gpu-performance" => [DebugExperimentKind.Benchmark],
+        "mobile-performance" => [DebugExperimentKind.Benchmark],
+        "thermal" => [DebugExperimentKind.Stress],
+        "memory-pressure" => [DebugExperimentKind.Soak],
+        "audio-regression" => [DebugExperimentKind.AudioRegression],
+        "visual-ui" => [DebugExperimentKind.VisualRegression],
+        "network-fuzz" => [DebugExperimentKind.Fuzz],
+        "runtime-repeat" => [DebugExperimentKind.RuntimeReplay],
+        "service-load" => [DebugExperimentKind.LoadTest],
+        "game-replay" => [DebugExperimentKind.RuntimeReplay],
+        "performance-budget" => [DebugExperimentKind.Benchmark],
+        "high-risk-fuzz" => [DebugExperimentKind.Fuzz],
+        "high-risk-soak" => [DebugExperimentKind.Soak],
+        _ => [DebugExperimentKind.StaticAnalysis]
+    };
+
+    private static int TimeoutFor(DebugExperimentKind kind, decimal estimatedMinutes)
+    {
+        var estimated = (int)Math.Ceiling(Math.Max(1m, estimatedMinutes) * 60m);
+        var floor = kind is DebugExperimentKind.Soak or DebugExperimentKind.Stress ? 300 : 60;
+        return Math.Clamp(Math.Max(floor, estimated), 30, 1800);
     }
 
     private static bool IsDocumentation(string path)
@@ -142,6 +321,7 @@ public sealed class AdaptiveQaPlanner
         return path.StartsWith("docs/", StringComparison.OrdinalIgnoreCase)
             || new[] { ".md", ".txt", ".rst", ".adoc" }.Contains(ext, StringComparer.OrdinalIgnoreCase);
     }
+
     private static bool ContainsRendering(string p) => ContainsAny(p, "render", "shader", "material", "texture", "scene", "camera", "animation", "particle", "vfx", "lighting", "ui/");
     private static bool ContainsMobile(string p) => ContainsAny(p, "android", "ios", "mobile", "arm64", "vulkan", "metal");
     private static bool ContainsAudio(string p) => ContainsAny(p, "audio", "sound", "music", "bgm", "se/", "voice");

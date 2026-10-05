@@ -38,11 +38,27 @@ public interface IRuntimeDefectIntelligence
 
 public sealed record RegressionTestDraft(string RelativePath, string Content, string Purpose);
 public sealed record VerifiedFixRequest(
-    Guid ProjectId, string WorkspaceRelativePath, string? BaseCommit, string UnifiedDiff,
-    IReadOnlyList<RegressionTestDraft> RegressionTests, LanguageId Language, int TimeoutSeconds = 900);
+    Guid ProjectId,
+    string WorkspaceRelativePath,
+    string? BaseCommit,
+    string UnifiedDiff,
+    IReadOnlyList<RegressionTestDraft> RegressionTests,
+    LanguageId Language,
+    int TimeoutSeconds = 900,
+    AutonomousQaExperimentPlan? ExperimentPlan = null,
+    IReadOnlyList<AutonomousQaExperimentResult>? BaselineExperiments = null,
+    string? ExperimentConfigurationJson = null,
+    string? SubjectKey = null);
 public sealed record VerifiedFixResult(
-    bool Applied, bool Verified, string Status, string? CommitUnderTest, string ArtifactRoot,
-    IReadOnlyList<string> ValidationSteps, IReadOnlyList<QaFindingCandidate> Findings, string Summary);
+    bool Applied,
+    bool Verified,
+    string Status,
+    string? CommitUnderTest,
+    string ArtifactRoot,
+    IReadOnlyList<string> ValidationSteps,
+    IReadOnlyList<QaFindingCandidate> Findings,
+    string Summary,
+    IReadOnlyList<AutonomousQaExperimentResult>? ExperimentResults = null);
 public interface IVerifiedFixService
 {
     Task<VerifiedFixResult> VerifyAsync(VerifiedFixRequest request, CancellationToken ct);
@@ -84,7 +100,32 @@ public interface IFixProposalAgent
 // move a session to ReadyForHumanReview.
 public enum DebugExperimentKind
 {
-    Reproduce, VerifyPatch, RegressionTest, StaticAnalysis, RuntimeReplay, Benchmark, Bisect, Stress, Fuzz
+    // Preserve the numeric values of the original public contract.
+    Reproduce = 0,
+    VerifyPatch = 1,
+    RegressionTest = 2,
+    StaticAnalysis = 3,
+    RuntimeReplay = 4,
+    Benchmark = 5,
+    Bisect = 6,
+    Stress = 7,
+    Fuzz = 8,
+
+    // Executable-contract additions.
+    Compile = 9,
+    UnitTest = 10,
+    AssetValidation = 11,
+    ShaderValidation = 12,
+    VisualRegression = 13,
+    VideoRegression = 14,
+    AudioRegression = 15,
+    LoadTest = 16,
+    Soak = 17,
+    Mutation = 18,
+    MemorySafety = 19,
+    RaceDetection = 20,
+    DeadlockDetection = 21,
+    Security = 22
 }
 
 public sealed record DebugHypothesis(
@@ -117,15 +158,39 @@ public sealed record AutonomousDebugBudget(
 }
 
 public sealed record AutonomousDebugRequest(
-    Guid ProjectId, string SubjectKey, string Question, string EvidenceJson, string WorkspaceRelativePath,
-    string? RepositoryContext, string? BaseCommit, LanguageId Language, string DomainId = "software", AutonomousDebugBudget? Budget = null);
+    Guid ProjectId,
+    string SubjectKey,
+    string Question,
+    string EvidenceJson,
+    string WorkspaceRelativePath,
+    string? RepositoryContext,
+    string? BaseCommit,
+    LanguageId Language,
+    string DomainId = "software",
+    AutonomousDebugBudget? Budget = null,
+    string? ExperimentConfigurationJson = null,
+    Guid? RequestedSessionId = null);
 public sealed record AutonomousDebugAttemptDto(
-    string HypothesisId, string HypothesisTitle, decimal Confidence, string Status, bool Verified, string Summary,
-    string? ArtifactRoot, IReadOnlyList<Guid> EvidenceIds);
+    string HypothesisId,
+    string HypothesisTitle,
+    decimal Confidence,
+    string Status,
+    bool Verified,
+    string Summary,
+    string? ArtifactRoot,
+    IReadOnlyList<Guid> EvidenceIds,
+    AutonomousQaExperimentPlan? ExperimentPlan = null,
+    IReadOnlyList<AutonomousQaExperimentResult>? BaselineExperiments = null,
+    IReadOnlyList<AutonomousQaExperimentResult>? PostPatchExperiments = null);
 public sealed record AutonomousDebugSessionDto(
     Guid SessionId, Guid ProjectId, string SubjectKey, string DomainId, string Status, string Summary,
     IReadOnlyList<DebugHypothesis> Hypotheses, IReadOnlyList<AutonomousDebugAttemptDto> Attempts,
     DateTimeOffset StartedAtUtc, DateTimeOffset? CompletedAtUtc);
+public sealed record AutonomousDebugEnqueuedDto(
+    Guid JobId,
+    Guid SessionId,
+    string Status,
+    string StatusUrl);
 
 public sealed record QaCrossCuttingResult(string PackId, IReadOnlyList<QaToolExecution> Tools, IReadOnlyList<QaFindingCandidate> Findings, string SummaryJson);
 public interface ICrossCuttingQaPack

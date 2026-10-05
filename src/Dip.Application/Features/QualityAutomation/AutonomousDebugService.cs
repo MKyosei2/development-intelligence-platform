@@ -1,4 +1,4 @@
-// Purpose: Generates and verifies bounded debug candidates from evidence without treating hypotheses as truth.
+// Purpose: Generates evidence-grounded hypotheses, executes a formal baseline experiment plan, and verifies candidates with the same required plan after patching.
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text.Json;
@@ -9,19 +9,17 @@ using Dip.Domain.Enums;
 namespace Dip.Application.Features.QualityAutomation;
 
 /// <summary>
-/// Bounded hypothesis -> candidate -> isolated verification loop.
-/// The source workspace is never edited by this service. A mechanically verified
-/// candidate is returned as ReadyForHumanReview so a human remains responsible
-/// for applying and merging the change. Session snapshots and attempts are
-/// persisted in the existing Development Graph instead of creating parallel
-/// persistence tables.
+/// Bounded hypothesis -> executable experiment plan -> baseline -> candidate ->
+/// isolated post-patch verification loop. AI reasoning is never accepted as proof:
+/// only deterministic runner evidence can move a candidate to ReadyForHumanReview.
 /// </summary>
 public sealed class AutonomousDebugService(
     IAutonomousDebugAgent hypothesisAgent,
     IFixProposalAgent fixAgent,
     IVerifiedFixService verifier,
     DevelopmentGraphService graph,
-    ISystemClock clock)
+    ISystemClock clock,
+    IAutonomousQaExperimentDispatcher? experimentDispatcher = null)
 {
     private static readonly ActivitySource ActivitySource = new("DIP.DevelopmentIntelligence");
     private static readonly Meter Meter = new("DIP.DevelopmentIntelligence");
@@ -40,12 +38,12 @@ public sealed class AutonomousDebugService(
         var budget = (request.Budget ?? new AutonomousDebugBudget()).Validate();
         var started = clock.UtcNow;
         var stopwatch = Stopwatch.StartNew();
-        var sessionId = Guid.NewGuid();
+        var sessionId = request.RequestedSessionId ?? Guid.NewGuid();
         var attempts = new List<AutonomousDebugAttemptDto>();
         var hypotheses = Array.Empty<DebugHypothesis>();
         var terminalStatus = "Failed";
         var aiCalls = 0;
-        var experimentNumber = 0;
+        var hypothesisAttempts = 0;
 
         using var activity = ActivitySource.StartActivity("autonomous-debug.run", ActivityKind.Internal);
         activity?.SetTag("dip.project.id", request.ProjectId.ToString("N"));
@@ -55,10 +53,7 @@ public sealed class AutonomousDebugService(
         activity?.SetTag("dip.debug.max_experiments", budget.MaxExperiments);
         activity?.SetTag("dip.debug.max_ai_calls", budget.MaxAiCalls);
 
-        SessionCounter.Add(
-            1,
-            new KeyValuePair<string, object?>("domain", request.DomainId));
-
+        SessionCounter.Add(1, new KeyValuePair<string, object?>("domain", request.DomainId));
 
         var running = new AutonomousDebugSessionDto(
             sessionId,
@@ -66,7 +61,7 @@ public sealed class AutonomousDebugService(
             request.SubjectKey,
             request.DomainId,
             "Running",
-            "Collecting evidence-grounded root-cause hypotheses.",
+            "Collecting evidence-grounded root-cause hypotheses and executable experiment plans.",
             hypotheses,
             attempts,
             started,
@@ -105,7 +100,6 @@ public sealed class AutonomousDebugService(
                 .OrderByDescending(x => x.Confidence)
                 .Take(budget.MaxHypotheses)
                 .ToArray();
-
             activity?.SetTag("dip.debug.hypothesis_count", hypotheses.Length);
 
             var hypothesisNodes = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
@@ -122,7 +116,7 @@ public sealed class AutonomousDebugService(
                         "DIP-AI",
                         null,
                         hypothesis.Id,
-                        "1",
+                        "2",
                         DevelopmentGraphNodeType.ExternalObservation,
                         JsonSerializer.Serialize(new
                         {
@@ -157,36 +151,106 @@ public sealed class AutonomousDebugService(
             {
                 ct.ThrowIfCancellationRequested();
 
-                if (experimentNumber >= budget.MaxExperiments)
+                if (hypothesisAttempts >= budget.MaxExperiments)
                 {
-                    budgetReason = "Maximum experiment count reached.";
+                    budgetReason = "Maximum hypothesis experiment count reached.";
                     break;
                 }
-
                 if (aiCalls >= budget.MaxAiCalls)
                 {
                     budgetReason = "Maximum AI call count reached.";
                     break;
                 }
-
                 if (clock.UtcNow - started > TimeSpan.FromMinutes(budget.MaxWallClockMinutes))
                 {
                     budgetReason = "Maximum wall-clock budget reached.";
                     break;
                 }
 
-                experimentNumber++;
-                ExperimentCounter.Add(
-                    1,
-                    new KeyValuePair<string, object?>("domain", request.DomainId));
+                hypothesisAttempts++;
+                ExperimentCounter.Add(1, new KeyValuePair<string, object?>("domain", request.DomainId));
+
+                var plan = experimentDispatcher is null
+                    ? null
+                    : BuildExperimentPlan(sessionId, request, hypothesis, budget);
+                IReadOnlyList<AutonomousQaExperimentResult> baseline = Array.Empty<AutonomousQaExperimentResult>();
+
+                if (plan is not null && experimentDispatcher is not null)
+                {
+                    baseline = await experimentDispatcher.ExecutePlanAsync(
+                        plan,
+                        new AutonomousQaExperimentExecutionContext(
+                            request.ProjectId,
+                            request.SubjectKey,
+                            request.WorkspaceRelativePath,
+                            request.BaseCommit,
+                            request.Language,
+                            AutonomousQaExperimentPhase.Baseline,
+                            request.ExperimentConfigurationJson),
+                        ct);
+
+                    if (HasUnverifiableRequiredStep(plan, baseline))
+                    {
+                        var blocked = new AutonomousDebugAttemptDto(
+                            hypothesis.Id,
+                            hypothesis.Title,
+                            hypothesis.Confidence,
+                            "ExperimentPreconditionFailed",
+                            false,
+                            "One or more required baseline experiments were unavailable, unconfigured, skipped, or failed at the infrastructure boundary. No patch candidate was generated.",
+                            null,
+                            hypothesis.EvidenceIds,
+                            plan,
+                            baseline,
+                            null);
+                        attempts.Add(blocked);
+                        await PersistAttemptAsync(
+                            request,
+                            sessionId,
+                            hypothesisAttempts,
+                            hypothesis,
+                            blocked,
+                            hypothesisNodes[hypothesis.Id],
+                            ct);
+                        continue;
+                    }
+
+                    if (RequiredStepsAllPassed(plan, baseline))
+                    {
+                        var notReproduced = new AutonomousDebugAttemptDto(
+                            hypothesis.Id,
+                            hypothesis.Title,
+                            hypothesis.Confidence,
+                            "HypothesisNotReproduced",
+                            false,
+                            "All required baseline experiments passed; the proposed defect hypothesis was not mechanically reproduced, so DIP did not ask AI to patch the source.",
+                            null,
+                            hypothesis.EvidenceIds,
+                            plan,
+                            baseline,
+                            null);
+                        attempts.Add(notReproduced);
+                        await PersistAttemptAsync(
+                            request,
+                            sessionId,
+                            hypothesisAttempts,
+                            hypothesis,
+                            notReproduced,
+                            hypothesisNodes[hypothesis.Id],
+                            ct);
+                        continue;
+                    }
+                }
 
                 var prompt = $"""
-Evaluate this root-cause hypothesis and propose the smallest safe fix candidate that would falsify or support it through regression testing and existing QA.
+Evaluate this root-cause hypothesis and propose the smallest safe fix candidate.
 Hypothesis ID: {hypothesis.Id}
 Title: {hypothesis.Title}
 Explanation: {hypothesis.Explanation}
 Suggested experiments: {string.Join(", ", hypothesis.SuggestedExperiments)}
-The candidate will be applied only to a disposable worktree and mechanically verified. Include at least one regression test. Do not change source merely to silence a diagnostic or test.
+Baseline experiment evidence:
+{FormatExperimentResults(baseline)}
+The candidate will be applied only to a disposable worktree. DIP will rerun the same required experiment plan after patching. Include at least one regression test. Do not change source merely to silence a diagnostic or test. Do not claim success based on this proposal; executable verification is authoritative.
 Original question: {request.Question}
 """;
 
@@ -211,12 +275,15 @@ Original question: {request.Question}
                         false,
                         "No evidence-grounded patch candidate was returned for this hypothesis.",
                         null,
-                        hypothesis.EvidenceIds);
+                        hypothesis.EvidenceIds,
+                        plan,
+                        baseline,
+                        null);
                     attempts.Add(noProposal);
                     await PersistAttemptAsync(
                         request,
                         sessionId,
-                        experimentNumber,
+                        hypothesisAttempts,
                         hypothesis,
                         noProposal,
                         hypothesisNodes[hypothesis.Id],
@@ -232,7 +299,11 @@ Original question: {request.Question}
                         fix.UnifiedDiff,
                         fix.RegressionTests,
                         request.Language,
-                        budget.TimeoutSecondsPerExperiment),
+                        budget.TimeoutSecondsPerExperiment,
+                        plan,
+                        baseline,
+                        request.ExperimentConfigurationJson,
+                        request.SubjectKey),
                     ct);
 
                 var status = verification.Verified
@@ -247,13 +318,16 @@ Original question: {request.Question}
                     verification.Verified,
                     verification.Summary,
                     verification.ArtifactRoot,
-                    fix.EvidenceIds);
+                    fix.EvidenceIds,
+                    plan,
+                    baseline,
+                    verification.ExperimentResults);
                 attempts.Add(attempt);
 
                 await PersistAttemptAsync(
                     request,
                     sessionId,
-                    experimentNumber,
+                    hypothesisAttempts,
                     hypothesis,
                     attempt,
                     hypothesisNodes[hypothesis.Id],
@@ -262,9 +336,7 @@ Original question: {request.Question}
                 if (verification.Verified)
                 {
                     verifiedAny = true;
-                    VerifiedCandidateCounter.Add(
-                        1,
-                        new KeyValuePair<string, object?>("domain", request.DomainId));
+                    VerifiedCandidateCounter.Add(1, new KeyValuePair<string, object?>("domain", request.DomainId));
                     break;
                 }
             }
@@ -276,9 +348,9 @@ Original question: {request.Question}
                     : "BudgetExhausted";
 
             var summary = verifiedAny
-                ? "A candidate passed isolated patch application, generated regression tests and all available QA checks. The source workspace was not modified; human review is still required."
+                ? "A candidate passed isolated patch application, generated regression tests, adapter QA, and every required post-patch experiment. The source workspace was not modified; human review is still required."
                 : string.IsNullOrWhiteSpace(budgetReason)
-                    ? "No candidate passed the isolated verification boundary."
+                    ? "No candidate satisfied the complete executable verification boundary."
                     : $"No verified candidate was found before the bounded search stopped: {budgetReason}";
 
             var completed = new AutonomousDebugSessionDto(
@@ -345,7 +417,6 @@ Original question: {request.Question}
             {
                 // Best effort only; preserve the original failure.
             }
-
             throw;
         }
         finally
@@ -353,15 +424,11 @@ Original question: {request.Question}
             stopwatch.Stop();
             activity?.SetTag("dip.debug.status", terminalStatus);
             activity?.SetTag("dip.debug.ai_calls", aiCalls);
-            activity?.SetTag("dip.debug.experiments", experimentNumber);
-
-            TerminalStatusCounter.Add(
-                1,
-                new KeyValuePair<string, object?>("status", terminalStatus));
+            activity?.SetTag("dip.debug.experiments", hypothesisAttempts);
+            TerminalStatusCounter.Add(1, new KeyValuePair<string, object?>("status", terminalStatus));
             DurationHistogram.Record(
                 stopwatch.Elapsed.TotalMilliseconds,
                 new KeyValuePair<string, object?>("status", terminalStatus));
-
         }
     }
 
@@ -373,13 +440,8 @@ Original question: {request.Question}
         if (projectId == Guid.Empty)
             return Array.Empty<AutonomousDebugSessionDto>();
 
-        var graphSnapshot = await graph.GetUniversalAsync(
-            projectId,
-            null,
-            "dip.debug.session",
-            ct);
+        var graphSnapshot = await graph.GetUniversalAsync(projectId, null, "dip.debug.session", ct);
         var sessions = new List<AutonomousDebugSessionDto>();
-
         foreach (var node in graphSnapshot.Nodes)
         {
             try
@@ -387,18 +449,15 @@ Original question: {request.Question}
                 using var document = JsonDocument.Parse(node.Node.MetadataJson);
                 if (!document.RootElement.TryGetProperty("snapshot", out var snapshot))
                     continue;
-
                 var session = snapshot.Deserialize<AutonomousDebugSessionDto>();
                 if (session is not null && session.ProjectId == projectId)
                     sessions.Add(session);
             }
             catch (JsonException)
             {
-                // Ignore corrupt/incompatible legacy snapshots; one bad graph node
-                // must not make the whole QA history unavailable.
+                // One corrupt legacy snapshot must not make the whole history unavailable.
             }
         }
-
         return sessions
             .OrderByDescending(x => x.StartedAtUtc)
             .ThenByDescending(x => x.SessionId)
@@ -413,7 +472,6 @@ Original question: {request.Question}
     {
         if (projectId == Guid.Empty || sessionId == Guid.Empty)
             return null;
-
         var node = await graph.FindNodeAsync(
             projectId,
             DevelopmentGraphNodeType.ExternalObservation,
@@ -421,7 +479,6 @@ Original question: {request.Question}
             ct);
         if (node is null)
             return null;
-
         try
         {
             using var document = JsonDocument.Parse(node.MetadataJson);
@@ -430,10 +487,129 @@ Original question: {request.Question}
         }
         catch (JsonException)
         {
-            // Corrupt or incompatible graph metadata is treated as unavailable.
+            // Corrupt or incompatible legacy snapshots are treated as unavailable.
+        }
+        return null;
+    }
+
+    private static AutonomousQaExperimentPlan BuildExperimentPlan(
+        Guid sessionId,
+        AutonomousDebugRequest request,
+        DebugHypothesis hypothesis,
+        AutonomousDebugBudget budget)
+    {
+        var kinds = hypothesis.SuggestedExperiments
+            .Where(x => x != DebugExperimentKind.VerifyPatch)
+            .Distinct()
+            .ToList();
+        AugmentExperimentsFromHypothesis(hypothesis, kinds);
+        kinds = kinds.Distinct().Take(12).ToList();
+        if (kinds.Count == 0)
+            kinds.Add(DebugExperimentKind.Reproduce);
+        if (!kinds.Contains(DebugExperimentKind.RegressionTest))
+            kinds.Add(DebugExperimentKind.RegressionTest);
+
+        var steps = kinds
+            .Select((kind, index) => AutonomousQaExperimentDefaults.Create(
+                $"{hypothesis.Id}:{index + 1}:{kind}",
+                kind,
+                $"Hypothesis '{hypothesis.Title}' requires {kind} evidence before a candidate can be accepted.",
+                true,
+                budget.TimeoutSecondsPerExperiment))
+            .ToArray();
+
+        return new(
+            Guid.NewGuid(),
+            hypothesis.Id,
+            request.SubjectKey,
+            request.BaseCommit,
+            steps);
+    }
+
+
+    private static void AugmentExperimentsFromHypothesis(
+        DebugHypothesis hypothesis,
+        ICollection<DebugExperimentKind> kinds)
+    {
+        var text = $"{hypothesis.Title} {hypothesis.Explanation}".ToLowerInvariant();
+        void Add(DebugExperimentKind kind)
+        {
+            if (!kinds.Contains(kind))
+                kinds.Add(kind);
         }
 
-        return null;
+        if (Has(text, "shader", "render", "visual", "pixel", "material", "texture", "framebuffer", "lighting"))
+        {
+            Add(DebugExperimentKind.RuntimeReplay);
+            Add(DebugExperimentKind.VisualRegression);
+            Add(DebugExperimentKind.Benchmark);
+        }
+        if (Has(text, "fps", "frame time", "frametime", "latency", "performance", "gpu", "cpu"))
+            Add(DebugExperimentKind.Benchmark);
+        if (Has(text, "memory leak", "memory growth", "out of memory", "retained memory"))
+        {
+            Add(DebugExperimentKind.Soak);
+            Add(DebugExperimentKind.MemorySafety);
+        }
+        if (Has(text, "use-after-free", "buffer overflow", "double free", "asan", "ubsan", "memory-safety"))
+            Add(DebugExperimentKind.MemorySafety);
+        if (Has(text, "race", "thread sanitizer", "threadsanitizer"))
+        {
+            Add(DebugExperimentKind.RaceDetection);
+            Add(DebugExperimentKind.Stress);
+        }
+        if (Has(text, "deadlock", "hang", "lock inversion"))
+        {
+            Add(DebugExperimentKind.DeadlockDetection);
+            Add(DebugExperimentKind.Stress);
+        }
+        if (Has(text, "network", "packet", "socket", "protocol", "serialization", "api"))
+        {
+            Add(DebugExperimentKind.Fuzz);
+            Add(DebugExperimentKind.LoadTest);
+        }
+        if (Has(text, "asset", "maya", "unity", "unreal", "prefab", "mesh", "missing reference"))
+            Add(DebugExperimentKind.AssetValidation);
+    }
+
+    private static bool Has(string text, params string[] tokens) =>
+        tokens.Any(token => text.Contains(token, StringComparison.OrdinalIgnoreCase));
+
+    private static bool HasUnverifiableRequiredStep(
+        AutonomousQaExperimentPlan plan,
+        IReadOnlyList<AutonomousQaExperimentResult> results)
+    {
+        var byId = results.ToDictionary(x => x.StepId, StringComparer.OrdinalIgnoreCase);
+        return plan.Steps
+            .Where(x => x.Required)
+            .Any(step =>
+                !byId.TryGetValue(step.Id, out var result)
+                || result.Status is AutonomousQaExperimentStatus.Unavailable
+                    or AutonomousQaExperimentStatus.NotConfigured
+                    or AutonomousQaExperimentStatus.InfrastructureFailure
+                    or AutonomousQaExperimentStatus.Skipped);
+    }
+
+    private static bool RequiredStepsAllPassed(
+        AutonomousQaExperimentPlan plan,
+        IReadOnlyList<AutonomousQaExperimentResult> results)
+    {
+        var byId = results.ToDictionary(x => x.StepId, StringComparer.OrdinalIgnoreCase);
+        var required = plan.Steps.Where(x => x.Required).ToArray();
+        return required.Length > 0
+            && required.All(step =>
+                byId.TryGetValue(step.Id, out var result)
+                && result.Status == AutonomousQaExperimentStatus.Passed);
+    }
+
+    private static string FormatExperimentResults(IReadOnlyList<AutonomousQaExperimentResult> results)
+    {
+        if (results.Count == 0)
+            return "No formal baseline experiment result is available.";
+        return string.Join(
+            Environment.NewLine,
+            results.Select(x =>
+                $"- {x.StepId} [{x.Kind}] {x.Status}: {x.Summary}"));
     }
 
     private async Task<UniversalGraphNodeDto> PersistSessionAsync(
@@ -447,11 +623,14 @@ Original question: {request.Question}
             baseCommit = request.BaseCommit,
             workspace = request.WorkspaceRelativePath,
             budget = request.Budget ?? new AutonomousDebugBudget(),
+            hasExperimentConfiguration = !string.IsNullOrWhiteSpace(request.ExperimentConfigurationJson),
             safety = new
             {
                 sourceWorkspaceModified = false,
                 automaticMerge = false,
-                arbitraryShellFromAi = false
+                arbitraryShellFromAi = false,
+                aiCanDeclarePass = false,
+                requiredExperimentsFailClosed = true
             }
         });
 
@@ -466,7 +645,7 @@ Original question: {request.Question}
                 "DIP",
                 null,
                 session.SessionId.ToString("N"),
-                "1",
+                "2",
                 DevelopmentGraphNodeType.ExternalObservation,
                 metadata),
             ct);
@@ -492,7 +671,7 @@ Original question: {request.Question}
                 "DIP",
                 null,
                 $"{sessionId:N}:{number}",
-                "1",
+                "2",
                 DevelopmentGraphNodeType.ExternalObservation,
                 JsonSerializer.Serialize(new
                 {
@@ -504,7 +683,9 @@ Original question: {request.Question}
                     attempt.Summary,
                     attempt.EvidenceIds,
                     suggested = hypothesis.SuggestedExperiments,
-                    executed = "VerifyPatch+RegressionTest+AvailableQA"
+                    plan = attempt.ExperimentPlan,
+                    baseline = attempt.BaselineExperiments,
+                    postPatch = attempt.PostPatchExperiments
                 })),
             ct);
 
@@ -539,6 +720,8 @@ Original question: {request.Question}
             throw new ArgumentException("EvidenceJson exceeds the 256 KiB autonomous-debug input limit.", nameof(request));
         if (request.RepositoryContext?.Length > 262144)
             throw new ArgumentException("RepositoryContext exceeds the 256 KiB autonomous-debug input limit.", nameof(request));
+        if (request.ExperimentConfigurationJson?.Length > 262144)
+            throw new ArgumentException("ExperimentConfigurationJson exceeds the 256 KiB autonomous-debug input limit.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.WorkspaceRelativePath))
             throw new ArgumentException("WorkspaceRelativePath is required.", nameof(request));
         if (request.WorkspaceRelativePath.Length > 2000)
@@ -547,5 +730,7 @@ Original question: {request.Question}
             throw new ArgumentException("DomainId is required.", nameof(request));
         if (request.DomainId.Length > 120)
             throw new ArgumentException("DomainId is too long.", nameof(request));
+        if (request.RequestedSessionId.HasValue && request.RequestedSessionId.Value == Guid.Empty)
+            throw new ArgumentException("RequestedSessionId cannot be Guid.Empty.", nameof(request));
     }
 }

@@ -10,8 +10,7 @@ namespace Dip.Web.Services;
 
 public static class ApiClientAdditionalOperations
 {
-    private static readonly JsonSerializerOptions WebJson =
-        new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
     private const string XlsxContentType =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -49,11 +48,16 @@ public static class ApiClientAdditionalOperations
             cancellationToken);
     }
 
-    public static async Task<AutonomousDebugSessionDto> RunAutonomousDebugAsync(
+    /// <summary>
+    /// Enqueues autonomous QA. The API returns 202 Accepted and the worker executes
+    /// the long-running experiment plan independently of this HTTP request.
+    /// </summary>
+    public static async Task<AutonomousDebugEnqueuedDto> RunAutonomousDebugAsync(
         this ApiClient client, Guid projectId, string subjectKey, string question,
         string evidenceJson, string workspaceRelativePath, string? repositoryContext = null,
         string? baseCommit = null, string? language = null, string domainId = "software",
-        AutonomousDebugBudget? budget = null, CancellationToken cancellationToken = default)
+        AutonomousDebugBudget? budget = null, string? experimentConfigurationJson = null,
+        CancellationToken cancellationToken = default)
     {
         using var response = await Http(client).PostAsJsonAsync(
             $"api/v1/defect-intelligence/projects/{projectId}/autonomous-debug",
@@ -67,13 +71,14 @@ public static class ApiClientAdditionalOperations
                 baseCommit,
                 language,
                 domainId,
-                budget
+                budget,
+                experimentConfigurationJson
             },
             cancellationToken);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<AutonomousDebugSessionDto>(
+        return await response.Content.ReadFromJsonAsync<AutonomousDebugEnqueuedDto>(
                    cancellationToken: cancellationToken)
-               ?? throw new InvalidDataException("Autonomous debug API returned an empty response.");
+               ?? throw new InvalidDataException("Autonomous debug enqueue API returned an empty response.");
     }
 
     public static async Task<IReadOnlyList<AutonomousDebugSessionDto>> GetAutonomousDebugSessionsAsync(

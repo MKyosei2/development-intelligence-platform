@@ -1,5 +1,6 @@
-// Purpose: Verifies proposed fixes in isolated workspaces while preserving verification and cleanup failures as explicit result detail.
+// Purpose: Verifies proposed fixes in isolated workspaces and requires every formal required experiment to pass before a candidate can become Verified.
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
@@ -10,13 +11,15 @@ namespace Dip.Infrastructure.QualityAutomation;
 /// <summary>
 /// Verifies a proposed patch in an isolated temporary worktree/copy. The source
 /// workspace is never modified. Verification includes a baseline QA snapshot,
-/// patch policy checks, generated regression tests, a second QA run and a
-/// before/after regression comparison.
+/// patch policy checks, generated regression tests, a second QA run and, when a
+/// formal experiment plan is supplied, the same required experiment contract on
+/// the patched worktree. Required experiments fail closed.
 /// </summary>
 public sealed class VerifiedFixService(
     IQaWorkspaceResolver workspaces,
     IRepositoryTechnologyDetector detector,
-    IQaAdapterRegistry adapters) : IVerifiedFixService
+    IQaAdapterRegistry adapters,
+    IAutonomousQaExperimentDispatcher? experimentDispatcher = null) : IVerifiedFixService
 {
     public async Task<VerifiedFixResult> VerifyAsync(VerifiedFixRequest request, CancellationToken ct)
     {
@@ -29,6 +32,7 @@ public sealed class VerifiedFixService(
         Directory.CreateDirectory(artifact);
         var steps = new List<string>();
         var findings = new List<QaFindingCandidate>();
+        IReadOnlyList<AutonomousQaExperimentResult> postExperiments = Array.Empty<AutonomousQaExperimentResult>();
         string? commit = null;
         string? cleanupFailure = null;
 
@@ -72,11 +76,23 @@ public sealed class VerifiedFixService(
             var baselineSelections = adapters.Resolve(requested, baselineProfile, work);
             if (baselineSelections.Count == 0)
                 return Fail("No QA adapter can establish a baseline for the detected technology.");
-            var baseline = await RunQaSetAsync(request, baselineSelections, work, Path.Combine(artifact, "baseline"), commit, "verified-fix-baseline", ct);
+            var baseline = await RunQaSetAsync(
+                request,
+                baselineSelections,
+                work,
+                Path.Combine(artifact, "baseline"),
+                commit,
+                "verified-fix-baseline",
+                ct);
             steps.Add($"baseline QA: {baseline.ExecutedAdapters} adapter(s), {baseline.AvailableTools.Count} available tool(s)");
 
             var patch = Path.Combine(root, "proposal.diff");
             await File.WriteAllTextAsync(patch, request.UnifiedDiff, Encoding.UTF8, ct);
+            var patchSha256 = Convert.ToHexString(
+                    SHA256.HashData(Encoding.UTF8.GetBytes(request.UnifiedDiff)))
+                .ToLowerInvariant();
+            steps.Add($"patch sha256: {patchSha256}");
+
             var check = await Run(git, ["apply", "--check", "--whitespace=error", patch], work, ct);
             steps.Add("git apply --check");
             if (check.ExitCode != 0)
@@ -100,27 +116,118 @@ public sealed class VerifiedFixService(
             var postSelections = adapters.Resolve(requested, postProfile, work);
             if (postSelections.Count == 0)
                 return Fail("The patch removed or invalidated all QA adapter coverage.");
-            var post = await RunQaSetAsync(request, postSelections, work, Path.Combine(artifact, "post"), commit, "verified-fix", ct);
+            var post = await RunQaSetAsync(
+                request,
+                postSelections,
+                work,
+                Path.Combine(artifact, "post"),
+                commit,
+                "verified-fix",
+                ct);
             findings.AddRange(post.Findings);
             steps.Add($"post-patch QA: {post.ExecutedAdapters} adapter(s), {post.AvailableTools.Count} available tool(s)");
 
-            var missingTools = baseline.AvailableTools.Except(post.AvailableTools, StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToArray();
+            var missingTools = baseline.AvailableTools
+                .Except(post.AvailableTools, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToArray();
             if (missingTools.Length > 0)
                 return Fail("Patch reduced verification coverage by making previously available tools disappear: " + string.Join(", ", missingTools));
 
-            var newCritical = post.CriticalFingerprints.Except(baseline.CriticalFingerprints, StringComparer.OrdinalIgnoreCase).ToArray();
-            var allToolsSucceeded = post.ToolExecutions.Where(x => x.WasAvailable).All(x => x.Succeeded);
-            var verified = post.ExecutedAdapters > 0 && allToolsSucceeded && newCritical.Length == 0;
+            var newCritical = post.CriticalFingerprints
+                .Except(baseline.CriticalFingerprints, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var allToolsSucceeded = post.ToolExecutions
+                .Where(x => x.WasAvailable)
+                .All(x => x.Succeeded);
+
+            var requiredExperimentsPassed = true;
+            var environmentCompatible = true;
+            var missingRequired = Array.Empty<string>();
+            var failedRequired = Array.Empty<string>();
+            var environmentMismatches = Array.Empty<string>();
+
+            if (request.ExperimentPlan is not null)
+            {
+                if (experimentDispatcher is null)
+                {
+                    requiredExperimentsPassed = false;
+                    missingRequired = request.ExperimentPlan.Steps
+                        .Where(x => x.Required)
+                        .Select(x => x.Id)
+                        .ToArray();
+                    steps.Add("formal experiment dispatcher unavailable; required experiment verification failed closed");
+                }
+                else
+                {
+                    postExperiments = await experimentDispatcher.ExecutePlanAsync(
+                        request.ExperimentPlan,
+                        new AutonomousQaExperimentExecutionContext(
+                            request.ProjectId,
+                            request.SubjectKey ?? "verified-fix",
+                            request.WorkspaceRelativePath,
+                            commit,
+                            request.Language,
+                            AutonomousQaExperimentPhase.PostPatch,
+                            request.ExperimentConfigurationJson,
+                            work),
+                        ct);
+
+                    var byId = postExperiments.ToDictionary(x => x.StepId, StringComparer.OrdinalIgnoreCase);
+                    missingRequired = request.ExperimentPlan.Steps
+                        .Where(x => x.Required && !byId.ContainsKey(x.Id))
+                        .Select(x => x.Id)
+                        .ToArray();
+                    failedRequired = request.ExperimentPlan.Steps
+                        .Where(x => x.Required)
+                        .Where(x => byId.TryGetValue(x.Id, out var result)
+                            && result.Status != AutonomousQaExperimentStatus.Passed)
+                        .Select(x => $"{x.Id}:{byId[x.Id].Status}")
+                        .ToArray();
+                    requiredExperimentsPassed = missingRequired.Length == 0 && failedRequired.Length == 0;
+
+                    var baselineById = (request.BaselineExperiments ?? Array.Empty<AutonomousQaExperimentResult>())
+                        .ToDictionary(x => x.StepId, StringComparer.OrdinalIgnoreCase);
+                    environmentMismatches = postExperiments
+                        .Where(postResult =>
+                            !string.IsNullOrWhiteSpace(postResult.EnvironmentFingerprint)
+                            && baselineById.TryGetValue(postResult.StepId, out var before)
+                            && !string.IsNullOrWhiteSpace(before.EnvironmentFingerprint)
+                            && !string.Equals(
+                                postResult.EnvironmentFingerprint,
+                                before.EnvironmentFingerprint,
+                                StringComparison.OrdinalIgnoreCase))
+                        .Select(x => x.StepId)
+                        .ToArray();
+                    environmentCompatible = environmentMismatches.Length == 0;
+                    steps.Add($"formal experiments: {postExperiments.Count} executed, requiredPass={requiredExperimentsPassed}, environmentCompatible={environmentCompatible}");
+                }
+            }
+
+            var verified = post.ExecutedAdapters > 0
+                           && allToolsSucceeded
+                           && newCritical.Length == 0
+                           && requiredExperimentsPassed
+                           && environmentCompatible;
             var status = verified ? "Verified" : "NotVerified";
             var summary = verified
-                ? "Patch and regression tests passed available QA without reducing tool coverage or introducing a new Critical fingerprint. Human review is still required."
-                : $"Patch was evaluated but did not satisfy the verification boundary (toolSuccess={allToolsSucceeded}, newCritical={newCritical.Length}).";
+                ? "Patch, generated regression tests, adapter QA, and every required formal experiment passed without reducing verification coverage. Human review is still required."
+                : $"Patch was evaluated but did not satisfy the verification boundary (toolSuccess={allToolsSucceeded}, newCritical={newCritical.Length}, requiredExperimentsPassed={requiredExperimentsPassed}, environmentCompatible={environmentCompatible}, missingRequired={missingRequired.Length}, failedRequired={failedRequired.Length}).";
 
             await WriteSummaryAsync(
                 artifact,
-                $"Status={status}\nBaseCommit={commit}\nBaselineCritical={baseline.CriticalFingerprints.Count}\nPostCritical={post.CriticalFingerprints.Count}\nNewCritical={newCritical.Length}\nMissingTools={string.Join(",", missingTools)}\nSteps={string.Join("; ", steps)}\n",
+                $"Status={status}\nBaseCommit={commit}\nPatchSha256={patchSha256}\nBaselineCritical={baseline.CriticalFingerprints.Count}\nPostCritical={post.CriticalFingerprints.Count}\nNewCritical={newCritical.Length}\nMissingTools={string.Join(",", missingTools)}\nMissingRequiredExperiments={string.Join(",", missingRequired)}\nFailedRequiredExperiments={string.Join(",", failedRequired)}\nEnvironmentMismatches={string.Join(",", environmentMismatches)}\nSteps={string.Join("; ", steps)}\n",
                 ct);
-            return new(true, verified, status, commit, artifact, steps, findings.Take(2000).ToArray(), summary);
+            return new(
+                true,
+                verified,
+                status,
+                commit,
+                artifact,
+                steps,
+                findings.Take(2000).ToArray(),
+                summary,
+                postExperiments);
         }
         finally
         {
@@ -146,13 +253,15 @@ public sealed class VerifiedFixService(
         {
             try
             {
-                File.WriteAllText(Path.Combine(artifact, "verified-fix-summary.txt"), "Status=Failed\n" + message);
+                File.WriteAllText(
+                    Path.Combine(artifact, "verified-fix-summary.txt"),
+                    "Status=Failed\n" + message);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 message += $" Verification summary could not be persisted: {ex.Message}";
             }
-            return new(false, false, "Failed", commit, artifact, steps, findings, message);
+            return new(false, false, "Failed", commit, artifact, steps, findings, message, postExperiments);
         }
     }
 
@@ -225,9 +334,20 @@ public sealed class VerifiedFixService(
             tools.AddRange(result.Tools);
             findings.AddRange(result.Findings.Select(x => (selection.Language, x)));
         }
-        var available = tools.Where(x => x.WasAvailable).Select(x => x.Tool).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var critical = findings.Where(x => x.Finding.Severity == Severity.Critical).Select(x => QaFingerprint.Create(x.Language, x.Finding)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return new(executed, tools, findings.Select(x => x.Finding).ToArray(), available, critical);
+        var available = tools
+            .Where(x => x.WasAvailable)
+            .Select(x => x.Tool)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var critical = findings
+            .Where(x => x.Finding.Severity == Severity.Critical)
+            .Select(x => QaFingerprint.Create(x.Language, x.Finding))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new(
+            executed,
+            tools,
+            findings.Select(x => x.Finding).ToArray(),
+            available,
+            critical);
     }
 
     private static string? PatchPolicyViolation(string diff)
