@@ -1,4 +1,4 @@
-// Purpose: Evaluates project evidence confidence without mixing historical revisions into current verification.
+// Purpose: Evaluates project evidence confidence without mixing historical revisions or unverified V2 evidence into current verification.
 using Dip.Application.Features.P2Intelligence;
 using Dip.Domain.Entities;
 using Dip.Domain.Enums;
@@ -8,7 +8,8 @@ namespace Dip.Application.Features.ProjectTruth;
 /// <summary>
 /// Converts recent objective evidence into a project-level confidence.
 /// When revision-bound evidence exists, only evidence applicable to the latest
-/// observed revision contributes to current confidence.
+/// observed revision contributes to current confidence. V2 Unverified evidence
+/// remains visible, but can never promote the project to Verified confidence.
 /// </summary>
 public sealed class EvidenceConfidenceEvaluator
 {
@@ -21,6 +22,7 @@ public sealed class EvidenceConfidenceEvaluator
         var recent = evidence
             .Where(item => item.ObservedAtUtc >= now.AddDays(-30))
             .Where(item => item.SourceType != EvidenceSourceType.HumanReport)
+            .Where(item => item.IntegrityStatus != EvidenceIntegrityStatus.Invalid)
             .ToArray();
 
         if (recent.Length == 0)
@@ -46,15 +48,22 @@ public sealed class EvidenceConfidenceEvaluator
             })
             .ToArray();
 
-        var distinctSources = effective
+        var integrityBacked = effective
+            .Where(item => item.Item.IntegrityStatus is EvidenceIntegrityStatus.Verified or EvidenceIntegrityStatus.LegacyUnsigned)
+            .ToArray();
+
+        var distinctSources = integrityBacked
             .Where(item => item.Confidence >= EvidenceConfidence.High)
             .Select(item => SourceIdentity(item.Item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
 
         var strongest = effective.Max(item => item.Confidence);
+        var strongestIntegrityBacked = integrityBacked.Length == 0
+            ? EvidenceConfidence.Unverified
+            : integrityBacked.Max(item => item.Confidence);
 
-        if (strongest == EvidenceConfidence.Verified && distinctSources >= 3)
+        if (strongestIntegrityBacked == EvidenceConfidence.Verified && distinctSources >= 3)
             return EvidenceConfidence.Verified;
         if (strongest >= EvidenceConfidence.High)
             return EvidenceConfidence.High;

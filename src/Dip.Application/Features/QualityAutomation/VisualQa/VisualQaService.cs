@@ -1,4 +1,4 @@
-// Purpose: Evaluates visual QA inputs and converts detected differences into normalized findings.
+// Purpose: Evaluates visual QA inputs, exposes the same deterministic comparator to autonomous QA, and converts differences into normalized evidence.
 using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
@@ -14,9 +14,34 @@ public sealed class VisualQaService
 {
     public const string DefaultAssetRulesJson = """
     {
-      "maya": { "polygonBudget": 500000, "missingTextureSeverity": "Critical", "unknownNodeSeverity": "Warning" },
-      "unity": { "maxTextureDimension": 4096, "missingScriptSeverity": "Critical", "requireLodForMeshes": false },
-      "unreal": { "missingDependencySeverity": "Critical", "redirectorSeverity": "Warning" }
+      "maya": {
+        "polygonBudget": 500000,
+        "missingTextureSeverity": "Critical",
+        "unknownNodeSeverity": "Warning",
+        "nonManifoldSeverity": "Critical",
+        "ngonWarningCount": 100,
+        "constructionHistoryWarningCount": 200,
+        "unfrozenTransformSeverity": "Warning"
+      },
+      "unity": {
+        "maxTextureDimension": 4096,
+        "missingScriptSeverity": "Critical",
+        "missingMaterialSeverity": "Critical",
+        "requireLodForMeshes": false,
+        "maxMeshVertices": 250000,
+        "readWriteTextureSeverity": "Warning",
+        "requireTextureCompression": true,
+        "oversizedAudioClipMb": 64
+      },
+      "unreal": {
+        "missingDependencySeverity": "Critical",
+        "redirectorSeverity": "Warning",
+        "blueprintCompileSeverity": "Critical",
+        "maxTextureDimension": 8192,
+        "naniteTriangleThreshold": 100000,
+        "requireNaniteAboveThreshold": false,
+        "unboundedMaterialInstructionWarning": 800
+      }
     }
     """;
 
@@ -47,6 +72,43 @@ public sealed class VisualQaService
         _uow = uow;
         _clock = clock;
         _graph = graph;
+    }
+
+    /// <summary>
+    /// Shared autonomous-QA bridge. P2 media regression normalizes arbitrary image
+    /// formats to PNG and calls this method so durable Visual QA and autonomous
+    /// VisualRegression use exactly the same pixel/SSIM implementation.
+    /// </summary>
+    public static async Task<VisualComparisonComputation> CompareAutonomousPngAsync(
+        string baselinePng,
+        string currentPng,
+        IReadOnlyList<VisualMaskRegion>? masks,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(baselinePng) || string.IsNullOrWhiteSpace(currentPng))
+            throw new ArgumentException("Autonomous visual comparison requires baseline and current PNG paths.");
+        if (!File.Exists(baselinePng) || !File.Exists(currentPng))
+            throw new FileNotFoundException("Autonomous visual comparison input is missing.");
+
+        await using var baseline = new FileStream(baselinePng, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+        await using var current = new FileStream(currentPng, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+        return await new PortablePngVisualComparator().CompareAsync(
+            baseline,
+            current,
+            masks ?? Array.Empty<VisualMaskRegion>(),
+            ct);
+    }
+
+    /// <summary>
+    /// Converts pixel and perceptual similarity into one bounded autonomous-media
+    /// difference percentage without discarding either signal.
+    /// </summary>
+    public static decimal AutonomousDifferencePercent(VisualComparisonComputation computation)
+    {
+        if (!computation.Compatible)
+            return 100m;
+        var perceptualDifference = Math.Clamp((1m - computation.Ssim) * 100m, 0m, 100m);
+        return decimal.Round(Math.Max(computation.ChangedPixelPercent, perceptualDifference), 4);
     }
 
     public async Task<QualityAutomationProfileDto> GetProfileAsync(Guid projectId, CancellationToken ct)
@@ -84,7 +146,7 @@ public sealed class VisualQaService
         if (opened.Record.ProjectId != projectId)
             throw new InvalidOperationException("Golden-master artifact belongs to another project.");
         if (!opened.Blob.ContentType.Equals("image/png", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Phase-4 visual comparison currently requires PNG artifacts.");
+            throw new InvalidOperationException("Visual comparison currently requires PNG golden artifacts.");
 
         await using var stream = opened.Content;
         var image = await PortablePngCodec.DecodeAsync(stream, ct);
@@ -185,15 +247,13 @@ public sealed class VisualQaService
             diffArtifactId = diffRecord.Id;
         }
 
-        var verdict = !computation.Compatible
-            ? VisualComparisonVerdict.Incompatible
-            : computation.ChangedPixelPercent >= profile.ChangedPixelFailurePercent || computation.Ssim < profile.MinimumSsim
-                ? VisualComparisonVerdict.Failed
-                : computation.ChangedPixelPercent >= profile.ChangedPixelWarningPercent
-                    ? VisualComparisonVerdict.Warning
-                    : VisualComparisonVerdict.Passed;
+        var verdict = EvaluateVerdict(
+            computation,
+            profile.ChangedPixelWarningPercent,
+            profile.ChangedPixelFailurePercent,
+            profile.MinimumSsim);
         var summary = computation.Compatible
-            ? $"{verdict}: {computation.ChangedPixelPercent:0.####}% pixels changed; SSIM {computation.Ssim:0.######}."
+            ? $"{verdict}: {computation.ChangedPixelPercent:0.####}% pixels changed; tiled SSIM {computation.Ssim:0.######}."
             : $"Incompatible: {computation.IncompatibilityReason}";
 
         var record = new VisualComparisonRecord(
@@ -239,6 +299,7 @@ public sealed class VisualQaService
                     computation.Ssim,
                     computation.ChangedPixelCount,
                     computation.EvaluatedPixelCount,
+                    comparator = "portable-png-tiled-ssim-v2",
                     verdict = verdict.ToString()
                 })),
             ct);
@@ -246,6 +307,19 @@ public sealed class VisualQaService
             golden.ProjectId, record.Id, golden.CaptureKey, verdict, currentArtifactRecordId, diffArtifactId, ct);
         return Map(record);
     }
+
+    private static VisualComparisonVerdict EvaluateVerdict(
+        VisualComparisonComputation computation,
+        decimal changedPixelWarningPercent,
+        decimal changedPixelFailurePercent,
+        decimal minimumSsim)
+        => !computation.Compatible
+            ? VisualComparisonVerdict.Incompatible
+            : computation.ChangedPixelPercent >= changedPixelFailurePercent || computation.Ssim < minimumSsim
+                ? VisualComparisonVerdict.Failed
+                : computation.ChangedPixelPercent >= changedPixelWarningPercent
+                    ? VisualComparisonVerdict.Warning
+                    : VisualComparisonVerdict.Passed;
 
     private async Task<QualityAutomationProfile> GetOrCreateProfileAsync(Guid projectId, CancellationToken ct)
     {

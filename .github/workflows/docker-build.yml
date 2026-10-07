@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "**"
       - ".portfolio-ci-trigger"
 permissions: { contents: read }
 jobs:

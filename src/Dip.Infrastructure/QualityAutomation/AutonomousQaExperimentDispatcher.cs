@@ -1,9 +1,11 @@
-// Purpose: Dispatches formal autonomous-QA experiment contracts to the existing deterministic QA, P2, media, benchmark, and replay runners.
+// Purpose: Dispatches formal autonomous-QA experiment contracts to dedicated deterministic runners without allowing generic adapter success to satisfy unrelated QA kinds.
 using System.Text.Json;
 using Dip.Application.Abstractions.Replay;
 using Dip.Application.Features.Benchmarks;
 using Dip.Application.Features.P2Intelligence;
+using Dip.Application.Features.ProductionTools;
 using Dip.Application.Features.QualityAutomation;
+using Dip.Application.Features.QualityAutomation.AssetQa;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 using Dip.Infrastructure.Benchmarks;
@@ -14,10 +16,10 @@ using Microsoft.Extensions.Options;
 namespace Dip.Infrastructure.QualityAutomation;
 
 /// <summary>
-/// AI does not execute arbitrary commands through this dispatcher. Each experiment
-/// kind maps to a pre-existing bounded runner. Runner-specific configuration is
-/// loaded from the step, request configuration, or .dip/autonomous-qa.json.
-/// Missing configuration is NotConfigured, never PASS.
+/// AI does not execute arbitrary commands through this dispatcher. Every experiment
+/// kind is routed to a bounded runner or to an adapter capability boundary that
+/// requires kind-specific evidence. Missing kind-specific evidence is Unavailable,
+/// never PASS merely because some unrelated generic QA tool succeeded.
 /// </summary>
 public sealed class AutonomousQaExperimentDispatcher(
     ProcessExecutor executor,
@@ -59,18 +61,25 @@ public sealed class AutonomousQaExperimentDispatcher(
             return step.Kind switch
             {
                 DebugExperimentKind.Compile
-                    or DebugExperimentKind.StaticAnalysis
-                    or DebugExperimentKind.UnitTest
-                    or DebugExperimentKind.RegressionTest
-                    or DebugExperimentKind.AssetValidation
-                    or DebugExperimentKind.ShaderValidation
-                    or DebugExperimentKind.MemorySafety
-                    or DebugExperimentKind.RaceDetection
-                    or DebugExperimentKind.DeadlockDetection
-                    or DebugExperimentKind.Security
-                    or DebugExperimentKind.Reproduce
-                    => await RunAdapterQaAsync(step, context, workspace, resolver, configuration, started, ct),
-
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.Compile, started, ct),
+                DebugExperimentKind.StaticAnalysis
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.StaticAnalysis, started, ct),
+                DebugExperimentKind.UnitTest or DebugExperimentKind.RegressionTest
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.Test, started, ct),
+                DebugExperimentKind.AssetValidation
+                    => await RunAssetValidationAsync(step, context, workspace, resolver, configuration, started, ct),
+                DebugExperimentKind.ShaderValidation
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.Shader, started, ct),
+                DebugExperimentKind.MemorySafety
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.MemorySafety, started, ct),
+                DebugExperimentKind.RaceDetection
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.Race, started, ct),
+                DebugExperimentKind.DeadlockDetection
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.Deadlock, started, ct),
+                DebugExperimentKind.Security
+                    => await RunCapabilityAdapterQaAsync(step, context, workspace, resolver, configuration, QaEvidenceCapability.Security, started, ct),
+                DebugExperimentKind.Reproduce
+                    => await RunGenericAdapterQaAsync(step, context, workspace, resolver, configuration, started, ct),
                 DebugExperimentKind.Fuzz
                     => await RunFuzzAsync(step, context, resolver, configuration, started, ct),
                 DebugExperimentKind.Stress or DebugExperimentKind.Soak
@@ -115,7 +124,74 @@ public sealed class AutonomousQaExperimentDispatcher(
         }
     }
 
-    private async Task<AutonomousQaExperimentResult> RunAdapterQaAsync(
+    private async Task<AutonomousQaExperimentResult> RunCapabilityAdapterQaAsync(
+        AutonomousQaExperimentStep step,
+        AutonomousQaExperimentExecutionContext context,
+        string workspace,
+        ExactWorkspaceResolver resolver,
+        string? configuration,
+        QaEvidenceCapability capability,
+        DateTimeOffset started,
+        CancellationToken ct)
+    {
+        var snapshot = await RunAdapterSnapshotAsync(step, context, workspace, resolver, configuration, ct);
+        if (snapshot.Selections == 0)
+            return Result(step, context, AutonomousQaExperimentStatus.Unavailable, false,
+                "No QA adapter supports the detected repository technology.", [], snapshot.ArtifactRoot, null, started);
+
+        var specializedTools = snapshot.Tools
+            .Where(x => x.WasAvailable && ToolMatches(capability, x.Tool))
+            .ToArray();
+        var specializedFindings = snapshot.Findings
+            .Where(x => FindingMatches(capability, x.Finding))
+            .ToArray();
+
+        // A specialized failure is evidence even if the external tool failed before
+        // it could report itself as successfully available. A clean PASS, however,
+        // requires at least one available kind-specific tool execution.
+        var critical = specializedFindings
+            .Where(x => x.Finding.Severity == Severity.Critical)
+            .ToArray();
+        var failedSpecializedTools = specializedTools.Where(x => !x.Succeeded).ToArray();
+
+        if (specializedTools.Length == 0 && specializedFindings.Length == 0)
+        {
+            return Result(
+                step,
+                context,
+                AutonomousQaExperimentStatus.Unavailable,
+                false,
+                $"{capability} QA produced no kind-specific tool execution or finding. Generic adapter success cannot satisfy this experiment.",
+                [snapshot.ArtifactRoot],
+                snapshot.ArtifactRoot,
+                null,
+                started);
+        }
+
+        var status = failedSpecializedTools.Length > 0 || critical.Length > 0
+            ? AutonomousQaExperimentStatus.Failed
+            : specializedTools.Length > 0
+                ? AutonomousQaExperimentStatus.Passed
+                : AutonomousQaExperimentStatus.Warning;
+
+        var refs = new List<string> { snapshot.ArtifactRoot, $"capability:{capability}" };
+        refs.AddRange(specializedTools.Select(x => $"tool:{x.Tool}"));
+        refs.AddRange(specializedFindings.Take(100).Select(x =>
+            $"finding:{QaFingerprint.Create(x.Language, x.Finding)}"));
+
+        return Result(
+            step,
+            context,
+            status,
+            status == AutonomousQaExperimentStatus.Passed,
+            $"{capability} QA: {specializedTools.Length} dedicated tool execution(s), {failedSpecializedTools.Length} failed, {specializedFindings.Length} relevant finding(s), {critical.Length} Critical.",
+            refs,
+            snapshot.ArtifactRoot,
+            null,
+            started);
+    }
+
+    private Task<AutonomousQaExperimentResult> RunAssetValidationAsync(
         AutonomousQaExperimentStep step,
         AutonomousQaExperimentExecutionContext context,
         string workspace,
@@ -124,16 +200,126 @@ public sealed class AutonomousQaExperimentDispatcher(
         DateTimeOffset started,
         CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        var config = Deserialize<AssetValidationDispatchConfiguration>(configuration);
+        if (config is null
+            || string.IsNullOrWhiteSpace(config.Source)
+            || config.Metadata is null
+            || config.Metadata.Value.ValueKind != JsonValueKind.Object)
+        {
+            return Task.FromResult(NotConfigured(
+                step,
+                context,
+                "AssetValidation requires explicit Source and Metadata captured by a Maya/Unity/Unreal production-tool collector. Repository detection alone cannot prove asset quality.",
+                started));
+        }
+
+        if (!Enum.TryParse<ProductionToolSource>(config.Source, true, out var source)
+            || source == ProductionToolSource.Unknown)
+        {
+            return Task.FromResult(NotConfigured(
+                step, context, "AssetValidation Source must be Maya, Unity, or Unreal.", started));
+        }
+
+        var observation = new ProductionToolObservation(
+            $"autonomous-asset:{Guid.NewGuid():N}",
+            source,
+            ProductionToolEventKind.Unknown,
+            config.ToolVersion,
+            config.RelativePath,
+            config.ArtifactRelativePath,
+            config.ContentHash,
+            config.SizeBytes,
+            DateTimeOffset.UtcNow,
+            config.Metadata);
+        var rules = new AssetQaRuleEngine();
+        var findings = rules.Evaluate(
+            observation,
+            string.IsNullOrWhiteSpace(config.RulesJson) ? "{}" : config.RulesJson!);
+
+        var critical = findings.Where(x => x.Severity == AssetQaSeverity.Critical).ToArray();
+        var status = critical.Length > 0
+            ? AutonomousQaExperimentStatus.Failed
+            : AutonomousQaExperimentStatus.Passed;
+        var artifactRoot = resolver.QaArtifactRoot(context.ProjectId, Guid.NewGuid());
+        var resultPath = Path.Combine(artifactRoot, "asset-validation.json");
+        File.WriteAllText(resultPath, JsonSerializer.Serialize(new
+        {
+            source = source.ToString(),
+            config.RelativePath,
+            findingCount = findings.Count,
+            criticalCount = critical.Length,
+            findings
+        }, Json));
+
+        IReadOnlyList<string> evidence =
+        [
+            resultPath,
+            $"asset-source:{source}",
+            $"asset-findings:{findings.Count}",
+            $"asset-critical:{critical.Length}"
+        ];
+        return Task.FromResult(Result(
+            step,
+            context,
+            status,
+            status == AutonomousQaExperimentStatus.Passed,
+            $"AssetValidation evaluated collector metadata for {source}; {findings.Count} finding(s), {critical.Length} Critical.",
+            evidence,
+            resultPath,
+            null,
+            started));
+    }
+
+    private async Task<AutonomousQaExperimentResult> RunGenericAdapterQaAsync(
+        AutonomousQaExperimentStep step,
+        AutonomousQaExperimentExecutionContext context,
+        string workspace,
+        ExactWorkspaceResolver resolver,
+        string? configuration,
+        DateTimeOffset started,
+        CancellationToken ct)
+    {
+        var snapshot = await RunAdapterSnapshotAsync(step, context, workspace, resolver, configuration, ct);
+        if (snapshot.Selections == 0)
+            return Result(step, context, AutonomousQaExperimentStatus.Unavailable, false,
+                "No QA adapter supports the detected repository technology.", [], snapshot.ArtifactRoot, null, started);
+
+        var available = snapshot.Tools.Where(x => x.WasAvailable).ToArray();
+        if (available.Length == 0)
+        {
+            return Result(step, context, AutonomousQaExperimentStatus.Unavailable, false,
+                "QA adapters were selected, but no underlying verification tool was available.",
+                [snapshot.ArtifactRoot], snapshot.ArtifactRoot, null, started);
+        }
+
+        var critical = snapshot.Findings
+            .Where(x => x.Finding.Severity == Severity.Critical)
+            .ToArray();
+        var failedTools = available.Where(x => !x.Succeeded).ToArray();
+        var status = failedTools.Length > 0 || critical.Length > 0
+            ? AutonomousQaExperimentStatus.Failed
+            : AutonomousQaExperimentStatus.Passed;
+        var refs = new List<string> { snapshot.ArtifactRoot };
+        refs.AddRange(available.Select(x => $"tool:{x.Tool}"));
+        refs.AddRange(critical.Select(x => $"finding:{QaFingerprint.Create(x.Language, x.Finding)}"));
+        return Result(step, context, status, status == AutonomousQaExperimentStatus.Passed,
+            $"Executed {snapshot.Selections} QA adapter(s), {available.Length} available tool(s), {failedTools.Length} failed tool(s), {critical.Length} Critical finding(s).",
+            refs, snapshot.ArtifactRoot, null, started);
+    }
+
+    private async Task<AdapterQaSnapshot> RunAdapterSnapshotAsync(
+        AutonomousQaExperimentStep step,
+        AutonomousQaExperimentExecutionContext context,
+        string workspace,
+        ExactWorkspaceResolver resolver,
+        string? configuration,
+        CancellationToken ct)
+    {
         var config = Deserialize<GenericQaConfiguration>(configuration);
         var profile = await detector.DetectAsync(workspace, ct);
         var requested = context.Language.IsUnknown ? LanguageId.Auto : context.Language;
         var selections = adapters.Resolve(requested, profile, workspace);
-        if (selections.Count == 0)
-        {
-            return Result(step, context, AutonomousQaExperimentStatus.Unavailable, false,
-                "No QA adapter supports the detected repository technology.", [], null, null, started);
-        }
-
         var runId = Guid.NewGuid();
         var artifactRoot = resolver.QaArtifactRoot(context.ProjectId, runId);
         var tools = new List<QaToolExecution>();
@@ -163,30 +349,55 @@ public sealed class AutonomousQaExperimentDispatcher(
             findings.AddRange(result.Findings.Select(x => (selection.Language, x)));
         }
 
-        var available = tools.Where(x => x.WasAvailable).ToArray();
-        if (available.Length == 0)
-        {
-            return Result(step, context, AutonomousQaExperimentStatus.Unavailable, false,
-                "QA adapters were selected, but no underlying verification tool was available.",
-                [artifactRoot], artifactRoot, null, started);
-        }
-
-        var critical = findings
-            .Where(x => x.Finding.Severity == Severity.Critical)
-            .ToArray();
-        var failedTools = available.Where(x => !x.Succeeded).ToArray();
-        var status = failedTools.Length > 0 || critical.Length > 0
-            ? AutonomousQaExperimentStatus.Failed
-            : AutonomousQaExperimentStatus.Passed;
-        var refs = new List<string> { artifactRoot };
-        refs.AddRange(available.Select(x => $"tool:{x.Tool}"));
-        refs.AddRange(critical.Select(x => $"finding:{QaFingerprint.Create(x.Language, x.Finding)}"));
-        var summary =
-            $"Executed {selections.Count} QA adapter(s), {available.Length} available tool(s), "
-            + $"{failedTools.Length} failed tool(s), {critical.Length} Critical finding(s).";
-        return Result(step, context, status, status == AutonomousQaExperimentStatus.Passed,
-            summary, refs, artifactRoot, null, started);
+        return new(selections.Count, tools, findings, artifactRoot);
     }
+
+    private static bool ToolMatches(QaEvidenceCapability capability, string tool)
+    {
+        var value = tool.ToLowerInvariant();
+        return capability switch
+        {
+            QaEvidenceCapability.Compile => Has(value,
+                "build", "compile", "typecheck", "type-check", "syntax", "tsc", "javac", "kotlinc", "cmake", "cargo-check", "dotnet-build", "glslang", "dxc", "fxc"),
+            QaEvidenceCapability.StaticAnalysis => Has(value,
+                "static", "lint", "analy", "cppcheck", "clang-tidy", "ruff", "mypy", "eslint", "semgrep", "dip-semantic", "vet", "clippy", "shellcheck", "rubocop", "phpstan", "psalm"),
+            QaEvidenceCapability.Test => Has(value,
+                "test", "ctest", "pytest", "rspec", "phpunit", "bats", "busted", "jest", "vitest"),
+            QaEvidenceCapability.Shader => Has(value,
+                "shader", "glslang", "dxc", "fxc", "spirv"),
+            QaEvidenceCapability.MemorySafety => Has(value,
+                "asan", "ubsan", "lsan", "sanitizer", "memory", "valgrind", "miri", "ctest"),
+            QaEvidenceCapability.Race => Has(value,
+                "tsan", "threadsanitizer", "race", "miri"),
+            QaEvidenceCapability.Deadlock => Has(value,
+                "deadlock", "lock-order", "hang", "thread-dump"),
+            QaEvidenceCapability.Security => Has(value,
+                "security", "semgrep", "codeql", "secret", "sast", "dependency-audit", "dip-semantic"),
+            _ => false
+        };
+    }
+
+    private static bool FindingMatches(
+        QaEvidenceCapability capability,
+        (LanguageId Language, QaFindingCandidate Finding) finding)
+    {
+        var value = $"{finding.Finding.Category} {finding.Finding.Tool} {finding.Finding.RuleId} {finding.Finding.Title} {finding.Finding.Message}".ToLowerInvariant();
+        return capability switch
+        {
+            QaEvidenceCapability.Compile => Has(value, "compile", "build", "syntax", "type"),
+            QaEvidenceCapability.StaticAnalysis => Has(value, "static", "lint", "analysis", "semantic", "style", "data-flow"),
+            QaEvidenceCapability.Test => Has(value, "test", "assert", "spec"),
+            QaEvidenceCapability.Shader => Has(value, "shader", "hlsl", "glsl", "spirv"),
+            QaEvidenceCapability.MemorySafety => Has(value, "memory", "asan", "ubsan", "leak", "use-after-free", "overflow", "double free"),
+            QaEvidenceCapability.Race => Has(value, "race", "tsan", "thread"),
+            QaEvidenceCapability.Deadlock => Has(value, "deadlock", "lock inversion", "hang", "mutex"),
+            QaEvidenceCapability.Security => Has(value, "security", "secret", "injection", "unsafe", "vulnerability", "cve", "auth"),
+            _ => false
+        };
+    }
+
+    private static bool Has(string value, params string[] tokens) =>
+        tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
 
     private async Task<AutonomousQaExperimentResult> RunFuzzAsync(
         AutonomousQaExperimentStep step,
@@ -340,7 +551,7 @@ public sealed class AutonomousQaExperimentDispatcher(
             return NotConfigured(step, context, "Benchmark/LoadTest requires a BenchmarkExecutionSpec configuration.", started);
         if (string.Equals(config.Mode, "http", StringComparison.OrdinalIgnoreCase))
             return NotConfigured(step, context,
-                "Autonomous QA does not execute direct HTTP benchmarks because arbitrary targets would create an SSRF/network-boundary risk. Configure a bounded process-mode load runner (for example k6) instead.",
+                "Autonomous QA does not execute direct HTTP benchmarks because arbitrary targets would create an SSRF/network-boundary risk. Configure a bounded process-mode load runner instead.",
                 started);
         var spec = config with
         {
@@ -579,6 +790,34 @@ public sealed class AutonomousQaExperimentDispatcher(
             return root;
         }
     }
+
+    private enum QaEvidenceCapability
+    {
+        Compile,
+        StaticAnalysis,
+        Test,
+        Shader,
+        MemorySafety,
+        Race,
+        Deadlock,
+        Security
+    }
+
+    private sealed record AdapterQaSnapshot(
+        int Selections,
+        IReadOnlyList<QaToolExecution> Tools,
+        IReadOnlyList<(LanguageId Language, QaFindingCandidate Finding)> Findings,
+        string ArtifactRoot);
+
+    private sealed record AssetValidationDispatchConfiguration(
+        string Source,
+        JsonElement? Metadata = null,
+        string? ToolVersion = null,
+        string? RelativePath = null,
+        string? ArtifactRelativePath = null,
+        string? ContentHash = null,
+        long? SizeBytes = null,
+        string? RulesJson = null);
 
     private sealed record GenericQaConfiguration(
         string? RuntimeExecutable = null,

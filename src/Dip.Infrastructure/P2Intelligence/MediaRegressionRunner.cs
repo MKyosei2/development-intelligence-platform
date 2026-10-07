@@ -1,7 +1,9 @@
-// Purpose: Implements Media Regression Runner infrastructure behavior for this repository area.
+// Purpose: Runs unified visual/video/audio regression analysis using the durable Visual QA comparator and media-specific temporal alignment.
+using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.P2Intelligence;
 using Dip.Application.Features.QualityAutomation;
+using Dip.Application.Features.QualityAutomation.VisualQa;
 using Dip.Infrastructure.QualityAutomation;
 
 namespace Dip.Infrastructure.P2Intelligence;
@@ -17,6 +19,7 @@ public sealed class MediaRegressionRunner(
         var current = SafePath(workspace, command.CurrentPath);
         if (!File.Exists(baseline) || !File.Exists(current))
             return Failure(command.Type, "One or both media inputs do not exist.", "");
+
         var ffmpeg = ProcessExecutor.FindExecutable("ffmpeg");
         var ffprobe = ProcessExecutor.FindExecutable("ffprobe");
         if (ffmpeg is null || ffprobe is null)
@@ -33,26 +36,86 @@ public sealed class MediaRegressionRunner(
     }
 
     private async Task<MediaRegressionResult> AnalyzeVisualAsync(
-        MediaRegressionCommand command, string ffmpeg, string ffprobe, string baseline, string current, string root, CancellationToken ct)
+        MediaRegressionCommand command,
+        string ffmpeg,
+        string ffprobe,
+        string baseline,
+        string current,
+        string root,
+        CancellationToken ct)
     {
         var sizeA = await ProbeSizeAsync(ffprobe, baseline, root, ct);
         var sizeB = await ProbeSizeAsync(ffprobe, current, root, ct);
-        if (sizeA is null || sizeB is null) return Failure(command.Type, "Could not read image dimensions.", RelativeArtifact(root));
+        if (sizeA is null || sizeB is null)
+            return Failure(command.Type, "Could not read image dimensions.", RelativeArtifact(root));
         if (sizeA != sizeB)
         {
-            var dimensionMismatchDetail = JsonSerializer.Serialize(new { baseline = sizeA, current = sizeB, reason = "dimension-mismatch" });
-            return Build(command, 100m, 98m, "Image dimensions differ.", RelativeArtifact(root), dimensionMismatchDetail, "0s");
+            var detail = JsonSerializer.Serialize(new
+            {
+                baseline = sizeA,
+                current = sizeB,
+                comparator = "visual-qa-portable-png-v2",
+                reason = "dimension-mismatch"
+            });
+            return Build(command, 100m, 99m, "Image dimensions differ.", RelativeArtifact(root), detail, "0s");
         }
-        var a = Path.Combine(root, "baseline.rgb"); var b = Path.Combine(root, "current.rgb");
-        if (!await DecodeFrameAsync(ffmpeg, baseline, a, null, root, ct) || !await DecodeFrameAsync(ffmpeg, current, b, null, root, ct))
-            return Failure(command.Type, "Could not decode one or both images.", RelativeArtifact(root));
-        var diff = CompareRgb(await File.ReadAllBytesAsync(a, ct), await File.ReadAllBytesAsync(b, ct), sizeA.Value.Width, sizeA.Value.Height, Path.Combine(root, "difference.ppm"));
-        var comparisonDetail = JsonSerializer.Serialize(new { sizeA.Value.Width, sizeA.Value.Height, diff.MeanDifferencePercent, diff.ChangedPixelPercent, diff.MaxChannelDifference });
-        return Build(command, diff.MeanDifferencePercent, 99m, $"{diff.ChangedPixelPercent:0.##}% of pixels changed.", RelativeArtifact(root), comparisonDetail, "0s");
+
+        var normalizedBaseline = Path.Combine(root, "baseline.normalized.png");
+        var normalizedCurrent = Path.Combine(root, "current.normalized.png");
+        if (!await DecodeFramePngAsync(ffmpeg, baseline, normalizedBaseline, null, root, ct)
+            || !await DecodeFramePngAsync(ffmpeg, current, normalizedCurrent, null, root, ct))
+        {
+            return Failure(command.Type, "Could not normalize one or both images to PNG.", RelativeArtifact(root));
+        }
+
+        var computation = await VisualQaService.CompareAutonomousPngAsync(
+            normalizedBaseline,
+            normalizedCurrent,
+            Array.Empty<VisualMaskRegion>(),
+            ct);
+        if (!computation.Compatible)
+            return Build(command, 100m, 99m, computation.IncompatibilityReason ?? "Visual inputs are incompatible.", RelativeArtifact(root),
+                JsonSerializer.Serialize(new { comparator = "visual-qa-portable-png-v2", computation }), "0s");
+
+        string? diffArtifact = null;
+        if (computation.DiffPng is { Length: > 0 })
+        {
+            var diffPath = Path.Combine(root, "difference.png");
+            await File.WriteAllBytesAsync(diffPath, computation.DiffPng, ct);
+            diffArtifact = RelativeArtifact(diffPath);
+        }
+
+        var difference = VisualQaService.AutonomousDifferencePercent(computation);
+        var comparisonDetail = JsonSerializer.Serialize(new
+        {
+            comparator = "visual-qa-portable-png-tiled-ssim-v2",
+            computation.Width,
+            computation.Height,
+            computation.ChangedPixelCount,
+            computation.EvaluatedPixelCount,
+            computation.ChangedPixelPercent,
+            computation.Ssim,
+            differencePercent = difference,
+            diffArtifact
+        });
+        return Build(
+            command,
+            difference,
+            99m,
+            $"{computation.ChangedPixelPercent:0.####}% of pixels changed; tiled SSIM {computation.Ssim:0.######}.",
+            RelativeArtifact(root),
+            comparisonDetail,
+            difference >= command.WarningThresholdPercent ? "0s" : null);
     }
 
     private async Task<MediaRegressionResult> AnalyzeVideoAsync(
-        MediaRegressionCommand command, string ffmpeg, string ffprobe, string baseline, string current, string root, CancellationToken ct)
+        MediaRegressionCommand command,
+        string ffmpeg,
+        string ffprobe,
+        string baseline,
+        string current,
+        string root,
+        CancellationToken ct)
     {
         var durationA = await ProbeDurationAsync(ffprobe, baseline, root, ct);
         var durationB = await ProbeDurationAsync(ffprobe, current, root, ct);
@@ -62,163 +125,453 @@ public sealed class MediaRegressionRunner(
             return Failure(command.Type, "Could not probe video metadata.", RelativeArtifact(root));
         if (sizeA != sizeB)
         {
-            var dimensionMismatchDetail = JsonSerializer.Serialize(new { baseline = sizeA, current = sizeB, durationA, durationB, reason = "dimension-mismatch" });
-            return Build(command, 100m, 95m, "Video dimensions differ.", RelativeArtifact(root), dimensionMismatchDetail, "0s");
+            var detail = JsonSerializer.Serialize(new
+            {
+                baseline = sizeA,
+                current = sizeB,
+                durationA,
+                durationB,
+                reason = "dimension-mismatch"
+            });
+            return Build(command, 100m, 96m, "Video dimensions differ.", RelativeArtifact(root), detail, "0s");
         }
+
         var sampleFps = Math.Clamp(command.VideoSampleFps, 1, 10);
         var interval = 1d / sampleFps;
         var duration = Math.Min(durationA.Value, durationB.Value);
-        var frameCount = Math.Clamp((int)Math.Ceiling(duration * sampleFps), 1, 3600);
-        decimal total = 0m, max = 0m; int compared = 0; string? first = null;
-        var frameDir = Path.Combine(root, "frames"); Directory.CreateDirectory(frameDir);
+        var frameCount = Math.Clamp((int)Math.Ceiling(duration * sampleFps), 1, 1200);
+        var temporalRadius = Math.Min(0.250d, interval / 2d);
+        var offsets = temporalRadius <= .001d
+            ? new[] { 0d }
+            : new[] { -temporalRadius, 0d, temporalRadius };
+        var frameDir = Path.Combine(root, "frames");
+        Directory.CreateDirectory(frameDir);
+        var samples = new List<VideoSampleMetric>(frameCount);
+        string? first = null;
+        byte[]? worstDiff = null;
+        decimal worstDifference = -1m;
+
         for (var i = 0; i < frameCount; i++)
         {
             ct.ThrowIfCancellationRequested();
             var at = Math.Min(duration, i * interval);
-            var a = Path.Combine(frameDir, $"a-{i:D5}.rgb");
-            var b = Path.Combine(frameDir, $"b-{i:D5}.rgb");
-            if (!await DecodeFrameAsync(ffmpeg, baseline, a, at, root, ct) || !await DecodeFrameAsync(ffmpeg, current, b, at, root, ct)) continue;
-            var bytesA = await File.ReadAllBytesAsync(a, ct); var bytesB = await File.ReadAllBytesAsync(b, ct);
-            var d = CompareRgb(bytesA, bytesB, sizeA.Value.Width, sizeA.Value.Height, null);
-            total += d.MeanDifferencePercent; max = Math.Max(max, d.MeanDifferencePercent); compared++;
-            if (first is null && d.MeanDifferencePercent >= command.WarningThresholdPercent) first = $"{at:0.00}s";
-            File.Delete(a); File.Delete(b);
+            var baselinePng = Path.Combine(frameDir, $"baseline-{i:D5}.png");
+            if (!await DecodeFramePngAsync(ffmpeg, baseline, baselinePng, at, root, ct))
+                continue;
+
+            VisualComparisonComputation? best = null;
+            double bestOffset = 0d;
+            decimal bestDifference = 100m;
+            foreach (var offset in offsets)
+            {
+                var candidateAt = Math.Clamp(at + offset, 0d, durationB.Value);
+                var currentPng = Path.Combine(frameDir, $"current-{i:D5}-{OffsetName(offset)}.png");
+                try
+                {
+                    if (!await DecodeFramePngAsync(ffmpeg, current, currentPng, candidateAt, root, ct))
+                        continue;
+                    var computation = await VisualQaService.CompareAutonomousPngAsync(
+                        baselinePng,
+                        currentPng,
+                        Array.Empty<VisualMaskRegion>(),
+                        ct);
+                    if (!computation.Compatible)
+                        continue;
+                    var difference = VisualQaService.AutonomousDifferencePercent(computation);
+                    if (best is null || difference < bestDifference)
+                    {
+                        best = computation;
+                        bestDifference = difference;
+                        bestOffset = offset;
+                    }
+                }
+                finally
+                {
+                    DeleteBestEffort(currentPng);
+                }
+            }
+
+            DeleteBestEffort(baselinePng);
+            if (best is null)
+                continue;
+
+            samples.Add(new(
+                at,
+                bestOffset,
+                bestDifference,
+                best.ChangedPixelPercent,
+                best.Ssim));
+            if (first is null && bestDifference >= command.WarningThresholdPercent)
+                first = $"{at:0.00}s";
+            if (bestDifference > worstDifference && best.DiffPng is { Length: > 0 })
+            {
+                worstDifference = bestDifference;
+                worstDiff = best.DiffPng;
+            }
         }
-        if (compared == 0) return Failure(command.Type, "No video frames could be compared.", RelativeArtifact(root));
-        var average = decimal.Round(total / compared, 3);
+
+        if (samples.Count == 0)
+            return Failure(command.Type, "No video frames could be compared.", RelativeArtifact(root));
+
+        var ordered = samples.Select(x => x.DifferencePercent).OrderBy(x => x).ToArray();
+        var average = decimal.Round(ordered.Average(), 3);
+        var p95 = Percentile(ordered, .95d);
+        var maximum = ordered[^1];
+        var averageShiftMs = decimal.Round((decimal)samples.Average(x => Math.Abs(x.TemporalOffsetSeconds)) * 1000m, 2);
         var durationDelta = Math.Abs(durationA.Value - durationB.Value);
-        if (durationDelta > .25) average = Math.Min(100m, average + (decimal)Math.Min(20d, durationDelta * 2d));
-        var comparisonDetail = JsonSerializer.Serialize(new { samples = compared, averageDifferencePercent = average, maxDifferencePercent = max, durationA, durationB, durationDeltaSeconds = durationDelta, firstDifference = first });
-        return Build(command, average, Math.Min(98m, 75m + compared / 10m), $"Compared {compared} sampled frame(s). Maximum sampled difference {max:0.##}%.", RelativeArtifact(root), comparisonDetail, first);
+        var durationPenalty = (decimal)Math.Min(20d, durationDelta * 2d);
+        var combined = Math.Min(100m, Math.Max(average, p95) + durationPenalty);
+
+        string? worstDiffArtifact = null;
+        if (worstDiff is { Length: > 0 })
+        {
+            var path = Path.Combine(root, "worst-frame-difference.png");
+            await File.WriteAllBytesAsync(path, worstDiff, ct);
+            worstDiffArtifact = RelativeArtifact(path);
+        }
+
+        var comparisonDetail = JsonSerializer.Serialize(new
+        {
+            comparator = "visual-qa-portable-png-tiled-ssim-v2",
+            temporalAlignment = new { radiusSeconds = temporalRadius, averageAbsoluteShiftMs = averageShiftMs },
+            samples = samples.Count,
+            averageDifferencePercent = average,
+            p95DifferencePercent = p95,
+            maxDifferencePercent = maximum,
+            durationA,
+            durationB,
+            durationDeltaSeconds = durationDelta,
+            durationPenaltyPercent = durationPenalty,
+            firstDifference = first,
+            worstDiffArtifact,
+            sampleMetrics = samples.Take(500).ToArray()
+        });
+        return Build(
+            command,
+            combined,
+            Math.Min(99m, 80m + samples.Count / 20m),
+            $"Compared {samples.Count} temporally aligned frame(s); p95 {p95:0.###}%, max {maximum:0.###}%, average shift {averageShiftMs:0.##} ms.",
+            RelativeArtifact(root),
+            comparisonDetail,
+            first);
     }
 
     private async Task<MediaRegressionResult> AnalyzeAudioAsync(
-        MediaRegressionCommand command, string ffmpeg, string baseline, string current, string root, CancellationToken ct)
+        MediaRegressionCommand command,
+        string ffmpeg,
+        string baseline,
+        string current,
+        string root,
+        CancellationToken ct)
     {
-        var a = Path.Combine(root, "baseline.s16le"); var b = Path.Combine(root, "current.s16le");
+        var a = Path.Combine(root, "baseline.s16le");
+        var b = Path.Combine(root, "current.s16le");
         var okA = await DecodeAudioAsync(ffmpeg, baseline, a, root, ct);
         var okB = await DecodeAudioAsync(ffmpeg, current, b, root, ct);
-        if (!okA || !okB) return Failure(command.Type, "Could not decode one or both audio inputs.", RelativeArtifact(root));
-        var aa = await File.ReadAllBytesAsync(a, ct); var bb = await File.ReadAllBytesAsync(b, ct);
-        var metrics = CompareAudio(aa, bb);
-        var detail = JsonSerializer.Serialize(metrics);
-        return Build(command, metrics.DifferencePercent, 96m,
-            $"RMS baseline {metrics.BaselineRms:0.###}, current {metrics.CurrentRms:0.###}; silence delta {metrics.SilenceDeltaPercent:0.##}%.",
-            RelativeArtifact(root), detail, null);
+        if (!okA || !okB)
+            return Failure(command.Type, "Could not decode one or both audio inputs.", RelativeArtifact(root));
+
+        var aa = ToSamples(await File.ReadAllBytesAsync(a, ct));
+        var bb = ToSamples(await File.ReadAllBytesAsync(b, ct));
+        var lag = FindBestLag(aa, bb, 4000, 8, 160000);
+        var metrics = CompareAudioAligned(aa, bb, lag);
+        var detail = JsonSerializer.Serialize(new
+        {
+            sampleRate = 16000,
+            alignmentLagSamples = lag,
+            alignmentLagMs = decimal.Round(lag / 16m, 3),
+            metrics
+        });
+        return Build(
+            command,
+            metrics.DifferencePercent,
+            98m,
+            $"Aligned audio by {lag / 16m:0.###} ms; correlation {metrics.Correlation:0.####}, RMS {metrics.BaselineRms:0.####}->{metrics.CurrentRms:0.####}, silence delta {metrics.SilenceDeltaPercent:0.##}%.",
+            RelativeArtifact(root),
+            detail,
+            null);
     }
 
-    private MediaRegressionResult Build(MediaRegressionCommand command, decimal difference, decimal confidence, string summary, string artifact, string detail, string? first)
+    private MediaRegressionResult Build(
+        MediaRegressionCommand command,
+        decimal difference,
+        decimal confidence,
+        string summary,
+        string artifact,
+        string detail,
+        string? first)
     {
-        var status = difference >= command.FailureThresholdPercent ? "Failed" : difference >= command.WarningThresholdPercent ? "Warning" : "Passed";
+        var status = difference >= command.FailureThresholdPercent
+            ? "Failed"
+            : difference >= command.WarningThresholdPercent
+                ? "Warning"
+                : "Passed";
         return new(status, command.Type, decimal.Round(Math.Clamp(difference, 0m, 100m), 3), confidence, first, summary, artifact, detail);
     }
 
-    private static MediaRegressionResult Failure(MediaRegressionType type, string summary, string artifact) =>
-        new("InfrastructureFailure", type, 0m, 0m, null, summary, artifact, JsonSerializer.Serialize(new { error = summary }));
+    private static MediaRegressionResult Failure(MediaRegressionType type, string summary, string artifact)
+        => new("InfrastructureFailure", type, 0m, 0m, null, summary, artifact, JsonSerializer.Serialize(new { error = summary }));
 
     private async Task<(int Width, int Height)?> ProbeSizeAsync(string ffprobe, string file, string root, CancellationToken ct)
     {
         var id = Guid.NewGuid().ToString("N");
-        var r = await executor.RunAsync(ffprobe, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", file],
-            root, null, TimeSpan.FromSeconds(20), Path.Combine(root, $"probe-{id}.out"), Path.Combine(root, $"probe-{id}.err"), ct);
+        var r = await executor.RunAsync(
+            ffprobe,
+            ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", file],
+            root,
+            null,
+            TimeSpan.FromSeconds(20),
+            Path.Combine(root, $"probe-{id}.out"),
+            Path.Combine(root, $"probe-{id}.err"),
+            ct);
         var parts = r.StandardOutput.Trim().Split('x');
-        return r.ExitCode == 0 && parts.Length == 2 && int.TryParse(parts[0], out var w) && int.TryParse(parts[1], out var h) ? (w, h) : null;
+        return r.ExitCode == 0 && parts.Length == 2 && int.TryParse(parts[0], out var w) && int.TryParse(parts[1], out var h)
+            ? (w, h)
+            : null;
     }
 
     private async Task<double?> ProbeDurationAsync(string ffprobe, string file, string root, CancellationToken ct)
     {
         var id = Guid.NewGuid().ToString("N");
-        var r = await executor.RunAsync(ffprobe, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file],
-            root, null, TimeSpan.FromSeconds(20), Path.Combine(root, $"duration-{id}.out"), Path.Combine(root, $"duration-{id}.err"), ct);
-        return r.ExitCode == 0 && double.TryParse(r.StandardOutput.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+        var r = await executor.RunAsync(
+            ffprobe,
+            ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file],
+            root,
+            null,
+            TimeSpan.FromSeconds(20),
+            Path.Combine(root, $"duration-{id}.out"),
+            Path.Combine(root, $"duration-{id}.err"),
+            ct);
+        return r.ExitCode == 0
+               && double.TryParse(r.StandardOutput.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
+            ? d
+            : null;
     }
 
-    private async Task<bool> DecodeFrameAsync(string ffmpeg, string input, string output, double? at, string root, CancellationToken ct)
+    private async Task<bool> DecodeFramePngAsync(
+        string ffmpeg,
+        string input,
+        string output,
+        double? at,
+        string root,
+        CancellationToken ct)
     {
         var args = new List<string> { "-y", "-v", "error" };
-        if (at is not null) { args.Add("-ss"); args.Add(at.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)); }
-        args.AddRange(["-i", input, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", output]);
+        if (at is not null)
+        {
+            args.Add("-ss");
+            args.Add(at.Value.ToString("0.###", CultureInfo.InvariantCulture));
+        }
+        args.AddRange(["-i", input, "-frames:v", "1", "-pix_fmt", "rgba", output]);
         var id = Guid.NewGuid().ToString("N");
-        var r = await executor.RunAsync(ffmpeg, args, root, null, TimeSpan.FromSeconds(30), Path.Combine(root, $"ffmpeg-{id}.out"), Path.Combine(root, $"ffmpeg-{id}.err"), ct);
+        var r = await executor.RunAsync(
+            ffmpeg,
+            args,
+            root,
+            null,
+            TimeSpan.FromSeconds(30),
+            Path.Combine(root, $"ffmpeg-{id}.out"),
+            Path.Combine(root, $"ffmpeg-{id}.err"),
+            ct);
         return r.ExitCode == 0 && File.Exists(output) && new FileInfo(output).Length > 0;
     }
 
     private async Task<bool> DecodeAudioAsync(string ffmpeg, string input, string output, string root, CancellationToken ct)
     {
         var id = Guid.NewGuid().ToString("N");
-        var r = await executor.RunAsync(ffmpeg, ["-y", "-v", "error", "-i", input, "-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", output],
-            root, null, TimeSpan.FromMinutes(2), Path.Combine(root, $"audio-{id}.out"), Path.Combine(root, $"audio-{id}.err"), ct);
+        var r = await executor.RunAsync(
+            ffmpeg,
+            ["-y", "-v", "error", "-i", input, "-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", output],
+            root,
+            null,
+            TimeSpan.FromMinutes(2),
+            Path.Combine(root, $"audio-{id}.out"),
+            Path.Combine(root, $"audio-{id}.err"),
+            ct);
         return r.ExitCode == 0 && File.Exists(output) && new FileInfo(output).Length > 0;
     }
 
-    private static (decimal MeanDifferencePercent, decimal ChangedPixelPercent, int MaxChannelDifference) CompareRgb(byte[] a, byte[] b, int width, int height, string? diffPath)
-    {
-        var length = Math.Min(a.Length, b.Length); if (length == 0) return (100m, 100m, 255);
-        var pixelCount = length / 3; if (pixelCount == 0) return (100m, 100m, 255);
-        long total = 0, changedPixels = 0; int max = 0; byte[]? diff = diffPath is null ? null : new byte[length];
-        for (var pixel = 0; pixel < pixelCount; pixel++)
-        {
-            var pixelChanged = false;
-            for (var channel = 0; channel < 3; channel++)
-            {
-                var i = pixel * 3 + channel;
-                var d = Math.Abs(a[i] - b[i]); total += d; max = Math.Max(max, d); if (d >= 8) pixelChanged = true;
-                if (diff is not null) diff[i] = (byte)Math.Clamp(d * 4, 0, 255);
-            }
-            if (pixelChanged) changedPixels++;
-        }
-        if (diff is not null)
-        {
-            using var fs = File.Create(diffPath!);
-            var header = System.Text.Encoding.ASCII.GetBytes($"P6\n{width} {height}\n255\n"); fs.Write(header); fs.Write(diff);
-        }
-        var mean = decimal.Round((decimal)total / (pixelCount * 3m * 255m) * 100m, 3);
-        var changedPct = decimal.Round((decimal)changedPixels / pixelCount * 100m, 3);
-        return (mean, changedPct, max);
-    }
+    private sealed record VideoSampleMetric(
+        double TimeSeconds,
+        double TemporalOffsetSeconds,
+        decimal DifferencePercent,
+        decimal ChangedPixelPercent,
+        decimal Ssim);
 
-    private sealed record AudioMetrics(decimal DifferencePercent, decimal BaselineRms, decimal CurrentRms, decimal SilenceDeltaPercent, decimal ClipDeltaPercent);
+    private sealed record AudioMetrics(
+        decimal DifferencePercent,
+        decimal BaselineRms,
+        decimal CurrentRms,
+        decimal SilenceDeltaPercent,
+        decimal ClipDeltaPercent,
+        decimal PeakDeltaPercent,
+        decimal ZeroCrossingDeltaPercent,
+        decimal Correlation);
 
-    private static AudioMetrics CompareAudio(byte[] a, byte[] b)
+    private static AudioMetrics CompareAudioAligned(short[] a, short[] b, int lag)
     {
-        var sa = ToSamples(a); var sb = ToSamples(b); var n = Math.Min(sa.Length, sb.Length);
-        if (n == 0) return new(100m, 0, 0, 100m, 0);
-        double sqA = 0, sqB = 0, diff = 0; int silenceA = 0, silenceB = 0, clipA = 0, clipB = 0;
+        var startA = Math.Max(0, -lag);
+        var startB = Math.Max(0, lag);
+        var n = Math.Min(a.Length - startA, b.Length - startB);
+        if (n <= 0)
+            return new(100m, 0m, 0m, 100m, 0m, 100m, 100m, 0m);
+
+        double sqA = 0d, sqB = 0d, absDiff = 0d, peakA = 0d, peakB = 0d;
+        double dot = 0d, normA = 0d, normB = 0d;
+        var silenceA = 0;
+        var silenceB = 0;
+        var clipA = 0;
+        var clipB = 0;
+        var zcA = 0;
+        var zcB = 0;
+        double previousA = 0d, previousB = 0d;
         for (var i = 0; i < n; i++)
         {
-            var aa = sa[i] / 32768d; var bb = sb[i] / 32768d;
-            sqA += aa * aa; sqB += bb * bb; diff += Math.Abs(aa - bb);
-            if (Math.Abs(aa) < .005) silenceA++; if (Math.Abs(bb) < .005) silenceB++;
-            if (Math.Abs(aa) > .99) clipA++; if (Math.Abs(bb) > .99) clipB++;
+            var aa = a[startA + i] / 32768d;
+            var bb = b[startB + i] / 32768d;
+            sqA += aa * aa;
+            sqB += bb * bb;
+            absDiff += Math.Abs(aa - bb);
+            peakA = Math.Max(peakA, Math.Abs(aa));
+            peakB = Math.Max(peakB, Math.Abs(bb));
+            dot += aa * bb;
+            normA += aa * aa;
+            normB += bb * bb;
+            if (Math.Abs(aa) < .005d) silenceA++;
+            if (Math.Abs(bb) < .005d) silenceB++;
+            if (Math.Abs(aa) > .99d) clipA++;
+            if (Math.Abs(bb) > .99d) clipB++;
+            if (i > 0 && Math.Sign(aa) != Math.Sign(previousA)) zcA++;
+            if (i > 0 && Math.Sign(bb) != Math.Sign(previousB)) zcB++;
+            previousA = aa;
+            previousB = bb;
         }
-        var rmsA = Math.Sqrt(sqA / n); var rmsB = Math.Sqrt(sqB / n);
-        var difference = (decimal)Math.Min(1d, diff / n) * 100m;
-        if (Math.Abs(sa.Length - sb.Length) > (n * .02)) difference = Math.Min(100m, difference + 10m);
+
+        var rmsA = Math.Sqrt(sqA / n);
+        var rmsB = Math.Sqrt(sqB / n);
+        var correlation = normA <= double.Epsilon || normB <= double.Epsilon
+            ? (rmsA <= .000001d && rmsB <= .000001d ? 1d : 0d)
+            : Math.Clamp(dot / Math.Sqrt(normA * normB), -1d, 1d);
+        var maePercent = (decimal)Math.Min(1d, absDiff / n) * 100m;
+        var rmsDelta = (decimal)(Math.Abs(rmsA - rmsB) / Math.Max(.0001d, Math.Max(rmsA, rmsB))) * 100m;
         var silence = Math.Abs((decimal)silenceA / n * 100m - (decimal)silenceB / n * 100m);
         var clip = Math.Abs((decimal)clipA / n * 100m - (decimal)clipB / n * 100m);
-        return new(decimal.Round(difference, 3), decimal.Round((decimal)rmsA, 4), decimal.Round((decimal)rmsB, 4), decimal.Round(silence, 3), decimal.Round(clip, 3));
+        var peak = (decimal)Math.Abs(peakA - peakB) * 100m;
+        var zc = Math.Abs((decimal)zcA / Math.Max(1, n - 1) * 100m - (decimal)zcB / Math.Max(1, n - 1) * 100m);
+        var correlationPenalty = (decimal)Math.Clamp((1d - correlation) * 50d, 0d, 100d);
+        var lengthPenalty = Math.Abs(a.Length - b.Length) > n * .02 ? 10m : 0m;
+        var difference = Math.Min(100m,
+            maePercent * .40m
+            + rmsDelta * .15m
+            + silence * .10m
+            + clip * .10m
+            + peak * .05m
+            + zc * .05m
+            + correlationPenalty * .15m
+            + lengthPenalty);
+
+        return new(
+            decimal.Round(difference, 3),
+            decimal.Round((decimal)rmsA, 5),
+            decimal.Round((decimal)rmsB, 5),
+            decimal.Round(silence, 3),
+            decimal.Round(clip, 3),
+            decimal.Round(peak, 3),
+            decimal.Round(zc, 3),
+            decimal.Round((decimal)correlation, 5));
+    }
+
+    private static int FindBestLag(short[] a, short[] b, int maxLagSamples, int stride, int maxWindowSamples)
+    {
+        if (a.Length == 0 || b.Length == 0)
+            return 0;
+        var maxLag = Math.Min(maxLagSamples, Math.Max(0, Math.Min(a.Length, b.Length) / 4));
+        var bestLag = 0;
+        var best = double.NegativeInfinity;
+        for (var lag = -maxLag; lag <= maxLag; lag += Math.Max(1, stride))
+        {
+            var startA = Math.Max(0, -lag);
+            var startB = Math.Max(0, lag);
+            var n = Math.Min(Math.Min(a.Length - startA, b.Length - startB), maxWindowSamples);
+            if (n < 512)
+                continue;
+            double dot = 0d, normA = 0d, normB = 0d;
+            for (var i = 0; i < n; i += Math.Max(1, stride))
+            {
+                var aa = a[startA + i] / 32768d;
+                var bb = b[startB + i] / 32768d;
+                dot += aa * bb;
+                normA += aa * aa;
+                normB += bb * bb;
+            }
+            if (normA <= double.Epsilon || normB <= double.Epsilon)
+                continue;
+            var score = dot / Math.Sqrt(normA * normB);
+            if (score > best)
+            {
+                best = score;
+                bestLag = lag;
+            }
+        }
+        return bestLag;
     }
 
     private static short[] ToSamples(byte[] bytes)
     {
         var samples = new short[bytes.Length / 2];
-        for (var i = 0; i < samples.Length; i++) samples[i] = BitConverter.ToInt16(bytes, i * 2);
+        for (var i = 0; i < samples.Length; i++)
+            samples[i] = BitConverter.ToInt16(bytes, i * 2);
         return samples;
+    }
+
+    private static decimal Percentile(decimal[] sorted, double percentile)
+    {
+        if (sorted.Length == 0) return 0m;
+        if (sorted.Length == 1) return sorted[0];
+        var position = Math.Clamp(percentile, 0d, 1d) * (sorted.Length - 1);
+        var lo = (int)Math.Floor(position);
+        var hi = (int)Math.Ceiling(position);
+        if (lo == hi) return sorted[lo];
+        var fraction = (decimal)(position - lo);
+        return decimal.Round(sorted[lo] + (sorted[hi] - sorted[lo]) * fraction, 3);
+    }
+
+    private static string OffsetName(double value)
+        => value.ToString("+0.000;-0.000;0.000", CultureInfo.InvariantCulture).Replace('.', '_').Replace('+', 'p').Replace('-', 'm');
+
+    private static void DeleteBestEffort(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private static string SafePath(string root, string relative)
     {
-        if (Path.IsPathRooted(relative)) throw new InvalidOperationException("Media path must be workspace-relative.");
+        if (Path.IsPathRooted(relative))
+            throw new InvalidOperationException("Media path must be workspace-relative.");
         var full = Path.GetFullPath(Path.Combine(root, relative));
-        var prefix = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Media path escapes the configured workspace.");
+        var resolvedRoot = Path.GetFullPath(root);
+        var prefix = resolvedRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!full.Equals(resolvedRoot, comparison) && !full.StartsWith(prefix, comparison))
+            throw new InvalidOperationException("Media path escapes the configured workspace.");
         return full;
     }
 
     private static string ArtifactRoot(Guid projectId, string category)
     {
-        var root = Path.GetFullPath(Path.Combine("artifacts", "p2", projectId.ToString("N"), "media", category, $"{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}"));
-        Directory.CreateDirectory(root); return root;
+        var root = Path.GetFullPath(Path.Combine(
+            "artifacts",
+            "p2",
+            projectId.ToString("N"),
+            "media",
+            category,
+            $"{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}"));
+        Directory.CreateDirectory(root);
+        return root;
     }
-    private static string RelativeArtifact(string full) => Path.GetRelativePath(Path.GetFullPath("."), full).Replace('\\', '/');
+
+    private static string RelativeArtifact(string full)
+        => Path.GetRelativePath(Path.GetFullPath("."), full).Replace('\\', '/');
 }

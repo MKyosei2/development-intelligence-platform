@@ -1,7 +1,6 @@
-// Purpose: Owns process lifecycle while delegating validation, sandbox, environment, output, and resource-limit policy.
+// Purpose: Owns process lifecycle while delegating validation, ephemeral worker isolation, environment, output, and resource-limit policy.
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
 using Dip.Application.Abstractions.Observability;
 using Microsoft.Extensions.Options;
@@ -17,7 +16,11 @@ public sealed record ProcessSandboxReport(
     bool NetworkIsolationVerified,
     long PeakWorkingSetMb,
     bool OutputTruncated,
-    string Detail);
+    string Detail,
+    string Backend = "host-process",
+    bool Ephemeral = false,
+    bool AttestationVerified = false,
+    string? AttestationId = null);
 
 public sealed record ProcessExecutionResult(
     string Executable,
@@ -35,35 +38,23 @@ public sealed record ProcessExecutionResult(
 
 public sealed class ProcessExecutor
 {
-    private static readonly HashSet<string> ExternalQaTools = new(
-        new[]
-        {
-            "dotnet","python","python3","py","pytest","ruff","mypy","cmake","ctest","ninja","msbuild",
-            "clang","clang++","clang-tidy","cppcheck","gcc","g++","node","npm","npx","pnpm","yarn","tsc",
-            "go","cargo","rustc","javac","java","kotlinc","ruby","php","bash","pwsh","powershell","luac",
-            "lua","swiftc","sqlfluff","glslangvalidator","dxc","fxc","semgrep","eslint","shellcheck","rubocop",
-            "rspec","phpstan","psalm","phpunit","bats","busted","swift","godot","godot4","gradle","mvn",
-            "mvnw","gradlew","cargo-fuzz"
-        },
-        StringComparer.OrdinalIgnoreCase);
-
-    private static readonly HashSet<string> UnsafeEnvironmentNames = new(
-        new[]
-        {
-            "LD_PRELOAD","LD_LIBRARY_PATH","PYTHONPATH","PYTHONHOME","NODE_OPTIONS","DOTNET_STARTUP_HOOKS",
-            "DOTNET_ADDITIONAL_DEPS","MSBuildSDKsPath","BASH_ENV","ENV","PROMPT_COMMAND","RUBYOPT","PERL5OPT",
-            "JAVA_TOOL_OPTIONS","_JAVA_OPTIONS","COR_ENABLE_PROFILING","CORECLR_ENABLE_PROFILING",
-            "COMPLUS_ProfAPI_Profiler","COMPLUS_Profiler","CORECLR_PROFILER","GIT_CONFIG_GLOBAL","GIT_CONFIG_SYSTEM"
-        },
-        StringComparer.OrdinalIgnoreCase);
-
     private readonly QaExecutionOptions _options;
     private readonly IDipOperationalMetrics? _metrics;
+    private readonly IQaWorkerSandboxRunner _sandboxRunner;
 
     public ProcessExecutor(IOptions<QaExecutionOptions>? options = null, IDipOperationalMetrics? metrics = null)
+        : this(options, metrics, new QaWorkerSandboxRunner())
+    {
+    }
+
+    public ProcessExecutor(
+        IOptions<QaExecutionOptions>? options,
+        IDipOperationalMetrics? metrics,
+        IQaWorkerSandboxRunner sandboxRunner)
     {
         _options = options?.Value ?? new QaExecutionOptions();
         _metrics = metrics;
+        _sandboxRunner = sandboxRunner ?? throw new ArgumentNullException(nameof(sandboxRunner));
     }
 
     public Task<ProcessExecutionResult> RunAsync(
@@ -111,8 +102,45 @@ public sealed class ProcessExecutor
         if (!Directory.Exists(workspace))
             throw new DirectoryNotFoundException(workspace);
 
-        var networkIsolated = ProcessSandboxInspector.NetworkIsolationVerified();
-        var filesystemIsolated = ProcessSandboxInspector.FilesystemIsolationVerified();
+        // A configured ephemeral worker is the preferred QA boundary. It receives the
+        // untrusted command instead of running that command inside the API/worker host.
+        // The runner protocol is responsible for its own executable/toolchain policy and
+        // returns an isolation report/attestation; path arguments are still constrained
+        // to the trusted source workspace before handoff.
+        if (sandbox && _sandboxRunner.IsConfigured)
+        {
+            try
+            {
+                ProcessCommandValidator.ValidatePathArguments(args, workspace);
+                var result = await _sandboxRunner.RunAsync(
+                    new QaWorkerSandboxRequest(
+                        executable,
+                        args,
+                        workspace,
+                        environment,
+                        timeout,
+                        stdoutPath,
+                        stderrPath,
+                        _options.SandboxMemoryLimitMb,
+                        _options.SandboxCpuPercent),
+                    cancellationToken);
+                if (result.Sandbox is not { Enabled: true, Ephemeral: true, WorkspaceBoundaryEnforced: true })
+                    throw new InvalidOperationException("Ephemeral QA worker returned without a verified sandbox boundary.");
+                if (_options.RequireExternalNetworkIsolation && result.Sandbox.NetworkIsolationVerified is false)
+                    throw new InvalidOperationException("QA requires verified network isolation but the ephemeral worker did not attest it.");
+                if (_options.RequireExternalFilesystemIsolation && result.Sandbox.WorkspaceBoundaryEnforced is false)
+                    throw new InvalidOperationException("QA requires verified filesystem isolation but the ephemeral worker did not attest it.");
+                return result;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _metrics?.GovernanceSandboxDenied(ProcessSandboxInspector.ClassifySandboxDenial(ex.Message));
+                throw;
+            }
+        }
+
+        var networkIsolated = ProcessSandboxInspector.NetworkIsolationVerified(workspace);
+        var filesystemIsolated = ProcessSandboxInspector.FilesystemIsolationVerified(workspace);
         try
         {
             if (sandbox)
@@ -120,15 +148,21 @@ public sealed class ProcessExecutor
                 ProcessCommandValidator.ValidateExecutable(executable, workspace);
                 ProcessCommandValidator.ValidatePathArguments(args, workspace);
             }
+            if (sandbox && ProcessSandboxInspector.SignedAttestationRequired()
+                && (!networkIsolated || !filesystemIsolated))
+            {
+                throw new InvalidOperationException(
+                    "QA requires a valid signed sandbox attestation bound to this workspace, but verification did not establish both network and filesystem isolation.");
+            }
             if (sandbox && _options.RequireExternalNetworkIsolation && !networkIsolated)
             {
                 throw new InvalidOperationException(
-                    "QA requires verified network isolation. DIP_QA_NETWORK_ISOLATED=1 and a runtime with no non-loopback Linux routes (or an equivalent externally attested Windows sandbox) are required.");
+                    "QA requires verified network isolation. Use the ephemeral QA worker, a valid signed sandbox attestation, or a locally verifiable isolated namespace.");
             }
             if (sandbox && _options.RequireExternalFilesystemIsolation && !filesystemIsolated)
             {
                 throw new InvalidOperationException(
-                    "QA requires verified filesystem isolation. DIP_QA_FILESYSTEM_ISOLATED=1 must be supplied only by an external runner that exposes the QA workspace without worker/application secrets.");
+                    "QA requires verified filesystem isolation. Use the ephemeral QA worker or provide a valid signed external sandbox attestation bound to this workspace.");
             }
         }
         catch (InvalidOperationException ex) when (sandbox)
@@ -203,7 +237,8 @@ public sealed class ProcessExecutor
                 executable, args, null, false, sw.ElapsedMilliseconds, "", ex.ToString(), stdoutPath, stderrPath,
                 new ProcessSandboxReport(
                     sandbox, sandbox, sandbox && _options.SanitizeEnvironment,
-                    cpuApplied, memoryApplied, networkIsolated, peakMb, false, "Process start failed."),
+                    cpuApplied, memoryApplied, networkIsolated, peakMb, false, "Process start failed.",
+                    "host-process", false, false, null),
                 0,
                 processTreeJson);
         }
@@ -315,7 +350,7 @@ public sealed class ProcessExecutor
             ? $"Memory budget exceeded ({peakMb} MiB > {_options.SandboxMemoryLimitMb} MiB)."
             : timedOut
                 ? "Execution timed out; a pre-kill process-tree snapshot was captured and the complete process tree was terminated."
-                : "Sandbox policy applied.";
+                : "Host-process sandbox policy applied.";
         var report = new ProcessSandboxReport(
             sandbox,
             sandbox,
@@ -325,7 +360,11 @@ public sealed class ProcessExecutor
             networkIsolated,
             peakMb,
             truncated,
-            detail);
+            detail,
+            "host-process",
+            false,
+            false,
+            null);
         return new(
             executable, args, exit, timedOut, sw.ElapsedMilliseconds,
             outResult.Text, errResult.Text, stdoutPath, stderrPath, report, cpuTimeMs, processTreeJson);

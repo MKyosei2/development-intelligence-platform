@@ -14,19 +14,22 @@ public sealed class EvidenceIngestionService
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
     private readonly PolicyResolver _policies;
+    private readonly IArtifactRepository? _artifacts;
 
     public EvidenceIngestionService(
         IProjectRepository projects,
         IEvidenceV2Repository evidence,
         IUnitOfWork uow,
         ISystemClock clock,
-        PolicyResolver policies)
+        PolicyResolver policies,
+        IArtifactRepository? artifacts = null)
     {
         _projects = projects;
         _evidence = evidence;
         _uow = uow;
         _clock = clock;
         _policies = policies;
+        _artifacts = artifacts;
     }
 
     public async Task<IngestEvidenceResult> IngestAsync(
@@ -64,6 +67,11 @@ public sealed class EvidenceIngestionService
             ? null
             : command.Payload?.GetRawText();
 
+        var retainedContentHash = effective.Evidence.CalculateContentHash
+            ? command.ContentHash
+            : null;
+        var integrityStatus = await DetermineIntegrityStatusAsync(command, retainedContentHash, ct);
+
         var item = EvidenceRecord.CreateV2(
             Guid.NewGuid(),
             command.ProjectId,
@@ -86,12 +94,10 @@ public sealed class EvidenceIngestionService
             command.ActorId,
             command.MachineId,
             command.ArtifactId,
-            effective.Evidence.CalculateContentHash
-                ? command.ContentHash
-                : null,
+            retainedContentHash,
             command.ParentEvidenceId,
             command.PrivacyClass,
-            EvidenceIntegrityStatus.Unverified);
+            integrityStatus);
 
         await _evidence.AddAsync(item, ct);
 
@@ -114,6 +120,56 @@ public sealed class EvidenceIngestionService
                 return Map(raced, created: false);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Establishes a fail-closed ingestion-time integrity boundary. A caller cannot
+    /// self-declare integrity by supplying a hash or identifier. Evidence is promoted
+    /// only when DIP can resolve an immutable project artifact and, when a content hash
+    /// was supplied, match it to that artifact blob; or when it derives from an already
+    /// integrity-verified parent observation. Everything else remains Unverified.
+    /// </summary>
+    private async Task<EvidenceIntegrityStatus> DetermineIntegrityStatusAsync(
+        IngestEvidenceCommand command,
+        string? retainedContentHash,
+        CancellationToken ct)
+    {
+        if (command.SourceType == EvidenceSourceType.HumanReport)
+            return EvidenceIntegrityStatus.Unverified;
+
+        if (command.ParentEvidenceId is Guid parentId)
+        {
+            var parent = await _evidence.GetAsync(command.ProjectId, parentId, ct);
+            if (parent is not null
+                && parent.ProjectId == command.ProjectId
+                && parent.IntegrityStatus == EvidenceIntegrityStatus.Verified)
+            {
+                return EvidenceIntegrityStatus.Verified;
+            }
+        }
+
+        if (_artifacts is null
+            || string.IsNullOrWhiteSpace(command.ArtifactId)
+            || !Guid.TryParse(command.ArtifactId, out var artifactId))
+        {
+            return EvidenceIntegrityStatus.Unverified;
+        }
+
+        var record = await _artifacts.GetRecordAsync(artifactId, ct);
+        if (record is null || record.ProjectId != command.ProjectId)
+            return EvidenceIntegrityStatus.Unverified;
+
+        var blob = await _artifacts.GetBlobAsync(record.ArtifactBlobId, ct);
+        if (blob is null)
+            return EvidenceIntegrityStatus.Unverified;
+
+        if (!string.IsNullOrWhiteSpace(retainedContentHash)
+            && !string.Equals(retainedContentHash.Trim(), blob.Sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return EvidenceIntegrityStatus.Invalid;
+        }
+
+        return EvidenceIntegrityStatus.Verified;
     }
 
     private static IngestEvidenceResult Map(

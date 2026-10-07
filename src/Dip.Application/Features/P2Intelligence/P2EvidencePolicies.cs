@@ -7,6 +7,8 @@ namespace Dip.Application.Features.P2Intelligence;
 /// <summary>
 /// An old observation is never silently treated as a current measurement.
 /// Simulation/prediction evidence decays faster than measured evidence.
+/// Evidence that has not crossed the V2 integrity boundary cannot retain High/
+/// Verified confidence merely because a producer requested that confidence.
 /// </summary>
 public static class EvidenceFreshnessPolicy
 {
@@ -47,14 +49,25 @@ public static class EvidenceFreshnessPolicy
 
     public static EvidenceConfidence EffectiveConfidence(EvidenceRecord item, DateTimeOffset now)
     {
-        var freshness = Freshness(item, now);
-        var value = (int)item.Confidence;
-        value -= freshness switch
+        // LegacyUnsigned is kept at its historical behavior for backward-compatible
+        // reads of pre-V2 records. New V2 records are created as Unverified unless
+        // EvidenceIngestionService establishes durable provenance.
+        var value = item.IntegrityStatus switch
+        {
+            EvidenceIntegrityStatus.Invalid => (int)EvidenceConfidence.Unverified,
+            EvidenceIntegrityStatus.Unverified => Math.Min(
+                (int)item.Confidence,
+                (int)EvidenceConfidence.Medium),
+            _ => (int)item.Confidence
+        };
+
+        value -= Freshness(item, now) switch
         {
             "Aging" => 1,
             "Stale" => 2,
             _ => 0
         };
+
         return (EvidenceConfidence)Math.Clamp(
             value,
             (int)EvidenceConfidence.Unverified,
@@ -62,7 +75,8 @@ public static class EvidenceFreshnessPolicy
     }
 
     public static bool IsFreshEnoughForVerification(EvidenceRecord item, DateTimeOffset now) =>
-        Freshness(item, now) != "Stale"
+        item.IntegrityStatus != EvidenceIntegrityStatus.Invalid
+        && Freshness(item, now) != "Stale"
         && EffectiveConfidence(item, now) >= EvidenceConfidence.High;
 }
 
@@ -229,6 +243,9 @@ public static class EvidenceConflictPolicy
 
     private static decimal AuthorityScore(EvidenceRecord item, DateTimeOffset now)
     {
+        if (item.IntegrityStatus == EvidenceIntegrityStatus.Invalid)
+            return decimal.MinValue;
+
         var score = (int)EvidenceFreshnessPolicy.EffectiveConfidence(item, now) * 100m;
         score += item.SourceType switch
         {
@@ -248,6 +265,11 @@ public static class EvidenceConflictPolicy
 
         if (item.PayloadJson?.Contains("\"realDevice\":true", StringComparison.OrdinalIgnoreCase) == true)
             score += 75m;
+
+        // V2 Unverified observations remain visible, but cannot outrank an otherwise
+        // comparable integrity-verified observation merely because of source type.
+        if (item.IntegrityStatus == EvidenceIntegrityStatus.Unverified)
+            score -= 150m;
 
         var ageHours = Math.Max(0, (now - item.ObservedAtUtc).TotalHours);
         score += Math.Max(0m, 25m - (decimal)Math.Min(25d, ageHours / 24d));

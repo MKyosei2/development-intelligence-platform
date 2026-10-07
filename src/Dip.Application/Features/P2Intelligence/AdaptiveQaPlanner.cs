@@ -1,4 +1,4 @@
-// Purpose: Builds risk-weighted QA plans and an executable autonomous-QA experiment contract for the same change set.
+// Purpose: Builds risk-weighted QA plans from changed files, technology/dependency signals, Development Graph impact, and prior evidence.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -18,6 +18,7 @@ public sealed class AdaptiveQaPlanner
     private readonly IUnitOfWork _uow;
     private readonly ISystemClock _clock;
     private readonly IChangeRiskRepository? _changeRisk;
+    private readonly IDevelopmentGraphRepository? _graph;
 
     public AdaptiveQaPlanner(
         IEvidenceRepository evidence,
@@ -25,7 +26,8 @@ public sealed class AdaptiveQaPlanner
         IAdaptiveQaPlanRepository plans,
         IUnitOfWork uow,
         ISystemClock clock,
-        IChangeRiskRepository? changeRisk = null)
+        IChangeRiskRepository? changeRisk = null,
+        IDevelopmentGraphRepository? graph = null)
     {
         _evidence = evidence;
         _intelligence = intelligence;
@@ -33,6 +35,7 @@ public sealed class AdaptiveQaPlanner
         _uow = uow;
         _clock = clock;
         _changeRisk = changeRisk;
+        _graph = graph;
     }
 
     public async Task<AdaptiveQaPlanDto> PlanAsync(AdaptiveQaPlanCommand command, CancellationToken ct)
@@ -59,6 +62,10 @@ public sealed class AdaptiveQaPlanner
         var latestChangeRisk = _changeRisk is null
             ? null
             : await _changeRisk.GetLatestAsync(command.ProjectId, null, ct);
+        var graphNodes = _graph is null
+            ? Array.Empty<DevelopmentGraphNode>()
+            : (await _graph.ListNodesAsync(command.ProjectId, null, ct)).ToArray();
+        var signals = AnalyzeChangeSignals(changed, graphNodes);
 
         var steps = new Dictionary<string, AdaptiveQaStep>(StringComparer.OrdinalIgnoreCase);
         void Add(
@@ -111,10 +118,12 @@ public sealed class AdaptiveQaPlanner
             Add("build", "Build / syntax validation", "build", "Source code changed.", 60m, 3m, true);
             Add(
                 "test-impact",
-                "Test impact selection",
+                "Dependency / graph test impact selection",
                 "test-impact",
-                "Select tests from changed projects, paths and symbol/name overlap before executing the targeted suite.",
-                68m,
+                signals.GraphImpactedNodeCount > 0
+                    ? $"Changed files intersect {signals.GraphImpactedNodeCount} Development Graph node(s); select tests from dependency, technology, and graph impact before execution."
+                    : "Select tests from changed projects, dependency manifests, technology profile, paths and symbol/name overlap before executing the targeted suite.",
+                signals.GraphImpactedNodeCount > 0 ? 74m : 68m,
                 2m,
                 true);
             Add(
@@ -126,38 +135,74 @@ public sealed class AdaptiveQaPlanner
                 5m,
                 true);
 
-            if (changed.Any(x => x.EndsWith(".py", StringComparison.OrdinalIgnoreCase)))
-                Add("python-qa", "Python hardcoded QA", "python", "Python files changed.", 65m, 4m, true);
-            if (changed.Any(x =>
-                    x.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                    || x.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)))
-                Add("csharp-qa", "C# hardcoded QA", "csharp", "C# files or project files changed.", 65m, 5m, true);
-            if (changed.Any(x =>
-                    new[] { ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hlsl", ".glsl" }
-                        .Any(ext => x.EndsWith(ext, StringComparison.OrdinalIgnoreCase))))
-                Add("cpp-qa", "C++ hardcoded QA + memory safety", "cpp", "Native or shader-adjacent code changed.", 75m, 8m, true);
+            if (signals.Python)
+                Add("python-qa", "Python hardcoded QA", "python", "Python technology was detected in the changed set.", 65m, 4m, true);
+            if (signals.CSharp)
+                Add("csharp-qa", "C# hardcoded QA", "csharp", "C#/.NET technology was detected in source or dependency metadata.", 65m, 5m, true);
+            if (signals.Native)
+                Add("cpp-qa", "C/C++ hardcoded QA + memory safety", "cpp", "Native code, shader-adjacent source, or native build metadata changed.", 75m, 8m, true);
 
-            if (changed.Any(ContainsRendering))
+            if (signals.DependencyManifestChanged)
             {
-                Add("runtime", "Runtime reproduction", "runtime", "Rendering/gameplay-facing code changed.", 72m, 8m, true);
-                Add("visual-regression", "Visual regression", "visual", "Rendering, shader, UI, scene or art paths changed.", 78m, 6m, true);
+                Add(
+                    "dependency-contract",
+                    "Dependency and supply-chain validation",
+                    "security",
+                    "A dependency/build manifest changed; compile, dependency, and security contracts require re-validation.",
+                    76m,
+                    6m,
+                    true);
+            }
+
+            if (signals.Shader)
+            {
+                Add(
+                    "shader-validation",
+                    "Shader compiler validation",
+                    "shader",
+                    "Shader source, shader build metadata, or a graph-linked rendering component changed.",
+                    84m,
+                    7m,
+                    true);
+            }
+
+            if (signals.AssetOrContent)
+            {
+                Add(
+                    "asset-validation",
+                    "Game/content asset validation",
+                    "asset",
+                    "Asset/content files or graph-linked asset nodes changed.",
+                    76m,
+                    6m,
+                    true);
+            }
+
+            if (signals.Rendering)
+            {
+                Add("runtime", "Runtime reproduction", "runtime", "Rendering/gameplay impact was detected from technology, file, dependency, or graph signals.", 72m, 8m, true);
+                Add("visual-regression", "Visual regression", "visual", "Rendering, shader, UI, scene, art, or graph-linked rendering scope changed.", 78m, 6m, true);
                 Add("gpu-performance", "GPU/performance target profiles", "performance", "Rendering changes can affect frame time and GPU headroom.", 80m, 10m, true);
             }
-            if (changed.Any(ContainsMobile))
+            if (signals.Mobile)
             {
-                Add("mobile-performance", "Mobile/low capability simulation", "performance", "Mobile/Android/iOS path changed.", 85m, 12m, true);
+                Add("mobile-performance", "Mobile/low capability simulation", "performance", "Mobile platform technology or platform build metadata changed.", 85m, 12m, true);
                 Add("thermal", "Thermal degradation run", "thermal", "Mobile targets are sensitive to sustained thermal throttling.", 78m, 30m);
                 Add("memory-pressure", "Memory pressure run", "memory", "Mobile targets have tighter memory budgets.", 82m, 10m, true);
             }
-            if (changed.Any(ContainsAudio))
-                Add("audio-regression", "Audio regression", "audio", "Audio assets or audio code changed.", 72m, 6m, true);
-            if (changed.Any(ContainsUiOrArt))
-                Add("visual-ui", "UI/art visual regression", "visual", "UI or art assets changed.", 70m, 5m, true);
-            if (changed.Any(ContainsNetwork))
+            if (signals.Audio)
+                Add("audio-regression", "Audio regression", "audio", "Audio technology/content or a graph-linked audio component changed.", 72m, 6m, true);
+            if (signals.UiOrArt)
+                Add("visual-ui", "UI/art visual regression", "visual", "UI/art/content or related graph nodes changed.", 70m, 5m, true);
+            if (signals.Network)
             {
-                Add("network-fuzz", "Protocol/API fuzzing", "fuzz", "Network/serialization code changed.", 65m, 12m);
+                Add("network-fuzz", "Protocol/API fuzzing", "fuzz", "Network/serialization/API impact was detected from source, dependency, or graph signals.", 65m, 12m);
                 Add("runtime-repeat", "Runtime reliability repeats", "reliability", "Network behavior can be timing-dependent.", 62m, 10m);
-                Add("service-load", "Service/load regression", "load", "Network or service-facing code changed.", 72m, 10m);
+                Add("service-load", "Service/load regression", "load", "Network or service-facing scope changed.", 72m, 10m);
+            }
+            if (signals.GameEngine)
+            {
+                Add("game-engine-contract", "Game-engine integration QA", "game-engine", "Unity/Unreal/Godot technology or graph-linked engine assets were detected.", 78m, 8m, true);
             }
             if (latestChangeRisk?.RiskLevel is ChangeRiskLevel.High or ChangeRiskLevel.Critical)
             {
@@ -234,7 +279,8 @@ public sealed class AdaptiveQaPlanner
             {
                 estimatedMinutes = total,
                 steps = selected.Select(x => new { x.Id, x.EstimatedMinutes, x.Priority }),
-                experiments = executableSteps.Select(x => new { x.Id, kind = x.Kind.ToString(), x.Required })
+                experiments = executableSteps.Select(x => new { x.Id, kind = x.Kind.ToString(), x.Required }),
+                changeSignals = signals
             }),
             null,
             _clock.UtcNow), ct);
@@ -290,6 +336,10 @@ public sealed class AdaptiveQaPlanner
         "python-qa" => [DebugExperimentKind.StaticAnalysis],
         "csharp-qa" => [DebugExperimentKind.StaticAnalysis],
         "cpp-qa" => [DebugExperimentKind.StaticAnalysis, DebugExperimentKind.MemorySafety],
+        "dependency-contract" => [DebugExperimentKind.Security, DebugExperimentKind.Compile],
+        "shader-validation" => [DebugExperimentKind.ShaderValidation],
+        "asset-validation" => [DebugExperimentKind.AssetValidation],
+        "game-engine-contract" => [DebugExperimentKind.AssetValidation, DebugExperimentKind.RuntimeReplay],
         "runtime" => [DebugExperimentKind.RuntimeReplay],
         "visual-regression" => [DebugExperimentKind.VisualRegression],
         "gpu-performance" => [DebugExperimentKind.Benchmark],
@@ -315,6 +365,95 @@ public sealed class AdaptiveQaPlanner
         return Math.Clamp(Math.Max(floor, estimated), 30, 1800);
     }
 
+    private static ChangeSignals AnalyzeChangeSignals(
+        IReadOnlyList<string> changed,
+        IReadOnlyList<DevelopmentGraphNode> graphNodes)
+    {
+        var relatedGraph = graphNodes
+            .Where(node => GraphNodeTouchesChangedFile(node, changed))
+            .ToArray();
+        var graphText = string.Join(' ', relatedGraph.Select(node =>
+            $"{node.Type} {node.Key} {node.Name} {node.Status} {node.ExternalReference} {node.MetadataJson}"));
+
+        bool Ext(params string[] extensions) => changed.Any(path =>
+            extensions.Any(ext => path.EndsWith(ext, StringComparison.OrdinalIgnoreCase)));
+        bool ChangedContains(params string[] tokens) => changed.Any(path => ContainsAny(path, tokens));
+        bool GraphContains(params string[] tokens) => ContainsAny(graphText, tokens);
+
+        var dependency = changed.Any(IsDependencyManifest);
+        var shader = Ext(".hlsl", ".glsl", ".shader", ".compute", ".vert", ".frag", ".geom")
+            || ChangedContains("shader", "renderpipeline", "material")
+            || GraphContains("shader", "render", "material", "lighting");
+        var asset = Ext(".prefab", ".unity", ".mat", ".fbx", ".obj", ".blend", ".ma", ".mb", ".uasset", ".umap", ".tscn", ".tres")
+            || ChangedContains("assets/", "content/", "textures/", "materials/", "prefabs/", "scenes/")
+            || relatedGraph.Any(x => x.Type == DevelopmentGraphNodeType.Asset)
+            || GraphContains("asset", "prefab", "mesh", "texture", "scene");
+        var rendering = shader || ChangedContains("render", "texture", "scene", "camera", "animation", "particle", "vfx", "lighting", "ui/")
+            || GraphContains("render", "visual", "camera", "vfx", "lighting", "framebuffer");
+        var mobile = ChangedContains("android", "ios", "mobile", "arm64", "vulkan", "metal")
+            || GraphContains("android", "ios", "mobile", "vulkan", "metal");
+        var audio = ChangedContains("audio", "sound", "music", "bgm", "se/", "voice")
+            || Ext(".wav", ".mp3", ".ogg", ".flac")
+            || GraphContains("audio", "sound", "voice", "music");
+        var uiOrArt = asset || ChangedContains("ui/", "art/", "texture", "material", "prefab", "scene")
+            || GraphContains("ui", "art", "texture", "material");
+        var network = ChangedContains("network", "socket", "packet", "protocol", "serialize", "api/", "server", "grpc", "websocket")
+            || GraphContains("network", "api", "server", "protocol", "multiplayer", "socket");
+        var gameEngine = ChangedContains("projectsettings/", "packages/manifest.json", ".uproject", "project.godot")
+            || Ext(".unity", ".prefab", ".uasset", ".umap", ".tscn")
+            || GraphContains("unity", "unreal", "godot");
+
+        return new ChangeSignals(
+            Python: Ext(".py") || changed.Any(x => Path.GetFileName(x).StartsWith("requirements", StringComparison.OrdinalIgnoreCase)),
+            CSharp: Ext(".cs", ".csproj", ".sln", ".props", ".targets"),
+            Native: Ext(".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".hlsl", ".glsl", ".shader", ".compute", ".vert", ".frag", ".geom") || ChangedContains("cmakelists.txt"),
+            DependencyManifestChanged: dependency,
+            Shader: shader,
+            AssetOrContent: asset,
+            Rendering: rendering,
+            Mobile: mobile,
+            Audio: audio,
+            UiOrArt: uiOrArt,
+            Network: network,
+            GameEngine: gameEngine,
+            GraphImpactedNodeCount: relatedGraph.Length);
+    }
+
+    private static bool GraphNodeTouchesChangedFile(
+        DevelopmentGraphNode node,
+        IReadOnlyList<string> changed)
+    {
+        var haystack = $"{node.Key}\n{node.Name}\n{node.ExternalReference}\n{node.MetadataJson}";
+        return changed.Any(path =>
+        {
+            var file = Path.GetFileName(path);
+            return haystack.Contains(path, StringComparison.OrdinalIgnoreCase)
+                || (!string.IsNullOrWhiteSpace(file)
+                    && haystack.Contains(file, StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
+    private static bool IsDependencyManifest(string path)
+    {
+        var name = Path.GetFileName(path);
+        return name.Equals("package.json", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("package-lock.json", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("pnpm-lock.yaml", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("yarn.lock", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("packages.lock.json", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Directory.Packages.props", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Cargo.toml", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Cargo.lock", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("go.mod", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("go.sum", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("pom.xml", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("build.gradle", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("build.gradle.kts", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("requirements", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsDocumentation(string path)
     {
         var ext = Path.GetExtension(path);
@@ -322,10 +461,21 @@ public sealed class AdaptiveQaPlanner
             || new[] { ".md", ".txt", ".rst", ".adoc" }.Contains(ext, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static bool ContainsRendering(string p) => ContainsAny(p, "render", "shader", "material", "texture", "scene", "camera", "animation", "particle", "vfx", "lighting", "ui/");
-    private static bool ContainsMobile(string p) => ContainsAny(p, "android", "ios", "mobile", "arm64", "vulkan", "metal");
-    private static bool ContainsAudio(string p) => ContainsAny(p, "audio", "sound", "music", "bgm", "se/", "voice");
-    private static bool ContainsUiOrArt(string p) => ContainsAny(p, "ui/", "art/", "assets/", "texture", "material", "prefab", "scene");
-    private static bool ContainsNetwork(string p) => ContainsAny(p, "network", "socket", "packet", "protocol", "serialize", "api/", "server");
-    private static bool ContainsAny(string p, params string[] tokens) => tokens.Any(t => p.Contains(t, StringComparison.OrdinalIgnoreCase));
+    private static bool ContainsAny(string text, params string[] tokens) =>
+        tokens.Any(token => text.Contains(token, StringComparison.OrdinalIgnoreCase));
+
+    private sealed record ChangeSignals(
+        bool Python,
+        bool CSharp,
+        bool Native,
+        bool DependencyManifestChanged,
+        bool Shader,
+        bool AssetOrContent,
+        bool Rendering,
+        bool Mobile,
+        bool Audio,
+        bool UiOrArt,
+        bool Network,
+        bool GameEngine,
+        int GraphImpactedNodeCount);
 }

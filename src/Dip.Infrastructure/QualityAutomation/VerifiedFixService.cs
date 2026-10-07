@@ -1,4 +1,4 @@
-// Purpose: Verifies proposed fixes in isolated workspaces and requires every formal required experiment to pass before a candidate can become Verified.
+// Purpose: Verifies proposed fixes in isolated workspaces and requires Red->Green regression proof plus every formal required experiment before a candidate can become Verified.
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
@@ -10,10 +10,9 @@ namespace Dip.Infrastructure.QualityAutomation;
 
 /// <summary>
 /// Verifies a proposed patch in an isolated temporary worktree/copy. The source
-/// workspace is never modified. Verification includes a baseline QA snapshot,
-/// patch policy checks, generated regression tests, a second QA run and, when a
-/// formal experiment plan is supplied, the same required experiment contract on
-/// the patched worktree. Required experiments fail closed.
+/// workspace is never modified. Verification proves that the generated regression
+/// tests fail before the patch and pass after the patch, then requires adapter QA
+/// and every formal required experiment to pass. Required boundaries fail closed.
 /// </summary>
 public sealed class VerifiedFixService(
     IQaWorkspaceResolver workspaces,
@@ -47,6 +46,10 @@ public sealed class VerifiedFixService(
             var policyViolation = PatchPolicyViolation(request.UnifiedDiff);
             if (policyViolation is not null)
                 return Fail(policyViolation);
+            var regressionPolicyViolation = RegressionTestPolicyViolation(request.RegressionTests, request.UnifiedDiff);
+            if (regressionPolicyViolation is not null)
+                return Fail(regressionPolicyViolation);
+
             var git = ProcessExecutor.FindExecutable("git");
             if (git is null)
                 return Fail("Git is required for isolated fix verification.");
@@ -76,6 +79,7 @@ public sealed class VerifiedFixService(
             var baselineSelections = adapters.Resolve(requested, baselineProfile, work);
             if (baselineSelections.Count == 0)
                 return Fail("No QA adapter can establish a baseline for the detected technology.");
+
             var baseline = await RunQaSetAsync(
                 request,
                 baselineSelections,
@@ -85,6 +89,40 @@ public sealed class VerifiedFixService(
                 "verified-fix-baseline",
                 ct);
             steps.Add($"baseline QA: {baseline.ExecutedAdapters} adapter(s), {baseline.AvailableTools.Count} available tool(s)");
+
+            // Generated tests must be new, stand-alone files so the exact same bytes can
+            // be inserted before and after the patch without overwriting existing tests.
+            foreach (var test in request.RegressionTests)
+            {
+                var path = ResolveInside(work, test.RelativePath);
+                if (File.Exists(path))
+                    return Fail($"Regression test '{test.RelativePath}' already exists. Verified Fix requires generated regression tests to use new files so Red->Green evidence is unambiguous.");
+            }
+
+            var regressionSha256 = RegressionTestsSha256(request.RegressionTests);
+            await WriteRegressionTestsAsync(work, request.RegressionTests, steps, "baseline regression test", ct);
+
+            var redProfile = await detector.DetectAsync(work, ct);
+            var redSelections = adapters.Resolve(requested, redProfile, work);
+            if (redSelections.Count == 0)
+                return Fail("Generated regression tests removed or invalidated all QA adapter coverage before patching.");
+            var red = await RunQaSetAsync(
+                request,
+                redSelections,
+                work,
+                Path.Combine(artifact, "baseline-with-regression"),
+                commit,
+                "verified-fix-red",
+                ct);
+            steps.Add($"regression RED QA: {red.ExecutedAdapters} adapter(s), {red.AvailableTools.Count} available tool(s)");
+
+            var regressionRed = HasRegressionRedSignal(baseline, red, request.RegressionTests);
+            if (!regressionRed)
+                return Fail("Generated regression tests did not provide a mechanically attributable RED signal before the patch. A candidate cannot be Verified without FAIL-before/PASS-after evidence.");
+            steps.Add($"regression RED proved; testBundleSha256={regressionSha256}");
+
+            RemoveRegressionTests(work, request.RegressionTests);
+            steps.Add("baseline regression tests removed before patch application");
 
             var patch = Path.Combine(root, "proposal.diff");
             await File.WriteAllTextAsync(patch, request.UnifiedDiff, Encoding.UTF8, ct);
@@ -102,15 +140,7 @@ public sealed class VerifiedFixService(
                 return Fail("Patch application failed: " + Last(apply.Error));
             steps.Add("patch applied in isolated worktree");
 
-            foreach (var test in request.RegressionTests)
-            {
-                if (test.Content.Length > 256_000)
-                    return Fail($"Regression test '{test.RelativePath}' exceeds the 256 KB per-file limit.");
-                var path = ResolveInside(work, test.RelativePath);
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                await File.WriteAllTextAsync(path, test.Content, Encoding.UTF8, ct);
-                steps.Add("regression test: " + test.RelativePath);
-            }
+            await WriteRegressionTestsAsync(work, request.RegressionTests, steps, "post-patch regression test", ct);
 
             var postProfile = await detector.DetectAsync(work, ct);
             var postSelections = adapters.Resolve(requested, postProfile, work);
@@ -126,6 +156,11 @@ public sealed class VerifiedFixService(
                 ct);
             findings.AddRange(post.Findings);
             steps.Add($"post-patch QA: {post.ExecutedAdapters} adapter(s), {post.AvailableTools.Count} available tool(s)");
+
+            var regressionGreen = HasRegressionGreenSignal(post);
+            if (!regressionGreen)
+                return Fail("The post-patch QA run did not contain a successful automated-test execution; Red->Green regression proof is incomplete.");
+            steps.Add("regression GREEN proved with the same generated test bundle");
 
             var missingTools = baseline.AvailableTools
                 .Except(post.AvailableTools, StringComparer.OrdinalIgnoreCase)
@@ -205,19 +240,22 @@ public sealed class VerifiedFixService(
             }
 
             var verified = post.ExecutedAdapters > 0
+                           && regressionRed
+                           && regressionGreen
                            && allToolsSucceeded
                            && newCritical.Length == 0
                            && requiredExperimentsPassed
                            && environmentCompatible;
             var status = verified ? "Verified" : "NotVerified";
             var summary = verified
-                ? "Patch, generated regression tests, adapter QA, and every required formal experiment passed without reducing verification coverage. Human review is still required."
-                : $"Patch was evaluated but did not satisfy the verification boundary (toolSuccess={allToolsSucceeded}, newCritical={newCritical.Length}, requiredExperimentsPassed={requiredExperimentsPassed}, environmentCompatible={environmentCompatible}, missingRequired={missingRequired.Length}, failedRequired={failedRequired.Length}).";
+                ? "The same generated regression tests failed before the patch and passed after it; adapter QA and every required formal experiment also passed without reducing verification coverage. Human review is still required."
+                : $"Patch was evaluated but did not satisfy the verification boundary (red={regressionRed}, green={regressionGreen}, toolSuccess={allToolsSucceeded}, newCritical={newCritical.Length}, requiredExperimentsPassed={requiredExperimentsPassed}, environmentCompatible={environmentCompatible}, missingRequired={missingRequired.Length}, failedRequired={failedRequired.Length}).";
 
             await WriteSummaryAsync(
                 artifact,
-                $"Status={status}\nBaseCommit={commit}\nPatchSha256={patchSha256}\nBaselineCritical={baseline.CriticalFingerprints.Count}\nPostCritical={post.CriticalFingerprints.Count}\nNewCritical={newCritical.Length}\nMissingTools={string.Join(",", missingTools)}\nMissingRequiredExperiments={string.Join(",", missingRequired)}\nFailedRequiredExperiments={string.Join(",", failedRequired)}\nEnvironmentMismatches={string.Join(",", environmentMismatches)}\nSteps={string.Join("; ", steps)}\n",
+                $"Status={status}\nBaseCommit={commit}\nPatchSha256={patchSha256}\nRegressionTestsSha256={regressionSha256}\nRegressionRed={regressionRed}\nRegressionGreen={regressionGreen}\nBaselineCritical={baseline.CriticalFingerprints.Count}\nPostCritical={post.CriticalFingerprints.Count}\nNewCritical={newCritical.Length}\nMissingTools={string.Join(",", missingTools)}\nMissingRequiredExperiments={string.Join(",", missingRequired)}\nFailedRequiredExperiments={string.Join(",", failedRequired)}\nEnvironmentMismatches={string.Join(",", environmentMismatches)}\nSteps={string.Join("; ", steps)}\n",
                 ct);
+
             return new(
                 true,
                 verified,
@@ -263,6 +301,153 @@ public sealed class VerifiedFixService(
             }
             return new(false, false, "Failed", commit, artifact, steps, findings, message, postExperiments);
         }
+    }
+
+    private static async Task WriteRegressionTestsAsync(
+        string workspace,
+        IReadOnlyList<RegressionTestDraft> tests,
+        ICollection<string> steps,
+        string label,
+        CancellationToken ct)
+    {
+        foreach (var test in tests)
+        {
+            if (test.Content.Length > 256_000)
+                throw new InvalidOperationException($"Regression test '{test.RelativePath}' exceeds the 256 KB per-file limit.");
+            var path = ResolveInside(workspace, test.RelativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, test.Content, Encoding.UTF8, ct);
+            steps.Add($"{label}: {test.RelativePath}");
+        }
+    }
+
+    private static void RemoveRegressionTests(string workspace, IReadOnlyList<RegressionTestDraft> tests)
+    {
+        foreach (var test in tests)
+        {
+            var path = ResolveInside(workspace, test.RelativePath);
+            if (File.Exists(path))
+                File.Delete(path);
+
+            var directory = Path.GetDirectoryName(path);
+            var root = Path.GetFullPath(workspace).TrimEnd(Path.DirectorySeparatorChar);
+            while (!string.IsNullOrWhiteSpace(directory)
+                   && !string.Equals(directory.TrimEnd(Path.DirectorySeparatorChar), root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+                   && Directory.Exists(directory)
+                   && !Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                Directory.Delete(directory);
+                directory = Path.GetDirectoryName(directory);
+            }
+        }
+    }
+
+    private static bool HasRegressionRedSignal(
+        QaSnapshot baseline,
+        QaSnapshot withRegression,
+        IReadOnlyList<RegressionTestDraft> tests)
+    {
+        var baselineFailedTests = baseline.ToolExecutions
+            .Where(x => x.WasAvailable && !x.Succeeded && IsTestTool(x.Tool))
+            .Select(x => x.Tool)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var redFailedTests = withRegression.ToolExecutions
+            .Where(x => x.WasAvailable && !x.Succeeded && IsTestTool(x.Tool))
+            .Select(x => x.Tool)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (redFailedTests.Except(baselineFailedTests, StringComparer.OrdinalIgnoreCase).Any())
+            return true;
+
+        var normalizedTests = tests
+            .Select(x => x.RelativePath.Replace('\\', '/').Trim())
+            .ToArray();
+        return withRegression.Findings.Any(finding =>
+            finding.Severity == Severity.Critical
+            && !string.IsNullOrWhiteSpace(finding.FilePath)
+            && normalizedTests.Any(test =>
+                NormalizePath(finding.FilePath!).EndsWith(test, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static bool HasRegressionGreenSignal(QaSnapshot post)
+    {
+        var testTools = post.ToolExecutions
+            .Where(x => x.WasAvailable && IsTestTool(x.Tool))
+            .ToArray();
+        return testTools.Length > 0 && testTools.All(x => x.Succeeded);
+    }
+
+    private static bool IsTestTool(string tool)
+    {
+        var value = tool.ToLowerInvariant();
+        return value.Contains("test")
+            || value.Contains("ctest")
+            || value.Contains("pytest")
+            || value.Contains("rspec")
+            || value.Contains("phpunit")
+            || value.Contains("bats")
+            || value.Contains("busted")
+            || value.Contains("jest")
+            || value.Contains("vitest");
+    }
+
+    private static string RegressionTestsSha256(IReadOnlyList<RegressionTestDraft> tests)
+    {
+        var normalized = string.Join(
+            "\n---dip-regression-test---\n",
+            tests
+                .OrderBy(x => x.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Select(x => NormalizePath(x.RelativePath) + "\n" + x.Content));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized))).ToLowerInvariant();
+    }
+
+    private static string? RegressionTestPolicyViolation(
+        IReadOnlyList<RegressionTestDraft> tests,
+        string diff)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var patchedPaths = diff
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => x.StartsWith("+++ b/", StringComparison.Ordinal))
+            .Select(x => NormalizePath(x[6..]))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var test in tests)
+        {
+            if (string.IsNullOrWhiteSpace(test.RelativePath) || Path.IsPathRooted(test.RelativePath))
+                return "Regression-test paths must be non-empty and workspace-relative.";
+            var path = NormalizePath(test.RelativePath);
+            if (path.Split('/', StringSplitOptions.RemoveEmptyEntries).Any(x => x == ".."))
+                return $"Regression-test path escapes the verification workspace: {test.RelativePath}";
+            if (!seen.Add(path))
+                return $"Duplicate regression-test path: {test.RelativePath}";
+            if (!IsTestPath(path))
+                return $"Regression-test draft must use an explicit test/spec path: {test.RelativePath}";
+            if (patchedPaths.Contains(path))
+                return $"Regression-test draft path is also modified by the proposed patch: {test.RelativePath}";
+            if (path.StartsWith(".github/", StringComparison.OrdinalIgnoreCase)
+                || path.Contains("/.git/", StringComparison.OrdinalIgnoreCase)
+                || path.Contains("secret", StringComparison.OrdinalIgnoreCase))
+                return $"Regression-test path is protected: {test.RelativePath}";
+            if (string.IsNullOrWhiteSpace(test.Content) || test.Content.Length > 256_000)
+                return $"Regression test '{test.RelativePath}' must contain 1-256 KiB of source text.";
+            if (string.IsNullOrWhiteSpace(test.Purpose) || test.Purpose.Length > 1000)
+                return $"Regression test '{test.RelativePath}' requires a concise Purpose.";
+            if (ContainsTestSuppression(test.Content))
+                return $"Regression test '{test.RelativePath}' contains a skip/suppression construct.";
+        }
+        return null;
+    }
+
+
+    private static bool ContainsTestSuppression(string content)
+    {
+        var tokens = new[]
+        {
+            "pytest.skip", "unittest.skip", "test.skip(", "describe.skip(", "Assert.Ignore",
+            "@Ignore", "@Disabled", "#pragma warning disable", "eslint-disable", "noinspection"
+        };
+        return tokens.Any(token => content.Contains(token, StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task<string?> CleanupWorkspaceAsync(string source, string work, bool worktreeAdded)
@@ -387,7 +572,11 @@ public sealed class VerifiedFixService(
         || path.StartsWith("test", StringComparison.OrdinalIgnoreCase)
         || path.Contains("/spec", StringComparison.OrdinalIgnoreCase)
         || path.EndsWith(".spec.ts", StringComparison.OrdinalIgnoreCase)
-        || path.EndsWith(".test.ts", StringComparison.OrdinalIgnoreCase);
+        || path.EndsWith(".test.ts", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith("_test.go", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith("_test.py", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizePath(string path) => path.Replace('\\', '/').Trim();
 
     private static string ResolveInside(string root, string relative)
     {
@@ -395,8 +584,9 @@ public sealed class VerifiedFixService(
             throw new InvalidOperationException("Regression test path must be workspace-relative.");
         var resolvedRoot = Path.GetFullPath(root);
         var path = Path.GetFullPath(Path.Combine(resolvedRoot, relative));
-        var prefix = resolvedRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!path.StartsWith(prefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var prefix = resolvedRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!path.Equals(resolvedRoot, comparison) && !path.StartsWith(prefix, comparison))
             throw new InvalidOperationException("Regression test path escapes the verification worktree.");
         return path;
     }

@@ -1,4 +1,4 @@
-// Purpose: Generates evidence-grounded hypotheses, executes a formal baseline experiment plan, and verifies candidates with the same required plan after patching.
+// Purpose: Generates evidence-grounded hypotheses, validates experiment applicability/regression tests, and verifies candidates with the same required plan after patching.
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text.Json;
@@ -250,7 +250,7 @@ Explanation: {hypothesis.Explanation}
 Suggested experiments: {string.Join(", ", hypothesis.SuggestedExperiments)}
 Baseline experiment evidence:
 {FormatExperimentResults(baseline)}
-The candidate will be applied only to a disposable worktree. DIP will rerun the same required experiment plan after patching. Include at least one regression test. Do not change source merely to silence a diagnostic or test. Do not claim success based on this proposal; executable verification is authoritative.
+The candidate will be applied only to a disposable worktree. DIP will rerun the same required experiment plan after patching. Include at least one focused regression test in a new test file; the verifier must observe that same test fail before the patch and pass after it. Do not change source merely to silence a diagnostic or test. Do not claim success based on this proposal; executable verification is authoritative.
 Original question: {request.Question}
 """;
 
@@ -286,6 +286,33 @@ Original question: {request.Question}
                         hypothesisAttempts,
                         hypothesis,
                         noProposal,
+                        hypothesisNodes[hypothesis.Id],
+                        ct);
+                    continue;
+                }
+
+                var regressionValidation = ValidateRegressionTests(fix.RegressionTests, fix.UnifiedDiff);
+                if (regressionValidation is not null)
+                {
+                    var rejected = new AutonomousDebugAttemptDto(
+                        hypothesis.Id,
+                        hypothesis.Title,
+                        hypothesis.Confidence,
+                        "RejectedCandidate",
+                        false,
+                        "The AI proposal did not satisfy the regression-test contract: " + regressionValidation,
+                        null,
+                        fix.EvidenceIds,
+                        plan,
+                        baseline,
+                        null);
+                    attempts.Add(rejected);
+                    await PersistAttemptAsync(
+                        request,
+                        sessionId,
+                        hypothesisAttempts,
+                        hypothesis,
+                        rejected,
                         hypothesisNodes[hypothesis.Id],
                         ct);
                     continue;
@@ -348,7 +375,7 @@ Original question: {request.Question}
                     : "BudgetExhausted";
 
             var summary = verifiedAny
-                ? "A candidate passed isolated patch application, generated regression tests, adapter QA, and every required post-patch experiment. The source workspace was not modified; human review is still required."
+                ? "A candidate passed Red->Green regression-test proof, isolated patch application, adapter QA, and every required post-patch experiment. The source workspace was not modified; human review is still required."
                 : string.IsNullOrWhiteSpace(budgetReason)
                     ? "No candidate satisfied the complete executable verification boundary."
                     : $"No verified candidate was found before the bounded search stopped: {budgetReason}";
@@ -503,7 +530,13 @@ Original question: {request.Question}
             .Distinct()
             .ToList();
         AugmentExperimentsFromHypothesis(hypothesis, kinds);
-        kinds = kinds.Distinct().Take(12).ToList();
+
+        kinds = kinds
+            .Where(kind => IsExperimentApplicable(kind, request, hypothesis))
+            .Distinct()
+            .Take(12)
+            .ToList();
+
         if (kinds.Count == 0)
             kinds.Add(DebugExperimentKind.Reproduce);
         if (!kinds.Contains(DebugExperimentKind.RegressionTest))
@@ -526,6 +559,85 @@ Original question: {request.Question}
             steps);
     }
 
+    private static bool IsExperimentApplicable(
+        DebugExperimentKind kind,
+        AutonomousDebugRequest request,
+        DebugHypothesis hypothesis)
+    {
+        if (kind is DebugExperimentKind.Compile
+            or DebugExperimentKind.StaticAnalysis
+            or DebugExperimentKind.UnitTest
+            or DebugExperimentKind.RegressionTest
+            or DebugExperimentKind.Reproduce
+            or DebugExperimentKind.VerifyPatch)
+        {
+            return true;
+        }
+
+        if (HasExperimentConfiguration(request.ExperimentConfigurationJson, kind))
+            return true;
+
+        var text = $"{request.DomainId} {request.SubjectKey} {request.Question} {request.RepositoryContext} {hypothesis.Title} {hypothesis.Explanation}"
+            .ToLowerInvariant();
+
+        return kind switch
+        {
+            DebugExperimentKind.AssetValidation => Has(text, "asset", "maya", "unity", "unreal", "godot", "prefab", "mesh", "texture", "scene", "content"),
+            DebugExperimentKind.ShaderValidation => Has(text, "shader", "hlsl", "glsl", "render", "material", "lighting"),
+            DebugExperimentKind.VisualRegression or DebugExperimentKind.VideoRegression => Has(text, "visual", "render", "pixel", "ui", "camera", "scene", "framebuffer", "video"),
+            DebugExperimentKind.AudioRegression => Has(text, "audio", "sound", "voice", "music", "bgm"),
+            DebugExperimentKind.MemorySafety => request.Language.Value.Equals("cpp", StringComparison.OrdinalIgnoreCase)
+                                                || request.Language.Value.Equals("c", StringComparison.OrdinalIgnoreCase)
+                                                || Has(text, "memory", "asan", "ubsan", "use-after-free", "overflow", "double free"),
+            DebugExperimentKind.RaceDetection => Has(text, "race", "thread", "concurrency", "tsan"),
+            DebugExperimentKind.DeadlockDetection => Has(text, "deadlock", "hang", "lock", "mutex", "thread"),
+            DebugExperimentKind.Security => Has(text, "security", "secret", "injection", "auth", "token", "vulnerability", "dependency"),
+            DebugExperimentKind.Fuzz => Has(text, "fuzz", "parser", "protocol", "packet", "serialization", "input", "network", "api"),
+            DebugExperimentKind.LoadTest => Has(text, "load", "throughput", "concurrency", "server", "api", "network", "traffic"),
+            DebugExperimentKind.Benchmark => Has(text, "performance", "latency", "fps", "frame time", "frametime", "gpu", "cpu", "throughput"),
+            DebugExperimentKind.Stress or DebugExperimentKind.Soak => Has(text, "stress", "soak", "memory leak", "memory growth", "thermal", "long-running", "reliability"),
+            DebugExperimentKind.RuntimeReplay => Has(text, "runtime", "game", "unity", "unreal", "replay", "scene", "crash", "render", "network"),
+            DebugExperimentKind.Bisect => !string.IsNullOrWhiteSpace(request.BaseCommit) && Has(text, "regression", "commit", "bisect", "worked before", "previous"),
+            DebugExperimentKind.Mutation => Has(text, "mutation", "test quality", "coverage", "weak test"),
+            _ => true
+        };
+    }
+
+    private static bool HasExperimentConfiguration(string? json, DebugExperimentKind kind)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return false;
+            var root = document.RootElement;
+            if (TryGetProperty(root, "experiments", out var experiments) && experiments.ValueKind == JsonValueKind.Object)
+                root = experiments;
+            return root.EnumerateObject().Any(property =>
+                property.Name.Equals(kind.ToString(), StringComparison.OrdinalIgnoreCase)
+                || property.Name.Equals(kind.ToString().ToLowerInvariant(), StringComparison.OrdinalIgnoreCase));
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetProperty(JsonElement root, string name, out JsonElement value)
+    {
+        foreach (var property in root.EnumerateObject())
+        {
+            if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+        value = default;
+        return false;
+    }
 
     private static void AugmentExperimentsFromHypothesis(
         DebugHypothesis hypothesis,
@@ -543,6 +655,8 @@ Original question: {request.Question}
             Add(DebugExperimentKind.RuntimeReplay);
             Add(DebugExperimentKind.VisualRegression);
             Add(DebugExperimentKind.Benchmark);
+            if (Has(text, "shader", "hlsl", "glsl"))
+                Add(DebugExperimentKind.ShaderValidation);
         }
         if (Has(text, "fps", "frame time", "frametime", "latency", "performance", "gpu", "cpu"))
             Add(DebugExperimentKind.Benchmark);
@@ -571,6 +685,75 @@ Original question: {request.Question}
         if (Has(text, "asset", "maya", "unity", "unreal", "prefab", "mesh", "missing reference"))
             Add(DebugExperimentKind.AssetValidation);
     }
+
+    private static string? ValidateRegressionTests(
+        IReadOnlyList<RegressionTestDraft> tests,
+        string unifiedDiff)
+    {
+        if (tests.Count is < 1 or > 20)
+            return "1-20 regression-test drafts are required.";
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var test in tests)
+        {
+            if (string.IsNullOrWhiteSpace(test.RelativePath) || Path.IsPathRooted(test.RelativePath))
+                return "Every regression-test path must be a non-empty workspace-relative path.";
+            var normalized = test.RelativePath.Replace('\\', '/').Trim();
+            if (normalized.Split('/', StringSplitOptions.RemoveEmptyEntries).Any(x => x == ".."))
+                return $"Regression-test path escapes the workspace: {test.RelativePath}";
+            if (!seen.Add(normalized))
+                return $"Duplicate regression-test path: {test.RelativePath}";
+            if (!LooksLikeTestPath(normalized))
+                return $"Regression-test draft must target an explicit test/spec path: {test.RelativePath}";
+            if (normalized.StartsWith(".github/", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("/.git/", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("secrets", StringComparison.OrdinalIgnoreCase))
+                return $"Regression-test path is protected: {test.RelativePath}";
+            if (string.IsNullOrWhiteSpace(test.Content) || test.Content.Length > 256_000)
+                return $"Regression test '{test.RelativePath}' must contain 1-256 KiB of source text.";
+            if (string.IsNullOrWhiteSpace(test.Purpose) || test.Purpose.Length > 1000)
+                return $"Regression test '{test.RelativePath}' requires a concise Purpose.";
+            if (ContainsSuppression(test.Content))
+                return $"Regression test '{test.RelativePath}' contains a skip/suppression construct.";
+
+            // Keep Red->Green evidence unambiguous: generated regression tests are
+            // separate artifacts, not additional edits hidden inside the proposed patch.
+            if (DiffTouchesPath(unifiedDiff, normalized))
+                return $"Regression-test draft path is also modified by the patch: {test.RelativePath}";
+        }
+
+        return null;
+    }
+
+    private static bool LooksLikeTestPath(string path)
+    {
+        var lower = path.ToLowerInvariant();
+        return lower.StartsWith("test")
+            || lower.Contains("/test")
+            || lower.Contains("/spec")
+            || lower.EndsWith(".spec.ts")
+            || lower.EndsWith(".test.ts")
+            || lower.EndsWith("_test.go")
+            || lower.EndsWith("_test.py")
+            || lower.Contains("tests.")
+            || lower.Contains("test.");
+    }
+
+    private static bool ContainsSuppression(string content)
+    {
+        var tokens = new[]
+        {
+            "pytest.skip", "unittest.skip", "test.skip(", "describe.skip(", "Assert.Ignore",
+            "@Ignore", "@Disabled", "#pragma warning disable", "eslint-disable", "noinspection"
+        };
+        return tokens.Any(token => content.Contains(token, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool DiffTouchesPath(string diff, string normalizedPath) =>
+        diff.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Where(line => line.StartsWith("+++ b/", StringComparison.Ordinal))
+            .Select(line => line[6..].Replace('\\', '/').Trim())
+            .Any(path => path.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
 
     private static bool Has(string text, params string[] tokens) =>
         tokens.Any(token => text.Contains(token, StringComparison.OrdinalIgnoreCase));
@@ -630,7 +813,9 @@ Original question: {request.Question}
                 automaticMerge = false,
                 arbitraryShellFromAi = false,
                 aiCanDeclarePass = false,
-                requiredExperimentsFailClosed = true
+                requiredExperimentsFailClosed = true,
+                regressionTestRedGreenRequired = true,
+                experimentApplicabilityChecked = true
             }
         });
 
@@ -726,6 +911,10 @@ Original question: {request.Question}
             throw new ArgumentException("WorkspaceRelativePath is required.", nameof(request));
         if (request.WorkspaceRelativePath.Length > 2000)
             throw new ArgumentException("WorkspaceRelativePath is too long.", nameof(request));
+        if (Path.IsPathRooted(request.WorkspaceRelativePath))
+            throw new ArgumentException("WorkspaceRelativePath must remain relative to the configured QA root.", nameof(request));
+        if (request.WorkspaceRelativePath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).Any(x => x == ".."))
+            throw new ArgumentException("WorkspaceRelativePath cannot escape the configured QA root.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.DomainId))
             throw new ArgumentException("DomainId is required.", nameof(request));
         if (request.DomainId.Length > 120)

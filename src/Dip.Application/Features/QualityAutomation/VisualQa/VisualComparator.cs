@@ -1,4 +1,4 @@
-// Purpose: Implements Visual Comparator responsibilities for visual qa.
+// Purpose: Implements deterministic PNG visual comparison shared by durable Visual QA and autonomous media regression.
 namespace Dip.Application.Features.QualityAutomation.VisualQa;
 
 public interface IVisualComparator
@@ -13,6 +13,7 @@ public interface IVisualComparator
 public sealed class PortablePngVisualComparator : IVisualComparator
 {
     private const int ChannelTolerance = 8;
+    private const int SsimTileSize = 8;
 
     public async Task<VisualComparisonComputation> CompareAsync(
         Stream baseline,
@@ -41,16 +42,19 @@ public sealed class PortablePngVisualComparator : IVisualComparator
         var diff = new byte[a.Rgba.Length];
         var changed = 0;
         var evaluated = 0;
-        double sumA = 0, sumB = 0, sumAA = 0, sumBB = 0, sumAB = 0;
 
         for (var y = 0; y < height; y++)
+        {
             for (var x = 0; x < width; x++)
             {
                 ct.ThrowIfCancellationRequested();
                 var index = (y * width + x) * 4;
                 if (Masked(x, y, masks))
                 {
-                    diff[index] = 40; diff[index + 1] = 40; diff[index + 2] = 40; diff[index + 3] = 120;
+                    diff[index] = 40;
+                    diff[index + 1] = 40;
+                    diff[index + 2] = 40;
+                    diff[index + 3] = 120;
                     continue;
                 }
 
@@ -62,32 +66,100 @@ public sealed class PortablePngVisualComparator : IVisualComparator
                 if (isChanged)
                 {
                     changed++;
-                    diff[index] = 255; diff[index + 1] = 32; diff[index + 2] = 32; diff[index + 3] = 255;
+                    diff[index] = 255;
+                    diff[index + 1] = 32;
+                    diff[index + 2] = 32;
+                    diff[index + 3] = 255;
                 }
                 else
                 {
-                    var luminance = (byte)Math.Clamp((int)Math.Round(0.2126 * b.Rgba[index] + 0.7152 * b.Rgba[index + 1] + 0.0722 * b.Rgba[index + 2]), 0, 255);
-                    diff[index] = luminance; diff[index + 1] = luminance; diff[index + 2] = luminance; diff[index + 3] = 100;
+                    var luminance = Luminance(b.Rgba[index], b.Rgba[index + 1], b.Rgba[index + 2]);
+                    var gray = (byte)Math.Clamp((int)Math.Round(luminance), 0, 255);
+                    diff[index] = gray;
+                    diff[index + 1] = gray;
+                    diff[index + 2] = gray;
+                    diff[index + 3] = 100;
+                }
+            }
+        }
+
+        if (evaluated == 0)
+            return new(false, width, height, 0, 0, 0m, 1m, null, "All pixels are masked.");
+
+        var ssim = ComputeTiledSsim(a, b, masks, ct);
+        var percent = Math.Round(changed * 100m / evaluated, 4);
+        return new(
+            true,
+            width,
+            height,
+            changed,
+            evaluated,
+            percent,
+            Math.Round(ssim, 6),
+            PortablePngCodec.EncodeRgba(width, height, diff),
+            null);
+    }
+
+    private static decimal ComputeTiledSsim(
+        PortablePngImage a,
+        PortablePngImage b,
+        IReadOnlyList<VisualMaskRegion> masks,
+        CancellationToken ct)
+    {
+        decimal total = 0m;
+        var tiles = 0;
+        for (var originY = 0; originY < a.Height; originY += SsimTileSize)
+        {
+            for (var originX = 0; originX < a.Width; originX += SsimTileSize)
+            {
+                ct.ThrowIfCancellationRequested();
+                double sumA = 0d, sumB = 0d, sumAA = 0d, sumBB = 0d, sumAB = 0d;
+                var count = 0;
+                var maxY = Math.Min(a.Height, originY + SsimTileSize);
+                var maxX = Math.Min(a.Width, originX + SsimTileSize);
+                for (var y = originY; y < maxY; y++)
+                {
+                    for (var x = originX; x < maxX; x++)
+                    {
+                        if (Masked(x, y, masks))
+                            continue;
+                        var index = (y * a.Width + x) * 4;
+                        var la = Luminance(a.Rgba[index], a.Rgba[index + 1], a.Rgba[index + 2]);
+                        var lb = Luminance(b.Rgba[index], b.Rgba[index + 1], b.Rgba[index + 2]);
+                        sumA += la;
+                        sumB += lb;
+                        sumAA += la * la;
+                        sumBB += lb * lb;
+                        sumAB += la * lb;
+                        count++;
+                    }
                 }
 
-                var la = 0.2126 * a.Rgba[index] + 0.7152 * a.Rgba[index + 1] + 0.0722 * a.Rgba[index + 2];
-                var lb = 0.2126 * b.Rgba[index] + 0.7152 * b.Rgba[index + 1] + 0.0722 * b.Rgba[index + 2];
-                sumA += la; sumB += lb; sumAA += la * la; sumBB += lb * lb; sumAB += la * lb;
-            }
+                if (count == 0)
+                    continue;
 
-        if (evaluated == 0) return new(false, width, height, 0, 0, 0m, 1m, null, "All pixels are masked.");
-        var n = evaluated;
-        var meanA = sumA / n; var meanB = sumB / n;
-        var varA = Math.Max(0d, sumAA / n - meanA * meanA);
-        var varB = Math.Max(0d, sumBB / n - meanB * meanB);
-        var covariance = sumAB / n - meanA * meanB;
-        var c1 = Math.Pow(0.01 * 255d, 2); var c2 = Math.Pow(0.03 * 255d, 2);
-        var denominator = (meanA * meanA + meanB * meanB + c1) * (varA + varB + c2);
-        var ssim = denominator <= double.Epsilon ? 1d : ((2 * meanA * meanB + c1) * (2 * covariance + c2)) / denominator;
-        ssim = Math.Clamp(ssim, 0d, 1d);
-        var percent = Math.Round(changed * 100m / evaluated, 4);
-        return new(true, width, height, changed, evaluated, percent, Math.Round((decimal)ssim, 6), PortablePngCodec.EncodeRgba(width, height, diff), null);
+                var meanA = sumA / count;
+                var meanB = sumB / count;
+                var varianceA = Math.Max(0d, sumAA / count - meanA * meanA);
+                var varianceB = Math.Max(0d, sumBB / count - meanB * meanB);
+                var covariance = sumAB / count - meanA * meanB;
+                var c1 = Math.Pow(0.01 * 255d, 2);
+                var c2 = Math.Pow(0.03 * 255d, 2);
+                var denominator = (meanA * meanA + meanB * meanB + c1)
+                                  * (varianceA + varianceB + c2);
+                var value = denominator <= double.Epsilon
+                    ? 1d
+                    : ((2d * meanA * meanB + c1) * (2d * covariance + c2)) / denominator;
+                total += (decimal)Math.Clamp(value, 0d, 1d);
+                tiles++;
+            }
+        }
+
+        return tiles == 0 ? 1m : total / tiles;
     }
+
+    private static double Luminance(byte r, byte g, byte b)
+        => 0.2126d * r + 0.7152d * g + 0.0722d * b;
 
     private static bool Masked(int x, int y, IReadOnlyList<VisualMaskRegion> masks)
         => masks.Any(mask => mask.Width > 0 && mask.Height > 0

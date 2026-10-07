@@ -1,4 +1,4 @@
-// Purpose: Evaluates asset-specific quality signals and produces normalized QA findings.
+// Purpose: Evaluates asset-specific quality signals for durable and autonomous QA while producing normalized evidence.
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -12,6 +12,13 @@ using Dip.Domain.Entities;
 using Dip.Domain.Enums;
 
 namespace Dip.Application.Features.QualityAutomation.AssetQa;
+
+public sealed record AutonomousAssetQaEvaluation(
+    ProductionToolSource Source,
+    int RulesEvaluated,
+    int CriticalCount,
+    int WarningCount,
+    IReadOnlyList<AssetQaRuleResult> Findings);
 
 public sealed class AssetQaService
 {
@@ -41,6 +48,29 @@ public sealed class AssetQaService
         _graph = graph;
     }
 
+    /// <summary>
+    /// Autonomous AssetValidation uses this pure rule boundary as well as the
+    /// durable service. It deliberately performs no persistence, so an isolated
+    /// experiment can evaluate collector metadata without mutating project state.
+    /// </summary>
+    public static AutonomousAssetQaEvaluation EvaluateAutonomous(
+        ProductionToolObservation observation,
+        string? rulesJson,
+        AssetQaRuleEngine? engine = null)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        var evaluator = engine ?? new AssetQaRuleEngine();
+        var findings = evaluator.EvaluateCore(
+            observation,
+            string.IsNullOrWhiteSpace(rulesJson) ? VisualQaService.DefaultAssetRulesJson : rulesJson!);
+        return new(
+            observation.Source,
+            findings.Count,
+            findings.Count(x => x.Severity == AssetQaSeverity.Critical),
+            findings.Count(x => x.Severity == AssetQaSeverity.Warning),
+            findings);
+    }
+
     public async Task<AssetQaEvaluationResult> EvaluateAsync(
         Guid projectId,
         Guid sourceEvidenceId,
@@ -48,17 +78,22 @@ public sealed class AssetQaService
         CancellationToken ct)
     {
         var profile = await _profiles.GetProfileAsync(projectId, ct);
-        if (!profile.Enabled) return new(sourceEvidenceId, observation.Source, 0, 0, Array.Empty<AssetQaFindingDto>());
-        var results = _rules.Evaluate(observation, profile.AssetRulesJson);
+        if (!profile.Enabled)
+            return new(sourceEvidenceId, observation.Source, 0, 0, Array.Empty<AssetQaFindingDto>());
+
+        var autonomous = EvaluateAutonomous(observation, profile.AssetRulesJson, _rules);
         var created = new List<AssetQaFindingDto>();
-        foreach (var result in results)
+        foreach (var result in autonomous.Findings)
         {
             var fingerprint = Fingerprint(projectId, observation.Source, result.RuleId, result.RelativePath);
-            if (await _repository.FindOpenFindingAsync(projectId, fingerprint, ct) is not null) continue;
+            if (await _repository.FindOpenFindingAsync(projectId, fingerprint, ct) is not null)
+                continue;
+
             var finding = new AssetQaFindingRecord(
                 Guid.NewGuid(), projectId, sourceEvidenceId, observation.Source.ToString(), result.RuleId,
                 result.Severity, result.Title, result.Message, result.RelativePath, fingerprint,
-                JsonSerializer.Serialize(result.Details), observation.ObservedAtUtc == default ? _clock.UtcNow : observation.ObservedAtUtc);
+                JsonSerializer.Serialize(result.Details),
+                observation.ObservedAtUtc == default ? _clock.UtcNow : observation.ObservedAtUtc);
             await _repository.AddFindingAsync(finding, ct);
             await _uow.SaveChangesAsync(ct);
 
@@ -91,6 +126,7 @@ public sealed class AssetQaService
                     ruleId = result.RuleId,
                     severity = result.Severity.ToString(),
                     relativePath = result.RelativePath,
+                    autonomousCompatible = true,
                     details = result.Details
                 })), ct);
             await _graph.ProjectAssetFindingAsync(
@@ -98,11 +134,18 @@ public sealed class AssetQaService
                 result.Severity == AssetQaSeverity.Critical, ct);
             created.Add(Map(finding));
         }
-        return new(sourceEvidenceId, observation.Source, results.Count, created.Count, created);
+
+        return new(sourceEvidenceId, observation.Source, autonomous.RulesEvaluated, created.Count, created);
     }
 
-    public async Task<IReadOnlyList<AssetQaFindingDto>> ListAsync(Guid projectId, AssetQaFindingState? state, int take, CancellationToken ct)
-        => (await _repository.ListFindingsAsync(projectId, state, Math.Clamp(take, 1, 1000), ct)).Select(Map).ToArray();
+    public async Task<IReadOnlyList<AssetQaFindingDto>> ListAsync(
+        Guid projectId,
+        AssetQaFindingState? state,
+        int take,
+        CancellationToken ct)
+        => (await _repository.ListFindingsAsync(projectId, state, Math.Clamp(take, 1, 1000), ct))
+            .Select(Map)
+            .ToArray();
 
     private static string Fingerprint(Guid projectId, ProductionToolSource source, string ruleId, string? path)
     {

@@ -1,4 +1,4 @@
-// Purpose: Runs C++ build, sanitizer, test, static-analysis, and runtime QA with compiler-compatible flags.
+// Purpose: Runs C++ build, dedicated memory-safety/race contracts, tests, static analysis, and runtime QA with compiler-compatible flags.
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Dip.Application.Features.QualityAutomation;
@@ -23,6 +23,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         var cmake = ProcessExecutor.FindExecutable("cmake")
             ?? throw new FileNotFoundException("CMake was not found in PATH.");
 
+        Directory.CreateDirectory(artifactRoot);
         var tools = new List<QaToolExecution>();
         var findings = new List<QaFindingCandidate>();
         var timeout = ResolveNativeExecutionTimeout(command.TimeoutSeconds);
@@ -55,21 +56,12 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                 nativeEnvironment[pair.Key] = pair.Value;
         }
 
-        var sanitizerEnvironment = BuildSanitizerEnvironment(
-            nativeEnvironment,
-            OperatingSystem.IsWindows());
-
-        var nativeEnvironmentOrNull = nativeEnvironment.Count == 0
-            ? null
-            : nativeEnvironment;
+        var sanitizerEnvironment = BuildSanitizerEnvironment(nativeEnvironment, OperatingSystem.IsWindows());
+        var nativeEnvironmentOrNull = nativeEnvironment.Count == 0 ? null : nativeEnvironment;
 
         var build = Path.Combine(workspace, ".dipqa", "asan-build");
         ResetQaBuildDirectory(build);
-
-        var flags = BuildSanitizerCompilerFlags(
-            compilerFamily,
-            OperatingSystem.IsLinux());
-
+        var flags = BuildSanitizerCompilerFlags(compilerFamily, OperatingSystem.IsLinux());
         var configureArgs = new List<string>
         {
             "-S", workspace,
@@ -79,9 +71,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             $"-DCMAKE_CXX_FLAGS={flags}"
         };
 
-        var sanitizerLinkerFlags = BuildSanitizerLinkerFlags(
-            compilerFamily,
-            OperatingSystem.IsLinux());
+        var sanitizerLinkerFlags = BuildSanitizerLinkerFlags(compilerFamily, OperatingSystem.IsLinux());
         if (!string.IsNullOrWhiteSpace(sanitizerLinkerFlags))
             configureArgs.Add($"-DCMAKE_EXE_LINKER_FLAGS={sanitizerLinkerFlags}");
         if (OperatingSystem.IsWindows()
@@ -126,11 +116,6 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             AddBlocked("cmake-build", "cmake-build was skipped because cmake-configure failed.");
         }
 
-        // CTest is retained as test-orchestration and sanitizer evidence. When CTest
-        // completes successfully, rerunning the same executable through the direct probe
-        // is redundant and can create a false product hang if the host process wrapper
-        // itself stalls. The direct runtime probe is therefore a fallback for unavailable,
-        // failed, or timed-out CTest execution after a successful build.
         var ctest = ProcessExecutor.FindExecutable("ctest");
         QaToolExecution? ctestTool = null;
         if (ctest is null)
@@ -150,7 +135,7 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
             var ctestCaseTimeout = ResolveCtestCaseTimeout(timeout);
             var ctestProcessTimeout = ResolveCtestProcessTimeout(timeout, ctestCaseTimeout);
             ctestTool = await Run(
-                "ctest",
+                "ctest-asan-ubsan",
                 ctest,
                 [
                     "--test-dir", build,
@@ -159,28 +144,27 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                     "--timeout", ((int)ctestCaseTimeout.TotalSeconds).ToString(CultureInfo.InvariantCulture)
                 ],
                 Severity.Warning,
-                "test",
+                "memory-safety",
                 sanitizerEnvironment,
                 ctestProcessTimeout);
         }
 
+        QaToolExecution? runtimeProbe = null;
         if (configureTool.Succeeded
             && buildTool?.Succeeded == true
             && ShouldRunDirectRuntimeProbe(ctestTool)
             && TryResolvePrimaryExecutable(workspace, build) is { } runtimeExecutable)
         {
-            await Run(
-                "cpp-runtime-asan-auto",
+            runtimeProbe = await Run(
+                "cpp-runtime-asan-ubsan-auto",
                 runtimeExecutable,
                 Array.Empty<string>(),
                 Severity.Critical,
-                "runtime",
+                "memory-safety",
                 sanitizerEnvironment,
                 timeout);
         }
 
-        // Keep cppcheck after CTest/direct-runtime fallback so native runtime evidence is
-        // collected before static analysis while avoiding redundant execution on clean runs.
         var cppcheck = ProcessExecutor.FindExecutable("cppcheck");
         if (cppcheck is not null)
             await Run(
@@ -200,72 +184,35 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         else
             AddBlocked("clang-tidy", "clang-tidy was skipped because cmake-configure failed.");
 
+        QaToolExecution? explicitRuntime = null;
         if (!string.IsNullOrWhiteSpace(command.RuntimeExecutable))
         {
-            var executable = Path.IsPathRooted(command.RuntimeExecutable!)
-                ? command.RuntimeExecutable!
-                : Path.GetFullPath(Path.Combine(workspace, command.RuntimeExecutable!));
-            await Run(
-                "cpp-runtime-asan",
-                executable,
-                command.RuntimeArguments ?? Array.Empty<string>(),
-                Severity.Critical,
-                "runtime",
-                sanitizerEnvironment,
-                timeout);
-        }
-
-        if (!OperatingSystem.IsWindows()
-            && string.Equals(Environment.GetEnvironmentVariable("DIP_QA_ENABLE_TSAN"), "1", StringComparison.Ordinal))
-        {
-            var tsanBuild = Path.Combine(workspace, ".dipqa", "tsan-build");
-            ResetQaBuildDirectory(tsanBuild);
-            var tsanEnv = new Dictionary<string, string> { ["TSAN_OPTIONS"] = "halt_on_error=1:history_size=7" };
-
-            var tsanConfigure = await Run(
-                "cmake-configure-tsan",
-                cmake,
-                ["-S", workspace, "-B", tsanBuild, "-DCMAKE_BUILD_TYPE=RelWithDebInfo", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_CXX_FLAGS=-Wall -Wextra -Wpedantic -fsanitize=thread -fno-omit-frame-pointer -g"],
-                Severity.Critical,
-                "configure");
-
-            QaToolExecution? tsanBuildTool = null;
-            if (tsanConfigure.Succeeded)
+            var executable = ResolveWorkspaceRuntime(workspace, command.RuntimeExecutable!);
+            if (executable is null)
             {
-                tsanBuildTool = await Run(
-                    "cmake-build-tsan",
-                    cmake,
-                    ["--build", tsanBuild, "--config", "RelWithDebInfo", "--parallel"],
+                findings.Add(new(
+                    "memory-safety",
                     Severity.Critical,
-                    "compile");
+                    "cpp-runtime-asan-ubsan",
+                    "C++ runtime target is outside the QA workspace",
+                    "RuntimeExecutable must resolve to an existing file inside the C++ QA workspace.",
+                    RuleId: "DIP-CPP-RUNTIME-PATH"));
             }
             else
             {
-                AddBlocked("cmake-build-tsan", "ThreadSanitizer build was skipped because its CMake configure step failed.");
-            }
-
-            if (ctest is not null && tsanConfigure.Succeeded && tsanBuildTool?.Succeeded == true)
-            {
-                var ctestCaseTimeout = ResolveCtestCaseTimeout(timeout);
-                await Run(
-                    "ctest-tsan",
-                    ctest,
-                    [
-                        "--test-dir", tsanBuild,
-                        "-C", "RelWithDebInfo",
-                        "--output-on-failure",
-                        "--timeout", ((int)ctestCaseTimeout.TotalSeconds).ToString(CultureInfo.InvariantCulture)
-                    ],
+                explicitRuntime = await Run(
+                    "cpp-runtime-asan-ubsan",
+                    executable,
+                    command.RuntimeArguments ?? Array.Empty<string>(),
                     Severity.Critical,
-                    "race",
-                    tsanEnv,
-                    ResolveCtestProcessTimeout(timeout, ctestCaseTimeout));
-            }
-            else if (ctest is not null)
-            {
-                AddBlocked("ctest-tsan", "ThreadSanitizer tests were skipped because configure/build did not complete successfully.");
+                    "memory-safety",
+                    sanitizerEnvironment,
+                    timeout);
             }
         }
+
+        AddMemorySafetyContract(configureTool, buildTool, ctestTool, runtimeProbe, explicitRuntime);
+        await RunRaceContractAsync();
 
         return new(LanguageId.Cpp, tools, findings, QaToolSupport.JsonSummary(LanguageId.Cpp, tools, findings));
 
@@ -292,7 +239,6 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                 fallback,
                 category,
                 ct);
-
             tools.Add(result.Tool);
             findings.AddRange(result.Findings);
             return result.Tool;
@@ -304,20 +250,133 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         void AddBlocked(string name, string summary) =>
             tools.Add(new(name, true, false, null, 0, string.Empty, string.Empty, summary));
 
+        void AddMemorySafetyContract(
+            QaToolExecution configure,
+            QaToolExecution? buildExecution,
+            QaToolExecution? testExecution,
+            QaToolExecution? fallbackRuntime,
+            QaToolExecution? configuredRuntime)
+        {
+            var availableExecution = new[] { testExecution, fallbackRuntime, configuredRuntime }
+                .Where(x => x is not null && x.WasAvailable)
+                .Cast<QaToolExecution>()
+                .ToArray();
+            var instrumentationReady = configure.Succeeded && buildExecution?.Succeeded == true;
+            var relevantCritical = findings.Any(x =>
+                x.Severity == Severity.Critical
+                && (x.Category.Contains("memory", StringComparison.OrdinalIgnoreCase)
+                    || x.Tool.Contains("asan", StringComparison.OrdinalIgnoreCase)
+                    || x.Tool.Contains("ubsan", StringComparison.OrdinalIgnoreCase)
+                    || (x.Message?.Contains("AddressSanitizer", StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Message?.Contains("UndefinedBehaviorSanitizer", StringComparison.OrdinalIgnoreCase) ?? false)));
+            var wasAvailable = instrumentationReady && availableExecution.Length > 0;
+            var succeeded = wasAvailable && availableExecution.All(x => x.Succeeded) && !relevantCritical;
+            tools.Add(new(
+                "cpp-memory-safety",
+                wasAvailable,
+                succeeded,
+                succeeded ? 0 : null,
+                availableExecution.Sum(x => x.DurationMs),
+                string.Empty,
+                string.Empty,
+                wasAvailable
+                    ? $"Dedicated ASan/UBSan memory-safety contract executed through {string.Join(", ", availableExecution.Select(x => x.Tool))}; success={succeeded}."
+                    : "Dedicated memory-safety contract is NOT_EVALUATED because sanitizer instrumentation or an executable test/runtime path was unavailable.",
+                Version: "asan-ubsan-v2"));
+        }
+
+        async Task RunRaceContractAsync()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                tools.Add(new("cpp-race-detection", false, false, null, 0, "", "", "ThreadSanitizer contract is unavailable on the current Windows QA path."));
+                return;
+            }
+
+            var enabled = string.Equals(Environment.GetEnvironmentVariable("DIP_QA_ENABLE_TSAN"), "1", StringComparison.Ordinal);
+            if (!enabled)
+            {
+                tools.Add(new("cpp-race-detection", false, false, null, 0, "", "", "ThreadSanitizer contract is disabled. Set DIP_QA_ENABLE_TSAN=1 on a compatible runner to produce dedicated race evidence."));
+                return;
+            }
+
+            var tsanBuild = Path.Combine(workspace, ".dipqa", "tsan-build");
+            ResetQaBuildDirectory(tsanBuild);
+            var tsanEnv = new Dictionary<string, string>
+            {
+                ["TSAN_OPTIONS"] = "halt_on_error=1:history_size=7:second_deadlock_stack=1"
+            };
+            var tsanConfigure = await Run(
+                "cmake-configure-tsan",
+                cmake,
+                ["-S", workspace, "-B", tsanBuild, "-DCMAKE_BUILD_TYPE=RelWithDebInfo", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_CXX_FLAGS=-Wall -Wextra -Wpedantic -fsanitize=thread -fno-omit-frame-pointer -g", "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread"],
+                Severity.Critical,
+                "race");
+
+            QaToolExecution? tsanBuildTool = null;
+            QaToolExecution? tsanTestTool = null;
+            if (tsanConfigure.Succeeded)
+            {
+                tsanBuildTool = await Run(
+                    "cmake-build-tsan",
+                    cmake,
+                    ["--build", tsanBuild, "--config", "RelWithDebInfo", "--parallel"],
+                    Severity.Critical,
+                    "race");
+            }
+            else
+            {
+                AddBlocked("cmake-build-tsan", "ThreadSanitizer build was skipped because its CMake configure step failed.");
+            }
+
+            if (ctest is not null && tsanConfigure.Succeeded && tsanBuildTool?.Succeeded == true)
+            {
+                var ctestCaseTimeout = ResolveCtestCaseTimeout(timeout);
+                tsanTestTool = await Run(
+                    "ctest-tsan",
+                    ctest,
+                    [
+                        "--test-dir", tsanBuild,
+                        "-C", "RelWithDebInfo",
+                        "--output-on-failure",
+                        "--timeout", ((int)ctestCaseTimeout.TotalSeconds).ToString(CultureInfo.InvariantCulture)
+                    ],
+                    Severity.Critical,
+                    "race",
+                    tsanEnv,
+                    ResolveCtestProcessTimeout(timeout, ctestCaseTimeout));
+            }
+            else if (ctest is not null)
+            {
+                AddBlocked("ctest-tsan", "ThreadSanitizer tests were skipped because configure/build did not complete successfully.");
+            }
+
+            var available = tsanConfigure.Succeeded && tsanBuildTool?.Succeeded == true && tsanTestTool?.WasAvailable == true;
+            var criticalRace = findings.Any(x => x.Severity == Severity.Critical
+                && (x.Category.Contains("race", StringComparison.OrdinalIgnoreCase)
+                    || x.Tool.Contains("tsan", StringComparison.OrdinalIgnoreCase)
+                    || (x.Message?.Contains("ThreadSanitizer", StringComparison.OrdinalIgnoreCase) ?? false)));
+            var succeeded = available && tsanTestTool!.Succeeded && !criticalRace;
+            tools.Add(new(
+                "cpp-race-detection",
+                available,
+                succeeded,
+                tsanTestTool?.ExitCode,
+                (tsanBuildTool?.DurationMs ?? 0) + (tsanTestTool?.DurationMs ?? 0),
+                string.Empty,
+                string.Empty,
+                available
+                    ? $"Dedicated ThreadSanitizer race contract executed; success={succeeded}."
+                    : "ThreadSanitizer was requested but dedicated race evidence could not be completed.",
+                Version: "tsan-v2"));
+        }
+
         async Task RunClangTidy(string executable, string buildDir)
         {
             var compileDb = Path.Combine(buildDir, "compile_commands.json");
             if (!File.Exists(compileDb))
             {
-                tools.Add(new(
-                    "clang-tidy",
-                    true,
-                    false,
-                    null,
-                    0,
-                    string.Empty,
-                    string.Empty,
-                    "compile_commands.json was not generated; clang-tidy was not executed."));
+                tools.Add(new("clang-tidy", true, false, null, 0, string.Empty, string.Empty, "compile_commands.json was not generated; clang-tidy was not executed."));
                 return;
             }
 
@@ -345,57 +404,39 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                     Severity.Warning,
                     "static-analysis",
                     ct);
-
                 tools.Add(result.Tool);
                 findings.AddRange(result.Findings);
             }
         }
     }
 
-    internal static string BuildSanitizerCompilerFlags(
-        string compilerFamily,
-        bool isLinux)
+    internal static string BuildSanitizerCompilerFlags(string compilerFamily, bool isLinux)
     {
         if (compilerFamily is "msvc" or "clang-cl")
             return "/W4 /fsanitize=address /Zi";
-
-        const string common =
-            "-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";
-
-        // Linux sanitizer QA builds are deliberately non-PIE. This keeps the
-        // AddressSanitizer/LeakSanitizer process layout stable across repeated
-        // isolated verifier runs without changing normal project builds.
+        const string common = "-Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -g";
         return isLinux ? common + " -fno-pie" : common;
     }
 
-    internal static string? BuildSanitizerLinkerFlags(
-        string compilerFamily,
-        bool isLinux)
+    internal static string? BuildSanitizerLinkerFlags(string compilerFamily, bool isLinux)
     {
-        if (!isLinux || compilerFamily is "msvc" or "clang-cl")
-            return null;
-
+        if (!isLinux || compilerFamily is "msvc" or "clang-cl") return null;
         return "-no-pie";
     }
-    internal static Dictionary<string, string> BuildSanitizerEnvironment(
-        IReadOnlyDictionary<string, string> nativeEnvironment,
-        bool isWindows)
+
+    internal static Dictionary<string, string> BuildSanitizerEnvironment(IReadOnlyDictionary<string, string> nativeEnvironment, bool isWindows)
     {
-        var environment = new Dictionary<string, string>(
-            nativeEnvironment,
-            StringComparer.OrdinalIgnoreCase)
+        var environment = new Dictionary<string, string>(nativeEnvironment, StringComparer.OrdinalIgnoreCase)
         {
             ["ASAN_OPTIONS"] = isWindows
                 ? "halt_on_error=1:abort_on_error=1"
                 : "detect_leaks=1:halt_on_error=1:allocator_may_return_null=0",
             ["UBSAN_OPTIONS"] = "print_stacktrace=1:halt_on_error=0"
         };
-
-        if (!isWindows)
-            environment["LSAN_OPTIONS"] = "exitcode=23:report_objects=1";
-
+        if (!isWindows) environment["LSAN_OPTIONS"] = "exitcode=23:report_objects=1";
         return environment;
     }
+
     internal static TimeSpan ResolveNativeExecutionTimeout(int requestedSeconds)
         => TimeSpan.FromSeconds(Math.Clamp(requestedSeconds, 5, 1800));
 
@@ -403,22 +444,14 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         => TimeSpan.FromSeconds(Math.Clamp((int)Math.Floor(requestedBudget.TotalSeconds / 4.0), 5, 30));
 
     internal static TimeSpan ResolveCtestProcessTimeout(TimeSpan requestedBudget, TimeSpan ctestCaseTimeout)
-        => TimeSpan.FromSeconds(Math.Max(
-            5,
-            Math.Min(requestedBudget.TotalSeconds, ctestCaseTimeout.TotalSeconds + 10)));
+        => TimeSpan.FromSeconds(Math.Max(5, Math.Min(requestedBudget.TotalSeconds, ctestCaseTimeout.TotalSeconds + 10)));
 
-    // CTest owns the normal sanitizer/test path. The direct runtime probe is a fallback
-    // only when CTest was unavailable or did not complete successfully.
     internal static bool ShouldRunDirectRuntimeProbe(QaToolExecution? ctestTool)
-        => ctestTool is null
-           || !ctestTool.WasAvailable
-           || !ctestTool.Succeeded;
+        => ctestTool is null || !ctestTool.WasAvailable || !ctestTool.Succeeded;
 
     private static void ResetQaBuildDirectory(string build)
     {
-        if (Directory.Exists(build))
-            Directory.Delete(build, recursive: true);
-
+        if (Directory.Exists(build)) Directory.Delete(build, recursive: true);
         Directory.CreateDirectory(build);
     }
 
@@ -447,13 +480,11 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
                     $"CompilerExists={toolchain.CompilerExists}",
                     $"ForwardedVariables={string.Join(",", toolchain.Environment.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))}"
                 };
-
             File.WriteAllLines(path, lines);
         }
         catch
         {
-            // Diagnostic evidence must never turn a compiler-discovery failure into a
-            // separate QA infrastructure failure. The CMake logs remain authoritative.
+            // Diagnostic evidence must never mask the authoritative compiler/tool result.
         }
     }
 
@@ -463,43 +494,31 @@ public sealed class CppQaEngine(ProcessExecutor executor, UniversalDiagnosticNor
         {
             var cmakeLists = Path.Combine(workspace, "CMakeLists.txt");
             var text = File.ReadAllText(cmakeLists);
-            var match = Regex.Match(
-                text,
-                @"add_executable\s*\(\s*([A-Za-z0-9_.+-]+)",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-            if (!match.Success)
-                return null;
-
+            var match = Regex.Match(text, @"add_executable\s*\(\s*([A-Za-z0-9_.+-]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (!match.Success) return null;
             var name = match.Groups[1].Value;
             var candidates = OperatingSystem.IsWindows()
-                ? new[]
-                {
-                    Path.Combine(build, "RelWithDebInfo", name + ".exe"),
-                    Path.Combine(build, name + ".exe")
-                }
-                : new[]
-                {
-                    Path.Combine(build, name),
-                    Path.Combine(build, "RelWithDebInfo", name)
-                };
-
+                ? new[] { Path.Combine(build, "RelWithDebInfo", name + ".exe"), Path.Combine(build, name + ".exe") }
+                : new[] { Path.Combine(build, name), Path.Combine(build, "RelWithDebInfo", name) };
             return candidates.FirstOrDefault(File.Exists);
         }
-        catch
-        {
-            return null;
-        }
+        catch { return null; }
+    }
+
+    private static string? ResolveWorkspaceRuntime(string workspace, string value)
+    {
+        if (Path.IsPathRooted(value)) return null;
+        var root = Path.GetFullPath(workspace);
+        var candidate = Path.GetFullPath(Path.Combine(root, value));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var prefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return candidate.StartsWith(prefix, comparison) && File.Exists(candidate) ? candidate : null;
     }
 
     private static string ResolveCompilerFamily()
     {
-        if (!OperatingSystem.IsWindows())
-            return "gnu-like";
-
-        if (ProcessExecutor.FindExecutable("clang-cl") is not null)
-            return "clang-cl";
-
+        if (!OperatingSystem.IsWindows()) return "gnu-like";
+        if (ProcessExecutor.FindExecutable("clang-cl") is not null) return "clang-cl";
         return "msvc";
     }
 }
