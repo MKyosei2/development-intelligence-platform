@@ -37,7 +37,7 @@ public sealed record EvidenceIntegrityVerificationResult(
 
 public sealed class EvidenceIntegrityVerifier
 {
-    private const string PayloadSchema = "dip.evidence-signature.v1";
+    public const string PayloadSchema = "dip.evidence-signature.v1";
     private readonly IArtifactRepository _artifacts;
     private readonly IEvidenceV2Repository _evidence;
 
@@ -101,17 +101,15 @@ public sealed class EvidenceIntegrityVerifier
             if (!string.IsNullOrWhiteSpace(request.ExpectedContentHash))
             {
                 if (!IsSha256(request.ExpectedContentHash))
-                    return Invalid("Expected content hash is not a SHA-256 digest.", artifactResolved, false, artifactSha);
+                    return Invalid("Expected content hash is not a SHA-256 digest.", true, false, artifactSha);
                 if (!FixedHashEquals(request.ExpectedContentHash, blob.Sha256))
-                    return Invalid("Evidence content hash does not match the durable artifact blob.", artifactResolved, false, artifactSha);
+                    return Invalid("Evidence content hash does not match the durable artifact blob.", true, false, artifactSha);
             }
             hashVerified = true;
         }
-        else if (!string.IsNullOrWhiteSpace(request.ExpectedContentHash))
+        else if (!string.IsNullOrWhiteSpace(request.ExpectedContentHash) && !IsSha256(request.ExpectedContentHash))
         {
-            // A caller-supplied hash without a resolvable immutable artifact is not proof.
-            if (!IsSha256(request.ExpectedContentHash))
-                return Invalid("Expected content hash is not a SHA-256 digest.");
+            return Invalid("Expected content hash is not a SHA-256 digest.");
         }
 
         var parentVerified = false;
@@ -131,9 +129,8 @@ public sealed class EvidenceIntegrityVerifier
         if (policy is not null && !EnumAllowed(policy.SourceType, request.SourceType))
             return Invalid("Source policy does not permit this evidence source type.", artifactResolved, hashVerified, artifactSha, parentVerified, true);
 
-        var signaturePresent = !string.IsNullOrWhiteSpace(request.SignatureBase64);
         var signatureVerified = false;
-        if (signaturePresent)
+        if (!string.IsNullOrWhiteSpace(request.SignatureBase64))
         {
             if (string.IsNullOrWhiteSpace(keyId))
                 return Invalid("Evidence signature is present but SigningKeyId is missing.", artifactResolved, hashVerified, artifactSha, parentVerified, sourceTrusted);
@@ -145,17 +142,15 @@ public sealed class EvidenceIntegrityVerifier
             var keys = LoadTrustedKeys();
             if (!keys.TryGetValue(keyId, out var publicKeyPem))
                 return Invalid("Evidence signing key is not trusted.", artifactResolved, hashVerified, artifactSha, parentVerified, sourceTrusted);
-
-            byte[] signature;
-            try { signature = Convert.FromBase64String(request.SignatureBase64!.Trim()); }
-            catch (FormatException) { return Invalid("Evidence signature is not valid base64.", artifactResolved, hashVerified, artifactSha, parentVerified, sourceTrusted); }
+            if (!TryDecodeBase64(request.SignatureBase64, out var signature))
+                return Invalid("Evidence signature is not valid base64.", artifactResolved, hashVerified, artifactSha, parentVerified, sourceTrusted);
 
             var canonical = BuildCanonicalPayload(request, artifactSha ?? request.ExpectedContentHash);
             var payload = canonical;
             if (!string.IsNullOrWhiteSpace(request.SignedPayloadBase64))
             {
-                try { payload = Convert.FromBase64String(request.SignedPayloadBase64.Trim()); }
-                catch (FormatException) { return Invalid("Signed evidence payload is not valid base64.", artifactResolved, hashVerified, artifactSha, parentVerified, sourceTrusted); }
+                if (!TryDecodeBase64(request.SignedPayloadBase64, out payload))
+                    return Invalid("Signed evidence payload is not valid base64.", artifactResolved, hashVerified, artifactSha, parentVerified, sourceTrusted);
                 if (!SignedPayloadMatchesClaims(payload, request, artifactSha ?? request.ExpectedContentHash))
                     return Invalid("Signed evidence payload claims do not match the evidence record.", artifactResolved, hashVerified, artifactSha, parentVerified, sourceTrusted);
             }
@@ -166,6 +161,7 @@ public sealed class EvidenceIntegrityVerifier
         }
 
         if (policy?.RequireSignature == true && !signatureVerified)
+        {
             return new(
                 EvidenceIntegrityStatus.Unverified,
                 artifactResolved,
@@ -176,13 +172,11 @@ public sealed class EvidenceIntegrityVerifier
                 keyId,
                 "Trusted source policy requires a valid signature.",
                 artifactSha);
+        }
 
         var unsignedArtifactAllowed = policy?.AllowUnsignedArtifact == true && artifactResolved && hashVerified;
-        var chainTrusted = parentVerified;
         var fullyVerified = sourceTrusted
-                            && (signatureVerified
-                                || chainTrusted
-                                || artifactResolved && hashVerified && unsignedArtifactAllowed);
+                            && (signatureVerified || parentVerified || unsignedArtifactAllowed);
         if (fullyVerified)
         {
             return new(
@@ -232,6 +226,7 @@ public sealed class EvidenceIntegrityVerifier
         EvidenceIntegrityVerificationRequest request,
         string? artifactSha256)
     {
+        ValidateRequest(request);
         var payload = new
         {
             schema = PayloadSchema,
@@ -246,6 +241,11 @@ public sealed class EvidenceIntegrityVerifier
         };
         return JsonSerializer.SerializeToUtf8Bytes(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }
+
+    public static bool CanPromoteToVerified(EvidenceIntegrityVerificationResult result)
+        => result.Status == EvidenceIntegrityStatus.Verified
+           && result.SourceTrusted
+           && (result.SignatureVerified || result.ParentVerified || result.ArtifactResolved && result.HashVerified);
 
     private static bool SignedPayloadMatchesClaims(
         byte[] payload,
@@ -282,42 +282,66 @@ public sealed class EvidenceIntegrityVerifier
         byte[] signature)
     {
         var normalized = algorithm?.Trim().ToLowerInvariant();
-        if (normalized is null or "ecdsa-sha256")
+        if ((normalized is null or "ecdsa-sha256") && TryVerifyEcdsa(publicKeyPem, payload, signature))
+            return true;
+        return (normalized is null or "rsa-pss-sha256") && TryVerifyRsa(publicKeyPem, payload, signature);
+    }
+
+    private static bool TryVerifyEcdsa(string publicKeyPem, byte[] payload, byte[] signature)
+    {
+        try
         {
-            try
-            {
-                using var ecdsa = ECDsa.Create();
-                ecdsa.ImportFromPem(publicKeyPem);
-                if (ecdsa.VerifyData(payload, signature, HashAlgorithmName.SHA256)) return true;
-            }
-            catch (Exception ex) when (normalized is null && (ex is CryptographicException or ArgumentException))
-            {
-            }
-            catch (Exception ex) when (ex is CryptographicException or ArgumentException)
-            {
-                return false;
-            }
+            using var ecdsa = ECDsa.Create();
+            ecdsa.ImportFromPem(publicKeyPem);
+            return ecdsa.VerifyData(payload, signature, HashAlgorithmName.SHA256);
         }
-        if (normalized is null or "rsa-pss-sha256")
+        catch (CryptographicException)
         {
-            try
-            {
-                using var rsa = RSA.Create();
-                rsa.ImportFromPem(publicKeyPem);
-                return rsa.VerifyData(payload, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-            }
-            catch (Exception ex) when (ex is CryptographicException or ArgumentException)
-            {
-                return false;
-            }
+            return false;
         }
-        return false;
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryVerifyRsa(string publicKeyPem, byte[] payload, byte[] signature)
+    {
+        try
+        {
+            using var rsa = RSA.Create();
+            rsa.ImportFromPem(publicKeyPem);
+            return rsa.VerifyData(payload, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+        }
+        catch (CryptographicException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryDecodeBase64(string value, out byte[] bytes)
+    {
+        try
+        {
+            bytes = Convert.FromBase64String(value.Trim());
+            return true;
+        }
+        catch (FormatException)
+        {
+            bytes = Array.Empty<byte>();
+            return false;
+        }
     }
 
     private static IReadOnlyDictionary<string, string> LoadTrustedKeys()
     {
         var json = Environment.GetEnvironmentVariable("DIP_EVIDENCE_TRUSTED_KEYS_JSON");
-        if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, string>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(json))
+            return new Dictionary<string, string>(StringComparer.Ordinal);
         try
         {
             using var document = JsonDocument.Parse(json);
@@ -336,7 +360,8 @@ public sealed class EvidenceIntegrityVerifier
     private static IReadOnlyDictionary<string, SourceTrustPolicy> LoadSourcePolicies()
     {
         var json = Environment.GetEnvironmentVariable("DIP_EVIDENCE_SOURCE_POLICY_JSON");
-        if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, SourceTrustPolicy>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(json))
+            return new Dictionary<string, SourceTrustPolicy>(StringComparer.Ordinal);
         try
         {
             var value = JsonSerializer.Deserialize<Dictionary<string, SourceTrustPolicy>>(
@@ -358,12 +383,18 @@ public sealed class EvidenceIntegrityVerifier
 
     private static void ValidateRequest(EvidenceIntegrityVerificationRequest request)
     {
-        if (request.ProjectId == Guid.Empty) throw new ArgumentException("ProjectId is required.", nameof(request));
-        if (!Enum.IsDefined(request.SourceType)) throw new ArgumentOutOfRangeException(nameof(request));
-        if (!Enum.IsDefined(request.EventType)) throw new ArgumentOutOfRangeException(nameof(request));
-        if (string.IsNullOrWhiteSpace(request.SourceInstanceId)) throw new ArgumentException("SourceInstanceId is required.", nameof(request));
-        if (string.IsNullOrWhiteSpace(request.SourceEventId)) throw new ArgumentException("SourceEventId is required.", nameof(request));
-        if (string.IsNullOrWhiteSpace(request.SubjectKey)) throw new ArgumentException("SubjectKey is required.", nameof(request));
+        if (request.ProjectId == Guid.Empty)
+            throw new ArgumentException("ProjectId is required.", nameof(request));
+        if (!Enum.IsDefined(request.SourceType))
+            throw new ArgumentOutOfRangeException(nameof(request));
+        if (!Enum.IsDefined(request.EventType))
+            throw new ArgumentOutOfRangeException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.SourceInstanceId))
+            throw new ArgumentException("SourceInstanceId is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.SourceEventId))
+            throw new ArgumentException("SourceEventId is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.SubjectKey))
+            throw new ArgumentException("SubjectKey is required.", nameof(request));
     }
 
     private static string? Metadata(string? json, string name)
@@ -384,8 +415,12 @@ public sealed class EvidenceIntegrityVerifier
     {
         if (root.ValueKind != JsonValueKind.Object) return null;
         foreach (var property in root.EnumerateObject())
+        {
             if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-                return property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.GetRawText();
+                return property.Value.ValueKind == JsonValueKind.String
+                    ? property.Value.GetString()
+                    : property.Value.GetRawText();
+        }
         return null;
     }
 

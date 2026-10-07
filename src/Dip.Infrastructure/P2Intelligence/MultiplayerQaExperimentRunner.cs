@@ -1,4 +1,4 @@
-// Purpose: Runs deterministic multi-client game QA with explicit network-impairment acknowledgement and state-hash desync detection.
+// Purpose: Runs deterministic multi-client game QA using an explicit telemetry contract, impairment attestation, and state-hash desync detection.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.P2Intelligence;
@@ -37,6 +37,16 @@ public sealed record MultiplayerQaResult(
     string ArtifactReference,
     string Summary);
 
+public sealed record MultiplayerTelemetryAssessment(
+    string Status,
+    int Samples,
+    int CommonTicks,
+    int DesyncTicks,
+    decimal? AverageRttMs,
+    decimal? AverageObservedPacketLossPercent,
+    bool NetworkImpairmentVerified,
+    string Summary);
+
 public interface IMultiplayerQaExperimentRunner
 {
     Task<MultiplayerQaResult> RunAsync(MultiplayerQaCommand command, CancellationToken ct);
@@ -45,14 +55,16 @@ public interface IMultiplayerQaExperimentRunner
 /// <summary>
 /// The configured executable is a multiplayer QA harness. It owns all clients inside
 /// one isolated execution environment so loopback/private in-sandbox networking can be
-/// used without exposing the worker host. The harness must emit lines such as:
-/// DIP_MP_STATE client=0 tick=120 hash=abc rtt_ms=42 packet_loss_percent=2 network_impairment_applied=1
-/// A requested latency/jitter/loss condition is never assumed to have been applied.
+/// used without exposing the worker host. A requested latency/jitter/loss condition is
+/// never assumed to have been applied: each client must attest it in telemetry.
 /// </summary>
 public sealed class MultiplayerQaExperimentRunner(
     ProcessExecutor executor,
     IQaWorkspaceResolver workspaceResolver) : IMultiplayerQaExperimentRunner
 {
+    public const string TelemetryPrefix = "DIP_MP_STATE";
+    public const string TelemetrySchema = "dip.multiplayer-qa.v1";
+
     public async Task<MultiplayerQaResult> RunAsync(MultiplayerQaCommand command, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -84,6 +96,7 @@ public sealed class MultiplayerQaExperimentRunner(
         var environment = new Dictionary<string, string>
         {
             ["DIP_MP_QA"] = "1",
+            ["DIP_MP_TELEMETRY_FORMAT"] = "v1",
             ["DIP_MP_CLIENT_COUNT"] = clients.ToString(CultureInfo.InvariantCulture),
             ["DIP_MP_DURATION_SECONDS"] = duration.ToString(CultureInfo.InvariantCulture),
             ["DIP_NET_LATENCY_MS"] = latency.ToString(CultureInfo.InvariantCulture),
@@ -112,109 +125,178 @@ public sealed class MultiplayerQaExperimentRunner(
             return new(status, clients, 0, 0, 0, null, null, false, Relative(root), summary);
         }
 
-        var samples = Parse(execution.StandardOutput)
-            .Concat(Parse(execution.StandardError))
+        var samples = ParseTelemetry(execution.StandardOutput)
+            .Concat(ParseTelemetry(execution.StandardError))
             .Where(x => x.Client >= 0 && x.Client < clients)
             .GroupBy(x => (x.Client, x.Tick))
             .Select(x => x.Last())
             .OrderBy(x => x.Tick)
             .ThenBy(x => x.Client)
             .ToArray();
+        var impairmentRequested = latency > 0 || jitter > 0 || loss > 0m;
+        var assessment = EvaluateTelemetry(
+            samples,
+            clients,
+            Math.Max(1, command.MinimumCommonTicks),
+            Math.Max(0, command.MaximumDesyncTicks),
+            impairmentRequested);
+
+        await WriteEvidenceAsync(
+            root,
+            command,
+            execution,
+            samples,
+            assessment.Status,
+            assessment.Summary,
+            assessment.NetworkImpairmentVerified,
+            assessment.CommonTicks,
+            assessment.DesyncTicks,
+            ct);
+        return new(
+            assessment.Status,
+            clients,
+            assessment.Samples,
+            assessment.CommonTicks,
+            assessment.DesyncTicks,
+            assessment.AverageRttMs,
+            assessment.AverageObservedPacketLossPercent,
+            assessment.NetworkImpairmentVerified,
+            Relative(root),
+            assessment.Summary);
+    }
+
+    public static IReadOnlyList<MultiplayerStateSample> ParseTelemetry(string text)
+    {
+        var result = new List<MultiplayerStateSample>();
+        foreach (var line in text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!line.Contains(TelemetryPrefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var values = ParseKeyValues(line);
+            if (!TryInt(values, "client", out var client)
+                || client < 0
+                || !TryLong(values, "tick", out var tick)
+                || tick < 0
+                || !values.TryGetValue("hash", out var hash)
+                || string.IsNullOrWhiteSpace(hash)
+                || hash.Length > 512)
+                continue;
+
+            var rtt = NullableDecimal(values, "rtt_ms");
+            var observedLoss = NullableDecimal(values, "packet_loss_percent");
+            if (rtt < 0 || observedLoss < 0 || observedLoss > 100m)
+                continue;
+            var impairment = values.TryGetValue("network_impairment_applied", out var applied)
+                             && (applied == "1" || bool.TryParse(applied, out var parsed) && parsed);
+            result.Add(new(client, tick, hash.Trim(), rtt, observedLoss, impairment));
+        }
+        return result;
+    }
+
+    public static MultiplayerTelemetryAssessment EvaluateTelemetry(
+        IReadOnlyList<MultiplayerStateSample> input,
+        int expectedClients,
+        int minimumCommonTicks,
+        int maximumDesyncTicks,
+        bool impairmentRequested)
+    {
+        var clients = Math.Clamp(expectedClients, 2, 32);
+        var samples = input
+            .Where(x => x.Client >= 0 && x.Client < clients && x.Tick >= 0 && !string.IsNullOrWhiteSpace(x.StateHash))
+            .GroupBy(x => (x.Client, x.Tick))
+            .Select(x => x.Last())
+            .ToArray();
         if (samples.Length == 0)
         {
-            const string summary = "Harness completed without DIP_MP_STATE telemetry; multiplayer correctness is NOT_EVALUATED.";
-            await WriteEvidenceAsync(root, command, execution, samples, "InfrastructureFailure", summary, false, 0, 0, ct);
-            return new("InfrastructureFailure", clients, 0, 0, 0, null, null, false, Relative(root), summary);
+            return new(
+                "InfrastructureFailure", 0, 0, 0, null, null, false,
+                "Harness completed without valid DIP_MP_STATE telemetry; multiplayer correctness is NOT_EVALUATED.");
         }
 
         var presentClients = samples.Select(x => x.Client).Distinct().OrderBy(x => x).ToArray();
         if (presentClients.Length != clients)
         {
-            var summary = $"Expected telemetry from {clients} clients but observed {presentClients.Length}.";
-            await WriteEvidenceAsync(root, command, execution, samples, "InfrastructureFailure", summary, false, 0, 0, ct);
-            return new("InfrastructureFailure", clients, samples.Length, 0, 0, null, null, false, Relative(root), summary);
+            return new(
+                "InfrastructureFailure",
+                samples.Length,
+                0,
+                0,
+                Average(samples.Select(x => x.RttMs)),
+                Average(samples.Select(x => x.ObservedPacketLossPercent)),
+                false,
+                $"Expected telemetry from {clients} clients but observed {presentClients.Length}.");
         }
 
-        var impairmentRequested = latency > 0 || jitter > 0 || loss > 0m;
         var impairmentVerified = !impairmentRequested
                                  || Enumerable.Range(0, clients).All(client =>
                                      samples.Where(x => x.Client == client).Any(x => x.NetworkImpairmentApplied));
         if (!impairmentVerified)
         {
-            const string summary = "Network impairment was requested but one or more clients did not attest that latency/jitter/loss injection was applied.";
-            await WriteEvidenceAsync(root, command, execution, samples, "InfrastructureFailure", summary, false, 0, 0, ct);
-            return new("InfrastructureFailure", clients, samples.Length, 0, 0, Average(samples.Select(x => x.RttMs)), Average(samples.Select(x => x.ObservedPacketLossPercent)), false, Relative(root), summary);
+            return new(
+                "InfrastructureFailure",
+                samples.Length,
+                0,
+                0,
+                Average(samples.Select(x => x.RttMs)),
+                Average(samples.Select(x => x.ObservedPacketLossPercent)),
+                false,
+                "Network impairment was requested but one or more clients did not attest that latency/jitter/loss injection was applied.");
         }
 
         HashSet<long>? common = null;
         for (var client = 0; client < clients; client++)
         {
             var ticks = samples.Where(x => x.Client == client).Select(x => x.Tick).ToHashSet();
-            if (common is null) common = ticks;
-            else common.IntersectWith(ticks);
+            if (common is null)
+                common = ticks;
+            else
+                common.IntersectWith(ticks);
         }
         common ??= new HashSet<long>();
         var commonTicks = common.OrderBy(x => x).ToArray();
-        if (commonTicks.Length < Math.Max(1, command.MinimumCommonTicks))
+        var requiredTicks = Math.Max(1, minimumCommonTicks);
+        if (commonTicks.Length < requiredTicks)
         {
-            var summary = $"Only {commonTicks.Length} common simulation tick(s) were observed; at least {Math.Max(1, command.MinimumCommonTicks)} are required.";
-            await WriteEvidenceAsync(root, command, execution, samples, "InfrastructureFailure", summary, impairmentVerified, commonTicks.Length, 0, ct);
-            return new("InfrastructureFailure", clients, samples.Length, commonTicks.Length, 0, Average(samples.Select(x => x.RttMs)), Average(samples.Select(x => x.ObservedPacketLossPercent)), impairmentVerified, Relative(root), summary);
+            return new(
+                "InfrastructureFailure",
+                samples.Length,
+                commonTicks.Length,
+                0,
+                Average(samples.Select(x => x.RttMs)),
+                Average(samples.Select(x => x.ObservedPacketLossPercent)),
+                impairmentVerified,
+                $"Only {commonTicks.Length} common simulation tick(s) were observed; at least {requiredTicks} are required.");
         }
 
         var byTick = samples.ToLookup(x => x.Tick);
-        var desyncTicks = 0;
-        foreach (var tick in commonTicks)
+        var desyncTicks = commonTicks.Count(tick =>
         {
-            var hashes = byTick[tick]
-                .Select(x => x.StateHash)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-            if (hashes.Length != 1)
-                desyncTicks++;
-        }
-        var failed = desyncTicks > Math.Max(0, command.MaximumDesyncTicks);
-        var statusResult = failed ? "Failed" : "Passed";
+            var atTick = byTick[tick].ToArray();
+            if (atTick.Length != clients)
+                return true;
+            return atTick.Select(x => x.StateHash).Distinct(StringComparer.Ordinal).Count() != 1;
+        });
+        var failed = desyncTicks > Math.Max(0, maximumDesyncTicks);
+        var status = failed ? "Failed" : "Passed";
         var avgRtt = Average(samples.Select(x => x.RttMs));
         var avgLoss = Average(samples.Select(x => x.ObservedPacketLossPercent));
-        var summaryText =
+        var summary =
             $"{clients} clients, {commonTicks.Length} common tick(s), {desyncTicks} desync tick(s), "
             + $"RTT={(avgRtt?.ToString("0.##", CultureInfo.InvariantCulture) ?? "n/a")}ms, "
-            + $"observed loss={(avgLoss?.ToString("0.###", CultureInfo.InvariantCulture) ?? "n/a")}%.";
-        await WriteEvidenceAsync(root, command, execution, samples, statusResult, summaryText, impairmentVerified, commonTicks.Length, desyncTicks, ct);
-        return new(statusResult, clients, samples.Length, commonTicks.Length, desyncTicks, avgRtt, avgLoss, impairmentVerified, Relative(root), summaryText);
+            + $"observed loss={(avgLoss?.ToString("0.###", CultureInfo.InvariantCulture) ?? "n/a")}% .";
+        return new(status, samples.Length, commonTicks.Length, desyncTicks, avgRtt, avgLoss, impairmentVerified, summary);
     }
 
-    private static IReadOnlyList<MultiplayerStateSample> Parse(string text)
+    private static Dictionary<string, string> ParseKeyValues(string line)
     {
-        var result = new List<MultiplayerStateSample>();
-        foreach (var line in text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var token in line.Split([' ', ';', ','], StringSplitOptions.RemoveEmptyEntries))
         {
-            if (!line.Contains("DIP_MP_STATE", StringComparison.OrdinalIgnoreCase))
-                continue;
-            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var token in line.Split([' ', ';', ','], StringSplitOptions.RemoveEmptyEntries))
-            {
-                var parts = token.Split('=', 2);
-                if (parts.Length == 2) values[parts[0].Trim()] = parts[1].Trim();
-            }
-            if (!TryInt(values, "client", out var client)
-                || !TryLong(values, "tick", out var tick)
-                || !values.TryGetValue("hash", out var hash)
-                || string.IsNullOrWhiteSpace(hash))
-                continue;
-            var impairment = values.TryGetValue("network_impairment_applied", out var applied)
-                             && (applied == "1" || bool.TryParse(applied, out var parsed) && parsed);
-            result.Add(new(
-                client,
-                tick,
-                hash,
-                NullableDecimal(values, "rtt_ms"),
-                NullableDecimal(values, "packet_loss_percent"),
-                impairment));
+            var parts = token.Split('=', 2);
+            if (parts.Length == 2)
+                values[parts[0].Trim()] = parts[1].Trim();
         }
-        return result;
+        return values;
     }
 
     private static decimal? Average(IEnumerable<decimal?> values)
@@ -241,7 +323,8 @@ public sealed class MultiplayerQaExperimentRunner(
     {
         if (string.IsNullOrWhiteSpace(executable))
             throw new ArgumentException("Multiplayer QA harness executable is required.", nameof(executable));
-        if (Path.IsPathRooted(executable)) return executable;
+        if (Path.IsPathRooted(executable))
+            return executable;
         var local = Path.GetFullPath(Path.Combine(workspace, executable));
         return File.Exists(local) ? local : executable;
     }
@@ -260,7 +343,12 @@ public sealed class MultiplayerQaExperimentRunner(
     {
         var payload = new
         {
-            schema = "dip.multiplayer-qa.v1",
+            schema = TelemetrySchema,
+            telemetryContract = new
+            {
+                prefix = TelemetryPrefix,
+                format = "DIP_MP_STATE client=<n> tick=<n> hash=<stable-state-hash> [rtt_ms=<ms>] [packet_loss_percent=<0..100>] network_impairment_applied=<0|1>"
+            },
             status,
             summary,
             requested = new

@@ -12,7 +12,7 @@ namespace Dip.Application.Tests.P2Intelligence;
 public sealed class AdaptiveQaPlannerTests
 {
     [Fact]
-    public async Task RenderingChange_SelectsVisualAndPerformanceChecks_AsExecutableRequiredExperiments()
+    public async Task RenderingChange_SelectsVisualAndGpuPerformance_AsExecutableRequiredExperiments()
     {
         var now = DateTimeOffset.UtcNow;
         var projectId = Guid.NewGuid();
@@ -40,13 +40,37 @@ public sealed class AdaptiveQaPlannerTests
         plan.ExecutablePlan!.Steps.Should().Contain(x =>
             x.Kind == DebugExperimentKind.VisualRegression && x.Required);
         plan.ExecutablePlan.Steps.Should().Contain(x =>
-            x.Kind == DebugExperimentKind.Benchmark && x.Required);
+            x.Kind == DebugExperimentKind.GpuPerformance && x.Required);
         plan.ExecutablePlan.Steps.Should().Contain(x =>
             x.Kind == DebugExperimentKind.RegressionTest && x.Required);
         plan.ExecutablePlan.Steps.Should().OnlyContain(x =>
             !string.IsNullOrWhiteSpace(x.SuccessCondition)
             && !string.IsNullOrWhiteSpace(x.FalsificationCondition)
             && x.RequiredEvidence.Count > 0);
+    }
+
+    [Fact]
+    public async Task MultiplayerChange_SelectsDedicatedMultiplayerExperiment()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var planner = new AdaptiveQaPlanner(
+            new FakeEvidence([]),
+            new FakeIntelligence(),
+            new FakePlans(),
+            new FakeUow(),
+            new FakeClock(now));
+
+        var plan = await planner.PlanAsync(new(
+            Guid.NewGuid(),
+            "netcode",
+            ["Assets/Scripts/Multiplayer/PlayerReplication.cs"],
+            null,
+            60), CancellationToken.None);
+
+        plan.Steps.Should().Contain(x => x.Id == "multiplayer" && x.Required);
+        plan.ExecutablePlan.Should().NotBeNull();
+        plan.ExecutablePlan!.Steps.Should().Contain(x =>
+            x.Kind == DebugExperimentKind.Multiplayer && x.Required);
     }
 
     [Fact]
@@ -71,9 +95,11 @@ public sealed class AdaptiveQaPlannerTests
         plan.ExecutablePlan!.Steps.Should().ContainSingle(x =>
             x.Kind == DebugExperimentKind.StaticAnalysis);
         plan.ExecutablePlan.Steps.Should().NotContain(x =>
-            x.Kind is DebugExperimentKind.RuntimeReplay
-                or DebugExperimentKind.VisualRegression
-                or DebugExperimentKind.Benchmark);
+            x.Kind == DebugExperimentKind.RuntimeReplay
+            || x.Kind == DebugExperimentKind.VisualRegression
+            || x.Kind == DebugExperimentKind.GpuPerformance
+            || x.Kind == DebugExperimentKind.Benchmark
+            || x.Kind == DebugExperimentKind.Multiplayer);
     }
 
     private sealed class FakeEvidence(IReadOnlyList<EvidenceRecord> values) : IEvidenceRepository

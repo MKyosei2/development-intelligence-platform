@@ -111,9 +111,7 @@ public sealed class GameReplayService
         }
         finally
         {
-            try { Directory.Delete(materialized.Directory, true); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            await CleanupReplayInputDirectoryAsync(materialized.Directory, job.Id);
         }
 
         var metrics = Aggregate(run.Id, execution.Samples);
@@ -267,6 +265,35 @@ public sealed class GameReplayService
         await using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
             await content.CopyToAsync(output, ct);
         return (path, directory);
+    }
+
+    private static async Task CleanupReplayInputDirectoryAsync(string directory, Guid jobId)
+    {
+        try
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            var warningRoot = Path.Combine(Path.GetTempPath(), "dip-replay-cleanup-warnings");
+            try
+            {
+                Directory.CreateDirectory(warningRoot);
+                await File.AppendAllTextAsync(
+                    Path.Combine(warningRoot, $"{jobId:N}.log"),
+                    $"{DateTimeOffset.UtcNow:O} {ex.GetType().Name}: {ex.Message}{Environment.NewLine}",
+                    CancellationToken.None);
+            }
+            catch (Exception loggingEx) when (loggingEx is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Trace.TraceWarning(
+                    "Replay cleanup warning could not be persisted for job {0}: {1}; logging failure: {2}",
+                    jobId,
+                    ex.Message,
+                    loggingEx.Message);
+            }
+        }
     }
 
     private static List<GameReplayMetric> Aggregate(Guid runId, IReadOnlyList<ReplaySample> samples)

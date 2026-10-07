@@ -143,6 +143,14 @@ public static class AutonomousQaExperimentDefaults
                 "All measured benchmark/load iterations satisfy the configured execution boundary.",
                 "A repeatable benchmark/load failure or timeout reproduces the performance/service defect.",
                 Evidence("benchmark", "Benchmark samples and environment fingerprint.")),
+            DebugExperimentKind.GpuPerformance => (
+                "Engine GPU telemetry is present and frame-time, VRAM and hitch budgets remain within the configured limits.",
+                "Missing GPU telemetry, an exceeded GPU-frame/VRAM budget, or excessive hitching falsifies the performance hypothesis.",
+                Evidence("gpu-performance", "GPU frame-time distribution, VRAM, draw-call/triangle/shader-variant peaks and hitch evidence.")),
+            DebugExperimentKind.Multiplayer => (
+                "All configured clients emit common-tick state evidence, requested network impairment is attested, and desync stays within policy.",
+                "Missing client telemetry, unverified impairment injection, insufficient common ticks, or excess state-hash desync falsifies multiplayer correctness.",
+                Evidence("multiplayer-state", "Per-client state hashes, RTT/loss observations, impairment acknowledgement and desync evidence.")),
             DebugExperimentKind.Stress or DebugExperimentKind.Soak => (
                 "Sustained execution completes without crash and without configured memory/performance drift.",
                 "Crash, timeout, memory growth, or sustained performance drift reproduces the defect.",

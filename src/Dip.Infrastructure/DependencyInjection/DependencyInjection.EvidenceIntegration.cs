@@ -1,4 +1,4 @@
-// Purpose: Registers evidence, integration, credential, policy, and artifact-tracking infrastructure boundaries.
+// Purpose: Registers evidence, integrity verification, integration, credential, policy, and artifact-tracking infrastructure boundaries.
 using System.Net.Http.Headers;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Security;
@@ -72,6 +72,7 @@ public static class EvidenceIntegrationDependencyInjection
 
         services.AddScoped<PolicyResolver>();
         services.AddScoped<PolicyProfileService>();
+        services.AddScoped<EvidenceIntegrityVerifier>();
         services.AddScoped<EvidenceIngestionService>();
         services.AddScoped<IntegrationConnectionService>();
 
@@ -85,6 +86,6 @@ public static class EvidenceIntegrationDependencyInjection
         return new Uri(normalized, UriKind.Absolute);
     }
 
-    private static string? FirstNonEmpty(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+    private static string? FirstNonEmpty(params string?[] values)
+        => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 }

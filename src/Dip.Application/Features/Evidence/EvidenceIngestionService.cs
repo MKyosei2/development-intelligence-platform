@@ -1,4 +1,5 @@
-// Purpose: Ingests project evidence while preserving provenance, policy context, and verification state.
+// Purpose: Ingests project evidence while preserving provenance, policy context, and cryptographically verified integrity state.
+using System.Text.Json;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
 using Dip.Application.Features.Policies;
@@ -15,6 +16,7 @@ public sealed class EvidenceIngestionService
     private readonly ISystemClock _clock;
     private readonly PolicyResolver _policies;
     private readonly IArtifactRepository? _artifacts;
+    private readonly EvidenceIntegrityVerifier? _integrityVerifier;
 
     public EvidenceIngestionService(
         IProjectRepository projects,
@@ -22,7 +24,8 @@ public sealed class EvidenceIngestionService
         IUnitOfWork uow,
         ISystemClock clock,
         PolicyResolver policies,
-        IArtifactRepository? artifacts = null)
+        IArtifactRepository? artifacts = null,
+        EvidenceIntegrityVerifier? integrityVerifier = null)
     {
         _projects = projects;
         _evidence = evidence;
@@ -30,6 +33,7 @@ public sealed class EvidenceIngestionService
         _clock = clock;
         _policies = policies;
         _artifacts = artifacts;
+        _integrityVerifier = integrityVerifier;
     }
 
     public async Task<IngestEvidenceResult> IngestAsync(
@@ -48,25 +52,16 @@ public sealed class EvidenceIngestionService
             command.SourceInstanceId.Trim(),
             command.SourceEventId.Trim(),
             ct);
-
         if (existing is not null)
             return Map(existing, created: false);
 
-        var effective = await _policies.ResolveAsync(
-            command.ProjectId,
-            agentId: null,
-            ct);
-
+        var effective = await _policies.ResolveAsync(command.ProjectId, agentId: null, ct);
         var metadataJson = effective.Evidence.CollectMetadata
             ? command.Metadata?.GetRawText()
             : null;
-
-        // Hash-only means provider/raw payload is not retained. Normalized metadata
-        // may still be kept when CollectMetadata is allowed.
         var payloadJson = effective.Privacy.HashOnly
             ? null
             : command.Payload?.GetRawText();
-
         var retainedContentHash = effective.Evidence.CalculateContentHash
             ? command.ContentHash
             : null;
@@ -100,7 +95,6 @@ public sealed class EvidenceIngestionService
             integrityStatus);
 
         await _evidence.AddAsync(item, ct);
-
         try
         {
             await _uow.SaveChangesAsync(ct);
@@ -108,8 +102,6 @@ public sealed class EvidenceIngestionService
         }
         catch
         {
-            // A concurrent retry may win the unique source-event index. Re-query so
-            // callers still get idempotent behavior instead of a duplicate failure.
             var raced = await _evidence.FindBySourceEventAsync(
                 command.ProjectId,
                 command.SourceType,
@@ -122,13 +114,6 @@ public sealed class EvidenceIngestionService
         }
     }
 
-    /// <summary>
-    /// Establishes a fail-closed ingestion-time integrity boundary. A caller cannot
-    /// self-declare integrity by supplying a hash or identifier. Evidence is promoted
-    /// only when DIP can resolve an immutable project artifact and, when a content hash
-    /// was supplied, match it to that artifact blob; or when it derives from an already
-    /// integrity-verified parent observation. Everything else remains Unverified.
-    /// </summary>
     private async Task<EvidenceIntegrityStatus> DetermineIntegrityStatusAsync(
         IngestEvidenceCommand command,
         string? retainedContentHash,
@@ -137,44 +122,80 @@ public sealed class EvidenceIngestionService
         if (command.SourceType == EvidenceSourceType.HumanReport)
             return EvidenceIntegrityStatus.Unverified;
 
+        if (_integrityVerifier is not null && ShouldUseCryptographicBoundary(command.Metadata))
+        {
+            Guid? artifactRecordId = Guid.TryParse(command.ArtifactId, out var parsedArtifact)
+                ? parsedArtifact
+                : null;
+            var result = await _integrityVerifier.VerifyAsync(
+                new EvidenceIntegrityVerificationRequest(
+                    command.ProjectId,
+                    command.SourceType,
+                    command.SourceInstanceId,
+                    command.SourceEventId,
+                    command.EventType,
+                    command.SubjectKey,
+                    command.ObservedAtUtc,
+                    artifactRecordId,
+                    retainedContentHash,
+                    command.ParentEvidenceId,
+                    Metadata(command.Metadata, "signingKeyId"),
+                    Metadata(command.Metadata, "signatureAlgorithm"),
+                    Metadata(command.Metadata, "signatureBase64") ?? Metadata(command.Metadata, "signature"),
+                    Metadata(command.Metadata, "signedPayloadBase64")),
+                ct);
+            return result.Status;
+        }
+
+        // Compatibility path for installations that have not enabled source trust
+        // policy yet. A caller-supplied hash alone is still never enough: DIP must
+        // resolve the immutable artifact or an already-verified parent.
         if (command.ParentEvidenceId is Guid parentId)
         {
             var parent = await _evidence.GetAsync(command.ProjectId, parentId, ct);
             if (parent is not null
                 && parent.ProjectId == command.ProjectId
                 && parent.IntegrityStatus == EvidenceIntegrityStatus.Verified)
-            {
                 return EvidenceIntegrityStatus.Verified;
-            }
         }
 
         if (_artifacts is null
             || string.IsNullOrWhiteSpace(command.ArtifactId)
             || !Guid.TryParse(command.ArtifactId, out var artifactId))
-        {
             return EvidenceIntegrityStatus.Unverified;
-        }
 
         var record = await _artifacts.GetRecordAsync(artifactId, ct);
         if (record is null || record.ProjectId != command.ProjectId)
             return EvidenceIntegrityStatus.Unverified;
-
         var blob = await _artifacts.GetBlobAsync(record.ArtifactBlobId, ct);
         if (blob is null)
             return EvidenceIntegrityStatus.Unverified;
-
         if (!string.IsNullOrWhiteSpace(retainedContentHash)
             && !string.Equals(retainedContentHash.Trim(), blob.Sha256, StringComparison.OrdinalIgnoreCase))
-        {
             return EvidenceIntegrityStatus.Invalid;
-        }
-
         return EvidenceIntegrityStatus.Verified;
     }
 
-    private static IngestEvidenceResult Map(
-        EvidenceRecord item,
-        bool created)
+    private static bool ShouldUseCryptographicBoundary(JsonElement? metadata)
+        => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DIP_EVIDENCE_SOURCE_POLICY_JSON"))
+           || !string.IsNullOrWhiteSpace(Metadata(metadata, "signatureBase64"))
+           || !string.IsNullOrWhiteSpace(Metadata(metadata, "signature"));
+
+    private static string? Metadata(JsonElement? metadata, string name)
+    {
+        if (!metadata.HasValue || metadata.Value.ValueKind != JsonValueKind.Object)
+            return null;
+        foreach (var property in metadata.Value.EnumerateObject())
+        {
+            if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                return property.Value.ValueKind == JsonValueKind.String
+                    ? property.Value.GetString()
+                    : property.Value.GetRawText();
+        }
+        return null;
+    }
+
+    private static IngestEvidenceResult Map(EvidenceRecord item, bool created)
         => new(
             item.Id,
             created,

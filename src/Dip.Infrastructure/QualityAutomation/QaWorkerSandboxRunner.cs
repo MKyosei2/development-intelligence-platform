@@ -53,7 +53,8 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
             return await RunOciAsync(oci.Runtime, oci.Image, request with { Workspace = workspace }, ct);
 
         throw new InvalidOperationException(
-            "No ephemeral QA worker is configured. Configure DIP_QA_SANDBOX_RUNNER for a signed container/VM runner, or DIP_QA_SANDBOX_IMAGE for Docker/Podman execution.");
+            "No ephemeral QA worker is configured. Configure DIP_QA_SANDBOX_RUNNER for a signed container/VM runner, "
+            + "or DIP_QA_SANDBOX_IMAGE for Docker/Podman execution.");
     }
 
     private static async Task<ProcessExecutionResult> RunExternalAsync(
@@ -106,13 +107,18 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
             if (execution.TimedOut)
                 throw new TimeoutException("External QA sandbox runner timed out.");
             if (execution.ExitCode != 0)
-                throw new InvalidOperationException($"External QA sandbox runner failed with exit code {execution.ExitCode}. {execution.StandardError}");
+            {
+                throw new InvalidOperationException(
+                    $"External QA sandbox runner failed with exit code {execution.ExitCode}. "
+                    + execution.StandardError);
+            }
             if (!File.Exists(resultPath))
                 throw new InvalidDataException("External QA sandbox runner did not produce result.json.");
 
             var resultInfo = new FileInfo(resultPath);
             if (resultInfo.Length > 1_048_576)
                 throw new InvalidDataException("External QA sandbox result.json exceeds the 1 MiB protocol limit.");
+
             var result = JsonSerializer.Deserialize<ExternalRunnerResult>(
                 await File.ReadAllTextAsync(resultPath, ct),
                 Json)
@@ -124,7 +130,10 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
             if (!verification.Verified)
                 throw new InvalidOperationException("External sandbox attestation was rejected: " + verification.Reason);
             if (result.Attestation is not { CpuLimitApplied: true, MemoryLimitApplied: true })
-                throw new InvalidOperationException("External sandbox attestation did not prove both CPU and memory resource limits.");
+            {
+                throw new InvalidOperationException(
+                    "External sandbox attestation did not prove both CPU and memory resource limits.");
+            }
 
             var stdout = await ReadOptionalFileCappedAsync(sandboxStdout, 2_000_000, ct);
             var stderr = await ReadOptionalFileCappedAsync(sandboxStderr, 2_000_000, ct);
@@ -160,7 +169,7 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         }
         finally
         {
-            DeleteDirectoryBestEffort(root);
+            DeleteDirectoryBestEffort(root, "external-runner-workspace");
         }
     }
 
@@ -177,7 +186,9 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         {
             CopyWorkspace(request.Workspace, sandboxWorkspace);
             var executable = MapExecutableForContainer(request.Executable, request.Workspace);
-            var arguments = request.Arguments.Select(x => MapArgumentForContainer(x, request.Workspace)).ToArray();
+            var arguments = request.Arguments
+                .Select(x => MapArgumentForContainer(x, request.Workspace))
+                .ToArray();
             var psi = MinimalProcessStartInfo(runtime, request.Workspace);
             psi.ArgumentList.Add("run");
             psi.ArgumentList.Add("--rm");
@@ -193,7 +204,10 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
             psi.ArgumentList.Add("--memory");
             psi.ArgumentList.Add($"{Math.Clamp(request.MemoryLimitMb, 128, 262_144)}m");
             psi.ArgumentList.Add("--cpus");
-            psi.ArgumentList.Add((Math.Clamp(request.CpuPercent, 1, 100) / 100d * Math.Max(1, Environment.ProcessorCount)).ToString("0.###", CultureInfo.InvariantCulture));
+            var cpuQuota = Math.Clamp(request.CpuPercent, 1, 100)
+                           / 100d
+                           * Math.Max(1, Environment.ProcessorCount);
+            psi.ArgumentList.Add(cpuQuota.ToString("0.###", CultureInfo.InvariantCulture));
             psi.ArgumentList.Add("--tmpfs");
             psi.ArgumentList.Add("/tmp:rw,nosuid,nodev,noexec,size=256m");
             psi.ArgumentList.Add("--mount");
@@ -212,7 +226,12 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
 
             var hostStdout = Path.Combine(root, "oci.stdout.log");
             var hostStderr = Path.Combine(root, "oci.stderr.log");
-            var execution = await ExecuteHostProcessAsync(psi, request.Timeout, hostStdout, hostStderr, ct);
+            var execution = await ExecuteHostProcessAsync(
+                psi,
+                request.Timeout,
+                hostStdout,
+                hostStderr,
+                ct);
             await WriteResultLogsAsync(request, execution.StandardOutput, execution.StandardError);
 
             var attestationVerified = false;
@@ -233,9 +252,13 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
                 attestationVerified = verification.Verified;
                 attestationId = verification.AttestationId;
             }
-            else if (string.Equals(Environment.GetEnvironmentVariable("DIP_QA_REQUIRE_SIGNED_ATTESTATION"), "1", StringComparison.Ordinal))
+            else if (string.Equals(
+                         Environment.GetEnvironmentVariable("DIP_QA_REQUIRE_SIGNED_ATTESTATION"),
+                         "1",
+                         StringComparison.Ordinal))
             {
-                throw new InvalidOperationException("Signed sandbox attestation is required but DIP_QA_SANDBOX_ATTESTATION_KEY_BASE64 is not configured.");
+                throw new InvalidOperationException(
+                    "Signed sandbox attestation is required but DIP_QA_SANDBOX_ATTESTATION_KEY_BASE64 is not configured.");
             }
 
             var report = new ProcessSandboxReport(
@@ -247,7 +270,8 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
                 true,
                 execution.PeakWorkingSetMb,
                 execution.OutputTruncated,
-                "Ephemeral OCI worker used a disposable workspace copy, no network, read-only rootfs, dropped capabilities and explicit CPU/memory limits.",
+                "Ephemeral OCI worker used a disposable workspace copy, no network, read-only rootfs, "
+                + "dropped capabilities and explicit CPU/memory limits.",
                 "oci:" + Path.GetFileNameWithoutExtension(runtime),
                 true,
                 attestationVerified,
@@ -268,7 +292,7 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         }
         finally
         {
-            DeleteDirectoryBestEffort(root);
+            DeleteDirectoryBestEffort(root, "oci-workspace");
         }
     }
 
@@ -277,9 +301,16 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         var image = Environment.GetEnvironmentVariable("DIP_QA_SANDBOX_IMAGE")?.Trim();
         if (string.IsNullOrWhiteSpace(image))
             return null;
-        if (string.Equals(Environment.GetEnvironmentVariable("DIP_QA_REQUIRE_PINNED_IMAGE"), "1", StringComparison.Ordinal)
+        if (string.Equals(
+                Environment.GetEnvironmentVariable("DIP_QA_REQUIRE_PINNED_IMAGE"),
+                "1",
+                StringComparison.Ordinal)
             && !image.Contains("@sha256:", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("DIP_QA_REQUIRE_PINNED_IMAGE=1 requires DIP_QA_SANDBOX_IMAGE to use an immutable @sha256 digest.");
+        {
+            throw new InvalidOperationException(
+                "DIP_QA_REQUIRE_PINNED_IMAGE=1 requires DIP_QA_SANDBOX_IMAGE to use an immutable @sha256 digest.");
+        }
+
         var requested = Environment.GetEnvironmentVariable("DIP_QA_OCI_RUNTIME")?.Trim();
         if (!string.IsNullOrWhiteSpace(requested))
         {
@@ -289,6 +320,7 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
             if (explicitRuntime is not null)
                 return (explicitRuntime, image);
         }
+
         foreach (var candidate in new[] { "docker", "podman" })
         {
             var resolved = ProcessCommandValidator.FindExecutable(candidate);
@@ -320,11 +352,15 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         };
         var inheritedPath = Environment.GetEnvironmentVariable("PATH");
         var systemRoot = Environment.GetEnvironmentVariable("SystemRoot");
-        var home = Environment.GetEnvironmentVariable(OperatingSystem.IsWindows() ? "USERPROFILE" : "HOME");
+        var home = Environment.GetEnvironmentVariable(
+            OperatingSystem.IsWindows() ? "USERPROFILE" : "HOME");
         psi.Environment.Clear();
-        if (!string.IsNullOrWhiteSpace(inheritedPath)) psi.Environment["PATH"] = inheritedPath;
-        if (!string.IsNullOrWhiteSpace(systemRoot)) psi.Environment["SystemRoot"] = systemRoot;
-        if (!string.IsNullOrWhiteSpace(home)) psi.Environment[OperatingSystem.IsWindows() ? "USERPROFILE" : "HOME"] = home;
+        if (!string.IsNullOrWhiteSpace(inheritedPath))
+            psi.Environment["PATH"] = inheritedPath;
+        if (!string.IsNullOrWhiteSpace(systemRoot))
+            psi.Environment["SystemRoot"] = systemRoot;
+        if (!string.IsNullOrWhiteSpace(home))
+            psi.Environment[OperatingSystem.IsWindows() ? "USERPROFILE" : "HOME"] = home;
         return psi;
     }
 
@@ -335,7 +371,8 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
             psi.Environment["DIP_QA_SANDBOX_ATTESTATION_KEY_BASE64"] = key;
     }
 
-    private static IReadOnlyDictionary<string, string> SanitizeEnvironment(IReadOnlyDictionary<string, string>? supplied)
+    private static IReadOnlyDictionary<string, string> SanitizeEnvironment(
+        IReadOnlyDictionary<string, string>? supplied)
     {
         if (supplied is null || supplied.Count == 0)
             return new Dictionary<string, string>();
@@ -355,9 +392,10 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         CancellationToken ct)
     {
         using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        var sw = Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         if (!process.Start())
             throw new InvalidOperationException($"Failed to start sandbox backend '{psi.FileName}'.");
+
         var stdoutTask = ReadCappedAsync(process.StandardOutput, 2_000_000, ct);
         var stderrTask = ReadCappedAsync(process.StandardError, 2_000_000, ct);
         var timedOut = false;
@@ -370,33 +408,108 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             timedOut = true;
-            try { process.Kill(entireProcessTree: true); } catch { }
-            try { await process.WaitForExitAsync(CancellationToken.None); } catch { }
+            TryKillProcessTree(process);
+            await TryWaitForExitAfterKillAsync(process);
         }
+
         var stdout = await stdoutTask;
         var stderr = await stderrTask;
-        sw.Stop();
+        stopwatch.Stop();
         await File.WriteAllTextAsync(stdoutPath, stdout.Text, CancellationToken.None);
         await File.WriteAllTextAsync(stderrPath, stderr.Text, CancellationToken.None);
-        int? exit = null;
-        try { exit = timedOut ? null : process.ExitCode; } catch { }
-        long cpu = 0;
-        long peak = 0;
-        try { cpu = Math.Max(0, (long)process.TotalProcessorTime.TotalMilliseconds); } catch { }
-        try { peak = Math.Max(0, process.PeakWorkingSet64 / 1024 / 1024); } catch { }
+
+        var exitCode = timedOut ? null : TryReadExitCode(process);
+        var cpuTimeMs = TryReadCpuTimeMs(process);
+        var peakWorkingSetMb = TryReadPeakWorkingSetMb(process);
         return new(
-            exit,
+            exitCode,
             timedOut,
-            sw.ElapsedMilliseconds,
+            stopwatch.ElapsedMilliseconds,
             stdout.Text,
             stderr.Text,
-            cpu,
-            peak,
+            cpuTimeMs,
+            peakWorkingSetMb,
             stdout.Truncated || stderr.Truncated,
             "[]");
     }
 
-    private static async Task<(string Text, bool Truncated)> ReadCappedAsync(StreamReader reader, int limit, CancellationToken ct)
+    private static void TryKillProcessTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        {
+            Trace.TraceWarning(
+                "QA sandbox timed out but process-tree termination could not be confirmed: {0}: {1}",
+                ex.GetType().Name,
+                ex.Message);
+        }
+    }
+
+    private static async Task TryWaitForExitAfterKillAsync(Process process)
+    {
+        try
+        {
+            await process.WaitForExitAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
+        {
+            Trace.TraceWarning(
+                "QA sandbox process exit could not be observed after termination: {0}: {1}",
+                ex.GetType().Name,
+                ex.Message);
+        }
+    }
+
+    private static int? TryReadExitCode(Process process)
+    {
+        try
+        {
+            return process.ExitCode;
+        }
+        catch (InvalidOperationException ex)
+        {
+            Trace.TraceWarning("QA sandbox exit code unavailable: {0}", ex.Message);
+            return null;
+        }
+    }
+
+    private static long TryReadCpuTimeMs(Process process)
+    {
+        try
+        {
+            return Math.Max(0, (long)process.TotalProcessorTime.TotalMilliseconds);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        {
+            Trace.TraceWarning("QA sandbox CPU time unavailable: {0}: {1}", ex.GetType().Name, ex.Message);
+            return 0;
+        }
+    }
+
+    private static long TryReadPeakWorkingSetMb(Process process)
+    {
+        try
+        {
+            return Math.Max(0, process.PeakWorkingSet64 / 1024 / 1024);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        {
+            Trace.TraceWarning(
+                "QA sandbox peak working set unavailable: {0}: {1}",
+                ex.GetType().Name,
+                ex.Message);
+            return 0;
+        }
+    }
+
+    private static async Task<(string Text, bool Truncated)> ReadCappedAsync(
+        StreamReader reader,
+        int limit,
+        CancellationToken ct)
     {
         var buffer = new char[8192];
         var builder = new StringBuilder(Math.Min(limit, 65536));
@@ -404,7 +517,8 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         while (true)
         {
             var read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), ct);
-            if (read <= 0) break;
+            if (read <= 0)
+                break;
             var remaining = limit - builder.Length;
             if (remaining > 0)
                 builder.Append(buffer, 0, Math.Min(remaining, read));
@@ -414,7 +528,10 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         return (builder.ToString(), truncated);
     }
 
-    private static async Task WriteResultLogsAsync(QaWorkerSandboxRequest request, string stdout, string stderr)
+    private static async Task WriteResultLogsAsync(
+        QaWorkerSandboxRequest request,
+        string stdout,
+        string stderr)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(request.StandardOutputPath)!);
         Directory.CreateDirectory(Path.GetDirectoryName(request.StandardErrorPath)!);
@@ -422,20 +539,34 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         await File.WriteAllTextAsync(request.StandardErrorPath, stderr, CancellationToken.None);
     }
 
-    private static async Task<string> ReadOptionalFileCappedAsync(string path, int maximumCharacters, CancellationToken ct)
+    private static async Task<string> ReadOptionalFileCappedAsync(
+        string path,
+        int maximumCharacters,
+        CancellationToken ct)
     {
-        if (!File.Exists(path)) return string.Empty;
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 8192, true);
+        if (!File.Exists(path))
+            return string.Empty;
+        await using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite,
+            8192,
+            true);
         using var reader = new StreamReader(stream, detectEncodingFromByteOrderMarks: true);
         var buffer = new char[8192];
         var builder = new StringBuilder(Math.Min(maximumCharacters, 65536));
         while (builder.Length < maximumCharacters)
         {
-            var read = await reader.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, maximumCharacters - builder.Length)), ct);
-            if (read <= 0) break;
+            var read = await reader.ReadAsync(
+                buffer.AsMemory(0, Math.Min(buffer.Length, maximumCharacters - builder.Length)),
+                ct);
+            if (read <= 0)
+                break;
             builder.Append(buffer, 0, read);
         }
-        if (!reader.EndOfStream) builder.Append("\n[DIP: output truncated by sandbox protocol]\n");
+        if (!reader.EndOfStream)
+            builder.Append("\n[DIP: output truncated by sandbox protocol]\n");
         return builder.ToString();
     }
 
@@ -444,14 +575,24 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         if (Path.IsPathRooted(executable))
         {
             var full = Path.GetFullPath(executable);
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
             var root = Path.GetFullPath(workspace);
             if (!ProcessCommandValidator.IsInside(root, full, comparison))
-                throw new InvalidOperationException("OCI sandbox cannot execute a host binary outside the copied QA workspace. Put the tool in the image or use the external VM runner protocol.");
+            {
+                throw new InvalidOperationException(
+                    "OCI sandbox cannot execute a host binary outside the copied QA workspace. "
+                    + "Put the tool in the image or use the external VM runner protocol.");
+            }
             return "/workspace/" + Path.GetRelativePath(root, full).Replace('\\', '/');
         }
-        if (executable.Contains(Path.DirectorySeparatorChar) || executable.Contains(Path.AltDirectorySeparatorChar))
+
+        if (executable.Contains(Path.DirectorySeparatorChar)
+            || executable.Contains(Path.AltDirectorySeparatorChar))
+        {
             return "/workspace/" + executable.TrimStart('.', '/', '\\').Replace('\\', '/');
+        }
         return executable;
     }
 
@@ -460,7 +601,9 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         if (string.IsNullOrWhiteSpace(argument))
             return argument;
         var root = Path.GetFullPath(workspace);
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
         if (Path.IsPathFullyQualified(argument))
         {
             var full = Path.GetFullPath(argument);
@@ -468,6 +611,7 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
                 return "/workspace/" + Path.GetRelativePath(root, full).Replace('\\', '/');
             return argument;
         }
+
         var equals = argument.IndexOf('=');
         if (equals > 0 && equals < argument.Length - 1)
         {
@@ -476,7 +620,11 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
             {
                 var full = Path.GetFullPath(value);
                 if (ProcessCommandValidator.IsInside(root, full, comparison))
-                    return argument[..(equals + 1)] + "/workspace/" + Path.GetRelativePath(root, full).Replace('\\', '/');
+                {
+                    return argument[..(equals + 1)]
+                           + "/workspace/"
+                           + Path.GetRelativePath(root, full).Replace('\\', '/');
+                }
             }
         }
         return argument;
@@ -486,10 +634,9 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
     {
         const int maximumFiles = 50_000;
         const long maximumBytes = 10L * 1024 * 1024 * 1024;
-        var ignored = new HashSet<string>(new[]
-        {
-            ".git", ".vs", "bin", "obj", "artifacts", ".dipqa", "Library", "Temp", "Logs", "node_modules"
-        }, StringComparer.OrdinalIgnoreCase);
+        var ignored = new HashSet<string>(
+            [".git", ".vs", "bin", "obj", "artifacts", ".dipqa", "Library", "Temp", "Logs", "node_modules"],
+            StringComparer.OrdinalIgnoreCase);
         var filesCopied = 0;
         long bytesCopied = 0;
         Directory.CreateDirectory(target);
@@ -506,9 +653,13 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
                 filesCopied++;
                 bytesCopied += Math.Max(0, info.Length);
                 if (filesCopied > maximumFiles || bytesCopied > maximumBytes)
-                    throw new InvalidOperationException("QA workspace exceeds the ephemeral runner copy budget (50,000 files / 10 GiB).");
+                {
+                    throw new InvalidOperationException(
+                        "QA workspace exceeds the ephemeral runner copy budget (50,000 files / 10 GiB).");
+                }
                 File.Copy(file, Path.Combine(current.Target, info.Name), overwrite: true);
             }
+
             foreach (var directory in Directory.EnumerateDirectories(current.Source))
             {
                 var info = new DirectoryInfo(directory);
@@ -521,10 +672,22 @@ public sealed class QaWorkerSandboxRunner : IQaWorkerSandboxRunner
         }
     }
 
-    private static void DeleteDirectoryBestEffort(string path)
+    private static void DeleteDirectoryBestEffort(string path, string purpose)
     {
-        try { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
-        catch { }
+        try
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Trace.TraceWarning(
+                "QA sandbox cleanup failed for {0} '{1}': {2}: {3}",
+                purpose,
+                path,
+                ex.GetType().Name,
+                ex.Message);
+        }
     }
 
     private sealed record ExternalRunnerRequest(

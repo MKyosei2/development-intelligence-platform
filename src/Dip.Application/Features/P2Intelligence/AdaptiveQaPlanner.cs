@@ -200,6 +200,17 @@ public sealed class AdaptiveQaPlanner
                 Add("runtime-repeat", "Runtime reliability repeats", "reliability", "Network behavior can be timing-dependent.", 62m, 10m);
                 Add("service-load", "Service/load regression", "load", "Network or service-facing scope changed.", 72m, 10m);
             }
+            if (signals.Multiplayer)
+            {
+                Add(
+                    "multiplayer",
+                    "Deterministic multiplayer/desync QA",
+                    "multiplayer",
+                    "Multiplayer, replication, RPC, lobby, matchmaking, or graph-linked netcode changed; verify common-tick state hashes under bounded network impairment.",
+                    86m,
+                    15m,
+                    true);
+            }
             if (signals.GameEngine)
             {
                 Add("game-engine-contract", "Game-engine integration QA", "game-engine", "Unity/Unreal/Godot technology or graph-linked engine assets were detected.", 78m, 8m, true);
@@ -342,7 +353,7 @@ public sealed class AdaptiveQaPlanner
         "game-engine-contract" => [DebugExperimentKind.AssetValidation, DebugExperimentKind.RuntimeReplay],
         "runtime" => [DebugExperimentKind.RuntimeReplay],
         "visual-regression" => [DebugExperimentKind.VisualRegression],
-        "gpu-performance" => [DebugExperimentKind.Benchmark],
+        "gpu-performance" => [DebugExperimentKind.GpuPerformance],
         "mobile-performance" => [DebugExperimentKind.Benchmark],
         "thermal" => [DebugExperimentKind.Stress],
         "memory-pressure" => [DebugExperimentKind.Soak],
@@ -351,6 +362,7 @@ public sealed class AdaptiveQaPlanner
         "network-fuzz" => [DebugExperimentKind.Fuzz],
         "runtime-repeat" => [DebugExperimentKind.RuntimeReplay],
         "service-load" => [DebugExperimentKind.LoadTest],
+        "multiplayer" => [DebugExperimentKind.Multiplayer],
         "game-replay" => [DebugExperimentKind.RuntimeReplay],
         "performance-budget" => [DebugExperimentKind.Benchmark],
         "high-risk-fuzz" => [DebugExperimentKind.Fuzz],
@@ -361,7 +373,12 @@ public sealed class AdaptiveQaPlanner
     private static int TimeoutFor(DebugExperimentKind kind, decimal estimatedMinutes)
     {
         var estimated = (int)Math.Ceiling(Math.Max(1m, estimatedMinutes) * 60m);
-        var floor = kind is DebugExperimentKind.Soak or DebugExperimentKind.Stress ? 300 : 60;
+        var floor = kind switch
+        {
+            DebugExperimentKind.Soak or DebugExperimentKind.Stress => 300,
+            DebugExperimentKind.GpuPerformance or DebugExperimentKind.Multiplayer => 120,
+            _ => 60
+        };
         return Math.Clamp(Math.Max(floor, estimated), 30, 1800);
     }
 
@@ -397,8 +414,10 @@ public sealed class AdaptiveQaPlanner
             || GraphContains("audio", "sound", "voice", "music");
         var uiOrArt = asset || ChangedContains("ui/", "art/", "texture", "material", "prefab", "scene")
             || GraphContains("ui", "art", "texture", "material");
-        var network = ChangedContains("network", "socket", "packet", "protocol", "serialize", "api/", "server", "grpc", "websocket")
-            || GraphContains("network", "api", "server", "protocol", "multiplayer", "socket");
+        var network = ChangedContains("network", "socket", "packet", "protocol", "serialize", "api/", "server", "grpc", "websocket", "rpc")
+            || GraphContains("network", "api", "server", "protocol", "multiplayer", "socket", "rpc");
+        var multiplayer = ChangedContains("multiplayer", "replication", "netcode", "lobby", "matchmaking", "rpc", "network/", "networking/")
+            || GraphContains("multiplayer", "replication", "netcode", "lobby", "matchmaking", "rpc", "desync");
         var gameEngine = ChangedContains("projectsettings/", "packages/manifest.json", ".uproject", "project.godot")
             || Ext(".unity", ".prefab", ".uasset", ".umap", ".tscn")
             || GraphContains("unity", "unreal", "godot");
@@ -415,6 +434,7 @@ public sealed class AdaptiveQaPlanner
             Audio: audio,
             UiOrArt: uiOrArt,
             Network: network,
+            Multiplayer: multiplayer,
             GameEngine: gameEngine,
             GraphImpactedNodeCount: relatedGraph.Length);
     }
@@ -476,6 +496,7 @@ public sealed class AdaptiveQaPlanner
         bool Audio,
         bool UiOrArt,
         bool Network,
+        bool Multiplayer,
         bool GameEngine,
         int GraphImpactedNodeCount);
 }

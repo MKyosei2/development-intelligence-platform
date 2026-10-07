@@ -541,9 +541,19 @@ public sealed class MediaRegressionRunner(
 
     private static void DeleteBestEffort(string path)
     {
-        try { if (File.Exists(path)) File.Delete(path); }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Trace.TraceWarning(
+                "Media regression temporary file cleanup failed for '{0}': {1}: {2}",
+                path,
+                ex.GetType().Name,
+                ex.Message);
+        }
     }
 
     private static string SafePath(string root, string relative)

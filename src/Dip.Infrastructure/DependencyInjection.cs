@@ -1,4 +1,4 @@
-// Purpose: Implements Dependency Injection infrastructure behavior for this repository area.
+// Purpose: Registers core infrastructure, QA adapters, specialized game QA runners, persistence, and external service boundaries.
 using Dip.Application.Abstractions.Messaging;
 using Dip.Application.Abstractions.Persistence;
 using Dip.Application.Abstractions.Time;
@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ICommunityHardwareStore, CommunityHardwareStore>();
         services.AddScoped<IIntelligenceRunStore, IntelligenceRunStore>();
         services.AddScoped<IProjectForecastStore, ProjectForecastStore>();
+
         services.AddSingleton<ProcessExecutor>();
         services.AddSingleton<UniversalDiagnosticNormalizer>();
         services.AddSingleton<IUniversalSemanticAnalyzer, UniversalSemanticAnalyzer>();
@@ -68,9 +69,11 @@ public static class DependencyInjection
         services.AddSingleton<CppQaEngine>();
         services.AddSingleton<GenericCommandQaAdapter>();
         services.AddSingleton<UnityProjectQaAdapter>();
+        services.AddSingleton<UnrealProjectQaAdapter>();
         services.AddSingleton<ManifestQaAdapter>();
         services.AddSingleton<IQaAdapter>(sp => sp.GetRequiredService<ManifestQaAdapter>());
         services.AddSingleton<IQaAdapter>(sp => sp.GetRequiredService<UnityProjectQaAdapter>());
+        services.AddSingleton<IQaAdapter>(sp => sp.GetRequiredService<UnrealProjectQaAdapter>());
         services.AddSingleton<IQaAdapter>(sp => sp.GetRequiredService<PythonQaEngine>());
         services.AddSingleton<IQaAdapter>(sp => sp.GetRequiredService<CSharpQaEngine>());
         services.AddSingleton<IQaAdapter>(sp => sp.GetRequiredService<CppQaEngine>());
@@ -81,6 +84,7 @@ public static class DependencyInjection
         services.AddScoped<Dip.Application.Features.QualityGovernance.IQaBugMinimizer, QaBugMinimizer>();
         services.AddSingleton<ReproductionCoordinator>();
         services.AddSingleton<EnvironmentSnapshotService>();
+
         services.AddSingleton<HardwareCalibrationService>();
         services.AddSingleton<HardwareConstraintRunner>();
         services.AddSingleton<PerformanceSimulationService>();
@@ -91,6 +95,9 @@ public static class DependencyInjection
         services.AddSingleton<Dip.Application.Features.Intelligence.IMediaRegressionRunner, Dip.Infrastructure.Intelligence.MediaRegressionRunner>();
         services.AddSingleton<IFuzzRunner, FuzzRunner>();
         services.AddSingleton<IMutationRunner, MutationRunner>();
+        services.AddSingleton<IGpuPerformanceExperimentRunner, GpuPerformanceExperimentRunner>();
+        services.AddSingleton<IMultiplayerQaExperimentRunner, MultiplayerQaExperimentRunner>();
+
         services.AddScoped<IOutboxRepository, OutboxRepository>();
         services.AddScoped<IDashboardReadRepository, DashboardReadRepository>();
         services.AddScoped<IP2IntelligenceRepository, P2IntelligenceRepository>();
@@ -111,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<IReleaseEvidenceRepository, ReleaseEvidenceRepository>();
         services.AddScoped<IRepositoryGraphRepository, RepositoryGraphRepository>();
         services.AddScoped<IDevelopmentGraphRepository, DevelopmentGraphRepository>();
+
         services.AddSingleton<Dip.Application.Abstractions.Spreadsheets.IGoogleSheetsConnector, Dip.Infrastructure.Spreadsheets.GoogleSheetsRestConnector>();
         services.AddSingleton<Dip.Application.Abstractions.Calendars.IGoogleCalendarConnector, Dip.Infrastructure.Calendars.GoogleCalendarRestConnector>();
         services.Configure<Dip.Infrastructure.Integrations.PerforceOptions>(configuration.GetSection(Dip.Infrastructure.Integrations.PerforceOptions.SectionName));
@@ -130,7 +138,6 @@ public static class DependencyInjection
         services.AddSingleton<DeterministicLocalDebugAgent>();
         services.AddHttpClient<OpenAiCompatibleFixProposalAgent>(client =>
         {
-            // Per-request timeout is enforced by the adapter so cancellation and retry remain observable.
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
         services.AddScoped<IFixProposalAgent>(sp =>

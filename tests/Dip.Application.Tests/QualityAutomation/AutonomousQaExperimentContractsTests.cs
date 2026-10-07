@@ -1,4 +1,4 @@
-// Purpose: Locks autonomous-QA executable-contract defaults and legacy enum compatibility.
+// Purpose: Locks autonomous-QA executable-contract defaults, game-QA evidence requirements, and enum compatibility.
 using Dip.Application.Features.QualityAutomation;
 using FluentAssertions;
 
@@ -18,6 +18,9 @@ public sealed class AutonomousQaExperimentContractsTests
         ((int)DebugExperimentKind.Bisect).Should().Be(6);
         ((int)DebugExperimentKind.Stress).Should().Be(7);
         ((int)DebugExperimentKind.Fuzz).Should().Be(8);
+        ((int)DebugExperimentKind.Security).Should().Be(22);
+        ((int)DebugExperimentKind.GpuPerformance).Should().Be(23);
+        ((int)DebugExperimentKind.Multiplayer).Should().Be(24);
     }
 
     [Theory]
@@ -26,6 +29,8 @@ public sealed class AutonomousQaExperimentContractsTests
     [InlineData(DebugExperimentKind.Fuzz)]
     [InlineData(DebugExperimentKind.Soak)]
     [InlineData(DebugExperimentKind.RuntimeReplay)]
+    [InlineData(DebugExperimentKind.GpuPerformance)]
+    [InlineData(DebugExperimentKind.Multiplayer)]
     public void RequiredExperiment_DefaultContractAlwaysRequiresEvidence(DebugExperimentKind kind)
     {
         var step = AutonomousQaExperimentDefaults.Create(
@@ -40,5 +45,15 @@ public sealed class AutonomousQaExperimentContractsTests
         step.FalsificationCondition.Should().NotBeNullOrWhiteSpace();
         step.RequiredEvidence.Should().NotBeEmpty();
         step.RequiredEvidence.Should().OnlyContain(x => x.Required);
+    }
+
+    [Fact]
+    public void GpuAndMultiplayerContracts_RequireDedicatedEvidenceKinds()
+    {
+        var gpu = AutonomousQaExperimentDefaults.Create("gpu", DebugExperimentKind.GpuPerformance, "rendering", true, 120);
+        var multiplayer = AutonomousQaExperimentDefaults.Create("mp", DebugExperimentKind.Multiplayer, "network", true, 120);
+
+        gpu.RequiredEvidence.Should().ContainSingle(x => x.Kind == "gpu-performance");
+        multiplayer.RequiredEvidence.Should().ContainSingle(x => x.Kind == "multiplayer-state");
     }
 }

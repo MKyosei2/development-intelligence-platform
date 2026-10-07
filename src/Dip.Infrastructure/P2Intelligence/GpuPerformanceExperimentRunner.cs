@@ -1,4 +1,4 @@
-// Purpose: Runs deterministic GPU performance experiments and fails closed when engine GPU telemetry is unavailable.
+// Purpose: Runs deterministic GPU performance experiments against an explicit engine telemetry contract and fails closed when telemetry is absent or insufficient.
 using System.Globalization;
 using System.Text.Json;
 using Dip.Application.Features.P2Intelligence;
@@ -14,7 +14,8 @@ public sealed record GpuPerformanceCommand(
     long WarningVramMb = 0,
     long FailureVramMb = 0,
     decimal HitchThresholdMs = 33.333m,
-    int MaximumHitches = 0);
+    int MaximumHitches = 0,
+    int MinimumSamples = 30);
 
 public sealed record GpuPerformanceSample(
     long Sequence,
@@ -48,6 +49,9 @@ public sealed class GpuPerformanceExperimentRunner(
     ProcessExecutor executor,
     IQaWorkspaceResolver workspaceResolver) : IGpuPerformanceExperimentRunner
 {
+    public const string TelemetryPrefix = "DIP_GPU_METRIC";
+    public const string TelemetrySchema = "dip.gpu-performance.v1";
+
     public async Task<GpuPerformanceResult> RunAsync(GpuPerformanceCommand command, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -65,7 +69,8 @@ public sealed class GpuPerformanceExperimentRunner(
         var environment = new Dictionary<string, string>
         {
             ["DIP_GPU_QA"] = "1",
-            ["DIP_GPU_METRIC_FORMAT"] = "v1"
+            ["DIP_GPU_METRIC_FORMAT"] = "v1",
+            ["DIP_GPU_MINIMUM_SAMPLES"] = Math.Clamp(command.MinimumSamples, 1, 1_000_000).ToString(CultureInfo.InvariantCulture)
         };
 
         var result = await executor.RunQaAsync(
@@ -85,11 +90,11 @@ public sealed class GpuPerformanceExperimentRunner(
                 ? "GPU performance target timed out."
                 : $"GPU performance target exited with code {(result.ExitCode?.ToString() ?? "n/a")}.";
             await WriteEvidenceAsync(root, command, result, Array.Empty<GpuPerformanceSample>(), status, summary, ct);
-            return new(status, 0, 0, 0, 0, 0, null, null, null, null, 0, Relative(root), summary);
+            return EmptyResult(status, root, summary);
         }
 
-        var samples = ParseSamples(result.StandardOutput)
-            .Concat(ParseSamples(result.StandardError))
+        var samples = ParseTelemetry(result.StandardOutput)
+            .Concat(ParseTelemetry(result.StandardError))
             .GroupBy(x => x.Sequence)
             .Select(x => x.Last())
             .OrderBy(x => x.Sequence)
@@ -98,7 +103,15 @@ public sealed class GpuPerformanceExperimentRunner(
         {
             const string summary = "Target completed without DIP_GPU_METRIC telemetry; GPU performance is NOT_EVALUATED.";
             await WriteEvidenceAsync(root, command, result, samples, "InfrastructureFailure", summary, ct);
-            return new("InfrastructureFailure", 0, 0, 0, 0, 0, null, null, null, null, 0, Relative(root), summary);
+            return EmptyResult("InfrastructureFailure", root, summary);
+        }
+
+        var minimumSamples = Math.Clamp(command.MinimumSamples, 1, 1_000_000);
+        if (samples.Length < minimumSamples)
+        {
+            var summary = $"GPU telemetry contained {samples.Length} valid sample(s), below required minimum {minimumSamples}; GPU performance is NOT_EVALUATED.";
+            await WriteEvidenceAsync(root, command, result, samples, "InfrastructureFailure", summary, ct);
+            return EmptyResult("InfrastructureFailure", root, summary) with { Samples = samples.Length };
         }
 
         var frame = samples.Select(x => x.GpuFrameMs).OrderBy(x => x).ToArray();
@@ -139,34 +152,50 @@ public sealed class GpuPerformanceExperimentRunner(
             summaryText);
     }
 
-    private static IReadOnlyList<GpuPerformanceSample> ParseSamples(string text)
+    public static IReadOnlyList<GpuPerformanceSample> ParseTelemetry(string text)
     {
         var output = new List<GpuPerformanceSample>();
         long autoSequence = 0;
         foreach (var line in text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
-            if (!line.Contains("DIP_GPU_METRIC", StringComparison.OrdinalIgnoreCase))
+            if (!line.Contains(TelemetryPrefix, StringComparison.OrdinalIgnoreCase))
                 continue;
-            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var token in line.Split([' ', ';', ','], StringSplitOptions.RemoveEmptyEntries))
-            {
-                var parts = token.Split('=', 2);
-                if (parts.Length == 2)
-                    values[parts[0].Trim()] = parts[1].Trim();
-            }
+            var values = ParseKeyValues(line);
             if (!TryDecimal(values, "gpu_frame_ms", out var gpuFrame) || gpuFrame < 0)
                 continue;
-            var sequence = TryLong(values, "frame", out var explicitFrame) ? explicitFrame : autoSequence++;
-            output.Add(new(
-                sequence,
-                gpuFrame,
-                NullableLong(values, "vram_mb"),
-                NullableLong(values, "draw_calls"),
-                NullableLong(values, "triangles"),
-                NullableLong(values, "shader_variants")));
+
+            var vram = NullableNonNegativeLong(values, "vram_mb");
+            var drawCalls = NullableNonNegativeLong(values, "draw_calls");
+            var triangles = NullableNonNegativeLong(values, "triangles");
+            var shaderVariants = NullableNonNegativeLong(values, "shader_variants");
+            if (HasNegativeLong(values, "vram_mb")
+                || HasNegativeLong(values, "draw_calls")
+                || HasNegativeLong(values, "triangles")
+                || HasNegativeLong(values, "shader_variants"))
+                continue;
+
+            var sequence = TryLong(values, "frame", out var explicitFrame) && explicitFrame >= 0
+                ? explicitFrame
+                : autoSequence++;
+            output.Add(new(sequence, gpuFrame, vram, drawCalls, triangles, shaderVariants));
         }
         return output;
     }
+
+    private static Dictionary<string, string> ParseKeyValues(string line)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var token in line.Split([' ', ';', ','], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = token.Split('=', 2);
+            if (parts.Length == 2)
+                values[parts[0].Trim()] = parts[1].Trim();
+        }
+        return values;
+    }
+
+    private static GpuPerformanceResult EmptyResult(string status, string root, string summary)
+        => new(status, 0, 0, 0, 0, 0, null, null, null, null, 0, Relative(root), summary);
 
     private static decimal Percentile(decimal[] sorted, decimal percentile)
     {
@@ -194,8 +223,11 @@ public sealed class GpuPerformanceExperimentRunner(
         => values.TryGetValue(key, out var text)
            && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
 
-    private static long? NullableLong(IReadOnlyDictionary<string, string> values, string key)
-        => TryLong(values, key, out var value) ? value : null;
+    private static bool HasNegativeLong(IReadOnlyDictionary<string, string> values, string key)
+        => TryLong(values, key, out var value) && value < 0;
+
+    private static long? NullableNonNegativeLong(IReadOnlyDictionary<string, string> values, string key)
+        => TryLong(values, key, out var value) && value >= 0 ? value : null;
 
     private static string ResolveExecutable(string workspace, string executable)
     {
@@ -218,7 +250,13 @@ public sealed class GpuPerformanceExperimentRunner(
     {
         var payload = new
         {
-            schema = "dip.gpu-performance.v1",
+            schema = TelemetrySchema,
+            telemetryContract = new
+            {
+                prefix = TelemetryPrefix,
+                format = "DIP_GPU_METRIC frame=<n> gpu_frame_ms=<ms> [vram_mb=<MiB>] [draw_calls=<n>] [triangles=<n>] [shader_variants=<n>]",
+                minimumSamples = Math.Clamp(command.MinimumSamples, 1, 1_000_000)
+            },
             status,
             summary,
             command = new
@@ -228,7 +266,8 @@ public sealed class GpuPerformanceExperimentRunner(
                 command.WarningVramMb,
                 command.FailureVramMb,
                 command.HitchThresholdMs,
-                command.MaximumHitches
+                command.MaximumHitches,
+                command.MinimumSamples
             },
             execution = new
             {

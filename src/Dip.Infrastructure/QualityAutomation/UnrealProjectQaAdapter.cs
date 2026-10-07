@@ -1,10 +1,20 @@
-// Purpose: Executes dedicated Unreal Engine Blueprint, Automation, Cook, Build and Package QA without treating static repository checks as engine-runtime evidence.
+// Purpose: Executes dedicated Unreal Engine Blueprint, Automation, Cook, Build and Package QA and keeps unavailable engine runtime evidence fail-closed.
+using System.Diagnostics;
 using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 
 namespace Dip.Infrastructure.QualityAutomation;
+
+public sealed record UnrealQaAvailability(
+    bool ProjectDescriptorPresent,
+    bool EditorAvailable,
+    bool AutomationToolAvailable,
+    bool RuntimeQaEvaluable,
+    bool PackageQaEvaluable,
+    string Status,
+    string Reason);
 
 public sealed class UnrealProjectQaAdapter(
     ProcessExecutor executor,
@@ -37,7 +47,8 @@ public sealed class UnrealProjectQaAdapter(
                 ".",
                 "DIP-UNREAL-UPROJECT"));
             tools.Add(new("unreal-project-descriptor", true, false, null, 0, "", "", "Root .uproject descriptor is missing."));
-            return Result(tools, findings, artifactRoot);
+            tools.Add(Unavailable("unreal-runtime-evidence", "Unreal runtime QA cannot be evaluated without a project descriptor."));
+            return Result(tools, findings, artifactRoot, AssessAvailability(false, false, false));
         }
 
         try
@@ -57,18 +68,20 @@ public sealed class UnrealProjectQaAdapter(
                 Path.GetFileName(project),
                 "DIP-UNREAL-UPROJECT-JSON"));
             tools.Add(new("unreal-project-descriptor", true, false, null, 0, "", "", ".uproject descriptor JSON is invalid."));
-            return Result(tools, findings, artifactRoot);
+            tools.Add(Unavailable("unreal-runtime-evidence", "Unreal runtime QA is NOT_EVALUATED because the project descriptor is invalid."));
+            return Result(tools, findings, artifactRoot, AssessAvailability(true, false, false));
         }
 
         var editor = ResolveEditorCommand();
         if (editor is null)
         {
-            AddUnavailable("unreal-blueprint-compile", "UnrealEditor-Cmd is unavailable.");
-            AddUnavailable("unreal-automation", "UnrealEditor-Cmd is unavailable.");
-            AddUnavailable("unreal-cook", "UnrealEditor-Cmd is unavailable.");
-            AddUnavailable("unreal-build-cook-package", "Unreal AutomationTool is unavailable.");
+            tools.Add(Unavailable("unreal-runtime-evidence", "UnrealEditor-Cmd is unavailable; engine-runtime QA is NOT_EVALUATED."));
+            tools.Add(Unavailable("unreal-blueprint-compile", "UnrealEditor-Cmd is unavailable."));
+            tools.Add(Unavailable("unreal-automation", "UnrealEditor-Cmd is unavailable."));
+            tools.Add(Unavailable("unreal-cook", "UnrealEditor-Cmd is unavailable."));
+            tools.Add(Unavailable("unreal-build-cook-package", "Unreal AutomationTool is unavailable."));
             findings.AddRange(await ReadExistingEngineFailuresAsync(workspace, ct));
-            return Result(tools, findings, artifactRoot);
+            return Result(tools, findings, artifactRoot, AssessAvailability(true, false, false));
         }
 
         var timeout = TimeSpan.FromSeconds(Math.Clamp(command.TimeoutSeconds, 60, 7200));
@@ -100,7 +113,7 @@ public sealed class UnrealProjectQaAdapter(
         var uat = ResolveUatCommand(editor);
         if (uat is null)
         {
-            AddUnavailable("unreal-build-cook-package", "RunUAT/AutomationTool was not found; package QA is NOT_EVALUATED.");
+            tools.Add(Unavailable("unreal-build-cook-package", "RunUAT/AutomationTool was not found; package QA is NOT_EVALUATED."));
         }
         else
         {
@@ -141,13 +154,30 @@ public sealed class UnrealProjectQaAdapter(
             findings.AddRange(execution.Findings);
         }
 
+        var requiredRuntimeTools = tools
+            .Where(x => x.Tool is "unreal-blueprint-compile" or "unreal-automation" or "unreal-cook")
+            .ToArray();
+        var runtimeSucceeded = requiredRuntimeTools.Length == 3
+                               && requiredRuntimeTools.All(x => x.WasAvailable && x.Succeeded);
+        tools.Add(new(
+            "unreal-runtime-evidence",
+            true,
+            runtimeSucceeded,
+            runtimeSucceeded ? 0 : 1,
+            0,
+            "",
+            "",
+            runtimeSucceeded
+                ? "Unreal Blueprint, Automation, and Cook runtime evidence all succeeded."
+                : "One or more required Unreal runtime QA stages failed; runtime evidence is not clean."));
+
         findings.AddRange(await ReadExistingEngineFailuresAsync(workspace, ct));
         findings = findings
             .GroupBy(x => string.Join('|', x.Category, x.FilePath, x.Line, x.RuleId, x.Message), StringComparer.Ordinal)
             .Select(x => x.First())
             .Take(2000)
             .ToList();
-        return Result(tools, findings, artifactRoot);
+        return Result(tools, findings, artifactRoot, AssessAvailability(true, true, uat is not null));
 
         async Task RunEditorAsync(
             string toolName,
@@ -172,20 +202,38 @@ public sealed class UnrealProjectQaAdapter(
             tools.Add(execution.Tool);
             findings.AddRange(execution.Findings);
         }
-
-        void AddUnavailable(string tool, string summary)
-            => tools.Add(new(tool, false, false, null, 0, "", "", summary));
     }
+
+    public static UnrealQaAvailability AssessAvailability(
+        bool projectDescriptorPresent,
+        bool editorAvailable,
+        bool automationToolAvailable)
+    {
+        if (!projectDescriptorPresent)
+            return new(false, false, false, false, false, "NotEvaluated", "A root .uproject descriptor is required.");
+        if (!editorAvailable)
+            return new(true, false, false, false, false, "NotEvaluated", "UnrealEditor-Cmd is unavailable.");
+        if (!automationToolAvailable)
+            return new(true, true, false, true, false, "PartiallyEvaluable", "Editor QA is available but package QA is not evaluable without RunUAT/AutomationTool.");
+        return new(true, true, true, true, true, "Evaluable", "Unreal runtime and package QA toolchains are available.");
+    }
+
+    private static QaToolExecution Unavailable(string tool, string summary)
+        => new(tool, false, false, null, 0, "", "", summary);
 
     private static QaAdapterResult Result(
         IReadOnlyList<QaToolExecution> tools,
         IReadOnlyList<QaFindingCandidate> findings,
-        string artifactRoot)
+        string artifactRoot,
+        UnrealQaAvailability availability)
     {
         var summary = JsonSerializer.Serialize(new
         {
             adapter = "unreal",
             artifactRoot,
+            availability,
+            runtimeEvaluated = availability.RuntimeQaEvaluable,
+            packageEvaluated = availability.PackageQaEvaluable,
             tools = tools.Select(x => new { x.Tool, x.WasAvailable, x.Succeeded, x.ExitCode, x.SandboxJson }),
             findingCount = findings.Count,
             critical = findings.Count(x => x.Severity == Severity.Critical)
@@ -198,7 +246,8 @@ public sealed class UnrealProjectQaAdapter(
         if (SandboxRunnerConfigured())
         {
             var workerCommand = Environment.GetEnvironmentVariable("UNREAL_SANDBOX_EDITOR_COMMAND")?.Trim();
-            if (!string.IsNullOrWhiteSpace(workerCommand)) return workerCommand;
+            if (!string.IsNullOrWhiteSpace(workerCommand))
+                return workerCommand;
             return OperatingSystem.IsWindows() ? "UnrealEditor-Cmd.exe" : "UnrealEditor-Cmd";
         }
 
@@ -213,9 +262,9 @@ public sealed class UnrealProjectQaAdapter(
                      : new[] { "UnrealEditor-Cmd", "UE4Editor-Cmd" })
         {
             var resolved = ProcessExecutor.FindExecutable(candidate);
-            if (resolved is not null) return resolved;
+            if (resolved is not null)
+                return resolved;
         }
-
         return null;
     }
 
@@ -224,7 +273,8 @@ public sealed class UnrealProjectQaAdapter(
         if (SandboxRunnerConfigured())
         {
             var workerCommand = Environment.GetEnvironmentVariable("UNREAL_SANDBOX_UAT_COMMAND")?.Trim();
-            if (!string.IsNullOrWhiteSpace(workerCommand)) return workerCommand;
+            if (!string.IsNullOrWhiteSpace(workerCommand))
+                return workerCommand;
             return OperatingSystem.IsWindows() ? "RunUAT.bat" : "RunUAT.sh";
         }
 
@@ -235,38 +285,48 @@ public sealed class UnrealProjectQaAdapter(
                 return Path.GetFullPath(configured);
         }
 
-        if (Path.IsPathRooted(editor))
+        if (!Path.IsPathRooted(editor))
+            return null;
+        try
         {
-            try
+            var directory = new FileInfo(editor).Directory;
+            while (directory is not null)
             {
-                var directory = new FileInfo(editor).Directory;
-                while (directory is not null)
-                {
-                    var candidate = Path.Combine(
-                        directory.FullName,
-                        "Engine",
-                        "Build",
-                        "BatchFiles",
-                        OperatingSystem.IsWindows() ? "RunUAT.bat" : "RunUAT.sh");
-                    if (File.Exists(candidate)) return candidate;
-                    var direct = Path.Combine(directory.FullName, "Build", "BatchFiles", OperatingSystem.IsWindows() ? "RunUAT.bat" : "RunUAT.sh");
-                    if (File.Exists(direct)) return direct;
-                    directory = directory.Parent;
-                }
-            }
-            catch
-            {
-                // Discovery failure is represented as unavailable, not as a product defect.
+                var candidate = Path.Combine(
+                    directory.FullName,
+                    "Engine",
+                    "Build",
+                    "BatchFiles",
+                    OperatingSystem.IsWindows() ? "RunUAT.bat" : "RunUAT.sh");
+                if (File.Exists(candidate))
+                    return candidate;
+                var direct = Path.Combine(
+                    directory.FullName,
+                    "Build",
+                    "BatchFiles",
+                    OperatingSystem.IsWindows() ? "RunUAT.bat" : "RunUAT.sh");
+                if (File.Exists(direct))
+                    return direct;
+                directory = directory.Parent;
             }
         }
-
+        catch (IOException ex)
+        {
+            Trace.TraceWarning($"Unreal AutomationTool discovery failed: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Trace.TraceWarning($"Unreal AutomationTool discovery was denied: {ex.Message}");
+        }
         return null;
     }
 
     private static string ResolveTargetPlatform()
     {
         var configured = Environment.GetEnvironmentVariable("UNREAL_TARGET_PLATFORM")?.Trim();
-        if (!string.IsNullOrWhiteSpace(configured) && configured.Length <= 40 && configured.All(x => char.IsLetterOrDigit(x) || x is '_' or '-'))
+        if (!string.IsNullOrWhiteSpace(configured)
+            && configured.Length <= 40
+            && configured.All(x => char.IsLetterOrDigit(x) || x is '_' or '-'))
             return configured;
         if (OperatingSystem.IsWindows()) return "Win64";
         if (OperatingSystem.IsMacOS()) return "Mac";
@@ -277,11 +337,14 @@ public sealed class UnrealProjectQaAdapter(
         => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DIP_QA_SANDBOX_RUNNER"))
            || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DIP_QA_SANDBOX_IMAGE"));
 
-    private static async Task<IReadOnlyList<QaFindingCandidate>> ReadExistingEngineFailuresAsync(string workspace, CancellationToken ct)
+    private static async Task<IReadOnlyList<QaFindingCandidate>> ReadExistingEngineFailuresAsync(
+        string workspace,
+        CancellationToken ct)
     {
         var findings = new List<QaFindingCandidate>();
         var saved = Path.Combine(workspace, "Saved", "Logs");
-        if (!Directory.Exists(saved)) return findings;
+        if (!Directory.Exists(saved))
+            return findings;
         foreach (var log in Directory.EnumerateFiles(saved, "*.log")
                      .OrderByDescending(File.GetLastWriteTimeUtc)
                      .Take(10))
@@ -306,7 +369,8 @@ public sealed class UnrealProjectQaAdapter(
                         Path.GetRelativePath(workspace, log),
                         "DIP-UNREAL-LOG"));
                 }
-                if (findings.Count >= 200) break;
+                if (findings.Count >= 200)
+                    break;
             }
         }
         return findings;

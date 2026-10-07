@@ -1,4 +1,4 @@
-// Purpose: Implements Qa Capabilities responsibilities for quality automation.
+// Purpose: Defines QA capability contracts, autonomous-debug experiments, and verified-fix boundaries.
 using Dip.Domain.Enums;
 using Dip.Domain.ValueObjects;
 
@@ -111,7 +111,7 @@ public enum DebugExperimentKind
     Stress = 7,
     Fuzz = 8,
 
-    // Executable-contract additions.
+    // Executable-contract additions. Append-only to protect persisted numeric values.
     Compile = 9,
     UnitTest = 10,
     AssetValidation = 11,
@@ -125,7 +125,13 @@ public enum DebugExperimentKind
     MemorySafety = 19,
     RaceDetection = 20,
     DeadlockDetection = 21,
-    Security = 22
+    Security = 22,
+
+    // Game-specific executable experiments. These remain distinct from generic
+    // Benchmark/RuntimeReplay so a generic process success cannot satisfy a GPU
+    // or multiplayer verification requirement.
+    GpuPerformance = 23,
+    Multiplayer = 24
 }
 
 public sealed record DebugHypothesis(

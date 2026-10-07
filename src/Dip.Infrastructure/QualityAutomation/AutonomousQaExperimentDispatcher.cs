@@ -96,6 +96,10 @@ public sealed class AutonomousQaExperimentDispatcher(
                     => await RunMediaAsync(step, context, resolver, configuration, MediaRegressionType.Audio, started, ct),
                 DebugExperimentKind.Benchmark or DebugExperimentKind.LoadTest
                     => await RunBenchmarkAsync(step, context, resolver, configuration, started, ct),
+                DebugExperimentKind.GpuPerformance
+                    => await RunGpuPerformanceAsync(step, context, resolver, configuration, started, ct),
+                DebugExperimentKind.Multiplayer
+                    => await RunMultiplayerAsync(step, context, resolver, configuration, started, ct),
                 DebugExperimentKind.RuntimeReplay
                     => await RunReplayAsync(step, context, workspace, configuration, started, ct),
                 DebugExperimentKind.VerifyPatch
@@ -567,6 +571,100 @@ public sealed class AutonomousQaExperimentDispatcher(
             [$"benchmark:samples:{result.Samples.Count}", $"environment:{result.EnvironmentFingerprint}"], null, result.EnvironmentFingerprint, started);
     }
 
+    private async Task<AutonomousQaExperimentResult> RunGpuPerformanceAsync(
+        AutonomousQaExperimentStep step,
+        AutonomousQaExperimentExecutionContext context,
+        ExactWorkspaceResolver resolver,
+        string? configuration,
+        DateTimeOffset started,
+        CancellationToken ct)
+    {
+        var config = Deserialize<GpuPerformanceDispatchConfiguration>(configuration);
+        if (config is null || string.IsNullOrWhiteSpace(config.Executable))
+            return NotConfigured(step, context,
+                "GpuPerformance requires an executable that emits the DIP_GPU_METRIC telemetry contract.",
+                started);
+
+        var command = new GpuPerformanceCommand(
+            Target(context, config.Executable, config.Arguments, config.TimeoutSeconds ?? step.TimeoutSeconds),
+            config.WarningP95GpuFrameMs ?? 15m,
+            config.FailureP95GpuFrameMs ?? 16.6667m,
+            config.WarningVramMb ?? 0,
+            config.FailureVramMb ?? 0,
+            config.HitchThresholdMs ?? 33.333m,
+            config.MaximumHitches ?? 0,
+            config.MinimumSamples ?? 30);
+        var runner = new GpuPerformanceExperimentRunner(executor, resolver);
+        var result = await runner.RunAsync(command, ct);
+        var status = MapStatus(result.Status);
+        var evidence = new List<string>
+        {
+            result.ArtifactReference,
+            $"gpu:samples:{result.Samples}",
+            $"gpu:p95-ms:{result.P95GpuFrameMs:0.###}",
+            $"gpu:hitches:{result.Hitches}"
+        };
+        if (result.PeakVramMb.HasValue)
+            evidence.Add($"gpu:peak-vram-mib:{result.PeakVramMb.Value}");
+
+        return Result(
+            step,
+            context,
+            status,
+            status == AutonomousQaExperimentStatus.Passed,
+            result.Summary,
+            evidence,
+            result.ArtifactReference,
+            null,
+            started);
+    }
+
+    private async Task<AutonomousQaExperimentResult> RunMultiplayerAsync(
+        AutonomousQaExperimentStep step,
+        AutonomousQaExperimentExecutionContext context,
+        ExactWorkspaceResolver resolver,
+        string? configuration,
+        DateTimeOffset started,
+        CancellationToken ct)
+    {
+        var config = Deserialize<MultiplayerDispatchConfiguration>(configuration);
+        if (config is null || string.IsNullOrWhiteSpace(config.Executable))
+            return NotConfigured(step, context,
+                "Multiplayer requires a multi-client harness that emits the DIP_MP_STATE telemetry contract.",
+                started);
+
+        var command = new MultiplayerQaCommand(
+            Target(context, config.Executable, config.Arguments, config.TimeoutSeconds ?? step.TimeoutSeconds),
+            config.Clients ?? 2,
+            config.DurationSeconds ?? Math.Clamp(step.TimeoutSeconds, 10, 600),
+            config.LatencyMs ?? 0,
+            config.JitterMs ?? 0,
+            config.PacketLossPercent ?? 0m,
+            config.MinimumCommonTicks ?? 10,
+            config.MaximumDesyncTicks ?? 0);
+        var runner = new MultiplayerQaExperimentRunner(executor, resolver);
+        var result = await runner.RunAsync(command, ct);
+        var status = MapStatus(result.Status);
+        IReadOnlyList<string> evidence =
+        [
+            result.ArtifactReference,
+            $"multiplayer:clients:{result.Clients}",
+            $"multiplayer:common-ticks:{result.CommonTicks}",
+            $"multiplayer:desync-ticks:{result.DesyncTicks}",
+            $"multiplayer:impairment-verified:{result.NetworkImpairmentVerified}"
+        ];
+        return Result(
+            step,
+            context,
+            status,
+            status == AutonomousQaExperimentStatus.Passed,
+            result.Summary,
+            evidence,
+            result.ArtifactReference,
+            null,
+            started);
+    }
+
     private async Task<AutonomousQaExperimentResult> RunReplayAsync(
         AutonomousQaExperimentStep step,
         AutonomousQaExperimentExecutionContext context,
@@ -738,8 +836,6 @@ public sealed class AutonomousQaExperimentDispatcher(
         string? environment,
         DateTimeOffset started)
     {
-        // A PASS without any evidence reference is downgraded. This prevents
-        // silent/no-op runners from satisfying a required verification boundary.
         if (status == AutonomousQaExperimentStatus.Passed && evidence.Count == 0)
         {
             status = AutonomousQaExperimentStatus.InfrastructureFailure;
@@ -866,6 +962,30 @@ public sealed class AutonomousQaExperimentDispatcher(
         decimal? WarningThresholdPercent = null,
         decimal? FailureThresholdPercent = null,
         int? VideoSampleFps = null);
+
+    private sealed record GpuPerformanceDispatchConfiguration(
+        string Executable,
+        IReadOnlyList<string>? Arguments = null,
+        decimal? WarningP95GpuFrameMs = null,
+        decimal? FailureP95GpuFrameMs = null,
+        long? WarningVramMb = null,
+        long? FailureVramMb = null,
+        decimal? HitchThresholdMs = null,
+        int? MaximumHitches = null,
+        int? MinimumSamples = null,
+        int? TimeoutSeconds = null);
+
+    private sealed record MultiplayerDispatchConfiguration(
+        string Executable,
+        IReadOnlyList<string>? Arguments = null,
+        int? Clients = null,
+        int? DurationSeconds = null,
+        int? LatencyMs = null,
+        int? JitterMs = null,
+        decimal? PacketLossPercent = null,
+        int? MinimumCommonTicks = null,
+        int? MaximumDesyncTicks = null,
+        int? TimeoutSeconds = null);
 
     private sealed record ReplayDispatchConfiguration(
         string Command,

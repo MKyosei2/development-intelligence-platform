@@ -200,8 +200,8 @@ internal sealed class FuzzExperimentRunner(ProcessExecutor executor, IQaWorkspac
         var seeds = new List<byte[]>
         {
             Array.Empty<byte>(),
-            [0],
-            [0xff],
+            new byte[] { 0 },
+            new byte[] { 0xff },
             Encoding.UTF8.GetBytes("0"),
             Encoding.UTF8.GetBytes("null"),
             Encoding.UTF8.GetBytes("{}"),
@@ -211,8 +211,8 @@ internal sealed class FuzzExperimentRunner(ProcessExecutor executor, IQaWorkspac
         {
             seeds.Add(Encoding.UTF8.GetBytes("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"));
             seeds.Add(Encoding.UTF8.GetBytes("{\"type\":\"ping\",\"id\":0,\"payload\":{}}"));
-            seeds.Add([0, 0, 0, 0]);
-            seeds.Add([0xff, 0xff, 0xff, 0xff]);
+            seeds.Add(new byte[] { 0, 0, 0, 0 });
+            seeds.Add(new byte[] { 0xff, 0xff, 0xff, 0xff });
         }
         else if (mode == "game-state")
         {
