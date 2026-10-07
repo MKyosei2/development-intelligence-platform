@@ -306,12 +306,18 @@ public sealed class MultiplayerQaExperimentRunner(
     }
 
     private static bool TryInt(IReadOnlyDictionary<string, string> values, string key, out int result)
-        => values.TryGetValue(key, out var text)
-           && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+    {
+        result = default;
+        return values.TryGetValue(key, out var text)
+               && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+    }
 
     private static bool TryLong(IReadOnlyDictionary<string, string> values, string key, out long result)
-        => values.TryGetValue(key, out var text)
-           && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+    {
+        result = default;
+        return values.TryGetValue(key, out var text)
+               && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+    }
 
     private static decimal? NullableDecimal(IReadOnlyDictionary<string, string> values, string key)
         => values.TryGetValue(key, out var text)

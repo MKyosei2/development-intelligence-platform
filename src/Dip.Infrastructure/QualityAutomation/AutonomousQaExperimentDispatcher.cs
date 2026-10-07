@@ -147,7 +147,7 @@ public sealed class AutonomousQaExperimentDispatcher(
             .Where(x => x.WasAvailable && ToolMatches(capability, x.Tool))
             .ToArray();
         var specializedFindings = snapshot.Findings
-            .Where(x => FindingMatches(capability, x.Finding))
+            .Where(x => FindingMatches(capability, x))
             .ToArray();
 
         // A specialized failure is evidence even if the external tool failed before

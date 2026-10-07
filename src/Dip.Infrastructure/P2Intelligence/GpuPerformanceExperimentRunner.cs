@@ -85,12 +85,12 @@ public sealed class GpuPerformanceExperimentRunner(
 
         if (result.TimedOut || result.ExitCode is not 0)
         {
-            var status = result.TimedOut ? "Failed" : result.ExitCode is null ? "InfrastructureFailure" : "Failed";
+            var executionStatus = result.TimedOut ? "Failed" : result.ExitCode is null ? "InfrastructureFailure" : "Failed";
             var summary = result.TimedOut
                 ? "GPU performance target timed out."
                 : $"GPU performance target exited with code {(result.ExitCode?.ToString() ?? "n/a")}.";
-            await WriteEvidenceAsync(root, command, result, Array.Empty<GpuPerformanceSample>(), status, summary, ct);
-            return EmptyResult(status, root, summary);
+            await WriteEvidenceAsync(root, command, result, Array.Empty<GpuPerformanceSample>(), executionStatus, summary, ct);
+            return EmptyResult(executionStatus, root, summary);
         }
 
         var samples = ParseTelemetry(result.StandardOutput)
@@ -216,12 +216,18 @@ public sealed class GpuPerformanceExperimentRunner(
     }
 
     private static bool TryDecimal(IReadOnlyDictionary<string, string> values, string key, out decimal result)
-        => values.TryGetValue(key, out var text)
-           && decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+    {
+        result = default;
+        return values.TryGetValue(key, out var text)
+               && decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+    }
 
     private static bool TryLong(IReadOnlyDictionary<string, string> values, string key, out long result)
-        => values.TryGetValue(key, out var text)
-           && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+    {
+        result = default;
+        return values.TryGetValue(key, out var text)
+               && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+    }
 
     private static bool HasNegativeLong(IReadOnlyDictionary<string, string> values, string key)
         => TryLong(values, key, out var value) && value < 0;
