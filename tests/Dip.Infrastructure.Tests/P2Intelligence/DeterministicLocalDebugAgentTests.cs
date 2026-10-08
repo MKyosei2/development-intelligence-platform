@@ -1,4 +1,5 @@
-// Purpose: Verifies Deterministic Local Debug Agent behavior, edge cases, and repository invariants.
+// Purpose: Locks deterministic local reasoning to evidence-grounded hypotheses and bounded evidence-derived fixes.
+using System.Text.Json;
 using Dip.Application.Features.QualityAutomation;
 using Dip.Infrastructure.P2Intelligence;
 using FluentAssertions;
@@ -8,37 +9,63 @@ namespace Dip.Infrastructure.Tests.P2Intelligence;
 public sealed class DeterministicLocalDebugAgentTests
 {
     [Fact]
-    public async Task Generates_grounded_http_500_hypothesis_without_external_provider()
+    public async Task GenerateHypothesesAsync_RanksAsyncContractDrift_WhenQueuedEvidenceIsPresent()
     {
-        var evidenceId = Guid.NewGuid();
-        var sut = new DeterministicLocalDebugAgent();
-
-        var result = await sut.GenerateHypothesesAsync(
+        var id = Guid.NewGuid();
+        var agent = new DeterministicLocalDebugAgent();
+        var result = await agent.GenerateHypothesesAsync(
             new DebugHypothesisRequest(
                 Guid.NewGuid(),
-                "project-sources",
-                "Plan & Sources returns HTTP 500 Internal Server Error",
-                $$"""{"id":"{{evidenceId}}","outcome":"Failed","summary":"HTTP 500 Internal Server Error"}""",
-                null,
+                "gui-e2e",
+                "202 Accepted returns Queued but test expected a terminal result",
+                JsonSerializer.Serialize(new { evidenceId = id, status = "Queued", transport = "202 Accepted", durableJob = true }),
+                "background job polling",
                 3),
             CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.Provider.Should().Be("DIP.LocalIntelligence");
-        result.Model.Should().Be("deterministic-rules-v1");
-        result.Hypotheses.Should().NotBeEmpty();
-        result.Hypotheses[0].EvidenceIds.Should().Contain(evidenceId);
-        result.Hypotheses[0].Confidence.Should().BeInRange(0m, 1m);
+        result!.Hypotheses.Should().NotBeEmpty();
+        result.Hypotheses[0].Id.Should().Contain("async.contract-drift");
+        result.Hypotheses[0].EvidenceIds.Should().Contain(id);
     }
 
     [Fact]
-    public async Task Fix_proposal_fails_closed_when_no_provable_local_patch_rule_exists()
+    public async Task ProposeAsync_ReturnsOnlyExplicitBoundedEvidenceCandidate()
     {
-        var sut = new DeterministicLocalDebugAgent();
-        var result = await sut.ProposeAsync(
-            new FixProposalRequest(Guid.NewGuid(), "subject", "question", "{}", null),
+        var evidenceId = Guid.NewGuid();
+        var evidence = JsonSerializer.Serialize(new
+        {
+            evidenceId,
+            localFixCandidate = new
+            {
+                summary = "Fix deterministic assertion",
+                unifiedDiff = "--- a/tests/example.cs\n+++ b/tests/example.cs\n@@ -1 +1 @@\n-old\n+new\n"
+            }
+        });
+        var agent = new DeterministicLocalDebugAgent();
+        var proposal = await agent.ProposeAsync(
+            new FixProposalRequest(Guid.NewGuid(), "test", "fix", evidence, null),
             CancellationToken.None);
 
-        result.Should().BeNull();
+        proposal.Should().NotBeNull();
+        proposal!.Provider.Should().Be("DIP.LocalIntelligence");
+        proposal.EvidenceIds.Should().Contain(evidenceId);
+        proposal.UnifiedDiff.Should().Contain("+++ b/tests/example.cs");
+    }
+
+    [Fact]
+    public async Task ProposeAsync_DoesNotInventPatchWithoutEvidenceCandidate()
+    {
+        var agent = new DeterministicLocalDebugAgent();
+        var proposal = await agent.ProposeAsync(
+            new FixProposalRequest(
+                Guid.NewGuid(),
+                "test",
+                "fix this",
+                JsonSerializer.Serialize(new { evidenceId = Guid.NewGuid(), error = "CS0103" }),
+                null),
+            CancellationToken.None);
+
+        proposal.Should().BeNull();
     }
 }
