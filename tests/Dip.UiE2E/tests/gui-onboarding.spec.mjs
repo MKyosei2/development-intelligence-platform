@@ -37,7 +37,41 @@ async function waitForSpreadsheetOutcome(page, timeout = 30_000) {
     throw new Error(
       'Spreadsheet UI reported an error: ' + (await error.innerText()).trim());
   }
+
   return result;
+}
+
+async function waitForAutonomousDebugSession(
+  request,
+  projectId,
+  sessionId,
+  timeout = 30_000) {
+  const deadline = Date.now() + timeout;
+  let lastStatus = 'not-created';
+
+  while (Date.now() < deadline) {
+    const response = await request.get(
+      `${apiBase}/api/v1/defect-intelligence/projects/${projectId}/autonomous-debug/${sessionId}`);
+
+    if (response.status() === 404) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      continue;
+    }
+
+    expect(response.ok(), await response.text()).toBeTruthy();
+
+    const session = await response.json();
+    lastStatus = session.status ?? 'unknown';
+
+    if (session.completedAtUtc) {
+      return session;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error(
+    `Autonomous debug session ${sessionId} did not complete within ${timeout}ms; lastStatus=${lastStatus}`);
 }
 
 test.describe('DIP GUI onboarding', () => {
@@ -98,28 +132,43 @@ test.describe('DIP GUI onboarding', () => {
 
   test('autonomous debug backend persists deterministic history and GUI restores it after refresh', async ({ page, request }) => {
     const { projectId } = await createManualProject(page, 'Debug History');
-    const response = await request.post(`${apiBase}/api/v1/defect-intelligence/projects/${projectId}/autonomous-debug`, {
-      data: {
-        subjectKey: 'deterministic-no-evidence',
-        question: 'Return only evidence-grounded hypotheses.',
-        evidenceJson: '{}',
-        workspaceRelativePath: '.',
-        repositoryContext: null,
-        baseCommit: null,
-        language: 'auto',
-        domainId: 'software',
-        budget: {
-          maxHypotheses: 2,
-          maxExperiments: 1,
-          maxAiCalls: 2,
-          timeoutSecondsPerExperiment: 30,
-          maxWallClockMinutes: 1
+
+    const response = await request.post(
+      `${apiBase}/api/v1/defect-intelligence/projects/${projectId}/autonomous-debug`,
+      {
+        data: {
+          subjectKey: 'deterministic-no-evidence',
+          question: 'Return only evidence-grounded hypotheses.',
+          evidenceJson: '{}',
+          workspaceRelativePath: '.',
+          repositoryContext: null,
+          baseCommit: null,
+          language: 'auto',
+          domainId: 'software',
+          budget: {
+            maxHypotheses: 2,
+            maxExperiments: 1,
+            maxAiCalls: 2,
+            timeoutSecondsPerExperiment: 30,
+            maxWallClockMinutes: 1
+          }
         }
-      }
-    });
-    expect(response.ok(), await response.text()).toBeTruthy();
-    const session = await response.json();
+      });
+
+    expect(response.status(), await response.text()).toBe(202);
+
+    const queued = await response.json();
+    expect(queued.status).toBe('Queued');
+    expect(queued.sessionId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(queued.jobId).toMatch(/^[0-9a-f-]{36}$/i);
+
+    const session = await waitForAutonomousDebugSession(
+      request,
+      projectId,
+      queued.sessionId);
+
     expect(session.status).toBe('NoGroundedHypothesis');
+    expect(session.completedAtUtc).toBeTruthy();
 
     await page.goto(`/dashboard/${projectId}/qa`);
     await page.getByTestId('qa-autonomous-debug-tab').click();
@@ -145,6 +194,7 @@ test.describe('DIP GUI onboarding', () => {
       mimeType: xlsxMime,
       buffer: Buffer.from(vfxWorkbookBase64, 'base64')
     });
+
     await expect(page.getByTestId('spreadsheet-analyze')).toBeEnabled();
     await expect(page.getByTestId('spreadsheet-dry-run')).toBeEnabled();
     await expect(page.getByTestId('spreadsheet-apply')).toBeEnabled();
@@ -152,11 +202,10 @@ test.describe('DIP GUI onboarding', () => {
     await page.getByTestId('spreadsheet-analyze').click();
 
     const busy = page.getByTestId('spreadsheet-busy');
-    if (await busy.isVisible())
+    if (await busy.isVisible()) {
       await expect(busy).toContainText('Analyze');
+    }
 
-    // The Blazor server component calls DIP API from server-side ApiClient.
-    // Browser page.waitForResponse() cannot observe that HTTP request.
     const analysisResult = await waitForSpreadsheetOutcome(page);
     await expect(analysisResult).toContainText('media.production');
     await expect(analysisResult).toContainText('media.shot');
@@ -164,11 +213,13 @@ test.describe('DIP GUI onboarding', () => {
     await page.getByTestId('spreadsheet-dry-run').click();
     await expect(page.getByTestId('spreadsheet-import-result')).toContainText('Dry-run result');
     await expect(page.getByTestId('spreadsheet-import-result')).toContainText('2');
+
     const afterDryRun = await getUniversalGraph(request, projectId, 'media.production');
     expect(afterDryRun.nodes).toHaveLength(0);
 
     await page.getByTestId('spreadsheet-apply').click();
     await expect(page.getByTestId('spreadsheet-import-result')).toContainText('Import result');
+
     const afterApply = await getUniversalGraph(request, projectId, 'media.production');
     expect(afterApply.nodes).toHaveLength(2);
     expect(afterApply.nodes.every((entry) => entry.kind === 'media.shot')).toBeTruthy();
