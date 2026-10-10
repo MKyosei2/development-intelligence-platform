@@ -1,43 +1,116 @@
-# Reviewer向け概要
+# 採用担当者・技術レビュアー向け概要 | Development Intelligence Platform
 
-DIPは、C# Backend / Web / Worker、Python分析、C++ / native QA、CI/CD、PostgreSQL-backed durable queueを一つのDevelopment Intelligence製品として統合した、ゲーム・ソフトウェア制作向けDevelopment Infrastructureです。
+> **最初の60秒で伝えたいこと**  
+> DIPは「機能をたくさん並べたダッシュボード」ではありません。ゲーム・ソフトウェア制作で分散する**不具合の検出結果、開発進捗の申告、コードの改訂履歴、テスト結果**を結び付け、**「完成した」という申告を検証可能な根拠で判定する**ために設計した開発支援基盤です。  
+> 代表例は「重大な不具合が残っているのに進捗100%と申告された場合、完了扱いにしない」ことです。
 
-## 60秒読み順
+**対象**：ゲームクライアントエンジニア、ツール／TA、QA、開発基盤の技術レビュアー。  
+**個人の担当**：DIPの統合方針の設計、ソフトウェアの実装・統合、検証工程の整備。既存資産を再構成しているため、全機能を2026年7月以降にゼロから新規開発したとは主張しません。  
+**現在の位置付け**：開発・検証段階のポートフォリオ。**商用本番稼働、24時間365日運用、ゲームエンジン上のすべての実動作は主張しません**。
 
-1. `README.md`の「まず見てほしい3領域」でProject Truth / Game Development QA / Verification & Release Operationsを確認する。
-2. `QA_EVIDENCE_CASE_STUDY.md`で、Critical QA Evidenceがunsupported Complete claimをProject TruthでContradictedへ変える流れを見る。
-3. `README.md`の「Verification status」と「Final exact-revision gate」で、Implemented / Tested / Runtime Verifiedを分離し、current revisionのPASSをEvidenceなしに継承しない設計を確認する。
-4. `ENGINEERING_JOURNEY.md` と `docs/09-portfolio/evidence/`、GitHub Actions / Release artifactで、失敗分析・再発防止・exact-revision verificationが開発プロセスへ組み込まれていることを確認する。
+---
 
-## 何を評価してほしいProjectか
+## 最短レビュー：1分・3分・10分
 
-DIPの主眼は、gameplayやrendering algorithmそのものではありません。ゲーム制作現場で分散しやすいGit / CI / QA / runtime / performance / project dataをEvidenceへ統合し、開発者・TA/TD・QA・Lead・PMが同じ根拠を見て判断できる基盤を設計した点です。
+| 時間 | 確認するもの | 判断できること |
+|---|---|---|
+| **1分** | この概要の「解決する問題」と「設計判断」 | 何を目的とした開発か／技術的な着眼点 |
+| **3分** | [QA Evidence Case Study](QA_EVIDENCE_CASE_STUDY.md) と [E2Eテスト本体](../../tests/Dip.EndToEndTests/Scenarios/GameDevelopmentEvidenceScenario.cs) | 不具合が残るときの完了判定を、どう自動検証するか |
+| **10分** | [Engineering Journey](ENGINEERING_JOURNEY.md)、[アーキテクチャ](ARCHITECTURE_OVERVIEW.md)、[GitHub Actions](https://github.com/MKyosei2/development-intelligence-platform/actions) | 技術的な変化、責務分離、検証の追跡可能性 |
 
-特に評価対象として明確にしたい設計判断は次です。
+入口：[README](../../README.md) / [2〜3分デモ手順](QA_EVIDENCE_DEMO.md) / [ゲーム開発に置き換えた例](GAME_DEVELOPMENT_SCENARIO.md)
 
-- ClaimとEvidenceを分離し、source / revision / freshness / contradictionを追跡する。
-- Historical PASSを新revisionへ継承せず、exact-revision artifactを要求する。
-- Product FailureとQA Infrastructure Failureを分離する。
-- C++ / engine / native toolchain固有の情報を失わず、Project Contextへ正規化する。
-- 未実行、skipped、environment-blockedを成功扱いしない。
-- Unit / Integration / E2E / benchmark / QA Bug Zoo / Project Truthを同一revisionへ束ねる。
+## 解決する問題：進捗100%でも、ゲームは完成とは限らない
 
-## 中心Case Studyの境界
+ゲーム制作には、ソースコード、Unity/Unreal、QA、Git、CI、タスク管理などの異なる情報源があります。各担当者がそれぞれのツールで「完了」と報告しても、重大な不具合、参照切れ、未実行のテストが残っている可能性があります。
 
-Portfolioの中心scenarioはdeterministic fixtureです。Critical findingは実production障害の発見結果ではなく、Project Truthのfail-closed behaviorを再現可能に検証するため意図的に投入します。
+DIPは**作業者の申告（Claim）と技術的な根拠（Evidence）を別のデータとして保持**します。情報源・対象プロジェクト・コードの改訂版・検証時点を踏まえて照合し、矛盾があれば「完了」と判定しないようにします。人の能力を採点するツールではなく、**作業状態についての主張が裏付けられているか**を扱うツールです。
 
-Verifier PASSの意味は「品質Gateが成功した」ではありません。期待されるproduct-side outcomeはQuality Gate `Failed`であり、その状態でComplete / 100% claimをDIPが`Contradicted`にできることを検証します。
+```text
+QA/CI/Native/Engineなどの検証情報     制作進行の完了申告
+              |                          |
+              v                          v
+      Evidence（根拠）             Claim（申告）
+              \                          /
+               \                        /
+                v                      v
+                 Project Truth / 判定モデル
+                          |
+           +--------------+--------------+
+           |                             |
+      整合している                  根拠と矛盾する
+       確認可能                     Contradicted
+                                         |
+                                  Quality Gate失敗
+```
 
-## Engine integrationの境界
+### 代表ケース：重大な不具合 vs 完了申告
 
-Unity / Unreal integration sourceは保持しますが、実target projectを供給していないrevisionではengine-specific runtimeをVerifiedと主張しません。Hosted workflowのcontract/unit verificationとactual Editor runtimeを分離し、target projectがある場合だけoptional verifierで別Evidenceを作ります。
+1. **意図的に作ったCritical QA情報**をDIPへ投入する。
+2. 品質ゲートが `Failed` になることを確認する。
+3. 同じプロジェクトに `Complete / 100%` の申告を追加する。
+4. 申告が `Contradicted` と判定され、検証済み進捗が申告進捗より低くなることを確認する。
 
-## 書類選考時
+これは**実際の商用ゲームで見つけた不具合の実績ではなく、DIP自身を検証する再現可能なテスト**です。テストがPASSする意味は、製品の品質ゲートが成功したことではなく、**問題のある完了申告を正しく拒否した**ことです。
 
-ローカル実行は前提にしません。READMEのGIF、Architecture、historical baseline、exact-revision CI / Release artifact、final Evidence bundleから主要範囲を確認できます。GIF / screenshotはsample-data previewであり、Runtime Verifiedの根拠には使いません。
+- [入力・期待値・実行・限界を含むケーススタディ](QA_EVIDENCE_CASE_STUDY.md)
+- [自動E2Eテストのソース](../../tests/Dip.EndToEndTests/Scenarios/GameDevelopmentEvidenceScenario.cs)
+- [実APIにQA情報を送る検証スクリプト](../../tools/publish_qa_scenario_evidence.py)
+- [結果を同一改訂版へ束ねる検証コード](../../tools/finalize_portfolio_evidence.py)
 
-最終提出revisionについては、README中の説明よりGitHub Actions / Release artifact / final Evidence bundleを優先してください。final gate未完了のrevisionをCurrent Revision PASSとして扱いません。
+## 開発背景：なぜ制作進行からQAまで範囲が広いのか
 
-## Verification boundary
+このプロジェクトの出発点は、一つの巨大なシステムの新規制作ではありません。作者は大学のゲーム制作で**作品別のデバッグシステムを約8本開発し、手動・自動検査を併用して不具合の発見・調査・修正に取り組んできました**。また、友人の依頼で制作を始めた進行管理系システムや、個人の関心から作成した独立したコード資産も存在しました。
 
-**Implemented / Tested / Runtime Verified / NOT_EVALUATEDを分離**しています。Historical PASS、sample preview、実装済みsourceの存在をcurrent revisionのPASSへ読み替えません。
+前回の就職選考後に着手したのは、これらを単に一か所へ集めることではなく、**共通のプロジェクト情報・品質判断・検証履歴を持つ基盤へ再設計すること**です。制作進行とQAの両方を扱う理由は、「進捗」と「完成を裏付ける品質」が別々に管理される課題を解決したいからです。
+
+> **証拠の境界**：大学授業でのデバッグシステム約8本および友人からの依頼の経緯は作者の経験説明であり、元のコードはここでは非公開です。本リポジトリで直接確認できる対象は**DIPの実装、設計資料、テスト、Git履歴および公開されたCI結果**です。非公開成果を本リポジトリで検証済みと称しません。
+
+開発の変遷と具体的な設計変更は[Engineering Journey](ENGINEERING_JOURNEY.md)にまとめています。
+
+## 技術構成：機能の数より、境界の設計を見てほしい
+
+| 層・実装 | 採用技術 | 主な責務と設計上の狙い |
+|---|---|---|
+| 画面・API | Blazor、C#/.NET 8 | 状態表示と業務操作を分離し、Project Truthをアプリケーション経由で参照 |
+| 永続化・調整 | PostgreSQL | 記録とジョブキューを永続化し、プロセスを跨いでも追跡可能にする |
+| 非同期処理 | .NET Worker | 収集・検証作業を画面/APIの同期処理から切り離す |
+| 解析・QA | Python、C++ | 異なるツールチェーンからの結果を共通Evidenceへ正規化 |
+| 継続的検証 | GitHub Actions、Playwright、各種テスト | ソース改訂版に対する自動検査を記録し、過去の成功を再利用しない |
+| エンジン連携 | Unity / Unreal向けCollector等 | ゲーム固有情報を収集する接続点。**実エディタでの検証とは区別** |
+
+詳細：[アーキテクチャ](ARCHITECTURE_OVERVIEW.md) / [ゲーム開発シナリオ](GAME_DEVELOPMENT_SCENARIO.md)
+
+### 自分の設計判断を評価してほしい4点
+
+1. **申告と根拠の分離**：100%という数値より、重大なQA Findingを優先できるモデルとした。
+2. **改訂版の一致を要求**：古い成功結果で新しいコードを「検証済み」と呼ばない。
+3. **失敗理由の分類**：製品の不具合と、テスト環境のタイムアウト・実行不能を混同しない。
+4. **AIは候補、検証が判定根拠**：AI提案→隔離検証→人の確認を分離し、AIの出力だけで品質を保証しない。
+
+これは、ゲーム制作で培ったデバッグの経験を、**開発プロジェクト全体の品質判断へ拡張する**試みです。
+
+## 検証状況：何が確認でき、何がまだ確認できないか
+
+| 主張 | 判定に必要な根拠 | 現在の読み方 |
+|---|---|---|
+| 実装済み | ソースコード | 実装が存在することと、動作確認済みであることは別 |
+| 自動テスト済み | **当該SHA**のテスト／CI成功 | GitHub Actionsの対象SHA・結果を確認する |
+| 実動作検証済み | **当該SHA**での実ランタイム実行記録 | 対象環境を実行した証拠が必要 |
+| 性能確認済み | **当該SHA**のベンチマーク／Soak結果 | 旧コミットの値を流用しない |
+| 商用本番運用済み | 実運用・監視・復旧等の証拠 | **現状は主張しない** |
+
+**過去の確認できるCI基準点**：[`53e720f790c2d6e7243ee44b12ad6d5aae4f3db1`](https://github.com/MKyosei2/development-intelligence-platform/commit/53e720f790c2d6e7243ee44b12ad6d5aae4f3db1) では、11種類のGitHub Actionsワークフローの成功を確認しています。ただし、**この文書を含む後続コミットが11/11成功したとは主張しません**。提出時の状態は[GitHub Actions](https://github.com/MKyosei2/development-intelligence-platform/actions)と[最新改訂版の証拠ポリシー](evidence/latest-revision.md)を優先してください。
+
+**Unity / Unrealの実Editorランタイム**：本リポジトリで必須とする検証からは除外し、実対象プロジェクトの検証記録がない改訂版では `NOT_EVALUATED` です。契約／単体テストの成功を実Editorでの動作成功とは呼びません。READMEのGIFも**サンプルデータによる画面プレビュー**であり、運用実績ではありません。
+
+## 現在の課題と今後の発展
+
+**現状**：個人開発の統合基盤として設計・実装・自動検証を進めています。  
+**将来像**：企業・個人クリエイターに向け、制作進行からQAまでを一貫して支援する**24時間365日稼働のサービス**として提供すること。
+
+本番運用を名乗るためには、現実の利用者・案件での運用、実ゲームエンジンでの検証、負荷・長期稼働・障害復旧・セキュリティなど、独立して満たすべき条件があります。現時点のCIの成功はそれらを代替しません。
+
+---
+
+**技術的な質問を一つだけ選ぶなら**：「QAでCriticalが残っているのに、管理側がComplete/100%と報告した場合、なぜ、どの情報を優先して完了を否定できるのか」。[ケーススタディ](QA_EVIDENCE_CASE_STUDY.md)と[テストコード](../../tests/Dip.EndToEndTests/Scenarios/GameDevelopmentEvidenceScenario.cs)に、その設計判断が現れています。
