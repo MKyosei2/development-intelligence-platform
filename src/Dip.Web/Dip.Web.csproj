@@ -8,6 +8,6 @@
     <ProjectReference Include="..\Dip.Application\Dip.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.32" />
   </ItemGroup>
 </Project>
